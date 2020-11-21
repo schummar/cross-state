@@ -1,4 +1,4 @@
-import { Store } from './state/state';
+import { Store } from './state/store';
 import { Cache } from './state/cache';
 
 export default new Store({

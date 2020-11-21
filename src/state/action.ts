@@ -1,32 +1,17 @@
-import { Draft, enableMapSet } from 'immer';
-import hash from 'object-hash';
+import { Draft } from 'immer';
 import { useEffect } from 'react';
-import { Store, useStoreState } from './state';
+import { KeysOfPropType } from './misc';
+import { Store } from './store';
 
-enableMapSet();
+type ActionStore<T> = { [key: string]: T };
 
-type KeysOfStringProps<T> = keyof { [K in keyof T as T[K] extends string ? K : never]: T[K] };
-
-export class Cache<T extends Record<string, any>> extends Store<{ [id: string]: T }> {
-  id: (t: T) => string;
-
-  constructor(id: KeysOfStringProps<T> | ((t: T) => string)) {
-    super({});
-    this.id = id instanceof Function ? id : (t) => t[id as keyof T];
-  }
-
-  createAction<A extends (...args: any[]) => T | T[] | Promise<T> | Promise<T[]>>(action: A): Action<T, A> {
-    return new Action(this, action);
-  }
-}
-
-export class Action<T extends Record<string, any>, A extends (...args: any[]) => T | T[] | Promise<T> | Promise<T[]>> {
+export class Action<S, T, A extends (...args: any[]) => T | T[] | Promise<T> | Promise<T[]>> {
   ids = new Store<{ [key: string]: string | string[] }>({});
   isLoading = new Set<string>();
 
-  constructor(public cache: Cache<T>, private action: A) {}
+  constructor(public store: Store<S>, private selector: (state: S) => ActionStore<T>, private id: (item: T) => string, private action: A) {}
 
-  use(...args: Parameters<A>) {
+  subscribe(...args: Parameters<A>) {
     const key = hash(args);
     const ids = useStoreState(this.ids, (ids) => ids[key], [key]);
     const items = useStoreState(
