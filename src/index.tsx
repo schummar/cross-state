@@ -8,7 +8,7 @@ var mountNode = document.getElementById('app');
 ReactDOM.render(
   <div>
     <App />
-    <App2 />
+    {/* <App2 /> */}
   </div>,
   mountNode
 );

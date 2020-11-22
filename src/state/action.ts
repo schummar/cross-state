@@ -1,60 +1,105 @@
-import { Draft } from 'immer';
-import { useEffect } from 'react';
-import { KeysOfPropType } from './misc';
+import { Draft, enableMapSet, PatchListener } from 'immer';
+import hash from 'object-hash';
+import retry from './retry';
 import { Store } from './store';
 
-type ActionStore<T> = { [key: string]: T };
+enableMapSet();
 
-export class Action<S, T, A extends (...args: any[]) => T | T[] | Promise<T> | Promise<T[]>> {
-  ids = new Store<{ [key: string]: string | string[] }>({});
-  isLoading = new Set<string>();
+type Val<Value> = { value: Value };
+type Instance<Arg, Value> = { arg: Arg; result?: Val<Value>; error?: unknown; loading?: Promise<Value>; t?: Date; stale?: boolean };
 
-  constructor(public store: Store<S>, private selector: (state: S) => ActionStore<T>, private id: (item: T) => string, private action: A) {}
+export class Action<Arg, Value> {
+  private cache = new Store<Map<string, Instance<Arg, Value>>>(new Map());
 
-  subscribe(...args: Parameters<A>) {
-    const key = hash(args);
-    const ids = useStoreState(this.ids, (ids) => ids[key], [key]);
-    const items = useStoreState(
-      this.cache,
-      (items) => {
-        if (ids instanceof Array) {
-          const mapped = ids.map((id) => items[id]);
-          if (mapped.some((item) => item === undefined)) return undefined;
-          return mapped as T[];
-        }
-        if (ids) return items[ids];
-        return undefined;
-      },
-      [ids]
-    );
+  constructor(private action: (arg: Arg) => Promise<Value>) {}
 
-    useEffect(() => {
-      if (!items && !this.isLoading.has(key)) {
-        this.load(key, args);
-      }
-    }, [key, items]);
-
-    return items;
+  getCached(arg: Arg) {
+    const key = hash(arg);
+    const instance = this.cache.getState().get(key);
+    return instance?.result?.value;
   }
 
-  async load(key: string, args: Parameters<A>) {
-    this.isLoading.add(key);
-    try {
-      const result = await this.action(...args);
-      for (const item of result instanceof Array ? result : [result]) {
-        this.cache.update((state) => {
-          const id = this.cache.id(item);
-          state[id] = item as Draft<T>;
-        });
-        const ids = result instanceof Array ? result.map((item) => this.cache.id(item)) : this.cache.id(result);
-        this.ids.update((state) => {
-          state[key] = ids;
-        });
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      this.isLoading.delete(key);
+  setCached(arg: Arg, value: Value) {
+    this.updateInstance(arg, (instance) => {
+      instance.result = { value: value as Draft<Value> };
+      instance.t = new Date();
+    });
+  }
+
+  updateCached(arg: Arg, update: (draft: Draft<Value>) => void, listener?: PatchListener) {
+    this.updateInstance(
+      arg,
+      (instance) => {
+        if (!instance.result) throw Error(`Can't update non existing value.`);
+        update(instance.result.value);
+      },
+      listener
+    );
+  }
+
+  updateAllCached(update: (draft: Draft<Value>, arg: Arg) => void, listener?: PatchListener) {
+    for (const { arg } of this.cache.getState().values()) {
+      this.updateCached(arg, (draft) => update(draft, arg), listener);
     }
+  }
+
+  clearCached(arg: Arg) {
+    const key = hash(arg);
+    this.cache.update((state) => {
+      state.delete(key);
+    });
+  }
+
+  clearAllCached() {
+    this.cache.update((state) => {
+      state.clear();
+    });
+  }
+
+  async run(arg: Arg, { tries = 3 }: { tries?: number } = {}) {
+    const key = hash(arg);
+    if (this.cache.getState().get(key)?.loading) {
+      return this.cache.getState().get(key)?.loading;
+    }
+
+    const loading = retry(() => this.action(arg), tries);
+
+    this.updateInstance(arg, (instance) => {
+      instance.loading = loading;
+    });
+
+    try {
+      const value = await loading;
+      this.updateInstance(arg, (instance) => {
+        instance.result = { value: value as Draft<Value> };
+        delete instance.error;
+        instance.t = new Date();
+        delete instance.loading;
+      });
+      return value;
+    } catch (e) {
+      this.updateInstance(arg, (instance) => {
+        delete instance.result;
+        instance.error = e;
+        instance.t = new Date();
+        delete instance.loading;
+      });
+      throw e;
+    }
+  }
+
+  subscribe(arg: Arg, listener: (instance: Instance<Arg, Value>) => void) {
+    const key = hash(arg);
+    listener(this.cache.getState().get(key) ?? { arg });
+    return this.cache.subscribe((state) => state.get(key) ?? { arg }, listener);
+  }
+
+  private updateInstance(arg: Arg, update: (draft: Draft<Instance<Arg, Value>>) => void, listener?: PatchListener) {
+    const key = hash(arg);
+    this.cache.update((state) => {
+      let instance = state.get(key);
+      if (!instance) state.set(key, (instance = { arg: arg as Draft<Arg> }));
+      update(instance);
+    }, listener);
   }
 }

@@ -1,10 +1,18 @@
-import * as React from 'react';
-import globalState, { action1 } from './globalState';
-import { useStoreState } from './state/store';
+import React, { useState } from 'react';
+import globalState from './globalState';
+import { Action } from './state/action';
+import { useAction } from './state/useAction';
+import { useStoreState } from './state/useStoreState';
+
+const action = new Action(async (x: number) => {
+  await new Promise((r) => setTimeout(r, 1000));
+  return x * 2;
+});
 
 export default function App() {
   const counter = useStoreState(globalState, (x) => x.counter);
-  const x = action1.use('#');
+  const x = useAction(action, 42);
+  console.log(x);
 
   function click() {
     globalState.update((state) => {

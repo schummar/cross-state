@@ -1,5 +1,5 @@
 import fastDeepEqual from 'fast-deep-equal';
-import produce, { Draft, PatchListener } from 'immer';
+import produce, { Draft, freeze, PatchListener } from 'immer';
 import { Listener } from './misc';
 
 export type Options = {
@@ -7,13 +7,15 @@ export type Options = {
 };
 
 export class Store<T> {
+  private state: T;
   private listeners = new Set<Listener<T>>();
   private notifyIsScheduled = false;
   private options: Options = {
     equals: fastDeepEqual,
   };
 
-  constructor(private state: T, options?: Partial<Options>) {
+  constructor(state: T, options?: Partial<Options>) {
+    this.state = freeze(state, true);
     Object.assign(this.options, options);
   }
 
@@ -23,6 +25,11 @@ export class Store<T> {
 
   update(update: (draft: Draft<T>) => void, listener?: PatchListener) {
     this.state = produce(this.state, update, listener);
+    this.scheduleNotify();
+  }
+
+  set(state: T) {
+    this.state = freeze(state, true);
     this.scheduleNotify();
   }
 
@@ -37,7 +44,6 @@ export class Store<T> {
     };
 
     this.listeners.add(internalListener);
-    listener(value);
 
     return () => {
       this.listeners.delete(internalListener);

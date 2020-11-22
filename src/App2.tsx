@@ -1,6 +1,6 @@
 import * as React from 'react';
 import globalState from './globalState';
-import { useStoreState } from './state/store';
+import { useStoreState } from './state/useStoreState';
 
 export default function App() {
   const counter = useStoreState(globalState, (x) => x.counter2);

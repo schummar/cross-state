@@ -1,33 +1,21 @@
-import hash from 'object-hash';
-import { useEffect } from 'react';
+import { useRef, useState } from 'react';
 import { Action } from './action';
-import { useStore } from './useStore';
+import useEarlyEffect from './useEarlyEffect';
+import useEqualityRef from './useEqualityRef';
 
-export function useAction<T, A extends (...args: any[]) => T | T[] | Promise<T> | Promise<T[]>>(
-  action: Action<any, T, A>,
-  ...args: Parameters<A>
-) {
-  const key = hash(args);
-  const ids = useStore(action.ids, (ids) => ids[key], [key]);
-  const items = useStore(
-    action.cache,
-    (items) => {
-      if (ids instanceof Array) {
-        const mapped = ids.map((id) => items[id]);
-        if (mapped.some((item) => item === undefined)) return undefined;
-        return mapped as T[];
-      }
-      if (ids) return items[ids];
-      return undefined;
-    },
-    [ids]
-  );
+export function useAction<Arg, Value>(action: Action<Arg, Value>, arg: Arg) {
+  const value = useRef<Value>();
+  const [, setVersion] = useState(0);
 
-  useEffect(() => {
-    if (!items && !this.isLoading.has(key)) {
-      action.load(key, args);
-    }
-  }, [key, items]);
+  useEarlyEffect(() => {
+    value.current = action.getCached(arg);
+    if (!value.current) action.run(arg);
 
-  return items;
+    return action.subscribe(arg, (newValue) => {
+      value.current = newValue.result?.value;
+      setVersion((version) => version + 1);
+    });
+  }, [useEqualityRef(arg)]);
+
+  return value.current;
 }
