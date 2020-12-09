@@ -13,9 +13,19 @@ type Instance<Arg, Value> = {
 };
 
 export class Action<Arg, Value> {
+  static allActions = new Array<Action<any, any>>();
+
+  static clearAllCached() {
+    for (const action of Action.allActions) {
+      action.clearAllCached();
+    }
+  }
+
   private cache = new Store<Map<string, Instance<Arg, Value>>>(new Map());
 
-  constructor(private action: (arg: Arg) => Promise<Value>) {}
+  constructor(private action: (arg: Arg) => Promise<Value>) {
+    Action.allActions.push(this);
+  }
 
   getCached(arg: Arg) {
     const key = hash(arg);
@@ -67,7 +77,7 @@ export class Action<Arg, Value> {
     });
   }
 
-  async run(arg: Arg, { tries = 3 }: { tries?: number } = {}) {
+  async run(arg: Arg, { tries = 3, clearBeforeUpdate }: { tries?: number; clearBeforeUpdate?: boolean } = {}) {
     const key = hash(arg);
     if (this.cache.getState().get(key)?.inProgress) {
       return this.cache.getState().get(key)?.inProgress;
@@ -76,6 +86,7 @@ export class Action<Arg, Value> {
     const task = retry(() => this.action(arg), tries);
 
     this.updateInstance(arg, (instance) => {
+      if (clearBeforeUpdate) delete instance.current;
       instance.inProgress = task;
     });
 
@@ -99,10 +110,9 @@ export class Action<Arg, Value> {
     }
   }
 
-  subscribe(arg: Arg, listener: (instance: Instance<Arg, Value>) => void) {
+  subscribe(arg: Arg, listener: (instance: Instance<Arg, Value>) => void, triggerInital = false) {
     const key = hash(arg);
-    listener(this.cache.getState().get(key) ?? { arg });
-    return this.cache.subscribe((state) => state.get(key) ?? { arg }, listener);
+    return this.cache.subscribe((state) => state.get(key) ?? { arg }, listener, triggerInital);
   }
 
   private updateInstance(arg: Arg, update: (draft: Draft<Instance<Arg, Value>>) => void, listener?: PatchListener) {

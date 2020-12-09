@@ -33,7 +33,7 @@ export class Store<T> {
     this.scheduleNotify();
   }
 
-  subscribe<S>(selector: (state: T) => S, listener: Listener<S>) {
+  subscribe<S>(selector: (state: T) => S, listener: Listener<S>, triggerInital = false) {
     let value = selector(this.state);
 
     const internalListener = () => {
@@ -45,6 +45,7 @@ export class Store<T> {
 
     this.listeners.add(internalListener);
 
+    if (triggerInital) listener(value);
     return () => {
       this.listeners.delete(internalListener);
     };

@@ -1,5 +1,7 @@
-import { Action, Store, useAction, useStoreState } from 'mystate';
-import React from 'react';
+import { Action, Store } from '../..';
+import { useAction, useStoreState } from '../../react';
+import React, { useState } from 'react';
+import './App.css';
 
 const state = new Store({
   a: 1,
@@ -15,11 +17,11 @@ const action = new Action(async (x: number) => {
 
 export default function App() {
   return (
-    <div>
+    <div className="App">
       <A />
       <B />
       <C />
-      <D />
+      <ActionContainer />
     </div>
   );
 }
@@ -34,7 +36,12 @@ function A() {
     });
   }
 
-  return <div onClick={click}>{value}</div>;
+  return (
+    <div onClick={click}>
+      <div>a:</div>
+      <div>{value}</div>
+    </div>
+  );
 }
 function B() {
   const value = useStoreState(state, (x) => x.b);
@@ -46,23 +53,64 @@ function B() {
     });
   }
 
-  return <div onClick={click}>{value}</div>;
+  return (
+    <div onClick={click}>
+      <div>b:</div>
+      <div>{value}</div>
+    </div>
+  );
 }
 
 function C() {
   const value = useStoreState(state, (x) => x.a + x.b);
   console.log('render c', value);
 
-  return <div>{value}</div>;
+  return (
+    <div>
+      <div>c:</div>
+      <div>{value}</div>
+    </div>
+  );
 }
 
-function D() {
-  const [x, { error, isLoading }] = useAction(action, 42);
-  console.log(x, error, isLoading);
+function ActionContainer() {
+  const [mounted, setMounted] = useState(true);
 
-  function click() {
+  function fuck() {
+    action.run(42);
+    action.run(42);
     action.clearAllCached();
+    action.run(42);
+    setTimeout(() => {
+      action.clearAllCached();
+      action.run(42);
+    }, 0);
+    setTimeout(() => {
+      action.clearAllCached();
+      action.run(42);
+    }, 1);
   }
 
-  return <div onClick={click}>{x}</div>;
+  return (
+    <div>
+      <div>action:</div>
+      <div>
+        <span onClick={() => setMounted(!mounted)}>mount</span>
+        <span onClick={() => action.run(42)}>update</span>
+        <span onClick={() => Action.clearAllCached()}>clear</span>
+        <span onClick={fuck}>fuck</span>
+        {mounted && <ActionComp />}
+      </div>
+    </div>
+  );
+}
+
+function ActionComp() {
+  const [x, { error, isLoading }] = useAction(action, 42, { clearBeforeUpdate: true });
+
+  return (
+    <>
+      {error} {isLoading && '...'} {x}
+    </>
+  );
 }
