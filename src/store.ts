@@ -56,7 +56,7 @@ export class Store<T> {
     setTimeout(() => {
       this.notifyIsScheduled = false;
       this.notify();
-    });
+    }, 0);
   }
 
   private notify() {

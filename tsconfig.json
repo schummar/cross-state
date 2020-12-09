@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "outDir": "./dist/",
+    "outDir": "dist",
     "sourceMap": true,
     "strict": true,
     "noImplicitReturns": true,
@@ -8,11 +8,13 @@
     "module": "es6",
     "moduleResolution": "node",
     "target": "es5",
+    "lib": ["ES2015"],
     "allowJs": true,
     "jsx": "react",
     "downlevelIteration": true,
     "allowSyntheticDefaultImports": true,
-    "noUncheckedIndexedAccess": true
+    "noUncheckedIndexedAccess": true,
+    "declaration": true
   },
-  "include": ["./src/**/*"]
+  "include": ["src"]
 }
