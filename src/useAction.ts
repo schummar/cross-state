@@ -9,36 +9,46 @@ export type UseActionOptions = {
   updateOnMount?: boolean;
   /**  */
   clearBeforeUpdate?: boolean;
+  /** */
+  dormant?: boolean;
+  /** */
+  holdPrevious?: boolean;
 };
 
 export function useAction<Arg, Value>(
   action: Action<Arg, Value>,
   arg: Arg,
-  { watchOnly, updateOnMount, clearBeforeUpdate }: UseActionOptions = {}
+  { watchOnly, updateOnMount, clearBeforeUpdate, dormant, holdPrevious }: UseActionOptions = {}
 ): [Value | undefined, { error?: unknown; isLoading: boolean }] {
-  const [value, setValue] = useState(() => action.getCachedValue(arg));
-  const [error, setError] = useState(() => action.getCacheError(arg));
-  const [isLoading, setIsLoading] = useState(() => !!action.getCached(arg)?.inProgress);
+  const [value, setValue] = useState(() => (dormant ? undefined : action.getCachedValue(arg)));
+  const [error, setError] = useState(() => (dormant ? undefined : action.getCacheError(arg)));
+  const [isLoading, setIsLoading] = useState(() => !dormant && !!action.getCached(arg)?.inProgress);
 
   useEffect(() => {
+    if (dormant) {
+      setValue(undefined);
+      setError(undefined);
+      setIsLoading(false);
+      return;
+    }
+
     return action.subscribe(
       arg,
       ({ current, inProgress }) => {
-        setValue(current?.kind === 'value' ? current.value : undefined);
-        setError(current?.kind === 'error' ? current.error : undefined);
+        if (current || !holdPrevious) {
+          setValue(current?.kind === 'value' ? current.value : undefined);
+          setError(current?.kind === 'error' ? current.error : undefined);
+        }
         setIsLoading(!!inProgress);
 
-        if (watchOnly) return;
-        if (!current && !inProgress) {
-          action.run(arg, { clearBeforeUpdate });
-        }
+        if (!watchOnly) action.run(arg);
       },
-      true
+      { emitNow: true }
     );
-  }, [action, useEqualityRef(arg)]);
+  }, [action, useEqualityRef(arg), watchOnly, clearBeforeUpdate, dormant, holdPrevious]);
 
   useEffect(() => {
-    if (updateOnMount) action.run(arg, { clearBeforeUpdate });
+    if (updateOnMount && !dormant) action.run(arg, { update: true, clearBeforeUpdate });
   }, []);
 
   return [value, { error, isLoading }];

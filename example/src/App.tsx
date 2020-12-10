@@ -1,18 +1,18 @@
+import React, { useState } from 'react';
 import { Action, Store } from '../..';
 import { useAction, useStoreState } from '../../react';
-import React, { useState } from 'react';
 import './App.css';
 
 const state = new Store({
-  a: 1,
-  b: 1,
-  c: 1,
+  a: 0,
+  b: 0,
 });
 
+let count = 0;
 const action = new Action(async (x: number) => {
   console.log('calc action');
   await new Promise((r) => setTimeout(r, 1000));
-  return x * 2;
+  return x * 2 + count++;
 });
 
 export default function App() {
@@ -21,7 +21,7 @@ export default function App() {
       <A />
       <B />
       <C />
-      <ActionContainer />
+      <D />
     </div>
   );
 }
@@ -44,12 +44,12 @@ function A() {
   );
 }
 function B() {
-  const value = useStoreState(state, (x) => x.b);
+  const value = useStoreState(state, (x) => x.a + x.b);
   console.log('render b', value);
 
   function click() {
     state.update((state) => {
-      state.b++;
+      state.b--;
     });
   }
 
@@ -62,18 +62,36 @@ function B() {
 }
 
 function C() {
-  const value = useStoreState(state, (x) => x.a + x.b);
-  console.log('render c', value);
+  const [mounted, setMounted] = useState(true);
 
   return (
     <div>
       <div>c:</div>
+      <div>
+        <span onClick={() => setMounted(!mounted)}>mount</span>
+        {mounted && <CInner />}
+      </div>
+    </div>
+  );
+}
+
+function CInner() {
+  const [prop, setProp] = useState<'a' | 'b'>('a');
+  const value = useStoreState(state, (x) => x[prop], [prop]);
+  console.log('render_c', prop, value);
+
+  function click() {
+    setProp(prop === 'a' ? 'b' : 'a');
+  }
+
+  return (
+    <div onClick={click}>
       <div>{value}</div>
     </div>
   );
 }
 
-function ActionContainer() {
+function D() {
   const [mounted, setMounted] = useState(true);
 
   function fuck() {
@@ -99,14 +117,14 @@ function ActionContainer() {
         <span onClick={() => action.run(42)}>update</span>
         <span onClick={() => Action.clearAllCached()}>clear</span>
         <span onClick={fuck}>fuck</span>
-        {mounted && <ActionComp />}
+        {mounted && <DInner />}
       </div>
     </div>
   );
 }
 
-function ActionComp() {
-  const [x, { error, isLoading }] = useAction(action, 42, { clearBeforeUpdate: true });
+function DInner() {
+  const [x, { error, isLoading }] = useAction(action, 42, { updateOnMount: true });
 
   return (
     <>

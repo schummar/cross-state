@@ -1,9 +1,13 @@
 import { Draft, enableMapSet, PatchListener } from 'immer';
-import hash from 'object-hash';
+import objectHash from 'object-hash';
 import retry from './retry';
 import { Store } from './store';
 
 enableMapSet();
+
+function hash(x: any) {
+  return objectHash(x ?? null);
+}
 
 type Result<Value> = { kind: 'value'; value: Value; t: Date } | { kind: 'error'; error: unknown; t: Date };
 type Instance<Arg, Value> = {
@@ -77,10 +81,18 @@ export class Action<Arg, Value> {
     });
   }
 
-  async run(arg: Arg, { tries = 3, clearBeforeUpdate }: { tries?: number; clearBeforeUpdate?: boolean } = {}) {
+  async run(arg: Arg, { update = false, clearBeforeUpdate = false, tries = 3 } = {}) {
     const key = hash(arg);
-    if (this.cache.getState().get(key)?.inProgress) {
-      return this.cache.getState().get(key)?.inProgress;
+
+    const fromCache = this.cache.getState().get(key);
+
+    if (fromCache?.current && !update) {
+      if (fromCache.current.kind === 'value') return fromCache.current.value;
+      else throw fromCache.current.error;
+    }
+
+    if (fromCache?.inProgress) {
+      return fromCache.inProgress;
     }
 
     const task = retry(() => this.action(arg), tries);
@@ -110,9 +122,9 @@ export class Action<Arg, Value> {
     }
   }
 
-  subscribe(arg: Arg, listener: (instance: Instance<Arg, Value>) => void, triggerInital = false) {
+  subscribe(arg: Arg, listener: (instance: Instance<Arg, Value>) => void, { emitNow = false } = {}) {
     const key = hash(arg);
-    return this.cache.subscribe((state) => state.get(key) ?? { arg }, listener, triggerInital);
+    return this.cache.subscribe((state) => state.get(key) ?? { arg }, listener, emitNow);
   }
 
   private updateInstance(arg: Arg, update: (draft: Draft<Instance<Arg, Value>>) => void, listener?: PatchListener) {
