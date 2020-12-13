@@ -1,3 +1,6 @@
+export * from './action';
+export * from './baseStore';
+
 import fastDeepEqual from 'fast-deep-equal';
 import produce, { freeze, PatchListener } from 'immer';
 import { BaseStore } from './baseStore';

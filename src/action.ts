@@ -1,7 +1,7 @@
+import fastDeepEqual from 'fast-deep-equal';
 import objectHash from 'object-hash';
+import { BaseStore } from './baseStore';
 import retry from './retry';
-import { SimpleStore } from './simpleStore';
-import { Store } from './store';
 
 function hash(x: any) {
   return objectHash(x ?? null);
@@ -23,46 +23,42 @@ export class Action<Arg, Value> {
     }
   }
 
-  private cache = new SimpleStore<Map<string, Instance<Arg, Value>>>(new Map());
+  private cache = new BaseStore(new Map<string, Instance<Arg, Value>>(), {
+    equals: fastDeepEqual,
+    update: (state, update: (state: Map<string, Instance<Arg, Value>>) => Map<string, Instance<Arg, Value>>) => update(state),
+  });
 
   constructor(private action: (arg: Arg) => Promise<Value>) {
     Action.allActions.push(this);
   }
 
-  getCached(arg: Arg) {
+  getCache(arg: Arg) {
     const key = hash(arg);
     return this.cache.getState().get(key);
   }
 
-  getCachedValue(arg: Arg) {
-    const instance = this.getCached(arg);
+  getCacheValue(arg: Arg) {
+    const instance = this.getCache(arg);
     return instance?.current?.kind === 'value' ? instance.current.value : undefined;
   }
 
   getCacheError(arg: Arg) {
-    const instance = this.getCached(arg);
+    const instance = this.getCache(arg);
     return instance?.current?.kind === 'error' ? instance.current.error : undefined;
   }
 
-  setCached(arg: Arg, value: Value) {
-    this.updateInstance(arg, (instance) => {
-      instance.current = { kind: 'value', value: value as Draft<Value>, t: new Date() };
-      delete instance.inProgress;
-    });
+  setCache(arg: Arg, value: Value) {
+    const key = hash(arg);
+    this.updateInstance(arg, () => ({ current: { kind: 'value', value, t: new Date() } }));
   }
 
-  updateCached(arg: Arg, update: (value?: Value) => Value) {
-    const current = this.getCached(arg)?.current;
-    const value = current?.kind === 'value' ? current.value : undefined;
-    const newValue = update(value);
-    this.setCached(arg, newValue);
+  updateCache(arg: Arg, update: (value?: Value) => Value) {
+    this.setCache(arg, update(this.getCacheValue(arg)));
   }
 
   updateAllCached(update: (value: Value | undefined, arg: Arg) => Value) {
     for (const { arg, current } of this.cache.getState().values()) {
-      const value = current?.kind === 'value' ? current.value : undefined;
-      const newValue = update(value, arg);
-      this.setCached(arg, newValue);
+      this.setCache(arg, update(current?.kind === 'value' ? current.value : undefined, arg));
     }
   }
 
@@ -70,12 +66,13 @@ export class Action<Arg, Value> {
     const key = hash(arg);
     this.cache.update((state) => {
       state.delete(key);
+      return state;
     });
   }
 
   clearAllCached() {
     this.cache.update((state) => {
-      state.clear();
+      return new Map();
     });
   }
 
@@ -95,25 +92,25 @@ export class Action<Arg, Value> {
 
     const task = retry(() => this.action(arg), tries);
 
-    this.updateInstance(arg, (instance) => {
-      if (clearBeforeUpdate) delete instance.current;
-      instance.inProgress = task;
-    });
+    this.updateInstance(arg, (instance) => ({
+      current: clearBeforeUpdate ? undefined : instance.current,
+      inProgress: task,
+    }));
 
     try {
       const value = await task;
 
       if (task === this.cache.getState().get(key)?.inProgress) {
-        this.setCached(arg, value);
+        this.setCache(arg, value);
       }
 
       return value;
     } catch (e) {
       if (task === this.cache.getState().get(key)?.inProgress) {
-        this.updateInstance(arg, (instance) => {
-          instance.current = { kind: 'error', error: e, t: new Date() };
-          delete instance.inProgress;
-        });
+        this.updateInstance(arg, () => ({
+          current: { kind: 'error', error: e, t: new Date() },
+          inProgress: undefined,
+        }));
       }
 
       throw e;
@@ -125,11 +122,11 @@ export class Action<Arg, Value> {
     return this.cache.subscribe((state) => state.get(key) ?? { arg }, listener, emitNow);
   }
 
-  private updateInstance(arg: Arg, update: (value: Instance<Arg, Value>) => Instance<Arg, Value>) {
+  private updateInstance(arg: Arg, update: (value: Instance<Arg, Value>) => Partial<Instance<Arg, Value>>) {
     const key = hash(arg);
     this.cache.update((state) => {
       let instance = state.get(key) ?? { arg };
-      state.set(key, update({ ...instance }));
+      return state.set(key, { ...instance, ...update(instance) });
     });
   }
 }
