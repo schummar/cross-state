@@ -1,9 +1,7 @@
-import { Draft, enableMapSet, PatchListener } from 'immer';
 import objectHash from 'object-hash';
 import retry from './retry';
+import { SimpleStore } from './simpleStore';
 import { Store } from './store';
-
-enableMapSet();
 
 function hash(x: any) {
   return objectHash(x ?? null);
@@ -25,7 +23,7 @@ export class Action<Arg, Value> {
     }
   }
 
-  private cache = new Store<Map<string, Instance<Arg, Value>>>(new Map());
+  private cache = new SimpleStore<Map<string, Instance<Arg, Value>>>(new Map());
 
   constructor(private action: (arg: Arg) => Promise<Value>) {
     Action.allActions.push(this);
@@ -127,12 +125,11 @@ export class Action<Arg, Value> {
     return this.cache.subscribe((state) => state.get(key) ?? { arg }, listener, emitNow);
   }
 
-  private updateInstance(arg: Arg, update: (draft: Draft<Instance<Arg, Value>>) => void, listener?: PatchListener) {
+  private updateInstance(arg: Arg, update: (value: Instance<Arg, Value>) => Instance<Arg, Value>) {
     const key = hash(arg);
     this.cache.update((state) => {
-      let instance = state.get(key);
-      if (!instance) state.set(key, (instance = { arg: arg as Draft<Arg> }));
-      update(instance);
-    }, listener);
+      let instance = state.get(key) ?? { arg };
+      state.set(key, update({ ...instance }));
+    });
   }
 }
