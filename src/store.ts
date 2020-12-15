@@ -31,15 +31,15 @@ export class Store<T> {
   subscribe<S>(selector: (state: T) => S, listener: (value: S, prev: S | undefined, state: T) => void, { runNow = false } = {}): Cancel {
     let value = selector(this.state);
 
-    const internalListener = () => {
+    const internalListener = (force?: boolean) => {
       const newValue = selector(this.state);
-      if (!runNow && eq(newValue, value)) return;
+      if (!force && eq(newValue, value)) return;
 
       listener(newValue, value, this.state);
       value = newValue;
-      runNow = false;
     };
 
+    if (runNow) internalListener(true);
     this.subscriptions.add(internalListener);
     return () => {
       this.subscriptions.delete(internalListener);
@@ -53,9 +53,9 @@ export class Store<T> {
   ): Cancel {
     let value = selector(this.state);
 
-    const internalListener = () => {
+    const internalListener = (force?: boolean) => {
       const newValue = selector(this.state);
-      if (!runNow && eq(newValue, value)) return;
+      if (!force && eq(newValue, value)) return;
 
       let hasChanged = false;
       produce(
@@ -67,10 +67,10 @@ export class Store<T> {
       );
 
       value = newValue;
-      if (hasChanged && !runNow) throw RESTART_UPDATE;
-      runNow = false;
+      if (hasChanged && !force) throw RESTART_UPDATE;
     };
 
+    if (runNow) internalListener(true);
     this.reactions.add(internalListener);
     return () => {
       this.reactions.delete(internalListener);
