@@ -41,14 +41,14 @@ export function useAction<Arg, Value>(
         }
         setIsLoading(!!inProgress);
 
-        if (!watchOnly) action.run(arg);
+        if (!watchOnly) action.get(arg);
       },
-      { emitNow: true }
+      { runNow: true }
     );
   }, [action, useEqualityRef(arg), watchOnly, clearBeforeUpdate, dormant, holdPrevious]);
 
   useEffect(() => {
-    if (updateOnMount && !dormant) action.run(arg, { update: true, clearBeforeUpdate });
+    if (updateOnMount && !dormant) action.update(arg, { clearBeforeUpdate });
   }, []);
 
   return [value, { error, isLoading }];

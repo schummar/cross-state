@@ -94,17 +94,17 @@ function D() {
   const [mounted, setMounted] = useState(true);
 
   function fuck() {
-    action.run(42);
-    action.run(42);
+    action.update(42);
+    action.update(42);
     action.clearAllCached();
-    action.run(42);
+    action.update(42);
     setTimeout(() => {
       action.clearAllCached();
-      action.run(42);
+      action.update(42);
     }, 0);
     setTimeout(() => {
       action.clearAllCached();
-      action.run(42);
+      action.update(42);
     }, 1);
   }
 
@@ -113,7 +113,7 @@ function D() {
       <div>action:</div>
       <div>
         <span onClick={() => setMounted(!mounted)}>mount</span>
-        <span onClick={() => action.run(42)}>update</span>
+        <span onClick={() => action.update(42)}>update</span>
         <span onClick={() => Action.clearAllCached()}>clear</span>
         <span onClick={fuck}>fuck</span>
         {mounted && <DInner />}

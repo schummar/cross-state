@@ -1,8 +1,11 @@
-import fastDeepEqual from 'fast-deep-equal';
+import { Draft, enableMapSet } from 'immer';
 import objectHash from 'object-hash';
-import { BaseStore } from './baseStore';
 import { Cancel } from './misc';
 import retry from './retry';
+import { Store } from './store';
+import { useAction, UseActionOptions } from './useAction';
+
+enableMapSet();
 
 function hash(x: unknown) {
   return objectHash(x ?? null);
@@ -24,10 +27,7 @@ export class Action<Arg, Value> {
     }
   }
 
-  private cache = new BaseStore(new Map<string, Instance<Arg, Value>>(), {
-    equals: fastDeepEqual,
-    update: (state, update: (state: Map<string, Instance<Arg, Value>>) => Map<string, Instance<Arg, Value>>) => update(state),
-  });
+  private cache = new Store(new Map<string, Instance<Arg, Value>>());
 
   constructor(private action: (arg: Arg) => Promise<Value>) {
     Action.allActions.push(this);
@@ -49,7 +49,10 @@ export class Action<Arg, Value> {
   }
 
   setCache(arg: Arg, value: Value): void {
-    this.updateInstance(arg, () => ({ current: { kind: 'value', value, t: new Date() } }));
+    this.updateInstance(arg, (instance) => {
+      instance.current = { kind: 'value', value: value as Draft<Value>, t: new Date() };
+      delete instance.inProgress;
+    });
   }
 
   updateCache(arg: Arg, update: (value?: Value) => Value): void {
@@ -76,15 +79,22 @@ export class Action<Arg, Value> {
     });
   }
 
-  async run(arg: Arg, { update = false, clearBeforeUpdate = false, tries = 3 } = {}): Promise<Value> {
+  async get(arg: Arg, { clearBeforeUpdate = false, tries = 3 } = {}): Promise<Value> {
     const key = hash(arg);
-
     const fromCache = this.cache.getState().get(key);
 
-    if (fromCache?.current && !update) {
+    if (fromCache?.current) {
       if (fromCache.current.kind === 'value') return fromCache.current.value;
       else throw fromCache.current.error;
     }
+
+    return this.update(arg, { clearBeforeUpdate, tries });
+  }
+
+  async update(arg: Arg, { clearBeforeUpdate = false, tries = 3 } = {}): Promise<Value> {
+    const key = hash(arg);
+
+    const fromCache = this.cache.getState().get(key);
 
     if (fromCache?.inProgress) {
       return fromCache.inProgress;
@@ -92,10 +102,10 @@ export class Action<Arg, Value> {
 
     const task = retry(() => this.action(arg), tries);
 
-    this.updateInstance(arg, (instance) => ({
-      current: clearBeforeUpdate ? undefined : instance.current,
-      inProgress: task,
-    }));
+    this.updateInstance(arg, (instance) => {
+      if (clearBeforeUpdate) delete instance.current;
+      instance.inProgress = task;
+    });
 
     try {
       const value = await task;
@@ -107,26 +117,34 @@ export class Action<Arg, Value> {
       return value;
     } catch (e) {
       if (task === this.cache.getState().get(key)?.inProgress) {
-        this.updateInstance(arg, () => ({
-          current: { kind: 'error', error: e, t: new Date() },
-          inProgress: undefined,
-        }));
+        this.updateInstance(arg, (instance) => {
+          instance.current = { kind: 'error', error: e, t: new Date() };
+          delete instance.inProgress;
+        });
       }
 
       throw e;
     }
   }
 
-  subscribe(arg: Arg, listener: (instance: Instance<Arg, Value>) => void, { emitNow = false } = {}): Cancel {
+  subscribe(arg: Arg, listener: (instance: Instance<Arg, Value>) => void, { runNow = false } = {}): Cancel {
     const key = hash(arg);
-    return this.cache.subscribe((state) => state.get(key) ?? { arg }, listener, emitNow);
+    return this.cache.subscribe((state) => state.get(key) ?? { arg }, listener, { runNow });
   }
 
-  private updateInstance(arg: Arg, update: (value: Instance<Arg, Value>) => Partial<Instance<Arg, Value>>): void {
+  private updateInstance(arg: Arg, update: (value: Draft<Instance<Arg, Value>>) => void): void {
     const key = hash(arg);
     this.cache.update((state) => {
-      const instance = state.get(key) ?? { arg };
-      return state.set(key, { ...instance, ...update(instance) });
+      let instance = state.get(key);
+      if (!instance) {
+        instance = { arg: arg as Draft<Arg> };
+        state.set(key, instance);
+      }
+      update(instance);
     });
+  }
+
+  useAction(arg: Arg, options: UseActionOptions = {}): [Value | undefined, { error?: unknown; isLoading: boolean }] {
+    return useAction(this, arg, options);
   }
 }
