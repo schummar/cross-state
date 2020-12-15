@@ -1,5 +1,6 @@
 {
-  "name": "mystate",
+  "name": "schummar-state",
+  "repository": "schummar/schummar-state",
   "version": "0.0.1",
   "description": "",
   "main": "index.js",
