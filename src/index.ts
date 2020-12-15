@@ -10,7 +10,7 @@ import { useAction, UseActionOptions } from './useAction';
 import { useStoreState } from './useStoreState';
 
 export class Action<Arg, Value> extends _Action<Arg, Value> {
-  useAction(arg: Arg, options: UseActionOptions = {}) {
+  useAction(arg: Arg, options: UseActionOptions = {}): [Value | undefined, { error?: unknown; isLoading: boolean }] {
     return useAction(this, arg, options);
   }
 }
@@ -26,7 +26,7 @@ export class Store<T> extends BaseStore<T, [recipe: (draft: T) => void, listener
 
   useState(): T;
   useState<S>(selector: (state: T) => S, dependencies?: any[]): S;
-  useState<S>(selector: (state: T) => S = (x) => x as any, deps?: any[]) {
+  useState<S>(selector: (state: T) => S = (x) => x as any, deps?: any[]): S {
     return useStoreState(this, selector, deps);
   }
 }

@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Store } from './store';
+import { BaseStore } from './baseStore';
 import useEqualityRef from './useEqualityRef';
 
-export function useStoreState<T>(store: Store<T>): T;
-export function useStoreState<T, S>(store: Store<T>, selector: (state: T) => S, dependencies?: any[]): S;
-export function useStoreState<T, S>(store: Store<T>, selector: (state: T) => S = (x) => x as any, deps?: any[]): S {
+export function useStoreState<T>(store: BaseStore<T, any>): T;
+export function useStoreState<T, S>(store: BaseStore<T, any>, selector: (state: T) => S, dependencies?: any[]): S;
+export function useStoreState<T, S>(store: BaseStore<T, any>, selector: (state: T) => S = (x) => x as any, deps?: any[]): S {
   // This value changes when deps change according to fast-deep-equal
   const depsRef = useEqualityRef(deps);
   // This counter is incremented when the store notifies about changes, in order to trigger another render

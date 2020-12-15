@@ -1,9 +1,10 @@
 import fastDeepEqual from 'fast-deep-equal';
 import objectHash from 'object-hash';
 import { BaseStore } from './baseStore';
+import { Cancel } from './misc';
 import retry from './retry';
 
-function hash(x: any) {
+function hash(x: unknown) {
   return objectHash(x ?? null);
 }
 
@@ -17,7 +18,7 @@ type Instance<Arg, Value> = {
 export class Action<Arg, Value> {
   static allActions = new Array<Action<any, any>>();
 
-  static clearAllCached() {
+  static clearAllCached(): void {
     for (const action of Action.allActions) {
       action.clearAllCached();
     }
@@ -32,37 +33,36 @@ export class Action<Arg, Value> {
     Action.allActions.push(this);
   }
 
-  getCache(arg: Arg) {
+  getCache(arg: Arg): Instance<Arg, Value> | undefined {
     const key = hash(arg);
     return this.cache.getState().get(key);
   }
 
-  getCacheValue(arg: Arg) {
+  getCacheValue(arg: Arg): Value | undefined {
     const instance = this.getCache(arg);
     return instance?.current?.kind === 'value' ? instance.current.value : undefined;
   }
 
-  getCacheError(arg: Arg) {
+  getCacheError(arg: Arg): unknown {
     const instance = this.getCache(arg);
     return instance?.current?.kind === 'error' ? instance.current.error : undefined;
   }
 
-  setCache(arg: Arg, value: Value) {
-    const key = hash(arg);
+  setCache(arg: Arg, value: Value): void {
     this.updateInstance(arg, () => ({ current: { kind: 'value', value, t: new Date() } }));
   }
 
-  updateCache(arg: Arg, update: (value?: Value) => Value) {
+  updateCache(arg: Arg, update: (value?: Value) => Value): void {
     this.setCache(arg, update(this.getCacheValue(arg)));
   }
 
-  updateAllCached(update: (value: Value | undefined, arg: Arg) => Value) {
+  updateAllCached(update: (value: Value | undefined, arg: Arg) => Value): void {
     for (const { arg, current } of this.cache.getState().values()) {
       this.setCache(arg, update(current?.kind === 'value' ? current.value : undefined, arg));
     }
   }
 
-  clearCached(arg: Arg) {
+  clearCached(arg: Arg): void {
     const key = hash(arg);
     this.cache.update((state) => {
       state.delete(key);
@@ -70,13 +70,13 @@ export class Action<Arg, Value> {
     });
   }
 
-  clearAllCached() {
-    this.cache.update((state) => {
+  clearAllCached(): void {
+    this.cache.update(() => {
       return new Map();
     });
   }
 
-  async run(arg: Arg, { update = false, clearBeforeUpdate = false, tries = 3 } = {}) {
+  async run(arg: Arg, { update = false, clearBeforeUpdate = false, tries = 3 } = {}): Promise<Value> {
     const key = hash(arg);
 
     const fromCache = this.cache.getState().get(key);
@@ -117,15 +117,15 @@ export class Action<Arg, Value> {
     }
   }
 
-  subscribe(arg: Arg, listener: (instance: Instance<Arg, Value>) => void, { emitNow = false } = {}) {
+  subscribe(arg: Arg, listener: (instance: Instance<Arg, Value>) => void, { emitNow = false } = {}): Cancel {
     const key = hash(arg);
     return this.cache.subscribe((state) => state.get(key) ?? { arg }, listener, emitNow);
   }
 
-  private updateInstance(arg: Arg, update: (value: Instance<Arg, Value>) => Partial<Instance<Arg, Value>>) {
+  private updateInstance(arg: Arg, update: (value: Instance<Arg, Value>) => Partial<Instance<Arg, Value>>): void {
     const key = hash(arg);
     this.cache.update((state) => {
-      let instance = state.get(key) ?? { arg };
+      const instance = state.get(key) ?? { arg };
       return state.set(key, { ...instance, ...update(instance) });
     });
   }

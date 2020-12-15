@@ -20,9 +20,9 @@ export function useAction<Arg, Value>(
   arg: Arg,
   { watchOnly, updateOnMount, clearBeforeUpdate, dormant, holdPrevious }: UseActionOptions = {}
 ): [Value | undefined, { error?: unknown; isLoading: boolean }] {
-  const [value, setValue] = useState(() => (dormant ? undefined : action.getCachedValue(arg)));
+  const [value, setValue] = useState(() => (dormant ? undefined : action.getCacheValue(arg)));
   const [error, setError] = useState(() => (dormant ? undefined : action.getCacheError(arg)));
-  const [isLoading, setIsLoading] = useState(() => !dormant && !!action.getCached(arg)?.inProgress);
+  const [isLoading, setIsLoading] = useState(() => !dormant && !!action.getCache(arg)?.inProgress);
 
   useEffect(() => {
     if (dormant) {

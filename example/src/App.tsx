@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Action, Store } from '../..';
-import { useAction, useStoreState } from '../../react';
 import './App.css';
 
 const state = new Store({
@@ -27,7 +26,7 @@ export default function App() {
 }
 
 function A() {
-  const value = useStoreState(state, (x) => x.a);
+  const value = state.useState((x) => x.a);
   console.log('render a', value);
 
   function click() {
@@ -44,7 +43,7 @@ function A() {
   );
 }
 function B() {
-  const value = useStoreState(state, (x) => x.a + x.b);
+  const value = state.useState((x) => x.a + x.b);
   console.log('render b', value);
 
   function click() {
@@ -77,7 +76,7 @@ function C() {
 
 function CInner() {
   const [prop, setProp] = useState<'a' | 'b'>('a');
-  const value = useStoreState(state, (x) => x[prop], [prop]);
+  const value = state.useState((x) => x[prop], [prop]);
   console.log('render_c', prop, value);
 
   function click() {
@@ -124,7 +123,7 @@ function D() {
 }
 
 function DInner() {
-  const [x, { error, isLoading }] = useAction(action, 42, { updateOnMount: true });
+  const [x, { error, isLoading }] = action.useAction(42, { updateOnMount: true });
 
   return (
     <>
