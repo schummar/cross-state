@@ -1,7 +1,9 @@
 import eq from 'fast-deep-equal';
-import produce, { Draft, freeze } from 'immer';
+import produce, { Draft, enablePatches, freeze } from 'immer';
 import { Cancel } from './misc';
 import { useStoreState } from './useStoreState';
+
+enablePatches();
 
 const RESTART_UPDATE = Symbol('RESTART_UPDATE');
 

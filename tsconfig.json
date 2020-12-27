@@ -1,20 +1,20 @@
 {
   "compilerOptions": {
     "outDir": "dist",
-    "sourceMap": true,
     "strict": true,
     "noImplicitReturns": true,
     "noImplicitAny": true,
-    "module": "UMD",
+    "module": "CommonJS",
     "moduleResolution": "node",
-    "target": "es5",
+    "target": "ES2015",
     "lib": ["ES2015"],
     "allowJs": true,
     "jsx": "react",
     "downlevelIteration": true,
     "allowSyntheticDefaultImports": true,
     "noUncheckedIndexedAccess": true,
-    "declaration": true
+    "declaration": true,
+    "esModuleInterop": true
   },
   "include": ["src"]
 }
