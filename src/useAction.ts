@@ -15,6 +15,10 @@ export type UseActionOptions = {
   holdPrevious?: boolean;
 };
 
+const ignore = () => {
+  //ignore
+};
+
 export function useAction<Arg, Value>(
   action: Action<Arg, Value>,
   arg: Arg,
@@ -41,14 +45,14 @@ export function useAction<Arg, Value>(
         }
         setIsLoading(!!inProgress);
 
-        if (!watchOnly) action.get(arg);
+        if (!watchOnly) action.get(arg).catch(ignore);
       },
       { runNow: true }
     );
   }, [action, useEqualityRef(arg), watchOnly, clearBeforeUpdate, dormant, holdPrevious]);
 
   useEffect(() => {
-    if (updateOnMount && !dormant) action.update(arg, { clearBeforeUpdate });
+    if (updateOnMount && !dormant) action.update(arg, { clearBeforeUpdate }).catch(ignore);
   }, []);
 
   return [value, { error, isLoading }];
