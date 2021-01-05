@@ -3,7 +3,7 @@ import objectHash from 'object-hash';
 import { Cancel } from './misc';
 import retry from './retry';
 import { Store } from './store';
-import { useAction, UseActionOptions } from './useAction';
+import type { UseActionOptions } from './useAction';
 
 enableMapSet();
 
@@ -79,7 +79,7 @@ export class Action<Arg, Value> {
     });
   }
 
-  async get(arg: Arg, { clearBeforeUpdate = false, tries = 3 } = {}): Promise<Value> {
+  async get(arg: Arg, { clearBeforeUpdate = false, retries = 0 } = {}): Promise<Value> {
     const key = hash(arg);
     const fromCache = this.cache.getState().get(key);
 
@@ -88,10 +88,10 @@ export class Action<Arg, Value> {
       else throw fromCache.current.error;
     }
 
-    return this.update(arg, { clearBeforeUpdate, tries });
+    return this.update(arg, { clearBeforeUpdate, retries });
   }
 
-  async update(arg: Arg, { clearBeforeUpdate = false, tries = 3 } = {}): Promise<Value> {
+  async update(arg: Arg, { clearBeforeUpdate = false, retries = 0 } = {}): Promise<Value> {
     const key = hash(arg);
 
     const fromCache = this.cache.getState().get(key);
@@ -100,7 +100,7 @@ export class Action<Arg, Value> {
       return fromCache.inProgress;
     }
 
-    const task = retry(() => this.action(arg), tries);
+    const task = retry(() => this.action(arg), retries);
 
     this.updateInstance(arg, (instance) => {
       if (clearBeforeUpdate) delete instance.current;
@@ -145,6 +145,7 @@ export class Action<Arg, Value> {
   }
 
   useAction(arg: Arg, options: UseActionOptions = {}): [Value | undefined, { error?: unknown; isLoading: boolean }] {
-    return useAction(this, arg, options);
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return require('./useAction').useAction(this, arg, options);
   }
 }
