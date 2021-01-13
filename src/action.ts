@@ -55,14 +55,25 @@ export class Action<Arg, Value> {
     });
   }
 
-  updateCache(arg: Arg, update: (value?: Value) => Value): void {
-    this.setCache(arg, update(this.getCacheValue(arg)));
+  updateCache(arg: Arg, update: (draft: Draft<Value>) => void): boolean {
+    let found = false;
+
+    this.updateInstance(arg, (instance) => {
+      if (instance.current?.kind === 'value') {
+        update(instance.current.value);
+        found = true;
+      }
+    });
+
+    return found;
   }
 
-  updateAllCached(update: (value: Value | undefined, arg: Arg) => Value): void {
-    for (const { arg, current } of this.cache.getState().values()) {
-      this.setCache(arg, update(current?.kind === 'value' ? current.value : undefined, arg));
-    }
+  updateAllCached(update: (draft: Draft<Value>, arg: Arg) => void): void {
+    this.cache.update((state) => {
+      for (const { arg, current } of state.values()) {
+        if (current?.kind === 'value') update(current.value, arg as Arg);
+      }
+    });
   }
 
   clearCached(arg: Arg): void {
