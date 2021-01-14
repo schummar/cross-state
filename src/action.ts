@@ -16,20 +16,22 @@ type Instance<Arg, Value> = {
   arg: Arg;
   current?: Result<Value>;
   inProgress?: Promise<Value>;
+  invalid?: boolean;
+  timer?: NodeJS.Timeout;
 };
 
 export class Action<Arg, Value> {
   static allActions = new Array<Action<any, any>>();
 
-  static clearAllCached(): void {
+  static clearCacheAll(): void {
     for (const action of Action.allActions) {
-      action.clearAllCached();
+      action.clearCacheAll();
     }
   }
 
   private cache = new Store(new Map<string, Instance<Arg, Value>>());
 
-  constructor(private action: (arg: Arg) => Promise<Value>) {
+  constructor(private action: (arg: Arg) => Promise<Value>, private options: { invalidateAfter?: number }) {
     Action.allActions.push(this);
   }
 
@@ -52,6 +54,8 @@ export class Action<Arg, Value> {
     this.updateInstance(arg, (instance) => {
       instance.current = { kind: 'value', value: value as Draft<Value>, t: new Date() };
       delete instance.inProgress;
+
+      this.scheduleInvalidation(instance);
     });
   }
 
@@ -61,6 +65,7 @@ export class Action<Arg, Value> {
     this.updateInstance(arg, (instance) => {
       if (instance.current?.kind === 'value') {
         update(instance.current.value);
+        this.scheduleInvalidation(instance);
         found = true;
       }
     });
@@ -68,25 +73,36 @@ export class Action<Arg, Value> {
     return found;
   }
 
-  updateAllCached(update: (draft: Draft<Value>, arg: Arg) => void): void {
+  updateCacheAll(update: (draft: Draft<Value>, arg: Arg) => void): void {
     this.cache.update((state) => {
-      for (const { arg, current } of state.values()) {
-        if (current?.kind === 'value') update(current.value, arg as Arg);
+      for (const instance of state.values()) {
+        const { arg, current } = instance;
+        if (current?.kind === 'value') {
+          update(current.value, arg as Arg);
+          this.scheduleInvalidation(instance);
+        }
       }
     });
   }
 
-  clearCached(arg: Arg): void {
+  clearCache(arg: Arg): void {
     const key = hash(arg);
     this.cache.update((state) => {
+      const instance = state.get(key);
+      if (instance?.timer) {
+        clearTimeout(instance.timer as NodeJS.Timeout);
+      }
+
       state.delete(key);
       return state;
     });
   }
 
-  clearAllCached(): void {
-    this.cache.update(() => {
-      return new Map();
+  clearCacheAll(): void {
+    this.cache.update((state) => {
+      for (const { arg } of state.values()) {
+        this.clearCache(arg as Arg);
+      }
     });
   }
 
@@ -94,15 +110,15 @@ export class Action<Arg, Value> {
     const key = hash(arg);
     const fromCache = this.cache.getState().get(key);
 
-    if (fromCache?.current) {
+    if (fromCache?.current && !fromCache.invalid) {
       if (fromCache.current.kind === 'value') return fromCache.current.value;
       else throw fromCache.current.error;
     }
 
-    return this.update(arg, { clearBeforeUpdate, retries });
+    return this.execute(arg, { clearBeforeUpdate, retries });
   }
 
-  async update(arg: Arg, { clearBeforeUpdate = false, retries = 0 } = {}): Promise<Value> {
+  async execute(arg: Arg, { clearBeforeUpdate = false, retries = 0 } = {}): Promise<Value> {
     const key = hash(arg);
 
     const fromCache = this.cache.getState().get(key);
@@ -131,10 +147,27 @@ export class Action<Arg, Value> {
         this.updateInstance(arg, (instance) => {
           instance.current = { kind: 'error', error: e, t: new Date() };
           delete instance.inProgress;
+          this.scheduleInvalidation(instance);
         });
       }
 
       throw e;
+    }
+  }
+
+  scheduleInvalidation(instance: Draft<Instance<Arg, Value>>): void {
+    if (instance.timer) {
+      clearTimeout(instance.timer as NodeJS.Timeout);
+      delete instance.timer;
+    }
+
+    if (this.options.invalidateAfter !== undefined && this.options.invalidateAfter !== Infinity) {
+      instance.timer = setTimeout(() => {
+        this.updateInstance(instance.arg as Arg, (instance) => {
+          instance.invalid = true;
+          delete instance.timer;
+        });
+      }, this.options.invalidateAfter);
     }
   }
 

@@ -52,7 +52,7 @@ export function useAction<Arg, Value>(
   }, [action, useEqualityRef(arg), watchOnly, clearBeforeUpdate, dormant, holdPrevious]);
 
   useEffect(() => {
-    if (updateOnMount && !dormant) action.update(arg, { clearBeforeUpdate }).catch(ignore);
+    if (updateOnMount && !dormant) action.execute(arg, { clearBeforeUpdate }).catch(ignore);
   }, []);
 
   return [value, { error, isLoading }];
