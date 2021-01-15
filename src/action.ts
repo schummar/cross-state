@@ -31,7 +31,7 @@ export class Action<Arg, Value> {
 
   private cache = new Store(new Map<string, Instance<Arg, Value>>());
 
-  constructor(private action: (arg: Arg) => Promise<Value>, private options: { invalidateAfter?: number }) {
+  constructor(private action: (arg: Arg) => Promise<Value>, private options: { invalidateAfter?: number } = {}) {
     Action.allActions.push(this);
   }
 
@@ -54,6 +54,7 @@ export class Action<Arg, Value> {
     this.updateInstance(arg, (instance) => {
       instance.current = { kind: 'value', value: value as Draft<Value>, t: new Date() };
       delete instance.inProgress;
+      instance.invalid = false;
 
       this.scheduleInvalidation(instance);
     });
@@ -65,6 +66,8 @@ export class Action<Arg, Value> {
     this.updateInstance(arg, (instance) => {
       if (instance.current?.kind === 'value') {
         update(instance.current.value);
+        instance.invalid = false;
+
         this.scheduleInvalidation(instance);
         found = true;
       }
@@ -76,9 +79,10 @@ export class Action<Arg, Value> {
   updateCacheAll(update: (draft: Draft<Value>, arg: Arg) => void): void {
     this.cache.update((state) => {
       for (const instance of state.values()) {
-        const { arg, current } = instance;
-        if (current?.kind === 'value') {
-          update(current.value, arg as Arg);
+        if (instance.current?.kind === 'value') {
+          update(instance.current.value, instance.arg as Arg);
+          instance.invalid = false;
+
           this.scheduleInvalidation(instance);
         }
       }
@@ -102,6 +106,17 @@ export class Action<Arg, Value> {
     this.cache.update((state) => {
       for (const { arg } of state.values()) {
         this.clearCache(arg as Arg);
+      }
+    });
+  }
+
+  invalidateCache(arg: Arg): void {
+    const key = hash(arg);
+
+    this.cache.update((state) => {
+      const instance = state.get(key);
+      if (instance) {
+        instance.invalid = true;
       }
     });
   }
@@ -147,6 +162,7 @@ export class Action<Arg, Value> {
         this.updateInstance(arg, (instance) => {
           instance.current = { kind: 'error', error: e, t: new Date() };
           delete instance.inProgress;
+          instance.invalid = false;
           this.scheduleInvalidation(instance);
         });
       }
@@ -162,8 +178,9 @@ export class Action<Arg, Value> {
     }
 
     if (this.options.invalidateAfter !== undefined && this.options.invalidateAfter !== Infinity) {
+      const arg = instance.arg;
       instance.timer = setTimeout(() => {
-        this.updateInstance(instance.arg as Arg, (instance) => {
+        this.updateInstance(arg as Arg, (instance) => {
           instance.invalid = true;
           delete instance.timer;
         });

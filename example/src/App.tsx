@@ -8,11 +8,14 @@ const state = new Store({
 });
 
 let count = 0;
-const action = new Action(async (x: number) => {
-  console.log('calc action');
-  await new Promise((r) => setTimeout(r, 1000));
-  return x * 2 + count++;
-});
+const action = new Action(
+  async (x: number) => {
+    console.log('calc action');
+    await new Promise((r) => setTimeout(r, 1000));
+    return x * 2 + count++;
+  },
+  { invalidateAfter: 2000 }
+);
 
 export default function App() {
   return (
@@ -94,17 +97,17 @@ function D() {
   const [mounted, setMounted] = useState(true);
 
   function fuck() {
-    action.update(42);
-    action.update(42);
-    action.clearAllCached();
-    action.update(42);
+    action.execute(42);
+    action.execute(42);
+    action.clearCacheAll();
+    action.execute(42);
     setTimeout(() => {
-      action.clearAllCached();
-      action.update(42);
+      action.clearCacheAll();
+      action.execute(42);
     }, 0);
     setTimeout(() => {
-      action.clearAllCached();
-      action.update(42);
+      action.clearCacheAll();
+      action.execute(42);
     }, 1);
   }
 
@@ -113,8 +116,9 @@ function D() {
       <div>action:</div>
       <div>
         <span onClick={() => setMounted(!mounted)}>mount</span>
-        <span onClick={() => action.update(42)}>update</span>
-        <span onClick={() => Action.clearAllCached()}>clear</span>
+        <span onClick={() => action.execute(42)}>update</span>
+        <span onClick={() => Action.clearCacheAll()}>clear</span>
+        <span onClick={() => action.invalidateCache(42)}>invalidate</span>
         <span onClick={fuck}>fuck</span>
         {mounted && <DInner />}
       </div>
