@@ -103,11 +103,9 @@ export class Action<Arg, Value> {
   }
 
   clearCacheAll(): void {
-    this.cache.update((state) => {
-      for (const { arg } of state.values()) {
-        this.clearCache(arg as Arg);
-      }
-    });
+    for (const { arg } of this.cache.getState().values()) {
+      this.clearCache(arg);
+    }
   }
 
   invalidateCache(arg: Arg): void {
@@ -119,6 +117,12 @@ export class Action<Arg, Value> {
         instance.invalid = true;
       }
     });
+  }
+
+  invalidateCacheAll(): void {
+    for (const { arg } of this.cache.getState().values()) {
+      this.invalidateCache(arg);
+    }
   }
 
   async get(arg: Arg, { clearBeforeUpdate = false, retries = 0 } = {}): Promise<Value> {
