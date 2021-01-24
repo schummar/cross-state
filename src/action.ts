@@ -192,9 +192,25 @@ export class Action<Arg, Value> {
     }
   }
 
-  subscribe(arg: Arg, listener: (instance: Instance<Arg, Value>) => void, { runNow = false } = {}): Cancel {
+  subscribe(
+    arg: Arg,
+    listener: (value: Value | undefined, state: { error?: unknown; isLoading: boolean }, instance: Instance<Arg, Value>) => void,
+    { runNow, throttle }: { runNow?: boolean; throttle?: number } = {}
+  ): Cancel {
     const key = hash(arg);
-    return this.cache.subscribe((state) => state.get(key) ?? { arg }, listener, { runNow });
+    return this.cache.subscribe(
+      (state) => state.get(key) ?? { arg },
+      (instance) =>
+        listener(
+          instance.current?.kind === 'value' ? instance.current.value : undefined,
+          {
+            error: instance.current?.kind === 'error' ? instance.current.error : undefined,
+            isLoading: !!instance.inProgress,
+          },
+          instance
+        ),
+      { runNow, throttle }
+    );
   }
 
   private updateInstance(arg: Arg, update: (value: Draft<Instance<Arg, Value>>) => void): void {

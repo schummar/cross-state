@@ -13,6 +13,8 @@ export type UseActionOptions = {
   dormant?: boolean;
   /** */
   holdPrevious?: boolean;
+  /** */
+  throttle?: number;
 };
 
 const ignore = () => {
@@ -22,7 +24,7 @@ const ignore = () => {
 export function useAction<Arg, Value>(
   action: Action<Arg, Value>,
   arg: Arg,
-  { watchOnly, updateOnMount, clearBeforeUpdate, dormant, holdPrevious }: UseActionOptions = {}
+  { watchOnly, updateOnMount, clearBeforeUpdate, dormant, holdPrevious, throttle }: UseActionOptions = {}
 ): [Value | undefined, { error?: unknown; isLoading: boolean }] {
   const [value, setValue] = useState(() => (dormant ? undefined : action.getCacheValue(arg)));
   const [error, setError] = useState(() => (dormant ? undefined : action.getCacheError(arg)));
@@ -38,7 +40,7 @@ export function useAction<Arg, Value>(
 
     return action.subscribe(
       arg,
-      ({ current, inProgress }) => {
+      (_v, _s, { current, inProgress }) => {
         if (current || !holdPrevious) {
           setValue(current?.kind === 'value' ? current.value : undefined);
           setError(current?.kind === 'error' ? current.error : undefined);
@@ -47,7 +49,7 @@ export function useAction<Arg, Value>(
 
         if (!watchOnly) action.get(arg).catch(ignore);
       },
-      { runNow: true }
+      { runNow: true, throttle }
     );
   }, [action, useEqualityRef(arg), watchOnly, clearBeforeUpdate, dormant, holdPrevious]);
 

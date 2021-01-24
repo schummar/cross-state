@@ -1,6 +1,7 @@
 import eq from 'fast-deep-equal';
 import produce, { Draft, enablePatches, freeze } from 'immer';
 import { Cancel } from './misc';
+import { throttle as throttleFn } from './throttle';
 
 enablePatches();
 
@@ -29,7 +30,13 @@ export class Store<T> {
     this.notify();
   }
 
-  subscribe<S>(selector: (state: T) => S, listener: (value: S, prev: S | undefined, state: T) => void, { runNow = false } = {}): Cancel {
+  subscribe<S>(
+    selector: (state: T) => S,
+    listener: (value: S, prev: S | undefined, state: T) => void,
+    { runNow = false, throttle }: { runNow?: boolean; throttle?: number } = {}
+  ): Cancel {
+    if (throttle) listener = throttleFn(listener, throttle);
+
     let value = selector(this.state);
 
     const internalListener = (force?: boolean) => {
@@ -100,10 +107,10 @@ export class Store<T> {
     }, 0);
   }
 
-  useState(): T;
-  useState<S>(selector: (state: T) => S, dependencies?: any[]): S;
-  useState<S>(selector: (state: T) => S = (x) => x as any, deps?: any[]): S {
+  useState(options?: { throttle?: number }): T;
+  useState<S>(selector: (state: T) => S, dependencies?: any[], options?: { throttle?: number }): S;
+  useState<S>(...args: any[]): S {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    return require('./useStoreState').useStoreState(this, selector, deps);
+    return require('./useStoreState').useStoreState(this, ...args);
   }
 }

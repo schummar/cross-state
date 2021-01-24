@@ -5,7 +5,16 @@ import './App.css';
 const state = new Store({
   a: 0,
   b: 0,
+  time: 0,
 });
+
+setInterval(
+  () =>
+    state.update((state) => {
+      state.time = Date.now();
+    }),
+  10
+);
 
 let count = 0;
 const action = new Action(
@@ -14,7 +23,7 @@ const action = new Action(
     await new Promise((r) => setTimeout(r, 1000));
     return x * 2 + count++;
   },
-  { invalidateAfter: 2000 }
+  { invalidateAfter: 10000 }
 );
 
 export default function App() {
@@ -24,6 +33,7 @@ export default function App() {
       <B />
       <C />
       <D />
+      <E />
     </div>
   );
 }
@@ -133,5 +143,17 @@ function DInner() {
     <>
       {error} {isLoading && '...'} {x}
     </>
+  );
+}
+
+function E() {
+  const value = state.useState((x) => x.time, [], { throttle: 10000 });
+  console.log('render_d', value);
+
+  return (
+    <div>
+      <div>c:</div>
+      <div>{new Date(value).toLocaleString()}</div>
+    </div>
   );
 }
