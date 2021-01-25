@@ -1,15 +1,11 @@
 import { Draft, enableMapSet } from 'immer';
-import objectHash from 'object-hash';
+import { hash } from './hash';
 import { Cancel } from './misc';
 import retry from './retry';
 import { Store } from './store';
-import type { UseActionOptions } from './useAction';
+import { useAction, UseActionOptions } from './useAction';
 
 enableMapSet();
-
-function hash(x: unknown) {
-  return objectHash(x ?? null);
-}
 
 type Result<Value> = { kind: 'value'; value: Value; t: Date } | { kind: 'error'; error: unknown; t: Date };
 type Instance<Arg, Value> = {
@@ -226,7 +222,6 @@ export class Action<Arg, Value> {
   }
 
   useAction(arg: Arg, options: UseActionOptions = {}): [Value | undefined, { error?: unknown; isLoading: boolean }] {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    return require('./useAction').useAction(this, arg, options);
+    return useAction(this, arg, options);
   }
 }

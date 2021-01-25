@@ -2,6 +2,7 @@ import eq from 'fast-deep-equal';
 import produce, { Draft, enablePatches, freeze } from 'immer';
 import { Cancel } from './misc';
 import { throttle as throttleFn } from './throttle';
+import { useStoreState } from './useStoreState';
 
 enablePatches();
 
@@ -109,8 +110,7 @@ export class Store<T> {
 
   useState(options?: { throttle?: number }): T;
   useState<S>(selector: (state: T) => S, dependencies?: any[], options?: { throttle?: number }): S;
-  useState<S>(...args: any[]): S {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    return require('./useStoreState').useStoreState(this, ...args);
+  useState(...args: any[]): any {
+    return useStoreState(this, ...args);
   }
 }
