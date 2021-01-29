@@ -110,6 +110,7 @@ export class Action<Arg, Value> {
     this.cache.update((state) => {
       const instance = state.get(key);
       if (instance) {
+        delete instance.inProgress;
         instance.invalid = true;
       }
     });
@@ -181,6 +182,7 @@ export class Action<Arg, Value> {
       const arg = instance.arg;
       instance.timer = setTimeout(() => {
         this.updateInstance(arg as Arg, (instance) => {
+          delete instance.inProgress;
           instance.invalid = true;
           delete instance.timer;
         });
