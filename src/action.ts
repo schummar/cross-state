@@ -179,12 +179,15 @@ export class Action<Arg, Value> {
     }
 
     if (this.options.invalidateAfter !== undefined && this.options.invalidateAfter !== Infinity) {
-      const arg = instance.arg;
+      const key = hash(instance.arg);
       instance.timer = setTimeout(() => {
-        this.updateInstance(arg as Arg, (instance) => {
-          delete instance.inProgress;
-          instance.invalid = true;
-          delete instance.timer;
+        this.cache.update((state) => {
+          const instance = state.get(key);
+          if (instance) {
+            delete instance.inProgress;
+            instance.invalid = true;
+            delete instance.timer;
+          }
         });
       }, this.options.invalidateAfter);
     }

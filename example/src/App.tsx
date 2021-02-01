@@ -18,12 +18,12 @@ setInterval(
 
 let count = 0;
 const action = new Action(
-  async (x: number) => {
+  async ({ x }: { x: number }) => {
     console.log('calc action');
     await new Promise((r) => setTimeout(r, 1000));
     return x * 2 + count++;
   },
-  { invalidateAfter: 10000 }
+  { invalidateAfter: 2000 }
 );
 
 export default function App() {
@@ -107,17 +107,17 @@ function D() {
   const [mounted, setMounted] = useState(true);
 
   function fuck() {
-    action.execute(42);
-    action.execute(42);
+    action.execute({ x: 42 });
+    action.execute({ x: 42 });
     action.clearCacheAll();
-    action.execute(42);
+    action.execute({ x: 42 });
     setTimeout(() => {
       action.clearCacheAll();
-      action.execute(42);
+      action.execute({ x: 42 });
     }, 0);
     setTimeout(() => {
       action.clearCacheAll();
-      action.execute(42);
+      action.execute({ x: 42 });
     }, 1);
   }
 
@@ -126,9 +126,9 @@ function D() {
       <div>action:</div>
       <div>
         <span onClick={() => setMounted(!mounted)}>mount</span>
-        <span onClick={() => action.execute(42)}>update</span>
+        <span onClick={() => action.execute({ x: 42 })}>update</span>
         <span onClick={() => Action.clearCacheAll()}>clear</span>
-        <span onClick={() => action.invalidateCache(42)}>invalidate</span>
+        <span onClick={() => action.invalidateCache({ x: 42 })}>invalidate</span>
         <span onClick={fuck}>fuck</span>
         {mounted && <DInner />}
       </div>
@@ -137,7 +137,7 @@ function D() {
 }
 
 function DInner() {
-  const [x, { error, isLoading }] = action.useAction(42, { updateOnMount: true });
+  const [x, { error, isLoading }] = action.useAction({ x: 42 }, { updateOnMount: true });
 
   return (
     <>
