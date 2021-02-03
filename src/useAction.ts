@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Action } from './action';
 import useEqualityRef from './useEqualityRef';
 
@@ -17,6 +17,8 @@ export type UseActionOptions = {
   throttle?: number;
 };
 
+export type UseActionReturn<Value> = [Value | undefined, { error?: unknown; isLoading: boolean }];
+
 const ignore = () => {
   //ignore
 };
@@ -25,37 +27,43 @@ export function useAction<Arg, Value>(
   action: Action<Arg, Value>,
   arg: Arg,
   { watchOnly, updateOnMount, clearBeforeUpdate, dormant, holdPrevious, throttle }: UseActionOptions = {}
-): [Value | undefined, { error?: unknown; isLoading: boolean }] {
-  const [value, setValue] = useState(() => (dormant ? undefined : action.getCacheValue(arg)));
-  const [error, setError] = useState(() => (dormant ? undefined : action.getCacheError(arg)));
-  const [isLoading, setIsLoading] = useState(() => !dormant && !!action.getCache(arg)?.inProgress);
+): UseActionReturn<Value> {
+  // This counter is incremented when the action notifies about changes, in order to trigger another render
+  const [counter, setCounter] = useState(0);
+  const prev = useRef<UseActionReturn<Value>>([undefined, { error: undefined, isLoading: false }]);
 
   useEffect(() => {
     if (dormant) {
-      setValue(undefined);
-      setError(undefined);
-      setIsLoading(false);
       return;
     }
 
     return action.subscribe(
       arg,
-      (_v, _s, { current, inProgress }) => {
-        if (current || !holdPrevious) {
-          setValue(current?.kind === 'value' ? current.value : undefined);
-          setError(current?.kind === 'error' ? current.error : undefined);
-        }
-        setIsLoading(!!inProgress);
-
+      () => {
+        setCounter((c) => c + 1);
         if (!watchOnly) action.get(arg).catch(ignore);
       },
       { runNow: true, throttle }
     );
-  }, [action, useEqualityRef(arg), watchOnly, clearBeforeUpdate, dormant, holdPrevious]);
+  }, [action, useEqualityRef(arg), watchOnly, dormant, throttle]);
 
   useEffect(() => {
     if (updateOnMount && !dormant) action.execute(arg, { clearBeforeUpdate }).catch(ignore);
   }, []);
 
-  return [value, { error, isLoading }];
+  // This value therefore updates when either the action changes or the action notifies
+
+  return useMemo(() => {
+    if (dormant) {
+      return (prev.current = [undefined, { error: undefined, isLoading: false }]);
+    }
+
+    const instance = action.getCache(arg);
+    if (!instance?.current && holdPrevious) return prev.current;
+
+    return (prev.current = [
+      instance?.current?.kind === 'value' ? instance.current.value : undefined,
+      { error: instance?.current?.kind === 'error' ? instance.current.error : undefined, isLoading: !!instance?.inProgress },
+    ]);
+  }, [action, useEqualityRef(arg), dormant, holdPrevious, counter]);
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Action, Store } from '../..';
 import './App.css';
 
@@ -23,8 +23,14 @@ const action = new Action(
     await new Promise((r) => setTimeout(r, 1000));
     return x * 2 + count++;
   },
-  { invalidateAfter: 2000 }
+  { invalidateAfter: 10000 }
 );
+
+const action2 = new Action(async (x: number) => {
+  console.log('calc action2');
+  await new Promise((r) => setTimeout(r, 1000));
+  return x * 2;
+});
 
 export default function App() {
   return (
@@ -34,6 +40,7 @@ export default function App() {
       <C />
       <D />
       <E />
+      <F />
     </div>
   );
 }
@@ -155,5 +162,23 @@ function E() {
       <div>c:</div>
       <div>{new Date(value).toLocaleString()}</div>
     </div>
+  );
+}
+
+function F() {
+  const [counter, setCounter] = useState(0);
+  const [x, { error, isLoading }] = action2.useAction(counter);
+
+  console.log('render_f', { counter, x, inconsistent: x !== undefined && x !== counter * 2 });
+
+  useEffect(() => {
+    const handle = setInterval(() => setCounter((c) => c + 1), 1000);
+    return () => clearInterval(handle);
+  });
+
+  return (
+    <>
+      {error} {isLoading && '...'} {x}
+    </>
   );
 }
