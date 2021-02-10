@@ -1,4 +1,4 @@
-import eq from 'fast-deep-equal';
+import eq from 'fast-deep-equal/es6/react';
 import produce, { Draft, enablePatches, freeze } from 'immer';
 import { Cancel } from './misc';
 import { throttle as throttleFn } from './throttle';
