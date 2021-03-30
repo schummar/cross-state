@@ -1,5 +1,5 @@
 import eq from 'fast-deep-equal/es6/react';
-import produce, { Draft, enablePatches, freeze } from 'immer';
+import produce, { applyPatches, Draft, enablePatches, freeze, Patch } from 'immer';
 import { Cancel } from './misc';
 import { throttle as throttleFn } from './throttle';
 import { useStoreState } from './useStoreState';
@@ -9,8 +9,9 @@ enablePatches();
 const RESTART_UPDATE = Symbol('RESTART_UPDATE');
 
 export class Store<T> {
-  private subscriptions = new Set<() => void>();
+  private subscriptions = new Set<(patches: Patch[]) => void>();
   private reactions = new Set<() => void>();
+  private patches = new Array<Patch>();
   private notifyIsScheduled = false;
 
   constructor(private state: T) {
@@ -22,12 +23,26 @@ export class Store<T> {
   }
 
   update(update: (draft: Draft<T>, original: T) => void): void {
-    this.state = produce(this.state, (draft) => update(draft, this.state));
+    this.state = produce(
+      this.state,
+      (draft) => update(draft, this.state),
+      (patches) => this.patches.push(...patches)
+    );
     this.notify();
   }
 
   set(state: T): void {
-    this.state = freeze(state, true);
+    this.state = produce(
+      this.state,
+      () => state,
+      (patches) => this.patches.push(...patches)
+    ) as T;
+    this.notify();
+  }
+
+  applyPatches(patches: Patch[]): void {
+    this.state = applyPatches(this.state, patches);
+    this.patches.push(...patches);
     this.notify();
   }
 
@@ -40,7 +55,7 @@ export class Store<T> {
 
     let value = selector(this.state);
 
-    const internalListener = (force?: boolean) => {
+    const internalListener = (_patches: Patch[], force?: boolean) => {
       const newValue = selector(this.state);
       if (!force && eq(newValue, value)) return;
 
@@ -48,7 +63,7 @@ export class Store<T> {
       value = newValue;
     };
 
-    if (runNow) internalListener(true);
+    if (runNow) internalListener([], true);
     this.subscriptions.add(internalListener);
     return () => {
       this.subscriptions.delete(internalListener);
@@ -86,6 +101,13 @@ export class Store<T> {
     };
   }
 
+  subscribePatches(listener: (patches: Patch[]) => void): Cancel {
+    this.subscriptions.add(listener);
+    return () => {
+      this.subscriptions.delete(listener);
+    };
+  }
+
   private notify(): void {
     try {
       for (const reaction of this.reactions) {
@@ -102,8 +124,11 @@ export class Store<T> {
     setTimeout(() => {
       this.notifyIsScheduled = false;
 
+      const patches = this.patches;
+      this.patches = [];
+
       for (const subscription of this.subscriptions) {
-        subscription();
+        subscription(patches);
       }
     }, 0);
   }
