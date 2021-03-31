@@ -12,7 +12,6 @@ export class Store<T> {
   private subscriptions = new Set<(patches: Patch[]) => void>();
   private reactions = new Set<() => void>();
   private patches = new Array<Patch>();
-  private notifyIsScheduled = false;
 
   constructor(private state: T) {
     freeze(state, true);
@@ -49,7 +48,7 @@ export class Store<T> {
   subscribe<S>(
     selector: (state: T) => S,
     listener: (value: S, prev: S | undefined, state: T) => void,
-    { runNow = false, throttle }: { runNow?: boolean; throttle?: number } = {}
+    { runNow = false, throttle = 0 } = {}
   ): Cancel {
     if (throttle) listener = throttleFn(listener, throttle);
 
@@ -85,8 +84,9 @@ export class Store<T> {
       produce(
         this.state,
         (draft) => reaction(newValue, draft, this.state, value),
-        () => {
+        (patches) => {
           hasChanged = true;
+          this.patches.push(...patches);
         }
       );
 
@@ -118,19 +118,12 @@ export class Store<T> {
       throw e;
     }
 
-    if (this.notifyIsScheduled) return;
-    this.notifyIsScheduled = true;
+    const patches = this.patches;
+    this.patches = [];
 
-    setTimeout(() => {
-      this.notifyIsScheduled = false;
-
-      const patches = this.patches;
-      this.patches = [];
-
-      for (const subscription of this.subscriptions) {
-        subscription(patches);
-      }
-    }, 0);
+    for (const subscription of this.subscriptions) {
+      subscription(patches);
+    }
   }
 
   useState(options?: { throttle?: number }): T;
