@@ -2,7 +2,6 @@ import eq from 'fast-deep-equal/es6/react';
 import produce, { applyPatches, Draft, enablePatches, freeze, Patch } from 'immer';
 import { Cancel } from './misc';
 import { throttle as throttleFn } from './throttle';
-import { useStoreState } from './useStoreState';
 
 enablePatches();
 
@@ -124,11 +123,5 @@ export class Store<T> {
     for (const subscription of this.subscriptions) {
       subscription(patches);
     }
-  }
-
-  useState(options?: { throttle?: number }): T;
-  useState<S>(selector: (state: T) => S, dependencies?: any[], options?: { throttle?: number }): S;
-  useState(...args: any[]): any {
-    return useStoreState(this, ...args);
   }
 }

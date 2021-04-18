@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Action, Store } from '../..';
+import { Action, Store } from '../../react';
 import './App.css';
 
 const state = new Store({

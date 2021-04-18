@@ -3,7 +3,6 @@ import { hash } from './hash';
 import { Cancel } from './misc';
 import retry from './retry';
 import { Store } from './store';
-import { useAction, UseActionOptions } from './useAction';
 
 enableMapSet();
 
@@ -224,9 +223,5 @@ export class Action<Arg, Value> {
       }
       update(instance);
     });
-  }
-
-  useAction(arg: Arg, options: UseActionOptions = {}): [Value | undefined, { error?: unknown; isLoading: boolean }] {
-    return useAction(this, arg, options);
   }
 }
