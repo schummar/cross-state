@@ -11,6 +11,7 @@ export class Store<T> {
   private subscriptions = new Set<(patches: Patch[]) => void>();
   private reactions = new Set<() => void>();
   private patches = new Array<Patch>();
+  private notifyScheduled = false;
   private notifyInProgress?: 'reaction' | 'subscription';
 
   constructor(private state: T) {
@@ -129,14 +130,15 @@ export class Store<T> {
       throw e;
     }
 
+    if (this.notifyScheduled) return;
+    this.notifyScheduled = true;
     await Promise.resolve();
-    const patches = this.patches;
-    this.patches = [];
+    this.notifyScheduled = false;
 
     try {
       this.notifyInProgress = 'subscription';
       for (const subscription of this.subscriptions) {
-        subscription(patches);
+        subscription(this.patches);
       }
     } finally {
       this.notifyInProgress = undefined;
