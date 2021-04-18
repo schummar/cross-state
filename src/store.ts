@@ -11,6 +11,7 @@ export class Store<T> {
   private subscriptions = new Set<(patches: Patch[]) => void>();
   private reactions = new Set<() => void>();
   private patches = new Array<Patch>();
+  private notifyInProgress?: 'reaction' | 'subscription';
 
   constructor(private state: T) {
     freeze(state, true);
@@ -107,21 +108,38 @@ export class Store<T> {
     };
   }
 
-  private notify(): void {
+  private async notify(): Promise<void> {
+    if (this.notifyInProgress === 'reaction') {
+      throw Error('You cannot call update from within a reaction. Use the passed draft instead.');
+    }
+    if (this.notifyInProgress === 'subscription') {
+      throw Error('You cannot call update from within a subscription. Use a reaction instead.');
+    }
+
     try {
+      this.notifyInProgress = 'reaction';
+
       for (const reaction of this.reactions) {
         reaction();
       }
+      this.notifyInProgress = undefined;
     } catch (e) {
+      this.notifyInProgress = undefined;
       if (e === RESTART_UPDATE) return this.notify();
       throw e;
     }
 
+    await Promise.resolve();
     const patches = this.patches;
     this.patches = [];
 
-    for (const subscription of this.subscriptions) {
-      subscription(patches);
+    try {
+      this.notifyInProgress = 'subscription';
+      for (const subscription of this.subscriptions) {
+        subscription(patches);
+      }
+    } finally {
+      this.notifyInProgress = undefined;
     }
   }
 }
