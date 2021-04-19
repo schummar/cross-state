@@ -59,7 +59,12 @@ export class Store<T> {
       const newValue = selector(this.state);
       if (!force && eq(newValue, value)) return;
 
-      listener(newValue, value, this.state);
+      try {
+        listener(newValue, value, this.state);
+      } catch (e) {
+        console.error('Failed to execute listener:', e);
+      }
+
       value = newValue;
     };
 
@@ -82,14 +87,19 @@ export class Store<T> {
       if (!force && eq(newValue, value)) return;
 
       let hasChanged = false;
-      produce(
-        this.state,
-        (draft) => reaction(newValue, draft, this.state, value),
-        (patches) => {
-          hasChanged = true;
-          this.patches.push(...patches);
-        }
-      );
+
+      try {
+        this.state = produce(
+          this.state,
+          (draft) => reaction(newValue, draft, this.state, value),
+          (patches) => {
+            hasChanged = true;
+            this.patches.push(...patches);
+          }
+        );
+      } catch (e) {
+        console.error('Failed to execute reaction:', e);
+      }
 
       value = newValue;
       if (hasChanged && !force) throw RESTART_UPDATE;
@@ -140,6 +150,8 @@ export class Store<T> {
       for (const subscription of this.subscriptions) {
         subscription(this.patches);
       }
+
+      this.patches = [];
     } finally {
       this.notifyInProgress = undefined;
     }
