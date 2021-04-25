@@ -14,7 +14,7 @@ export class Store<T> {
   private notifyScheduled = false;
   private notifyInProgress?: 'reaction' | 'subscription';
 
-  constructor(private state: T) {
+  constructor(private state: T, private options = { log: console.error }) {
     freeze(state, true);
   }
 
@@ -62,7 +62,7 @@ export class Store<T> {
       try {
         listener(newValue, value, this.state);
       } catch (e) {
-        console.error('Failed to execute listener:', e);
+        this.options.log('Failed to execute listener:', e);
       }
 
       value = newValue;
@@ -98,7 +98,7 @@ export class Store<T> {
           }
         );
       } catch (e) {
-        console.error('Failed to execute reaction:', e);
+        this.options.log('Failed to execute reaction:', e);
       }
 
       value = newValue;
@@ -113,9 +113,17 @@ export class Store<T> {
   }
 
   subscribePatches(listener: (patches: Patch[]) => void): Cancel {
-    this.subscriptions.add(listener);
+    const internalListener = (patches: Patch[]) => {
+      try {
+        listener(patches);
+      } catch (e) {
+        this.options.log('Failed to execute patch listener:', e);
+      }
+    };
+
+    this.subscriptions.add(internalListener);
     return () => {
-      this.subscriptions.delete(listener);
+      this.subscriptions.delete(internalListener);
     };
   }
 
