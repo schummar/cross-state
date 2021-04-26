@@ -178,6 +178,26 @@ test('subscription error caught', async (t) => {
   t.regex(logged, /^Failed to execute listener:/);
 });
 
+test('subscription throw on nested updates', async (t) => {
+  const store = new Store({ foo: 0, bar: 0 });
+
+  store.subscribe(
+    (s) => s.foo,
+    (foo) => {
+      console.log('update');
+      store.update((s) => {
+        s.bar = foo;
+      });
+    }
+  );
+
+  t.throws(() =>
+    store.update((s) => {
+      s.foo = 1;
+    })
+  );
+});
+
 test('addReaction', async (t) => {
   const store = new Store({ foo: 0, bar: 0 });
   let count = 0;

@@ -1,5 +1,6 @@
 import eq from 'fast-deep-equal/es6/react';
 import produce, { applyPatches, Draft, enablePatches, freeze, Patch } from 'immer';
+import { nextTick } from 'node:process';
 import { Cancel } from './misc';
 import { throttle as throttleFn } from './throttle';
 
@@ -127,11 +128,13 @@ export class Store<T> {
     };
   }
 
-  private async notify(): Promise<void> {
+  private notify(): void {
+    console.log(this.notifyInProgress);
     if (this.notifyInProgress === 'reaction') {
       throw Error('You cannot call update from within a reaction. Use the passed draft instead.');
     }
     if (this.notifyInProgress === 'subscription') {
+      console.log('throw');
       throw Error('You cannot call update from within a subscription. Use a reaction instead.');
     }
 
@@ -150,18 +153,21 @@ export class Store<T> {
 
     if (this.notifyScheduled) return;
     this.notifyScheduled = true;
-    await Promise.resolve();
-    this.notifyScheduled = false;
 
-    try {
-      this.notifyInProgress = 'subscription';
-      for (const subscription of this.subscriptions) {
-        subscription(this.patches);
+    (async () => {
+      await Promise.resolve();
+      this.notifyScheduled = false;
+
+      try {
+        this.notifyInProgress = 'subscription';
+        for (const subscription of this.subscriptions) {
+          subscription(this.patches);
+        }
+
+        this.patches = [];
+      } finally {
+        this.notifyInProgress = undefined;
       }
-
-      this.patches = [];
-    } finally {
-      this.notifyInProgress = undefined;
-    }
+    })();
   }
 }
