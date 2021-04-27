@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Action } from './action';
 import useEqualityRef from './useEqualityRef';
 
@@ -12,8 +12,6 @@ export type UseActionOptions = {
   /** */
   dormant?: boolean;
   /** */
-  holdPrevious?: boolean;
-  /** */
   throttle?: number;
 };
 
@@ -26,11 +24,10 @@ const ignore = () => {
 export function useAction<Arg, Value>(
   action: Action<Arg, Value>,
   arg: Arg,
-  { watchOnly, updateOnMount, clearBeforeUpdate, dormant, holdPrevious, throttle }: UseActionOptions = {}
+  { watchOnly, updateOnMount, clearBeforeUpdate, dormant, throttle }: UseActionOptions = {}
 ): UseActionReturn<Value> {
   // This counter is incremented when the action notifies about changes, in order to trigger another render
   const [counter, setCounter] = useState(0);
-  const prev = useRef<UseActionReturn<Value>>([undefined, { error: undefined, isLoading: false }]);
 
   useEffect(() => {
     if (dormant) {
@@ -41,7 +38,7 @@ export function useAction<Arg, Value>(
       arg,
       () => {
         setCounter((c) => c + 1);
-        if (!watchOnly) setImmediate(() => action.get(arg).catch(ignore));
+        if (!watchOnly) action.get(arg).catch(ignore);
       },
       { runNow: true, throttle }
     );
@@ -55,15 +52,14 @@ export function useAction<Arg, Value>(
 
   return useMemo(() => {
     if (dormant) {
-      return (prev.current = [undefined, { error: undefined, isLoading: false }]);
+      return [undefined, { error: undefined, isLoading: false }];
     }
 
     const instance = action.getCache(arg);
-    if (!instance?.current && holdPrevious) return prev.current;
 
-    return (prev.current = [
+    return [
       instance?.current?.kind === 'value' ? instance.current.value : undefined,
       { error: instance?.current?.kind === 'error' ? instance.current.error : undefined, isLoading: !!instance?.inProgress },
-    ]);
-  }, [action, useEqualityRef(arg), dormant, holdPrevious, counter]);
+    ];
+  }, [action, useEqualityRef(arg), dormant, counter]);
 }

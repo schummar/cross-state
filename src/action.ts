@@ -178,12 +178,11 @@ export class Action<Arg, Value> {
       const key = hash(instance.arg);
       instance.timer = setTimeout(() => {
         this.cache.update((state) => {
-          const instance = state.get(key);
-          if (instance) {
-            delete instance?.inProgress;
-            instance.invalid = true;
-            delete instance.timer;
-          }
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          const instance = state.get(key)!;
+          delete instance.inProgress;
+          instance.invalid = true;
+          delete instance.timer;
         });
       }, this.options.invalidateAfter);
     }

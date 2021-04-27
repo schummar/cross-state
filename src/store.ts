@@ -8,11 +8,11 @@ enablePatches();
 const RESTART_UPDATE = Symbol('RESTART_UPDATE');
 
 export class Store<T> {
-  private subscriptions = new Set<(patches: Patch[]) => void>();
+  private subscriptions = new Set<(state: T, patches: Patch[]) => void>();
   private reactions = new Set<() => void>();
   private patches = new Array<Patch>();
   private notifyScheduled = false;
-  private lock?: 'reaction' | 'subscription';
+  private lock?: 'reaction';
 
   constructor(private state: T, private options = { log: console.error }) {
     freeze(state, true);
@@ -61,18 +61,18 @@ export class Store<T> {
 
     let value = selector(this.state);
 
-    const internalListener = (_patches: Patch[], force?: boolean) => {
+    const internalListener = (state: T, _patches: Patch[], force?: boolean) => {
       try {
-        const newValue = selector(this.state);
-        if (!force && eq(newValue, value)) return;
-        listener(newValue, value, this.state);
-        value = newValue;
+        const oldValue = value;
+        value = selector(state);
+        if (!force && eq(value, oldValue)) return;
+        listener(value, oldValue, this.state);
       } catch (e) {
         this.options.log('Failed to execute listener:', e);
       }
     };
 
-    if (runNow) internalListener([], true);
+    if (runNow) internalListener(this.state, [], true);
     this.subscriptions.add(internalListener);
     return () => {
       this.subscriptions.delete(internalListener);
@@ -90,19 +90,18 @@ export class Store<T> {
       let hasChanged = false;
 
       try {
-        const newValue = selector(this.state);
-        if (!force && eq(newValue, value)) return;
+        const oldValue = value;
+        value = selector(this.state);
+        if (!force && eq(value, oldValue)) return;
 
         this.state = produce(
           this.state,
-          (draft) => reaction(newValue, draft, this.state, value),
+          (draft) => reaction(value, draft, this.state, oldValue),
           (patches) => {
             hasChanged = true;
             this.patches.push(...patches);
           }
         );
-
-        value = newValue;
       } catch (e) {
         this.options.log('Failed to execute reaction:', e);
       }
@@ -118,7 +117,7 @@ export class Store<T> {
   }
 
   subscribePatches(listener: (patches: Patch[]) => void): Cancel {
-    const internalListener = (patches: Patch[]) => {
+    const internalListener = (_state: T, patches: Patch[]) => {
       try {
         listener(patches);
       } catch (e) {
@@ -135,9 +134,6 @@ export class Store<T> {
   private checkLock() {
     if (this.lock === 'reaction') {
       throw Error('You cannot call update from within a reaction. Use the passed draft instead.');
-    }
-    if (this.lock === 'subscription') {
-      throw Error('You cannot call update from within a subscription. Use a reaction instead.');
     }
   }
 
@@ -160,16 +156,11 @@ export class Store<T> {
       await Promise.resolve();
       this.notifyScheduled = false;
 
-      try {
-        this.lock = 'subscription';
-        for (const subscription of this.subscriptions) {
-          subscription(this.patches);
-        }
-
-        this.patches = [];
-      } finally {
-        delete this.lock;
+      for (const subscription of this.subscriptions) {
+        subscription(this.state, this.patches);
       }
+
+      this.patches = [];
     })();
   }
 }

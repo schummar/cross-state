@@ -25,7 +25,7 @@ function Dynamic({ store }: { store: Store<{ foo: number; bar: number }> }) {
   );
 }
 
-function NoSelector({ store, throttle }: { store: Store<{ foo?: number }>; throttle?: number }) {
+function NoSelector({ store, throttle }: { store: Store<{ foo: number }>; throttle?: number }) {
   const value = store.useState(throttle ? { throttle } : undefined);
 
   return <div data-testid="div">{JSON.stringify(value)}</div>;

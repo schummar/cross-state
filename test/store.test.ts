@@ -200,26 +200,6 @@ test('subscription error caught', async (t) => {
   t.regex(logged, /^Failed to execute listener:/);
 });
 
-test('subscription throw on nested updates', async (t) => {
-  const store = new Store({ foo: 0, bar: 0 });
-  t.plan(1);
-
-  store.subscribe(
-    (s) => s.foo,
-    (foo) => {
-      t.throws(() =>
-        store.update((s) => {
-          s.bar = foo;
-        })
-      );
-    }
-  );
-
-  store.update((s) => {
-    s.foo = 1;
-  });
-});
-
 test('addReaction', async (t) => {
   const store = new Store({ foo: 0, bar: 0 });
   let count = 0;
@@ -417,23 +397,6 @@ test('subscribePatches error caught', async (t) => {
   );
   await Promise.resolve();
   t.regex(logged, /^Failed to execute patch listener:/);
-});
-
-test('subscribePatches throw on nested updates', async (t) => {
-  const store = new Store({ foo: 0, bar: 0 });
-  t.plan(1);
-
-  store.subscribePatches(() => {
-    t.throws(() =>
-      store.update((s) => {
-        s.bar = 1;
-      })
-    );
-  });
-
-  store.update((s) => {
-    s.foo = 1;
-  });
 });
 
 test('apply patches', async (t) => {
