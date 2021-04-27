@@ -1,5 +1,6 @@
 import test from 'ava';
 import { Store } from '../src';
+import { sleep } from '../src/misc';
 
 test('getState', (t) => {
   const store = new Store({ foo: 'bar' });
@@ -122,7 +123,7 @@ test('subscribe throttled', async (t) => {
   t.is(value, 2);
   t.is(count, 1);
 
-  await new Promise((r) => setTimeout(r, 100));
+  await sleep(100);
   t.is(value, 4);
   t.is(count, 2);
 });

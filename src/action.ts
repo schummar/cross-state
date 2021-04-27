@@ -93,7 +93,6 @@ export class Action<Arg, Value> {
       }
 
       state.delete(key);
-      return state;
     });
   }
 
@@ -130,17 +129,15 @@ export class Action<Arg, Value> {
       else throw fromCache.current.error;
     }
 
+    if (fromCache?.inProgress) {
+      return fromCache.inProgress;
+    }
+
     return this.execute(arg, { clearBeforeUpdate, retries });
   }
 
   async execute(arg: Arg, { clearBeforeUpdate = false, retries = 0 } = {}): Promise<Value> {
     const key = hash(arg);
-
-    const fromCache = this.cache.getState().get(key);
-
-    if (fromCache?.inProgress) {
-      return fromCache.inProgress;
-    }
 
     const task = retry(() => this.action(arg), retries);
 
@@ -183,7 +180,7 @@ export class Action<Arg, Value> {
         this.cache.update((state) => {
           const instance = state.get(key);
           if (instance) {
-            delete instance.inProgress;
+            delete instance?.inProgress;
             instance.invalid = true;
             delete instance.timer;
           }

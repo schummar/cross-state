@@ -4,14 +4,14 @@ export function throttle<Args extends any[]>(fn: (...args: Args) => void, ms: nu
   let timeout: NodeJS.Timeout | undefined;
 
   function run() {
-    if (!lastArgs) return;
     const args = lastArgs;
 
     last = Date.now();
     lastArgs = undefined;
     timeout = undefined;
 
-    fn(...args);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    fn(...args!);
   }
 
   return function (...args: Args) {
@@ -21,10 +21,8 @@ export function throttle<Args extends any[]>(fn: (...args: Args) => void, ms: nu
     if (timeout) {
       // do nothing
     } else if (now < last + ms) {
-      lastArgs = args;
       timeout = setTimeout(run, last + ms - now);
     } else {
-      lastArgs = args;
       run();
     }
   };

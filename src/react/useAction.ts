@@ -41,7 +41,7 @@ export function useAction<Arg, Value>(
       arg,
       () => {
         setCounter((c) => c + 1);
-        if (!watchOnly) action.get(arg).catch(ignore);
+        if (!watchOnly) setImmediate(() => action.get(arg).catch(ignore));
       },
       { runNow: true, throttle }
     );

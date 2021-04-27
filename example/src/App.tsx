@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Action, Store } from '../../react';
+import { sleep } from '../../src/misc';
 import './App.css';
 
 const state = new Store({
@@ -20,7 +21,7 @@ let count = 0;
 const action = new Action(
   async ({ x }: { x: number }) => {
     console.log('calc action');
-    await new Promise((r) => setTimeout(r, 1000));
+    await sleep(1000);
     return x * 2 + count++;
   },
   { invalidateAfter: 10000 }
@@ -28,7 +29,7 @@ const action = new Action(
 
 const action2 = new Action(async (x: number) => {
   console.log('calc action2');
-  await new Promise((r) => setTimeout(r, 1000));
+  await sleep(1000);
   return x * 2;
 });
 
