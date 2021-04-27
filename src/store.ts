@@ -1,6 +1,5 @@
 import eq from 'fast-deep-equal/es6/react';
 import produce, { applyPatches, Draft, enablePatches, freeze, Patch } from 'immer';
-import { nextTick } from 'node:process';
 import { Cancel } from './misc';
 import { throttle as throttleFn } from './throttle';
 
@@ -13,7 +12,7 @@ export class Store<T> {
   private reactions = new Set<() => void>();
   private patches = new Array<Patch>();
   private notifyScheduled = false;
-  private notifyInProgress?: 'reaction' | 'subscription';
+  private lock?: 'reaction' | 'subscription';
 
   constructor(private state: T, private options = { log: console.error }) {
     freeze(state, true);
@@ -24,6 +23,8 @@ export class Store<T> {
   }
 
   update(update: (draft: Draft<T>, original: T) => void): void {
+    this.checkLock();
+
     this.state = produce(
       this.state,
       (draft) => update(draft, this.state),
@@ -33,6 +34,8 @@ export class Store<T> {
   }
 
   set(state: T): void {
+    this.checkLock();
+
     this.state = produce(
       this.state,
       () => state,
@@ -42,6 +45,8 @@ export class Store<T> {
   }
 
   applyPatches(patches: Patch[]): void {
+    this.checkLock();
+
     this.state = applyPatches(this.state, patches);
     this.patches.push(...patches);
     this.notify();
@@ -57,16 +62,14 @@ export class Store<T> {
     let value = selector(this.state);
 
     const internalListener = (_patches: Patch[], force?: boolean) => {
-      const newValue = selector(this.state);
-      if (!force && eq(newValue, value)) return;
-
       try {
+        const newValue = selector(this.state);
+        if (!force && eq(newValue, value)) return;
         listener(newValue, value, this.state);
+        value = newValue;
       } catch (e) {
         this.options.log('Failed to execute listener:', e);
       }
-
-      value = newValue;
     };
 
     if (runNow) internalListener([], true);
@@ -84,12 +87,12 @@ export class Store<T> {
     let value = selector(this.state);
 
     const internalListener = (force?: boolean) => {
-      const newValue = selector(this.state);
-      if (!force && eq(newValue, value)) return;
-
       let hasChanged = false;
 
       try {
+        const newValue = selector(this.state);
+        if (!force && eq(newValue, value)) return;
+
         this.state = produce(
           this.state,
           (draft) => reaction(newValue, draft, this.state, value),
@@ -98,11 +101,12 @@ export class Store<T> {
             this.patches.push(...patches);
           }
         );
+
+        value = newValue;
       } catch (e) {
         this.options.log('Failed to execute reaction:', e);
       }
 
-      value = newValue;
       if (hasChanged && !force) throw RESTART_UPDATE;
     };
 
@@ -128,27 +132,25 @@ export class Store<T> {
     };
   }
 
-  private notify(): void {
-    console.log(this.notifyInProgress);
-    if (this.notifyInProgress === 'reaction') {
+  private checkLock() {
+    if (this.lock === 'reaction') {
       throw Error('You cannot call update from within a reaction. Use the passed draft instead.');
     }
-    if (this.notifyInProgress === 'subscription') {
-      console.log('throw');
+    if (this.lock === 'subscription') {
       throw Error('You cannot call update from within a subscription. Use a reaction instead.');
     }
+  }
 
+  private notify(): void {
     try {
-      this.notifyInProgress = 'reaction';
-
+      this.lock = 'reaction';
       for (const reaction of this.reactions) {
         reaction();
       }
-      this.notifyInProgress = undefined;
     } catch (e) {
-      this.notifyInProgress = undefined;
-      if (e === RESTART_UPDATE) return this.notify();
-      throw e;
+      return this.notify();
+    } finally {
+      delete this.lock;
     }
 
     if (this.notifyScheduled) return;
@@ -159,14 +161,14 @@ export class Store<T> {
       this.notifyScheduled = false;
 
       try {
-        this.notifyInProgress = 'subscription';
+        this.lock = 'subscription';
         for (const subscription of this.subscriptions) {
           subscription(this.patches);
         }
 
         this.patches = [];
       } finally {
-        this.notifyInProgress = undefined;
+        delete this.lock;
       }
     })();
   }

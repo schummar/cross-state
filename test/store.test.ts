@@ -127,6 +127,27 @@ test('subscribe throttled', async (t) => {
   t.is(count, 2);
 });
 
+test('subscribe same value ignored', async (t) => {
+  const store = new Store({ foo: 0 });
+  t.plan(1);
+
+  store.subscribe(
+    (s) => s.foo,
+    () => {
+      t.pass();
+    }
+  );
+
+  store.update((s) => {
+    s.foo = 1;
+  });
+  await Promise.resolve();
+  store.update((s) => {
+    s.foo = 1;
+  });
+  await Promise.resolve();
+});
+
 test('cancel subscription', async (t) => {
   const store = new Store({ foo: 0 });
   let value,
@@ -180,22 +201,22 @@ test('subscription error caught', async (t) => {
 
 test('subscription throw on nested updates', async (t) => {
   const store = new Store({ foo: 0, bar: 0 });
+  t.plan(1);
 
   store.subscribe(
     (s) => s.foo,
     (foo) => {
-      console.log('update');
-      store.update((s) => {
-        s.bar = foo;
-      });
+      t.throws(() =>
+        store.update((s) => {
+          s.bar = foo;
+        })
+      );
     }
   );
 
-  t.throws(() =>
-    store.update((s) => {
-      s.foo = 1;
-    })
-  );
+  store.update((s) => {
+    s.foo = 1;
+  });
 });
 
 test('addReaction', async (t) => {
@@ -217,6 +238,36 @@ test('addReaction', async (t) => {
   });
   t.is(store.getState().bar, 2);
   t.is(count, 1);
+});
+
+test('addReaction rerun', async (t) => {
+  const store = new Store({ foo: 0, bar: 0, baz: 0 });
+  let count1 = 0,
+    count2 = 0;
+
+  store.addReaction(
+    (s) => [s.foo, s.bar] as const,
+    ([foo, bar], s) => {
+      s.baz = foo + bar;
+      count1++;
+    }
+  );
+
+  store.addReaction(
+    (s) => s.foo,
+    (foo, s) => {
+      s.bar = foo * 2;
+      count2++;
+    }
+  );
+
+  store.update((s) => {
+    s.foo = 1;
+    s.bar = 1;
+  });
+  t.is(store.getState().baz, 3);
+  t.is(count1, 2);
+  t.is(count2, 1);
 });
 
 test('addReaction with runNow', async (t) => {
@@ -284,6 +335,26 @@ test('addReaction error caught', async (t) => {
   t.regex(logged, /^Failed to execute reaction:/);
 });
 
+test('addReaction throw on nested updates', async (t) => {
+  const store = new Store({ foo: 0, bar: 0 });
+  t.plan(1);
+
+  store.addReaction(
+    (s) => s.foo,
+    (foo) => {
+      t.throws(() =>
+        store.update((s) => {
+          s.bar = foo;
+        })
+      );
+    }
+  );
+
+  store.update((s) => {
+    s.foo = 1;
+  });
+});
+
 test('subscribePatches', async (t) => {
   const store = new Store({ foo: 0 });
   let patches,
@@ -345,6 +416,23 @@ test('subscribePatches error caught', async (t) => {
   );
   await Promise.resolve();
   t.regex(logged, /^Failed to execute patch listener:/);
+});
+
+test('subscribePatches throw on nested updates', async (t) => {
+  const store = new Store({ foo: 0, bar: 0 });
+  t.plan(1);
+
+  store.subscribePatches(() => {
+    t.throws(() =>
+      store.update((s) => {
+        s.bar = 1;
+      })
+    );
+  });
+
+  store.update((s) => {
+    s.foo = 1;
+  });
 });
 
 test('apply patches', async (t) => {
