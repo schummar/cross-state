@@ -1,4 +1,8 @@
-React hooks base state library. Heavily inspired by [pullstate](https://github.com/lostpebble/pullstate)
+[![npm badge](https://badgen.net/npm/v/schummar-state)](https://www.npmjs.com/package/schummar-state)
+[![bundlephobia badge](https://badgen.net/bundlephobia/minzip/schummar-state)](https://bundlephobia.com/result?p=schummar-state)
+
+Lighweight React hooks based state library.
+Heavily inspired by [pullstate](https://github.com/lostpebble/pullstate)
 
 # Getting started
 

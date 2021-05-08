@@ -1,0 +1,13 @@
+{
+  "ava": {
+    "extensions": [
+      "ts",
+      "tsx"
+    ],
+    "require": [
+      "ts-node/register",
+      "global-jsdom/register",
+      "./_setup.ts"
+    ]
+  }
+}
