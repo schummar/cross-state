@@ -1,6 +1,7 @@
 import test from 'ava';
 import { Action } from '../src';
 import { sleep } from '../src/misc';
+import { wait } from './_helpers';
 
 test('get', async (t) => {
   let executed = 0;
@@ -60,13 +61,13 @@ test('execute parallel', async (t) => {
   let executed = 0;
 
   const action = new Action(async (x: number) => {
-    await sleep(10);
+    await wait(10);
     executed++;
     return x * 2;
   });
 
   const a = action.execute(1);
-  await sleep(5);
+  await wait(5);
   const b = action.execute(1);
 
   t.is(await a, 2);
@@ -106,7 +107,7 @@ test('retry', async (t) => {
   t.is(executed, 2);
 });
 
-test('danling execution', async (t) => {
+test('dangling execution', async (t) => {
   const action = new Action(async (x: number) => {
     await Promise.resolve();
     return x * 2;
@@ -119,7 +120,7 @@ test('danling execution', async (t) => {
   t.is(action.getCache(1), undefined);
 });
 
-test('danling execution error', async (t) => {
+test('dangling execution error', async (t) => {
   const action = new Action(async () => {
     await Promise.resolve();
     throw Error();
@@ -134,7 +135,7 @@ test('danling execution error', async (t) => {
 
 test('subscribe', async (t) => {
   const action = new Action(async (x: number) => {
-    await sleep(10);
+    await wait(10);
     return x * 2;
   });
 
@@ -156,7 +157,7 @@ test('subscribe', async (t) => {
 
 test('subscribe error', async (t) => {
   const action = new Action(async () => {
-    await sleep(10);
+    await wait(10);
     throw Error();
   });
 
@@ -243,7 +244,7 @@ test('getCacheError', async (t) => {
 
 test('updateCache', async (t) => {
   const action = new Action(async (x: number) => {
-    await sleep(10);
+    await wait(10);
     return { value: x * 2 };
   });
 
@@ -261,7 +262,7 @@ test('updateCache', async (t) => {
 
 test('updateCacheAll', async (t) => {
   const action = new Action(async (x: number) => {
-    await sleep(10);
+    await wait(10);
     if (x === 2) throw Error();
     return { value: x * 2 };
   });
@@ -385,11 +386,11 @@ test('update timer', async (t) => {
   t.is(action.getCacheValue(1), 2);
   t.truthy(action.getCache(1)?.timer);
 
-  await sleep(60);
+  await sleep(75);
   t.is(action.getCacheValue(1), 2);
   t.truthy(action.getCache(1)?.timer);
 
-  await sleep(60);
+  await sleep(50);
   t.is(action.getCacheValue(1), 2);
   t.is(action.getCache(1)?.timer, undefined);
 });

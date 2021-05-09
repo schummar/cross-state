@@ -123,7 +123,7 @@ test('subscribe throttled', async (t) => {
   t.is(value, 2);
   t.is(count, 1);
 
-  await sleep(100);
+  await sleep(125);
   t.is(value, 4);
   t.is(count, 2);
 });

@@ -3,6 +3,7 @@ import test from 'ava';
 import React, { useState } from 'react';
 import { sleep } from '../src/misc';
 import { Store } from '../src/react';
+import { wait } from './_helpers';
 
 function Simple({ store, throttle }: { store: Store<{ foo: number }>; throttle?: number }) {
   const value = store.useState((s) => s.foo, undefined, { throttle });
@@ -53,7 +54,6 @@ test.serial('dynamic selector', async (t) => {
   t.is(div.textContent, 'foo: 1');
 
   fireEvent.click(div);
-  await sleep(100);
   t.is(div.textContent, 'bar: 10');
 });
 
@@ -80,7 +80,7 @@ test.serial('throttled', async (t) => {
   await Promise.resolve();
   t.is(div.textContent, '2');
 
-  await sleep(100);
+  await sleep(125);
   t.is(div.textContent, '4');
 });
 
@@ -121,6 +121,6 @@ test.serial('no selector throttled', async (t) => {
   await Promise.resolve();
   t.is(div.textContent, '{"foo":2}');
 
-  await sleep(100);
+  await sleep(125);
   t.is(div.textContent, '{"foo":4}');
 });
