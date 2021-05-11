@@ -23,11 +23,9 @@
   },
   "license": "ISC",
   "scripts": {
-    "start": "run-p start:*",
-    "start:compile": "tsc --watch",
-    "start:example": "npm --prefix example start",
+    "start": "tsc --watch",
     "build": "npm-run-all -s build:clean -p build:compile:*",
-    "build:clean": "rimraf esm/** cjs/**",
+    "build:clean": "rimraf dist/**",
     "build:compile:esm": "tsc",
     "build:compile:cjs": "tsc -p tsconfig-cjs.json && echo '{\"type\":\"commonjs\"}' > dist/cjs/package.json",
     "lint": "run-p lint:*",
