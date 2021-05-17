@@ -306,6 +306,37 @@ test('clearCache', async (t) => {
   t.is(executed, 2);
 });
 
+test('clearCache function', async (t) => {
+  let executed = 0;
+
+  const action = new Action(
+    async (x: number) => {
+      await Promise.resolve();
+      executed++;
+      if (x === 1) return 1;
+      else throw Error('error');
+    },
+    {
+      invalidateAfter: (v, e) => {
+        console.log(e);
+        if (executed === 1) t.is(v, 1);
+        else t.truthy(e);
+        return 1000;
+      },
+    }
+  );
+
+  t.is(await action.get(1), 1);
+
+  action.clearCache(1);
+  action.clearCache(2);
+  t.is(action.getCache(1), undefined);
+  t.is(action.getCache(2), undefined);
+
+  await t.throwsAsync(() => action.get(2));
+  t.is(executed, 2);
+});
+
 test('clearCacheAll', async (t) => {
   let executed = 0;
 

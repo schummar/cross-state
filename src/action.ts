@@ -26,7 +26,12 @@ export class Action<Arg, Value> {
 
   private cache = new Store(new Map<string, Instance<Arg, Value>>());
 
-  constructor(private action: (arg: Arg) => Promise<Value>, private options: { invalidateAfter?: number } = {}) {
+  constructor(
+    private action: (arg: Arg) => Promise<Value>,
+    private options: {
+      invalidateAfter?: number | ((value: Value | undefined, error: unknown | undefined) => number | undefined);
+    } = {}
+  ) {
     Action.allActions.push(this);
   }
 
@@ -50,9 +55,8 @@ export class Action<Arg, Value> {
       instance.current = { kind: 'value', value: value as Draft<Value>, t: new Date() };
       delete instance.inProgress;
       instance.invalid = false;
-
-      this.scheduleInvalidation(instance);
     });
+    this.scheduleInvalidation(arg);
   }
 
   updateCache(arg: Arg, update: (draft: Draft<Value>) => void): boolean {
@@ -63,10 +67,12 @@ export class Action<Arg, Value> {
         update(instance.current.value);
         instance.invalid = false;
 
-        this.scheduleInvalidation(instance);
         found = true;
       }
     });
+    if (found) {
+      this.scheduleInvalidation(arg);
+    }
 
     return found;
   }
@@ -77,11 +83,14 @@ export class Action<Arg, Value> {
         if (instance.current?.kind === 'value') {
           update(instance.current.value, instance.arg as Arg);
           instance.invalid = false;
-
-          this.scheduleInvalidation(instance);
         }
       }
     });
+    for (const instance of this.cache.getState().values()) {
+      if (instance.current?.kind === 'value') {
+        this.scheduleInvalidation(instance.arg);
+      }
+    }
   }
 
   clearCache(arg: Arg): void {
@@ -160,32 +169,42 @@ export class Action<Arg, Value> {
           instance.current = { kind: 'error', error: e, t: new Date() };
           delete instance.inProgress;
           instance.invalid = false;
-          this.scheduleInvalidation(instance);
         });
+        this.scheduleInvalidation(arg);
       }
 
       throw e;
     }
   }
 
-  scheduleInvalidation(instance: Draft<Instance<Arg, Value>>): void {
-    if (instance.timer) {
-      clearTimeout(instance.timer as NodeJS.Timeout);
-      delete instance.timer;
-    }
+  scheduleInvalidation(arg: Arg): void {
+    const instance = this.updateInstance(arg, (instance) => {
+      if (instance.timer) {
+        clearTimeout(instance.timer as NodeJS.Timeout);
+        delete instance.timer;
+      }
+    });
 
-    if (this.options.invalidateAfter !== undefined && this.options.invalidateAfter !== Infinity) {
-      const key = hash(instance.arg);
-      instance.timer = setTimeout(() => {
-        this.cache.update((state) => {
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          const instance = state.get(key)!;
-          delete instance.inProgress;
-          instance.invalid = true;
-          delete instance.timer;
-        });
-      }, this.options.invalidateAfter);
+    let { invalidateAfter } = this.options;
+    if (invalidateAfter instanceof Function) {
+      invalidateAfter = invalidateAfter(
+        instance.current?.kind === 'value' ? instance.current.value : undefined,
+        instance.current?.kind === 'error' ? instance.current.error : undefined
+      );
     }
+    if (invalidateAfter === undefined || invalidateAfter === Infinity) return;
+
+    const timer = setTimeout(() => {
+      this.updateInstance(arg, (instance) => {
+        delete instance.inProgress;
+        instance.invalid = true;
+        delete instance.timer;
+      });
+    }, invalidateAfter);
+
+    this.updateInstance(arg, (instance) => {
+      instance.timer = timer;
+    });
   }
 
   subscribe(
@@ -209,7 +228,7 @@ export class Action<Arg, Value> {
     );
   }
 
-  private updateInstance(arg: Arg, update: (value: Draft<Instance<Arg, Value>>) => void): void {
+  private updateInstance(arg: Arg, update: (value: Draft<Instance<Arg, Value>>) => void): Instance<Arg, Value> {
     const key = hash(arg);
     this.cache.update((state) => {
       let instance = state.get(key);
@@ -219,5 +238,8 @@ export class Action<Arg, Value> {
       }
       update(instance);
     });
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return this.cache.getState().get(key)!;
   }
 }

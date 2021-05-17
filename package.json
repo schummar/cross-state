@@ -1,7 +1,7 @@
 {
   "name": "schummar-state",
   "repository": "schummar/schummar-state",
-  "version": "0.0.25",
+  "version": "0.0.26",
   "description": "(React) state library",
   "type": "module",
   "sideEffects": false,
