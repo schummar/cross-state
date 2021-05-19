@@ -318,7 +318,6 @@ test('clearCache function', async (t) => {
     },
     {
       invalidateAfter: (v, e) => {
-        console.log(e);
         if (executed === 1) t.is(v, 1);
         else t.truthy(e);
         return 1000;
