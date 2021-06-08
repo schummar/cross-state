@@ -1,6 +1,6 @@
 import test from 'ava';
 import { Store } from '../src';
-import { sleep } from '../src/misc';
+import { sleep } from '../src/helpers/misc';
 
 test('getState', (t) => {
   const store = new Store({ foo: 'bar' });

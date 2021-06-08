@@ -1,8 +1,8 @@
 import test from 'ava';
-import { Store, Persist } from '../src';
-import { sleep } from '../src/misc';
 import localforage from 'localforage';
 import nodePersist from 'node-persist';
+import { Store, StorePersist } from '../../src';
+import { sleep } from '../../src/helpers/misc';
 
 type State = {
   wellKnownObject: { wellKnownProp: string };
@@ -40,10 +40,30 @@ class MockStorage {
   }
 }
 
+class MockStorageWithoutKeys {
+  constructor(public readonly items: { [key: string]: string } = {}) {}
+
+  getItem(key: string) {
+    return this.items[key] ?? null;
+  }
+  setItem(key: string, value: string) {
+    this.items[key] = value;
+  }
+  removeItem(key: string) {
+    delete this.items[key];
+  }
+  length() {
+    return Object.keys(this.items).length;
+  }
+  key(i: number) {
+    return Object.keys(this.items)[i] ?? null;
+  }
+}
+
 test('save', async (t) => {
   const store = new Store(initalState);
   const storage = new MockStorage();
-  const persist = new Persist(store, storage, {
+  const persist = new StorePersist(store, storage, {
     paths: [
       'wellKnownObject',
       'simpleDict.*',
@@ -86,7 +106,7 @@ test('save', async (t) => {
 test('save throttled', async (t) => {
   const store = new Store(initalState);
   const storage = new MockStorage();
-  const persist = new Persist(store, storage, {
+  const persist = new StorePersist(store, storage, {
     paths: ['wellKnownObject', { path: 'complexDict.*', throttleMs: 100 }],
   });
 
@@ -123,7 +143,34 @@ test('load', async (t) => {
     'nested.id3.id4': '{}',
     'nested.id3.id4.nestedProp': '"value5"',
   });
-  const persist = new Persist(store, storage);
+  const persist = new StorePersist(store, storage);
+
+  await persist.initialization;
+
+  t.deepEqual(store.getState(), {
+    wellKnownObject: { wellKnownProp: 'b' },
+    simpleDict: { id1: 'value1' },
+    complexDict: { id2: { complexDictProps: 'value2' } },
+    simpleArray: ['value3'],
+    complexArray: [{ complexArrayProp: 'value4' }],
+    nested: { id3: { id4: { nestedProp: 'value5' } } },
+    notPersisted: { notPersitedProps: 'a' },
+  });
+});
+
+test('load alternative storage', async (t) => {
+  const store = new Store(initalState);
+  const storage = new MockStorageWithoutKeys({
+    wellKnownObject: '{"wellKnownProp":"b"}',
+    'simpleDict.id1': '"value1"',
+    'complexDict.id2': '{"complexDictProps":"value2"}',
+    'simpleArray.0': '"value3"',
+    'complexArray.0': '{"complexArrayProp":"value4"}',
+    'nested.id3': '{}',
+    'nested.id3.id4': '{}',
+    'nested.id3.id4.nestedProp': '"value5"',
+  });
+  const persist = new StorePersist(store, storage);
 
   await persist.initialization;
 
@@ -140,18 +187,50 @@ test('load', async (t) => {
 
 test('compatible with localStorage', async (t) => {
   const store = new Store(initalState);
-  new Persist(store, localStorage);
+  new StorePersist(store, localStorage);
   t.pass();
 });
 
 test('compatible with localforage', async (t) => {
   const store = new Store(initalState);
-  new Persist(store, localforage);
+  new StorePersist(store, localforage);
   t.pass();
 });
 
 test('compatible with node-persist', async (t) => {
   const store = new Store(initalState);
-  new Persist(store, nodePersist);
+  new StorePersist(store, nodePersist);
   t.pass();
+});
+
+test('stop', async (t) => {
+  const store = new Store(initalState);
+  const storage = new MockStorage();
+  const persist = new StorePersist(store, storage, {
+    paths: ['wellKnownObject'],
+  });
+
+  await persist.initialization;
+
+  store.update((state) => {
+    state.wellKnownObject.wellKnownProp = 'b';
+  });
+
+  await Promise.resolve();
+
+  t.deepEqual(storage.items, {
+    wellKnownObject: '{"wellKnownProp":"b"}',
+  });
+
+  persist.stop();
+
+  store.update((state) => {
+    state.wellKnownObject.wellKnownProp = 'c';
+  });
+
+  await Promise.resolve();
+
+  t.deepEqual(storage.items, {
+    wellKnownObject: '{"wellKnownProp":"b"}',
+  });
 });

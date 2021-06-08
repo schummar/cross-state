@@ -1,4 +1,4 @@
 export * from './action';
-export * from './persist';
-export * from './persistStorage';
+export * from './persist/persistStorage';
+export * from './persist/storePersist';
 export * from './store';

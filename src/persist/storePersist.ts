@@ -1,10 +1,10 @@
 import { Patch } from 'immer';
+import { Store } from '../store';
 import { get, isAncestor, Path, split } from './persistPathHelpers';
 import { PersistPaths } from './persistPaths';
 import { StorePersistStorage } from './persistStorage';
-import { Store } from './store';
 
-export class Persist<T> {
+export class StorePersist<T> {
   initialization = this.load();
   private isStopped = false;
   private sub?: () => void;
@@ -49,7 +49,7 @@ export class Persist<T> {
     }
     keys.sort((a, b) => a.length - b.length);
 
-    const patches = new Array<Patch & { persist: Persist<T> }>();
+    const patches = new Array<Patch & { persist: StorePersist<T> }>();
     for (const key of keys) {
       const value = await storage.getItem(key);
       if (value) {

@@ -1,7 +1,7 @@
 import eq from 'fast-deep-equal/es6/react';
 import produce, { applyPatches, Draft, enablePatches, freeze, Patch } from 'immer';
-import { Cancel } from './misc';
-import { throttle as throttleFn } from './throttle';
+import { Cancel } from './helpers/misc';
+import { throttle as throttleFn } from './helpers/throttle';
 
 enablePatches();
 

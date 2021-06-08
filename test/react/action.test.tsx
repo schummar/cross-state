@@ -1,9 +1,9 @@
 import { render, screen } from '@testing-library/react';
 import test from 'ava';
 import React from 'react';
-import { sleep } from '../src/misc';
-import { Action } from '../src/react';
-import { wait } from './_helpers';
+import { sleep } from '../../src/helpers/misc';
+import { Action } from '../../src/react';
+import { wait } from '../_helpers';
 
 function Component({ useAction }: { useAction: () => [unknown, { isLoading: boolean; error?: unknown }] }) {
   const [value, { isLoading, error }] = useAction();

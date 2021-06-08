@@ -1,6 +1,6 @@
 import test from 'ava';
 import { Action } from '../src';
-import { sleep } from '../src/misc';
+import { sleep } from '../src/helpers/misc';
 import { wait } from './_helpers';
 
 test('get', async (t) => {

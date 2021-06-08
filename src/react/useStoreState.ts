@@ -1,15 +1,28 @@
 import { useEffect, useMemo, useState } from 'react';
+import { createSelector, SelectorPaths, SelectorValue } from '../helpers/stringSelector';
 import { Store } from './store';
 import useEqualityRef from './useEqualityRef';
 
-export function useStoreState<T>(store: Store<T>, options?: { throttle?: number }): T;
-export function useStoreState<T, S>(store: Store<T>, selector: (state: T) => S, dependencies?: any[], options?: { throttle?: number }): S;
+export type UseStoreStateOptions = { throttle?: number };
+
+export function useStoreState<T>(store: Store<T>, options?: UseStoreStateOptions): T;
+export function useStoreState<T, S>(store: Store<T>, selector: (state: T) => S, dependencies?: any[], options?: UseStoreStateOptions): S;
+export function useStoreState<T, K extends SelectorPaths<T>>(
+  store: Store<T>,
+  selector: K,
+  options?: UseStoreStateOptions
+): SelectorValue<T, K>;
 export function useStoreState<T, S>(store: Store<T>, ...args: any[]): S {
   let selector: (state: T) => S, deps: any[], options: { throttle?: number };
+
   if (args[0] instanceof Function) {
     selector = args[0];
     deps = args[1] ?? [];
     options = args[2] ?? {};
+  } else if (typeof args[0] === 'string') {
+    selector = createSelector(args[0]);
+    deps = [args[0]];
+    options = args[1] ?? {};
   } else {
     selector = (x) => x as any;
     deps = [];
