@@ -86,13 +86,13 @@ export class Store<T> {
   ): Cancel {
     let value = selector(this.state);
 
-    const internalListener = (force?: boolean) => {
+    const internalListener = (init?: boolean) => {
       let hasChanged = false;
 
       try {
         const oldValue = value;
         value = selector(this.state);
-        if (!force && eq(value, oldValue)) return;
+        if (!init && eq(value, oldValue)) return;
 
         this.state = produce(
           this.state,
@@ -106,7 +106,8 @@ export class Store<T> {
         this.options.log('Failed to execute reaction:', e);
       }
 
-      if (hasChanged && !force) throw RESTART_UPDATE;
+      if (hasChanged && !init) throw RESTART_UPDATE;
+      if (hasChanged && init) this.notify();
     };
 
     if (runNow) internalListener(true);

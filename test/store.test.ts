@@ -336,6 +336,53 @@ test('addReaction throw on nested updates', async (t) => {
   });
 });
 
+test('addReaction with subscribe', async (t) => {
+  const store = new Store({ foo: 0, bar: 0 });
+  t.plan(1);
+
+  store.subscribe(
+    (s) => s.bar,
+    (bar) => {
+      t.is(bar, 1);
+    }
+  );
+
+  store.addReaction(
+    (s) => s.foo,
+    (foo, s) => {
+      s.bar = foo;
+    }
+  );
+
+  store.update((s) => {
+    s.foo = 1;
+  });
+
+  await Promise.resolve();
+});
+
+test('addReaction with runNow subscribe', async (t) => {
+  const store = new Store({ foo: 1, bar: 0 });
+  t.plan(1);
+
+  store.subscribe(
+    (s) => s.bar,
+    (bar) => {
+      t.is(bar, 1);
+    }
+  );
+
+  store.addReaction(
+    (s) => s.foo,
+    (foo, s) => {
+      s.bar = foo;
+    },
+    { runNow: true }
+  );
+
+  await Promise.resolve();
+});
+
 test('subscribePatches', async (t) => {
   const store = new Store({ foo: 0 });
   let patches,

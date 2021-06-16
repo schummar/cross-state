@@ -220,3 +220,23 @@ test.serial('no selector throttled', async (t) => {
   await sleep(125);
   t.is(div.textContent, '{"foo":4}');
 });
+
+test.serial('addReaction', async (t) => {
+  const store = new Store({ foo: 0 });
+
+  render(<Simple useValue={() => store.useState((s) => s.foo * 2)} />);
+  const div = screen.getByTestId('div');
+
+  store.addReaction(
+    (s) => s.foo,
+    (foo, state) => {
+      if (foo % 2 === 1) state.foo++;
+    }
+  );
+  store.update((s) => {
+    s.foo++;
+  });
+
+  await Promise.resolve();
+  t.is(div.textContent, '4');
+});
