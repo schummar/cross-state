@@ -139,17 +139,21 @@ test('subscribe', async (t) => {
     return x * 2;
   });
 
-  t.plan(4);
+  t.plan(6);
 
   let count = 0;
   action.subscribe(1, (value, info) => {
-    if (count++ === 0) {
+    if (count === 0) {
+      t.is(value, undefined);
+      t.deepEqual(info, { isLoading: false, error: undefined });
+    } else if (count === 1) {
       t.is(value, undefined);
       t.deepEqual(info, { isLoading: true, error: undefined });
     } else {
       t.is(value, 2);
       t.deepEqual(info, { isLoading: false, error: undefined });
     }
+    count++;
   });
 
   await action.execute(1);
@@ -161,17 +165,21 @@ test('subscribe error', async (t) => {
     throw Error();
   });
 
-  t.plan(5);
+  t.plan(7);
 
   let count = 0;
   action.subscribe(1, (value, info) => {
-    if (count++ === 0) {
+    if (count === 0) {
+      t.is(value, undefined);
+      t.deepEqual(info, { isLoading: false, error: undefined });
+    } else if (count === 1) {
       t.is(value, undefined);
       t.deepEqual(info, { isLoading: true, error: undefined });
     } else {
       t.is(value, undefined);
       t.deepEqual(info, { isLoading: false, error: Error() });
     }
+    count++;
   });
 
   await t.throwsAsync(() => action.execute(1));

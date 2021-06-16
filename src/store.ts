@@ -55,25 +55,25 @@ export class Store<T> {
   subscribe<S>(
     selector: (state: T) => S,
     listener: (value: S, prev: S | undefined, state: T) => void,
-    { runNow = false, throttle = 0 } = {}
+    { runNow = true, throttle = 0 } = {}
   ): Cancel {
-    if (throttle) listener = throttleFn(listener, throttle);
+    const throttledListener = throttle ? throttleFn(listener, throttle) : listener;
 
     let value = selector(this.state);
 
-    const internalListener = (state: T, _patches: Patch[], force?: boolean) => {
+    const internalListener = (state: T, _patches: Patch[], init?: boolean) => {
       try {
         const oldValue = value;
         value = selector(state);
-        if (!force && eq(value, oldValue)) return;
-        listener(value, oldValue, this.state);
+        if (!init && eq(value, oldValue)) return;
+        (init ? listener : throttledListener)(value, oldValue, this.state);
       } catch (e) {
         this.options.log('Failed to execute listener:', e);
       }
     };
 
-    if (runNow) internalListener(this.state, [], true);
     this.subscriptions.add(internalListener);
+    if (runNow) internalListener(this.state, [], true);
     return () => {
       this.subscriptions.delete(internalListener);
     };
@@ -82,7 +82,7 @@ export class Store<T> {
   addReaction<S>(
     selector: (state: T) => S,
     reaction: (value: S, draft: Draft<T>, original: T, prev: S) => void,
-    { runNow = false } = {}
+    { runNow = true } = {}
   ): Cancel {
     let value = selector(this.state);
 
@@ -90,6 +90,7 @@ export class Store<T> {
       let hasChanged = false;
 
       try {
+        this.lock = 'reaction';
         const oldValue = value;
         value = selector(this.state);
         if (!init && eq(value, oldValue)) return;
@@ -104,6 +105,8 @@ export class Store<T> {
         );
       } catch (e) {
         this.options.log('Failed to execute reaction:', e);
+      } finally {
+        delete this.lock;
       }
 
       if (hasChanged && !init) throw RESTART_UPDATE;
@@ -140,14 +143,11 @@ export class Store<T> {
 
   private notify(): void {
     try {
-      this.lock = 'reaction';
       for (const reaction of this.reactions) {
         reaction();
       }
     } catch (e) {
       return this.notify();
-    } finally {
-      delete this.lock;
     }
 
     if (this.notifyScheduled) return;

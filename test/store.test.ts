@@ -27,8 +27,8 @@ test('subscribe', async (t) => {
       count++;
     }
   );
-  t.is(value, undefined);
-  t.is(count, 0);
+  t.is(value, 0);
+  t.is(count, 1);
 
   store.update((s) => {
     s.foo = 1;
@@ -36,12 +36,12 @@ test('subscribe', async (t) => {
   store.update((s) => {
     s.foo = 2;
   });
-  t.is(value, undefined);
-  t.is(count, 0);
+  t.is(value, 0);
+  t.is(count, 1);
 
   await Promise.resolve();
   t.is(value, 4);
-  t.is(count, 1);
+  t.is(count, 2);
 });
 
 test('subscribe additional properties', async (t) => {
@@ -121,16 +121,16 @@ test('subscribe throttled', async (t) => {
   await Promise.resolve();
 
   t.is(value, 2);
-  t.is(count, 1);
+  t.is(count, 2);
 
   await sleep(125);
   t.is(value, 4);
-  t.is(count, 2);
+  t.is(count, 3);
 });
 
 test('subscribe same value ignored', async (t) => {
   const store = new Store({ foo: 0 });
-  t.plan(1);
+  t.plan(2);
 
   store.subscribe(
     (s) => s.foo,
@@ -167,7 +167,7 @@ test('cancel subscription', async (t) => {
   });
   await Promise.resolve();
   t.is(value, 1);
-  t.is(count, 1);
+  t.is(count, 2);
 
   cancel();
 
@@ -176,7 +176,7 @@ test('cancel subscription', async (t) => {
   });
   await Promise.resolve();
   t.is(value, 1);
-  t.is(count, 1);
+  t.is(count, 2);
 });
 
 test('subscription error caught', async (t) => {
@@ -212,13 +212,13 @@ test('addReaction', async (t) => {
     }
   );
   t.is(store.getState().bar, 0);
-  t.is(count, 0);
+  t.is(count, 1);
 
   store.update((s) => {
     s.foo = 1;
   });
   t.is(store.getState().bar, 2);
-  t.is(count, 1);
+  t.is(count, 2);
 });
 
 test('addReaction rerun', async (t) => {
@@ -247,8 +247,8 @@ test('addReaction rerun', async (t) => {
     s.bar = 1;
   });
   t.is(store.getState().baz, 3);
-  t.is(count1, 2);
-  t.is(count2, 1);
+  t.is(count1, 3);
+  t.is(count2, 2);
 });
 
 test('addReaction with runNow', async (t) => {
@@ -330,20 +330,17 @@ test('addReaction throw on nested updates', async (t) => {
       );
     }
   );
-
-  store.update((s) => {
-    s.foo = 1;
-  });
 });
 
 test('addReaction with subscribe', async (t) => {
   const store = new Store({ foo: 0, bar: 0 });
-  t.plan(1);
+  t.plan(2);
 
+  let count = 0;
   store.subscribe(
     (s) => s.bar,
     (bar) => {
-      t.is(bar, 1);
+      t.is(bar, count++);
     }
   );
 
@@ -361,14 +358,14 @@ test('addReaction with subscribe', async (t) => {
   await Promise.resolve();
 });
 
-test('addReaction with runNow subscribe', async (t) => {
+test('addReaction with runNow=false subscribe', async (t) => {
   const store = new Store({ foo: 1, bar: 0 });
   t.plan(1);
 
   store.subscribe(
     (s) => s.bar,
     (bar) => {
-      t.is(bar, 1);
+      t.is(bar, 0);
     }
   );
 
@@ -377,7 +374,7 @@ test('addReaction with runNow subscribe', async (t) => {
     (foo, s) => {
       s.bar = foo;
     },
-    { runNow: true }
+    { runNow: false }
   );
 
   await Promise.resolve();

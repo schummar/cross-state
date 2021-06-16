@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import test from 'ava';
-import React, { ReactNode, useState } from 'react';
+import React, { ReactNode, useEffect, useState } from 'react';
 import { sleep } from '../../src/helpers/misc';
 import { Store } from '../../src/react';
 
@@ -239,4 +239,24 @@ test.serial('addReaction', async (t) => {
 
   await Promise.resolve();
   t.is(div.textContent, '4');
+});
+
+test.serial('useStoreState with change before useEffect kicks in', async (t) => {
+  const store = new Store({ foo: 0 });
+
+  function X() {
+    useEffect(() => {
+      store.update((state) => {
+        state.foo++;
+      });
+    }, []);
+
+    const value = store.useState('foo');
+
+    return <div data-testid="div">{value}</div>;
+  }
+
+  render(<X />);
+  const div = screen.getByTestId('div');
+  t.is(div.textContent, '1');
 });
