@@ -4,8 +4,6 @@ import { Cancel } from './helpers/misc';
 import retry from './helpers/retry';
 import { Store } from './store';
 
-enableMapSet();
-
 type Result<Value> = { kind: 'value'; value: Value; t: Date } | { kind: 'error'; error: unknown; t: Date };
 type Instance<Arg, Value> = {
   arg: Arg;
@@ -33,6 +31,7 @@ export class Action<Arg, Value> {
     } = {}
   ) {
     Action.allActions.push(this);
+    enableMapSet();
   }
 
   getCache(arg: Arg): Instance<Arg, Value> | undefined {

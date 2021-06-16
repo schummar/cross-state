@@ -1,9 +1,7 @@
 import eq from 'fast-deep-equal/es6/react';
-import produce, { applyPatches, Draft, enablePatches, freeze, Patch } from 'immer';
+import produce, { applyPatches, Draft, enableMapSet, enablePatches, freeze, Patch } from 'immer';
 import { Cancel } from './helpers/misc';
 import { throttle as throttleFn } from './helpers/throttle';
-
-enablePatches();
 
 const RESTART_UPDATE = Symbol('RESTART_UPDATE');
 
@@ -16,6 +14,8 @@ export class Store<T> {
 
   constructor(private state: T, private options = { log: console.error }) {
     freeze(state, true);
+    enableMapSet();
+    enablePatches();
   }
 
   getState(): T {
