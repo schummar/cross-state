@@ -110,8 +110,8 @@ export class Store<T> {
       if (hasChanged && init) this.notify();
     };
 
-    if (runNow) internalListener(true);
     this.reactions.add(internalListener);
+    if (runNow) internalListener(true);
     return () => {
       this.reactions.delete(internalListener);
     };

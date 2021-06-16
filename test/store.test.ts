@@ -383,6 +383,26 @@ test('addReaction with runNow subscribe', async (t) => {
   await Promise.resolve();
 });
 
+test('addReaction rerun with runNow', async (t) => {
+  const store = new Store({ foo: 1 });
+  t.plan(4);
+
+  store.addReaction(
+    (s) => s.foo,
+    (foo, s) => {
+      t.pass();
+      if (foo % 2 === 1) s.foo++;
+    },
+    { runNow: true }
+  );
+
+  store.update((s) => {
+    s.foo = 1;
+  });
+
+  await Promise.resolve();
+});
+
 test('subscribePatches', async (t) => {
   const store = new Store({ foo: 0 });
   let patches,
