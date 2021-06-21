@@ -12,7 +12,7 @@ export class Store<T> {
   private notifyScheduled = false;
   private lock?: 'reaction';
 
-  constructor(private state: T, private options = { log: console.error }) {
+  constructor(private state: T, private options = { log: (...data:any[])=>console.error(...data) }) {
     freeze(state, true);
     enableMapSet();
     enablePatches();
