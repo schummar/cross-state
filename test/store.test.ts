@@ -469,3 +469,31 @@ test('apply patches', async (t) => {
   store.applyPatches([{ op: 'replace', path: ['foo'], value: 1 }]);
   t.is(store.getState().foo, 1);
 });
+
+test('update during subscribe callback', async (t) => {
+  const store = new Store({ foo: 0 });
+
+  t.plan(4);
+
+  store.subscribePatches((patches) => {
+    t.is(patches.length, 1);
+  });
+
+  store.subscribe(
+    (state) => state.foo,
+    (foo) => {
+      t.pass();
+
+      if (foo === 1) {
+        store.update((state) => {
+          state.foo++;
+        });
+      }
+    },
+    { runNow: false }
+  );
+
+  store.update((state) => {
+    state.foo++;
+  });
+});

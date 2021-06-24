@@ -12,7 +12,7 @@ export class Store<T> {
   private notifyScheduled = false;
   private lock?: 'reaction';
 
-  constructor(private state: T, private options = { log: (...data:any[])=>console.error(...data) }) {
+  constructor(private state: T, private options = { log: (...data: any[]) => console.error(...data) }) {
     freeze(state, true);
     enableMapSet();
     enablePatches();
@@ -157,11 +157,11 @@ export class Store<T> {
       await Promise.resolve();
       this.notifyScheduled = false;
 
-      for (const subscription of this.subscriptions) {
-        subscription(this.state, this.patches);
-      }
-
+      const patches = this.patches;
       this.patches = [];
+      for (const subscription of this.subscriptions) {
+        subscription(this.state, patches);
+      }
     })();
   }
 }
