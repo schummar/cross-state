@@ -12,7 +12,7 @@ function ChildComponent({ id }: { id: string }) {
 }
 
 const Component = storeScope.withScope(function Simple({ id }: { id: string }) {
-  const { value, update } = storeScope.useProp('foo');
+  const [value, update] = storeScope.useProp('foo');
 
   return (
     <div>

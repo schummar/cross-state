@@ -3,6 +3,7 @@ import test from 'ava';
 import React, { ReactNode, useEffect, useState } from 'react';
 import { sleep } from '../../src/helpers/misc';
 import { Store } from '../../src/react';
+import { UseStorePropResult } from '../../src/react/useStoreProp';
 
 function Simple({ useValue }: { useValue: () => ReactNode }) {
   const value = useValue();
@@ -25,8 +26,8 @@ function Dynamic({ store }: { store: Store<{ foo: number; bar: number }> }) {
   );
 }
 
-function WithProp({ useProp }: { useProp: () => { value: number; update: (value: number) => void } }) {
-  const { value, update } = useProp();
+function WithProp({ useProp }: { useProp: () => [value: number, update: (value: number) => void] }) {
+  const [value, update] = useProp();
 
   return (
     <div data-testid="div" onClick={() => update(value + 1)}>
@@ -83,12 +84,15 @@ test.serial('string selector', async (t) => {
 test.serial('prop error undefined', async (t) => {
   t.plan(2);
   const store = new Store({ foo: 1 });
-  const useProp = () => {
-    const { value, update } = store.useProp('bar.baz' as any);
-    return { value, update: (v: any) => t.throws(() => update(v)) };
-  };
 
-  render(<WithProp useProp={useProp} />);
+  render(
+    <WithProp
+      useProp={() => {
+        const [value, update] = store.useProp('bar.baz' as any);
+        return [value, (v: any) => t.throws(() => update(v))];
+      }}
+    />
+  );
   const div = screen.getByTestId('div');
   t.is(div.textContent, '');
   fireEvent.click(div);
@@ -97,12 +101,15 @@ test.serial('prop error undefined', async (t) => {
 test.serial('prop error wrong type', async (t) => {
   t.plan(2);
   const store = new Store({ foo: 1 });
-  const useProp = () => {
-    const { value, update } = store.useProp('foo.baz' as any);
-    return { value, update: (v: any) => t.throws(() => update(v)) };
-  };
 
-  render(<WithProp useProp={useProp} />);
+  render(
+    <WithProp
+      useProp={() => {
+        const [value, update] = store.useProp('foo.baz' as any);
+        return [value, (v: any) => t.throws(() => update(v))];
+      }}
+    />
+  );
   const div = screen.getByTestId('div');
   t.is(div.textContent, '');
   fireEvent.click(div);
