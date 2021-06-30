@@ -137,6 +137,23 @@ test.serial('updateOnMount', async (t) => {
   t.is(executed, 2);
 });
 
+test.serial('updateOnMount not double', async (t) => {
+  let executed = 0;
+  const action = new Action(async (x: number) => {
+    executed++;
+    await wait(0);
+    return x * 2;
+  });
+
+  render(<Component useAction={() => action.useAction(1, { updateOnMount: true })} />);
+  const div = screen.getByTestId('div');
+  t.is(div.textContent, 'v: l:true e:');
+
+  await wait(1);
+  t.is(div.textContent, 'v:2 l:false e:');
+  t.is(executed, 1);
+});
+
 test.serial('clearBeforeUpdate', async (t) => {
   let executed = 0;
   const action = new Action(async (x: number) => {

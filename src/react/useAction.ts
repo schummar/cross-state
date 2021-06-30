@@ -30,6 +30,10 @@ export function useAction<Arg, Value>(
   const [counter, setCounter] = useState(0);
 
   useEffect(() => {
+    if (updateOnMount && !dormant) action.execute(arg, { clearBeforeUpdate }).catch(ignore);
+  }, []);
+
+  useEffect(() => {
     if (dormant) {
       return;
     }
@@ -43,10 +47,6 @@ export function useAction<Arg, Value>(
       { runNow: true, throttle }
     );
   }, [action, useEqualityRef(arg), watchOnly, dormant, throttle]);
-
-  useEffect(() => {
-    if (updateOnMount && !dormant) action.execute(arg, { clearBeforeUpdate }).catch(ignore);
-  }, []);
 
   // This value therefore updates when either the action changes or the action notifies
 
