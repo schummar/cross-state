@@ -34,7 +34,8 @@
     "prepublishOnly": "run-s test lint build",
     "test": "cd test && ava",
     "test-watch": "cd test && ava --watch",
-    "coverage": "nyc --include src --all npm run test"
+    "coverage": "nyc --include src --all npm run test",
+    "example": "vite example"
   },
   "dependencies": {
     "fast-deep-equal": "^3.1.3"
@@ -79,5 +80,8 @@
     "dist",
     "react.d.ts",
     "react.js"
+  ],
+  "workspaces": [
+    "example"
   ]
 }
