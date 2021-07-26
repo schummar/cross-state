@@ -1,9 +1,11 @@
 import { castDraft } from 'immer';
-import React, { createContext, ReactNode, useContext, useMemo } from 'react';
-import { createSelector, SelectorPaths, SelectorValue, setWithSelector } from '../helpers/stringSelector';
+import React, { ChangeEvent, ComponentPropsWithoutRef, createContext, ElementType, ReactNode, useContext, useMemo } from 'react';
+import { SelectorPaths, SelectorValue } from '../helpers/stringSelector';
 import { Store } from '../react';
+import { Field, FieldPropsWithoutForm } from './field';
+import { useField } from './useField';
 
-type State<T> = {
+export type FormState<T> = {
   value: T;
   dirtyValue: DeepPartial<T>;
   validations: (() => unknown)[];
@@ -11,37 +13,60 @@ type State<T> = {
 };
 
 export class Form<T> {
-  readonly context = createContext<Store<State<T>> | null>(null);
+  readonly state;
+
+  constructor(value: T) {
+    this.Field = this.Field.bind(this);
+
+    this.state = new Store<FormState<T>>({
+      value,
+      dirtyValue: {},
+      validations: [],
+      errors: new Map(),
+    });
+
+    this.state.subscribe(
+      (s) => s,
+      (s) => console.log(s.value, s.dirtyValue)
+    );
+  }
+
+  setValue(value: T): void {
+    this.state.update((state) => {
+      state.value = castDraft(value);
+    });
+  }
+
+  useField<Name extends SelectorPaths<T>>(name: Name) {
+    return useField(this, name);
+  }
+
+  Field<
+    Name extends SelectorPaths<T>,
+    Component extends ElementType<{
+      value?: SelectorValue<T, Name>;
+      onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+    }>
+  >(props: FieldPropsWithoutForm<T, Name, Component>): JSX.Element {
+    return <Field {...props} form={this} />;
+  }
+}
+
+export class FormDefinition<T> {
+  readonly context = createContext<Form<T> | null>(null);
 
   constructor() {
     this.Field = this.Field.bind(this);
   }
 
   Provider = ({ children, value }: { children: ReactNode; value: T }): JSX.Element => {
-    const store = useMemo(() => {
-      const s = new Store<State<T>>({
-        value,
-        dirtyValue: {},
-        validations: [],
-        errors: new Map<string, unknown>(),
-      });
+    const form = useMemo(() => new Form(value), []);
+    form.setValue(value);
 
-      s.subscribe(
-        (s) => s,
-        (s) => console.log(s)
-      );
-
-      return s;
-    }, []);
-
-    store.update((state) => {
-      state.value = castDraft(value);
-    });
-
-    return <this.context.Provider value={store}>{children}</this.context.Provider>;
+    return <this.context.Provider value={form}>{children}</this.context.Provider>;
   };
 
-  private useForm(): Store<State<T>> {
+  private useForm(): Form<T> {
     const form = useContext(this.context);
     if (!form) throw Error('No form context!');
     return form;
@@ -57,38 +82,24 @@ export class Form<T> {
       error?: unknown;
     }
   ] {
-    const store = this.useForm();
-    const selector = createSelector(name);
-    const { value, isDirty, error } = store.useState((state) => {
-      const fromValue = selector(state.value) as SelectorValue<T, Name>;
-      const fromDirtyValue = selector(state.dirtyValue) as SelectorValue<T, Name> | undefined;
-
-      return {
-        value: fromDirtyValue ?? fromValue,
-        isDirty: fromDirtyValue !== undefined,
-        error: state.errors.get(name),
-      };
-    });
-
-    return [
-      value,
-      (value) => store.update((state) => setWithSelector(state.dirtyValue, name, value)),
-      {
-        isDirty,
-        error,
-      },
-    ];
+    const form = this.useForm();
+    return form.useField(name);
   }
 
-  Field<Name extends SelectorPaths<T>>({
-    name,
-    children,
-  }: {
-    name: Name;
-    children: (props: { value: SelectorValue<T, Name>; onChange: (e: { target: { value: string } }) => void }) => JSX.Element;
-  }): JSX.Element {
-    const [value, setValue] = this.useField(name);
-    return children({ value, onChange: (e) => setValue(e.target.value) });
+  Field<
+    Name extends SelectorPaths<T>,
+    Component extends ElementType<{
+      value?: SelectorValue<T, Name>;
+      onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+    }>
+  >(
+    props: {
+      name: Name;
+      component: Component;
+    } & Omit<ComponentPropsWithoutRef<Component>, 'value'>
+  ): JSX.Element {
+    const form = this.useForm();
+    return <form.Field {...props} />;
   }
 }
 
