@@ -1,39 +1,47 @@
 import { castDraft } from 'immer';
-import React, { ChangeEvent, ComponentPropsWithoutRef, createContext, ElementType, ReactNode, useContext, useMemo } from 'react';
+import React, { ChangeEvent, Context, createContext, ElementType, ReactNode, useMemo } from 'react';
 import { SelectorPaths, SelectorValue } from '../helpers/stringSelector';
 import { Store } from '../react';
 import { Field, FieldPropsWithoutForm } from './field';
 import { useField } from './useField';
+import eq from 'fast-deep-equal/es6/react';
 
 export type FormState<T> = {
-  value: T;
-  dirtyValue: DeepPartial<T>;
-  validations: (() => unknown)[];
-  errors: Map<string, unknown>;
+  originalValue: T;
+  currentValue: T;
+  dirty: string[];
 };
 
 export class Form<T> {
-  readonly state;
+  readonly globalState?: Store<FormState<T>>;
+  readonly context: Context<Store<FormState<T>> | undefined>;
 
-  constructor(value: T) {
+  constructor(value?: T) {
     this.Field = this.Field.bind(this);
 
-    this.state = new Store<FormState<T>>({
-      value,
-      dirtyValue: {},
-      validations: [],
-      errors: new Map(),
-    });
-
-    this.state.subscribe(
-      (s) => s,
-      (s) => console.log(s.value, s.dirtyValue)
-    );
+    if (value !== undefined) {
+      this.globalState = new Store({ originalValue: value, currentValue: value });
+    }
+    this.context = createContext(this.globalState);
   }
 
+  Provider = ({ children, value }: { children: ReactNode; value: T }): JSX.Element => {
+    const state = useMemo(() => new Store({ originalValue: value, currentValue: value }), []);
+
+    if (!eq(value, state.getState().originalValue)) {
+      state.update((state) => {
+        state.originalValue = castDraft(value);
+      });
+    }
+
+    return <this.context.Provider value={state}>{children}</this.context.Provider>;
+  };
+
   setValue(value: T): void {
-    this.state.update((state) => {
-      state.value = castDraft(value);
+    if (!this.globalState) throw Error('');
+
+    this.globalState.update((state) => {
+      state.originalValue = castDraft(value);
     });
   }
 
@@ -52,57 +60,57 @@ export class Form<T> {
   }
 }
 
-export class FormDefinition<T> {
-  readonly context = createContext<Form<T> | null>(null);
+// export class FormDefinition<T> {
+//   readonly context = createContext<Form<T> | null>(null);
 
-  constructor() {
-    this.Field = this.Field.bind(this);
-  }
+//   constructor() {
+//     this.Field = this.Field.bind(this);
+//   }
 
-  Provider = ({ children, value }: { children: ReactNode; value: T }): JSX.Element => {
-    const form = useMemo(() => new Form(value), []);
-    form.setValue(value);
+//   Provider = ({ children, value }: { children: ReactNode; value: T }): JSX.Element => {
+//     const form = useMemo(() => new Form(value), []);
+//     form.setValue(value);
 
-    return <this.context.Provider value={form}>{children}</this.context.Provider>;
-  };
+//     return <this.context.Provider value={form}>{children}</this.context.Provider>;
+//   };
 
-  private useForm(): Form<T> {
-    const form = useContext(this.context);
-    if (!form) throw Error('No form context!');
-    return form;
-  }
+//   private useForm(): Form<T> {
+//     const form = useContext(this.context);
+//     if (!form) throw Error('No form context!');
+//     return form;
+//   }
 
-  useField<Name extends SelectorPaths<T>>(
-    name: Name
-  ): [
-    value: SelectorValue<T, Name>,
-    setValue: (value: SelectorValue<T, Name>) => void,
-    state: {
-      isDirty: boolean;
-      error?: unknown;
-    }
-  ] {
-    const form = this.useForm();
-    return form.useField(name);
-  }
+//   useField<Name extends SelectorPaths<T>>(
+//     name: Name
+//   ): [
+//     value: SelectorValue<T, Name>,
+//     setValue: (value: SelectorValue<T, Name>) => void,
+//     state: {
+//       isDirty: boolean;
+//       error?: unknown;
+//     }
+//   ] {
+//     const form = this.useForm();
+//     return form.useField(name);
+//   }
 
-  Field<
-    Name extends SelectorPaths<T>,
-    Component extends ElementType<{
-      value?: SelectorValue<T, Name>;
-      onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
-    }>
-  >(
-    props: {
-      name: Name;
-      component: Component;
-    } & Omit<ComponentPropsWithoutRef<Component>, 'value'>
-  ): JSX.Element {
-    const form = this.useForm();
-    return <form.Field {...props} />;
-  }
-}
+//   Field<
+//     Name extends SelectorPaths<T>,
+//     Component extends ElementType<{
+//       value?: SelectorValue<T, Name>;
+//       onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+//     }>
+//   >(
+//     props: {
+//       name: Name;
+//       component: Component;
+//     } & Omit<ComponentPropsWithoutRef<Component>, 'value'>
+//   ): JSX.Element {
+//     const form = this.useForm();
+//     return <form.Field {...props} />;
+//   }
+// }
 
-type DeepPartial<T> = {
-  [P in keyof T]?: T[P] extends Record<string, unknown> ? DeepPartial<T[P]> : T[P];
-};
+// type DeepPartial<T> = {
+//   [P in keyof T]?: T[P] extends Record<string, unknown> ? DeepPartial<T[P]> : T[P];
+// };

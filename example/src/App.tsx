@@ -1,6 +1,7 @@
 import { styled } from '@material-ui/core';
 import TextField from '@material-ui/core/TextField';
 import React, { ElementType } from 'react';
+import { Field } from '../../src/form/field';
 import { FormDefinition } from '../../src/form/form';
 type Model = {
   title?: string;
@@ -29,7 +30,7 @@ function Nested() {
     <div style={{ display: 'grid', gap: 20 }}>
       <exampleForm.Field name="description" component={TextField} label="foo" error helperText="foo" />
 
-      <exampleForm.Field name="foo.bar" component="input" className="foo" />
+      <Field form={exampleForm} name="foo.bar" component="input" className="foo" />
     </div>
   );
 }

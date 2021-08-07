@@ -99,7 +99,7 @@ export class Store<T> {
           this.state,
           (draft) => reaction(value, draft, this.state, oldValue),
           (patches) => {
-            hasChanged = true;
+            hasChanged = patches.length > 0;
             this.patches.push(...patches);
           }
         );
