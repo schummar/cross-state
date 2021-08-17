@@ -33,7 +33,7 @@
     "lint": "run-p lint:*",
     "lint:eslint": "eslint src",
     "lint:tsc": "tsc --noEmit",
-    "prepublishOnly": "run-s test lint build",
+    "prepublishOnly": "build",
     "test": "cd test && ava",
     "test-watch": "cd test && ava --watch",
     "coverage": "nyc --include src --all npm run test"
