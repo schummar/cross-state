@@ -1,5 +1,12 @@
 # Changelog
 
+### [0.1.2](https://www.github.com/schummar/schummar-state/compare/v0.1.1...v0.1.2) (2021-09-03)
+
+
+### Bug Fixes
+
+* prepublishOnly script ([dbc210b](https://www.github.com/schummar/schummar-state/commit/dbc210b658a1874289cd35599a9d30b160639e87))
+
 ### [0.1.1](https://www.github.com/schummar/schummar-state/compare/v0.1.0...v0.1.1) (2021-09-03)
 
 
