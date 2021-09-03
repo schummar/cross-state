@@ -56,7 +56,7 @@ export class StorePersist<T> {
         patches.push({
           path: key.split('.'),
           op: 'replace',
-          value: JSON.parse(value),
+          value: value === 'undefined' ? undefined : JSON.parse(value),
           persist: this,
         });
       }
@@ -127,10 +127,10 @@ export class StorePersist<T> {
       subValues.push(...result[1].map((s) => ({ path: [...path, ...s.path], value: s.value })));
     }
 
-    const result = storage.setItem(path.join('.'), JSON.stringify(value));
+    const result = storage.setItem(path.join('.'), JSON.stringify(value) ?? 'undefined');
     if (result instanceof Promise) await result;
     for (const { path, value } of subValues) {
-      const result = storage.setItem(path.join('.'), JSON.stringify(value));
+      const result = storage.setItem(path.join('.'), JSON.stringify(value) ?? 'undefined');
       if (result instanceof Promise) await result;
     }
   }

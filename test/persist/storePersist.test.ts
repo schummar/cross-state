@@ -234,3 +234,23 @@ test('stop', async (t) => {
     wellKnownObject: '{"wellKnownProp":"b"}',
   });
 });
+
+test('undefined', async (t) => {
+  const store = new Store<{ foo?: string }>({ foo: '' as string | undefined });
+  const storage = new MockStorage();
+  const persist = new StorePersist(store, storage, { paths: ['foo'] });
+
+  await persist.initialization;
+
+  store.update((state) => {
+    state.foo = undefined;
+  });
+
+  await Promise.resolve();
+
+  const newStore = new Store<{ foo?: string }>({});
+  const newPersist = new StorePersist(newStore, storage, { paths: ['foo'] });
+  await newPersist.initialization;
+
+  t.is(newStore.getState().foo, undefined);
+});
