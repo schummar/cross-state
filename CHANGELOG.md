@@ -1,5 +1,13 @@
 # Changelog
 
+### [0.1.1](https://www.github.com/schummar/schummar-state/compare/v0.1.0...v0.1.1) (2021-09-03)
+
+
+### Bug Fixes
+
+* Dependabot warnings ([979f93b](https://www.github.com/schummar/schummar-state/commit/979f93bef55fc416d88958069a26c7e99a959cec))
+* store and load undefined. ([d4b608c](https://www.github.com/schummar/schummar-state/commit/d4b608c7f33c59fb51b96cf37e087830c76a8da7))
+
 ## 0.1.0 (2021-08-17)
 
 
