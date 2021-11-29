@@ -1,5 +1,12 @@
 # Changelog
 
+### [0.1.3](https://www.github.com/schummar/schummar-state/compare/v0.1.2...v0.1.3) (2021-11-29)
+
+
+### Bug Fixes
+
+* allow returning new object in update function ([4e7d08e](https://www.github.com/schummar/schummar-state/commit/4e7d08ea7a60d23089992243aa0d740cc7b51361))
+
 ### [0.1.2](https://www.github.com/schummar/schummar-state/compare/v0.1.1...v0.1.2) (2021-09-03)
 
 
