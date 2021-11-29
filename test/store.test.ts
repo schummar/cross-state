@@ -497,3 +497,16 @@ test('update during subscribe callback', async (t) => {
     state.foo++;
   });
 });
+
+test('update by returning new value', async (t) => {
+  const store = new Store({ foo: 0 });
+
+  t.plan(1);
+  store.subscribe(
+    (s) => s.foo,
+    (foo) => t.is(foo, 1),
+    { runNow: false }
+  );
+
+  store.update((state) => ({ foo: state.foo + 1 }));
+});

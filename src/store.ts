@@ -22,7 +22,7 @@ export class Store<T> {
     return this.state;
   }
 
-  update(update: (draft: Draft<T>, original: T) => void): void {
+  update(update: (draft: Draft<T>, original: T) => Draft<T> | void | undefined): void {
     this.checkLock();
 
     this.state = produce(
