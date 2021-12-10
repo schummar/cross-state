@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://www.github.com/schummar/schummar-state/compare/v0.1.3...v0.2.0) (2021-12-10)
+
+
+### Features
+
+* Added clearAfter option. ([d836f07](https://www.github.com/schummar/schummar-state/commit/d836f0795b841e9355e8ed3fd27073e41ce4d323))
+
 ### [0.1.3](https://www.github.com/schummar/schummar-state/compare/v0.1.2...v0.1.3) (2021-11-29)
 
 
