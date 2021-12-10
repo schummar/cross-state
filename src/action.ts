@@ -1,4 +1,5 @@
 import { Draft, enableMapSet } from 'immer';
+import { clearTimeout } from 'timers';
 import { hash } from './helpers/hash';
 import { Cancel } from './helpers/misc';
 import retry from './helpers/retry';
@@ -10,11 +11,16 @@ type Instance<Arg, Value> = {
   current?: Result<Value>;
   inProgress?: Promise<Value>;
   invalid?: boolean;
-  timer?: NodeJS.Timeout;
+  invalidateTimer?: NodeJS.Timeout;
+  clearTimer?: NodeJS.Timeout;
 };
 
 export class Action<Arg, Value> {
   static allActions = new Array<Action<any, any>>();
+  static options: {
+    invalidateAfter?: number | ((value: unknown | undefined, error: unknown | undefined) => number | undefined);
+    clearAfter?: number | ((value: unknown | undefined, error: unknown | undefined) => number | undefined);
+  } = {};
 
   static clearCacheAll(): void {
     for (const action of Action.allActions) {
@@ -28,6 +34,7 @@ export class Action<Arg, Value> {
     private action: (arg: Arg) => Promise<Value>,
     private options: {
       invalidateAfter?: number | ((value: Value | undefined, error: unknown | undefined) => number | undefined);
+      clearAfter?: number | ((value: Value | undefined, error: unknown | undefined) => number | undefined);
     } = {}
   ) {
     Action.allActions.push(this);
@@ -55,7 +62,7 @@ export class Action<Arg, Value> {
       delete instance.inProgress;
       instance.invalid = false;
     });
-    this.scheduleInvalidation(arg);
+    this.setTimers(arg);
   }
 
   updateCache(arg: Arg, update: (draft: Draft<Value>) => void): boolean {
@@ -70,7 +77,7 @@ export class Action<Arg, Value> {
       }
     });
     if (found) {
-      this.scheduleInvalidation(arg);
+      this.setTimers(arg);
     }
 
     return found;
@@ -87,7 +94,7 @@ export class Action<Arg, Value> {
     });
     for (const instance of this.cache.getState().values()) {
       if (instance.current?.kind === 'value') {
-        this.scheduleInvalidation(instance.arg);
+        this.setTimers(instance.arg);
       }
     }
   }
@@ -96,8 +103,11 @@ export class Action<Arg, Value> {
     const key = hash(arg);
     this.cache.update((state) => {
       const instance = state.get(key);
-      if (instance?.timer) {
-        clearTimeout(instance.timer as NodeJS.Timeout);
+      if (instance?.invalidateTimer) {
+        clearTimeout(instance.invalidateTimer);
+      }
+      if (instance?.clearTimer) {
+        clearTimeout(instance.clearTimer);
       }
 
       state.delete(key);
@@ -118,6 +128,10 @@ export class Action<Arg, Value> {
       if (instance) {
         delete instance.inProgress;
         instance.invalid = true;
+      }
+      if (instance?.invalidateTimer) {
+        clearTimeout(instance.invalidateTimer);
+        delete instance.invalidateTimer;
       }
     });
   }
@@ -169,40 +183,60 @@ export class Action<Arg, Value> {
           delete instance.inProgress;
           instance.invalid = false;
         });
-        this.scheduleInvalidation(arg);
+        this.setTimers(arg);
       }
 
       throw e;
     }
   }
 
-  scheduleInvalidation(arg: Arg): void {
+  setTimers(arg: Arg): void {
     const instance = this.updateInstance(arg, (instance) => {
-      if (instance.timer) {
-        clearTimeout(instance.timer as NodeJS.Timeout);
-        delete instance.timer;
+      if (instance.invalidateTimer) {
+        clearTimeout(instance.invalidateTimer);
+        delete instance.invalidateTimer;
+      }
+      if (instance.clearTimer) {
+        clearTimeout(instance.clearTimer);
+        delete instance.clearTimer;
       }
     });
 
-    let { invalidateAfter } = this.options;
+    let { invalidateAfter = Action.options.invalidateAfter, clearAfter = Action.options.clearAfter } = this.options;
+
     if (invalidateAfter instanceof Function) {
       invalidateAfter = invalidateAfter(
         instance.current?.kind === 'value' ? instance.current.value : undefined,
         instance.current?.kind === 'error' ? instance.current.error : undefined
       );
     }
-    if (invalidateAfter === undefined || invalidateAfter === Infinity) return;
 
-    const timer = setTimeout(() => {
-      this.updateInstance(arg, (instance) => {
-        delete instance.inProgress;
-        instance.invalid = true;
-        delete instance.timer;
-      });
-    }, invalidateAfter);
+    if (clearAfter instanceof Function) {
+      clearAfter = clearAfter(
+        instance.current?.kind === 'value' ? instance.current.value : undefined,
+        instance.current?.kind === 'error' ? instance.current.error : undefined
+      );
+    }
+
+    let invalidateTimer: NodeJS.Timeout | undefined, clearTimer: NodeJS.Timeout | undefined;
+
+    if (invalidateAfter !== undefined && invalidateAfter !== Infinity) {
+      invalidateTimer = setTimeout(() => {
+        console.log('invalidate');
+        this.invalidateCache(arg);
+      }, invalidateAfter);
+    }
+
+    if (clearAfter !== undefined && clearAfter !== Infinity) {
+      clearTimer = setTimeout(() => {
+        console.log('clear');
+        this.clearCache(arg);
+      }, clearAfter);
+    }
 
     this.updateInstance(arg, (instance) => {
-      instance.timer = timer;
+      instance.invalidateTimer = invalidateTimer;
+      instance.clearTimer = clearTimer;
     });
   }
 

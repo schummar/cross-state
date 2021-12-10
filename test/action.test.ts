@@ -3,6 +3,10 @@ import { Action } from '../src';
 import { sleep } from '../src/helpers/misc';
 import { wait } from './_helpers';
 
+test.afterEach(() => {
+  Action.options = {};
+});
+
 test('get', async (t) => {
   let executed = 0;
 
@@ -344,6 +348,61 @@ test('clearCache function', async (t) => {
   t.is(executed, 2);
 });
 
+test('clearAfter', async (t) => {
+  const action = new Action(
+    async () => {
+      return 1;
+    },
+    {
+      invalidateAfter: () => {
+        return 100;
+      },
+      clearAfter: () => {
+        return 200;
+      },
+    }
+  );
+
+  t.is(await action.get(undefined), 1);
+  t.is(action.getCache(undefined)?.invalid, false);
+  t.truthy(action.getCache(undefined)?.invalidateTimer);
+  t.truthy(action.getCache(undefined)?.clearTimer);
+
+  await sleep(150);
+  t.is(action.getCacheValue(undefined), 1);
+  t.is(action.getCache(undefined)?.invalid, true);
+  t.falsy(action.getCache(undefined)?.invalidateTimer);
+  t.truthy(action.getCache(undefined)?.clearTimer);
+
+  await sleep(100);
+  t.is(action.getCache(undefined), undefined);
+});
+
+test.serial('clearAfter global', async (t) => {
+  Action.options = {
+    invalidateAfter: 100,
+    clearAfter: 200,
+  };
+
+  const action = new Action(async () => {
+    return 1;
+  });
+
+  t.is(await action.get(undefined), 1);
+  t.is(action.getCache(undefined)?.invalid, false);
+  t.truthy(action.getCache(undefined)?.invalidateTimer);
+  t.truthy(action.getCache(undefined)?.clearTimer);
+
+  await sleep(150);
+  t.is(action.getCacheValue(undefined), 1);
+  t.is(action.getCache(undefined)?.invalid, true);
+  t.falsy(action.getCache(undefined)?.invalidateTimer);
+  t.truthy(action.getCache(undefined)?.clearTimer);
+
+  await sleep(100);
+  t.is(action.getCache(undefined), undefined);
+});
+
 test('clearCacheAll', async (t) => {
   let executed = 0;
 
@@ -417,18 +476,20 @@ test('update timer', async (t) => {
 
   await action.execute(1);
   t.is(action.getCacheValue(1), 2);
-  t.truthy(action.getCache(1)?.timer);
+  t.truthy(action.getCache(1)?.invalidateTimer);
 
   await sleep(50);
   await action.execute(1);
   t.is(action.getCacheValue(1), 2);
-  t.truthy(action.getCache(1)?.timer);
+  t.truthy(action.getCache(1)?.invalidateTimer);
 
   await sleep(75);
   t.is(action.getCacheValue(1), 2);
-  t.truthy(action.getCache(1)?.timer);
+  t.is(action.getCache(1)?.invalid, false);
+  t.truthy(action.getCache(1)?.invalidateTimer);
 
   await sleep(50);
   t.is(action.getCacheValue(1), 2);
-  t.is(action.getCache(1)?.timer, undefined);
+  t.is(action.getCache(1)?.invalid, true);
+  t.is(action.getCache(1)?.invalidateTimer, undefined);
 });
