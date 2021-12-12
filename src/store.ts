@@ -55,7 +55,7 @@ export class Store<T> {
   subscribe<S>(
     selector: (state: T) => S,
     listener: (value: S, prev: S | undefined, state: T) => void,
-    { runNow = true, throttle = 0 } = {}
+    { runNow = true, throttle = 0, compare = eq } = {}
   ): Cancel {
     const throttledListener = throttle ? throttleFn(listener, throttle) : listener;
 
@@ -65,7 +65,7 @@ export class Store<T> {
       try {
         const oldValue = value;
         value = selector(state);
-        if (!init && eq(value, oldValue)) return;
+        if (!init && compare(value, oldValue)) return;
         (init ? listener : throttledListener)(value, oldValue, this.state);
       } catch (e) {
         this.options.log('Failed to execute listener:', e);

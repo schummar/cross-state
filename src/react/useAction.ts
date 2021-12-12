@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Action } from './action';
+import { ActionInstance } from './action';
 import useEqualityRef from './useEqualityRef';
 
 export type UseActionOptions = {
@@ -7,8 +7,6 @@ export type UseActionOptions = {
   watchOnly?: boolean;
   /**  */
   updateOnMount?: boolean;
-  /**  */
-  clearBeforeUpdate?: boolean;
   /** */
   dormant?: boolean;
   /** */
@@ -22,15 +20,16 @@ const ignore = () => {
 };
 
 export function useAction<Arg, Value>(
-  action: Action<Arg, Value>,
-  arg: Arg,
-  { watchOnly, updateOnMount, clearBeforeUpdate, dormant, throttle }: UseActionOptions = {}
+  action: ActionInstance<Arg, Value>,
+  { watchOnly, updateOnMount, dormant, throttle }: UseActionOptions = {}
 ): UseActionReturn<Value> {
   // This counter is incremented when the action notifies about changes, in order to trigger another render
   const [counter, setCounter] = useState(0);
 
   useEffect(() => {
-    if (updateOnMount && !dormant) action.execute(arg, { clearBeforeUpdate }).catch(ignore);
+    if (updateOnMount && !dormant) {
+      action.invalidateCache();
+    }
   }, []);
 
   useEffect(() => {
@@ -39,12 +38,11 @@ export function useAction<Arg, Value>(
     }
 
     return action.subscribe(
-      arg,
       () => {
         setCounter((c) => c + 1);
-        if (!watchOnly) action.get(arg).catch(ignore);
+        if (!watchOnly) action.get().catch(ignore);
       },
-      { runNow: true, throttle }
+      { throttle }
     );
   }, [action, useEqualityRef(arg), watchOnly, dormant, throttle]);
 
