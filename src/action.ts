@@ -6,7 +6,7 @@ import { Store } from './store';
 
 export type CacheEntry<Arg, Value> = {
   readonly arg: Arg;
-  current?: (
+  current?:
     | {
         kind: 'value';
         value: Value;
@@ -14,61 +14,150 @@ export type CacheEntry<Arg, Value> = {
     | {
         kind: 'error';
         error: unknown;
-      }
-  ) & {
-    stale?: true;
-  };
+      };
   future?: Promise<Value>;
+  stale?: true;
   tInvalidate?: number;
   tClear?: number;
+};
+
+export type ActionState<Value> = {
+  value?: Value;
+  error?: unknown;
+  isLoading?: boolean;
+  stale?: boolean;
 };
 
 export type ActionImplemenation<Arg, Value> = (arg: Arg) => Promise<Value>;
 
 export type ActionOptions<Value> = {
-  invalidateAfter?: number | ((value: Value | undefined, error: unknown | undefined) => number | undefined);
-  clearAfter?: number | ((value: Value | undefined, error: unknown | undefined) => number | undefined);
+  invalidateAfter?: number | ((state: ActionState<Value>) => number | undefined);
+  clearAfter?: number | ((state: ActionState<Value>) => number | undefined);
 };
 
-export type Action<Arg, Value> = {
-  (...args: Arg extends undefined ? [arg?: Arg] : [arg: Arg]): ActionInstance<Arg, Value>;
-  invalidateAll(): void;
-  clearAll(): void;
-};
+export class Action<Arg, Value> {
+  static allActions = new Array<Action<any, any>>();
 
-const allActions = new Array<Action<any, any>>();
+  static create<Arg = undefined, Value = unknown>(
+    implementation: ActionImplemenation<Arg, Value>,
+    options?: ActionOptions<Value>
+  ): Action<Arg, Value> & { (...args: Arg extends undefined ? [arg?: Arg] : [arg: Arg]): ActionInstance<Arg, Value> } {
+    const action = new Action(implementation, options);
 
-export function invalidateAllActions() {
-  for (const action of allActions) {
-    action.invalidateAll();
+    return new Proxy<any>(
+      function (...[arg]: Arg extends undefined ? [arg?: Arg] : [arg: Arg]) {
+        return action.run(arg as Arg);
+      },
+      {
+        get(_target, prop) {
+          return action[prop as keyof Action<Arg, Value>];
+        },
+      }
+    );
   }
-}
 
-export function clearAllAction() {
-  for (const action of allActions) {
-    action.clearAll();
+  static invalidateCacheAll() {
+    for (const action of Action.allActions) {
+      action.invalidateCacheAll();
+    }
+  }
+
+  static clearCacheAll() {
+    for (const action of Action.allActions) {
+      action.clearCacheAll();
+    }
+  }
+
+  static options: ActionOptions<unknown> = {};
+
+  id = Math.random().toString(36);
+  cache = new Store(new Map<string, CacheEntry<Arg, Value>>());
+  cleanTimer?: NodeJS.Timeout;
+
+  protected constructor(
+    //
+    public readonly implementation: ActionImplemenation<Arg, Value>,
+    public readonly options: ActionOptions<Value> = {}
+  ) {
+    enableMapSet();
+    Action.allActions.push(this);
+    this.start();
+  }
+
+  run(arg: Arg): ActionInstance<Arg, Value> {
+    return new ActionInstance(this, arg);
+  }
+
+  invalidateCacheAll(): void {
+    for (const { arg } of this.cache.getState().values()) {
+      this.run(arg).invalidateCache();
+    }
+  }
+
+  clearCacheAll(): void {
+    for (const { arg } of this.cache.getState().values()) {
+      this.run(arg).clearCache();
+    }
+  }
+
+  protected start() {
+    this.cache.subscribe(
+      () => this.calculateNextClean(),
+      (min) => this.scheduleClean(min)
+    );
+  }
+
+  protected calculateNextClean() {
+    return Math.min(...[...this.cache.getState().values()].flatMap((entry) => [entry.tInvalidate ?? Infinity, entry.tClear ?? Infinity]));
+  }
+
+  protected scheduleClean(next = this.calculateNextClean()) {
+    if (this.cleanTimer) {
+      clearTimeout(this.cleanTimer);
+    }
+
+    if (next && next !== Infinity) {
+      this.cleanTimer = setTimeout(() => this.clean(), next - Date.now());
+    }
+  }
+
+  protected clean() {
+    const now = Date.now();
+
+    for (const { arg, tInvalidate, tClear } of this.cache.getState().values()) {
+      if (tClear && tClear <= now) {
+        this.run(arg).clearCache();
+      } else if (tInvalidate && tInvalidate <= now) {
+        this.run(arg).invalidateCache();
+      }
+    }
   }
 }
 
 export class ActionInstance<Arg, Value> {
-  constructor(
-    protected readonly cache: Store<Map<string, CacheEntry<Arg, Value>>>,
-    protected readonly implementation: ActionImplemenation<Arg, Value>,
-    protected readonly options: ActionOptions<Value>,
-    public readonly arg: Arg
-  ) {}
+  constructor(public readonly action: Action<Arg, Value>, public readonly arg: Arg) {}
 
   readonly key = hash(this.arg);
+  readonly id = `${this.action.id}:${this.key}`;
+  protected cache = this.action.cache;
+  protected implementation = this.action.implementation;
+  protected options = this.action.options;
 
-  getCache(): CacheEntry<Arg, Value> | undefined {
-    return this.cache.getState().get(this.key);
+  getCache(): ActionState<Value> | undefined {
+    const entry = this.cache.getState().get(this.key);
+    return (
+      entry && {
+        value: entry.current?.kind === 'value' ? entry.current.value : undefined,
+        error: entry.current?.kind === 'error' ? entry.current.error : undefined,
+        isLoading: !!entry.future,
+        stale: !!entry.stale,
+      }
+    );
   }
 
   invalidateCache(): void {
     this.updateCache((entry) => {
-      if (entry.current) {
-        entry.current.stale = true;
-      }
+      entry.stale = true;
       delete entry.tInvalidate;
     }, false);
   }
@@ -79,12 +168,9 @@ export class ActionInstance<Arg, Value> {
     });
   }
 
-  update(update: Value | ((value?: Value, error?: unknown) => Value), invalidate?: boolean | Promise<Value>): void {
+  update(update: Value | ((state: ActionState<Value>) => Value), invalidate?: boolean | Promise<Value>): void {
     if (update instanceof Function) {
-      const entry = this.getCache();
-      const value = entry?.current?.kind === 'value' ? entry.current.value : undefined;
-      const error = entry?.current?.kind === 'error' ? entry.current.error : undefined;
-      update = update(value, error);
+      update = update(this.getCache() ?? {});
     }
     this.setValue(update);
 
@@ -97,15 +183,15 @@ export class ActionInstance<Arg, Value> {
   }
 
   async get({ allowStale = false, retries = 0 } = {}): Promise<Value> {
-    const entry = this.getCache();
+    const { current, future, stale } = this.cache.getState().get(this.key) ?? {};
 
-    if (entry?.current && (!entry.current.stale || allowStale)) {
-      if (entry.current.kind === 'value') return entry.current.value;
-      else throw entry.current.error;
+    if (current && (!stale || allowStale)) {
+      if (current.kind === 'value') return current.value;
+      throw current.error;
     }
 
-    if (entry?.future) {
-      return entry.future;
+    if (future) {
+      return future;
     }
 
     return this.execute({ retries });
@@ -117,63 +203,52 @@ export class ActionInstance<Arg, Value> {
     return task;
   }
 
-  subscribe(
-    listener: (state: { value?: Value; error?: unknown; stale?: true; isLoading: boolean }) => void,
-    options?: Parameters<Store<any>['subscribe']>[2]
-  ): Cancel {
-    return this.cache.subscribe(
-      (state) => state.get(this.key) ?? { arg: this.arg },
-      (instance) =>
-        listener({
-          value: instance.current?.kind === 'value' ? instance.current.value : undefined,
-          error: instance.current?.kind === 'error' ? instance.current.error : undefined,
-          stale: instance.current?.stale,
-          isLoading: !!instance.future,
-        }),
-      options
-    );
+  subscribe(listener: (state: ActionState<Value>) => void, options?: Parameters<Store<any>['subscribe']>[2]): Cancel {
+    return this.cache.subscribe(() => this.getCache() ?? {}, listener, options);
   }
 
-  private setValue(value: Value): void {
+  protected setValue(value: Value): void {
     this.updateCache((entry) => {
       entry.current = {
         kind: 'value',
         value: castDraft(value),
       };
       delete entry.future;
+      delete entry.stale;
     });
     this.setTimers();
   }
 
-  private setError(error: unknown): void {
+  protected setError(error: unknown): void {
     this.updateCache((entry) => {
       entry.current = {
         kind: 'error',
         error,
       };
       delete entry.future;
+      delete entry.stale;
     });
     this.setTimers();
   }
 
-  private async setFuture(future: Promise<Value>) {
+  protected async setFuture(future: Promise<Value>) {
     this.updateCache((entry) => {
       entry.future = future;
     });
 
     try {
       const value = await future;
-      if (this.getCache()?.future === future) {
+      if (this.cache.getState().get(this.key)?.future === future) {
         this.setValue(value);
       }
     } catch (e) {
-      if (this.getCache()?.future === future) {
+      if (this.cache.getState().get(this.key)?.future === future) {
         this.setError(e);
       }
     }
   }
 
-  private updateCache(update: (value: Draft<CacheEntry<Arg, Value>>) => void, create = true): void {
+  protected updateCache(update: (value: Draft<CacheEntry<Arg, Value>>) => void, create = true): void {
     this.cache.update((state) => {
       let entry = state.get(this.key);
       if (!entry && create) {
@@ -186,79 +261,25 @@ export class ActionInstance<Arg, Value> {
     });
   }
 
-  private setTimers(): void {
-    let { invalidateAfter, clearAfter } = this.options;
-    const entry = this.getCache();
-    const value = entry?.current?.kind === 'value' ? entry.current.value : undefined;
-    const error = entry?.current?.kind === 'error' ? entry.current.error : undefined;
+  protected setTimers(): void {
+    let { invalidateAfter = Action.options.invalidateAfter, clearAfter = Action.options.clearAfter } = this.options;
+    const state = this.getCache();
     const now = Date.now();
 
     this.updateCache((entry) => {
       if (invalidateAfter instanceof Function) {
-        invalidateAfter = invalidateAfter(value, error);
+        invalidateAfter = invalidateAfter(state ?? {});
       }
       if (invalidateAfter !== undefined && invalidateAfter !== Infinity) {
         entry.tInvalidate = now + invalidateAfter;
       }
 
       if (clearAfter instanceof Function) {
-        clearAfter = clearAfter(value, error);
+        clearAfter = clearAfter(state ?? {});
       }
       if (clearAfter !== undefined && clearAfter !== Infinity) {
         entry.tClear = now + clearAfter;
       }
     });
   }
-}
-
-export function createAction<Arg = undefined, Value = unknown>(
-  implementation: ActionImplemenation<Arg, Value>,
-  options: ActionOptions<Value> = {}
-) {
-  enableMapSet();
-  const cache = new Store(new Map<string, CacheEntry<Arg, Value>>());
-
-  function createInstance(arg?: Arg) {
-    return new ActionInstance<Arg, Value>(cache, implementation, options, arg as Arg);
-  }
-
-  function clean() {
-    const now = Date.now();
-
-    for (const { arg, tInvalidate, tClear } of cache.getState().values()) {
-      if (tClear && tClear <= now) {
-        createInstance(arg).clearCache();
-      } else if (tInvalidate && tInvalidate <= now) {
-        createInstance(arg).invalidateCache();
-      }
-    }
-  }
-
-  let timer: NodeJS.Timeout | undefined;
-  cache.subscribe(
-    (state) => [...state.values()].reduce((min, entry) => Math.min(min, entry.tInvalidate ?? Infinity, entry.tClear ?? Infinity), 0),
-    (min) => {
-      if (timer) clearTimeout(timer);
-      if (min) {
-        timer = setTimeout(clean, min);
-      }
-    }
-  );
-
-  const action: Action<Arg, Value> = Object.assign(createInstance, {
-    invalidateAll(): void {
-      for (const { arg } of cache.getState().values()) {
-        createInstance(...([arg] as Parameters<typeof createInstance>)).invalidateCache();
-      }
-    },
-
-    clearAll(): void {
-      for (const { arg } of cache.getState().values()) {
-        createInstance(...([arg] as Parameters<typeof createInstance>)).clearCache();
-      }
-    },
-  });
-
-  allActions.push(action);
-  return action;
 }

@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ActionInstance } from './action';
-import useEqualityRef from './useEqualityRef';
+import { useEffect, useState } from 'react';
+import { ActionInstance, ActionState } from '../action';
 
 export type UseActionOptions = {
   /** Watch value without triggering loading it */
@@ -13,22 +12,28 @@ export type UseActionOptions = {
   throttle?: number;
 };
 
-export type UseActionReturn<Value> = [Value | undefined, { error?: unknown; isLoading: boolean }];
+export type CombinedActionState<Actions extends readonly ActionInstance<any, any>[]> = Omit<ActionState<any>, 'value'> & {
+  values: { [K in keyof Actions]: Actions[K] extends ActionInstance<any, infer Value> ? Value | undefined : never };
+};
 
 const ignore = () => {
   //ignore
 };
 
-export function useAction<Arg, Value>(
-  action: ActionInstance<Arg, Value>,
-  { watchOnly, updateOnMount, dormant, throttle }: UseActionOptions = {}
-): UseActionReturn<Value> {
-  // This counter is incremented when the action notifies about changes, in order to trigger another render
-  const [counter, setCounter] = useState(0);
+export function useCombinedActions<Actions extends readonly ActionInstance<any, any>[]>(
+  ...args: [...actions: Actions, options?: UseActionOptions]
+): CombinedActionState<Actions> {
+  const actions = args.slice(0, -1) as unknown as Actions;
+  const { watchOnly, updateOnMount, dormant, throttle } = (args[args.length - 1] as UseActionOptions | undefined) ?? {};
+
+  // This id is updated when the action notifies about changes, in order to trigger another render
+  const [, setId] = useState({});
 
   useEffect(() => {
     if (updateOnMount && !dormant) {
-      action.invalidateCache();
+      for (const action of actions) {
+        action.invalidateCache();
+      }
     }
   }, []);
 
@@ -37,27 +42,46 @@ export function useAction<Arg, Value>(
       return;
     }
 
-    return action.subscribe(
-      () => {
-        setCounter((c) => c + 1);
-        if (!watchOnly) action.get().catch(ignore);
-      },
-      { throttle }
+    const handles = actions.map((action) =>
+      action.subscribe(
+        () => {
+          setId({});
+          if (!watchOnly) action.get().catch(ignore);
+        },
+        { throttle }
+      )
     );
-  }, [action, useEqualityRef(arg), watchOnly, dormant, throttle]);
 
-  // This value therefore updates when either the action changes or the action notifies
+    return () => {
+      for (const handle of handles) {
+        handle();
+      }
+    };
+  }, [
+    //
+    actions.map((action) => action.id).join(','),
+    watchOnly,
+    dormant,
+    throttle,
+  ]);
 
-  return useMemo(() => {
-    if (dormant) {
-      return [undefined, { error: undefined, isLoading: false }];
-    }
+  const state = actions.map((action) => action.getCache());
+  return {
+    values: state.map((x) => x?.value) as any,
+    error: state.find((x) => x?.error !== undefined)?.error,
+    isLoading: state.some((x) => x?.isLoading),
+    stale: state.some((x) => x?.stale),
+  };
+}
 
-    const instance = action.getCache(arg);
+export function useAction<Arg, Value>(action: ActionInstance<Arg, Value>, options?: UseActionOptions): ActionState<Value> {
+  const {
+    values: [value],
+    ...rest
+  } = useCombinedActions(action, options);
 
-    return [
-      instance?.current?.kind === 'value' ? instance.current.value : undefined,
-      { error: instance?.current?.kind === 'error' ? instance.current.error : undefined, isLoading: !!instance?.inProgress },
-    ];
-  }, [action, useEqualityRef(arg), dormant, counter]);
+  return {
+    value,
+    ...rest,
+  };
 }

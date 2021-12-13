@@ -1,5 +1,5 @@
 import eq from 'fast-deep-equal/es6/react';
-import produce, { applyPatches, Draft, enableMapSet, enablePatches, freeze, Patch } from 'immer';
+import { applyPatches, Draft, enableMapSet, enablePatches, freeze, Patch, produce } from 'immer';
 import { Cancel } from './helpers/misc';
 import { throttle as throttleFn } from './helpers/throttle';
 
@@ -82,7 +82,7 @@ export class Store<T> {
   addReaction<S>(
     selector: (state: T) => S,
     reaction: (value: S, draft: Draft<T>, original: T, prev: S) => void,
-    { runNow = true } = {}
+    { runNow = true, compare = eq } = {}
   ): Cancel {
     let value = selector(this.state);
 
@@ -93,7 +93,7 @@ export class Store<T> {
         this.lock = 'reaction';
         const oldValue = value;
         value = selector(this.state);
-        if (!init && eq(value, oldValue)) return;
+        if (!init && compare(value, oldValue)) return;
 
         this.state = produce(
           this.state,

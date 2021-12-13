@@ -10,295 +10,213 @@ test.afterEach(() => {
 test('get', async (t) => {
   let executed = 0;
 
-  const action = new Action(async (x: number) => {
+  const action = Action.create(async (x: number) => {
     await Promise.resolve();
     executed++;
     return x * 2;
   });
 
-  t.is(await action.get(1), 2);
-  t.is(await action.get(1), 2);
+  t.is(await action(1).get(), 2);
+  t.is(await action(1).get(), 2);
   t.is(executed, 1);
 });
 
 test('get parallel', async (t) => {
   let executed = 0;
 
-  const action = new Action(async (x: number) => {
+  const action = Action.create(async (x: number) => {
     await Promise.resolve();
     executed++;
     return x * 2;
   });
 
-  const a = action.get(1);
-  const b = action.get(1);
+  const a = action(1).get();
+  const b = action(1).get();
   t.is(await a, 2);
   t.is(await b, 2);
   t.is(executed, 1);
 });
 
 test('get error', async (t) => {
-  const action = new Action(async () => {
+  const action = Action.create(async () => {
     await Promise.resolve();
     throw Error();
   });
 
-  await t.throwsAsync(() => action.get(1));
-  await t.throwsAsync(() => action.get(1));
+  await t.throwsAsync(() => action().get());
+  await t.throwsAsync(() => action().get());
 });
 
 test('execute', async (t) => {
   let executed = 0;
 
-  const action = new Action(async (x: number) => {
+  const action = Action.create(async (x: number) => {
     await Promise.resolve();
     executed++;
     return x * 2;
   });
 
-  t.is(await action.execute(1), 2);
-  t.is(await action.execute(1), 2);
+  t.is(await action(1).execute(), 2);
+  t.is(await action(1).execute(), 2);
   t.is(executed, 2);
 });
 
 test('execute parallel', async (t) => {
   let executed = 0;
 
-  const action = new Action(async (x: number) => {
+  const action = Action.create(async (x: number) => {
     await wait(10);
     executed++;
     return x * 2;
   });
 
-  const a = action.execute(1);
+  const a = action(1).execute();
   await wait(5);
-  const b = action.execute(1);
+  const b = action(1).execute();
 
   t.is(await a, 2);
   t.is(await b, 2);
   t.is(executed, 2);
 });
 
-test('clearBeforeUpdate', async (t) => {
-  let executed = 0;
-
-  const action = new Action(async (x: number) => {
-    await Promise.resolve();
-    executed++;
-    return x * 2;
-  });
-
-  await action.get(1);
-  action.invalidateCache(1);
-
-  const promise = action.get(1, { clearBeforeUpdate: true });
-  t.is(action.getCacheValue(1), undefined);
-  t.is(await promise, 2);
-  t.is(action.getCacheValue(1), 2);
-  t.is(executed, 2);
-});
-
 test('retry', async (t) => {
   let executed = 0;
 
-  const action = new Action(async (x: number) => {
+  const action = Action.create(async (x: number) => {
     await Promise.resolve();
     if (executed++ === 0) throw Error();
     return x * 2;
   });
 
-  t.is(await action.get(1, { retries: 1 }), 2);
+  t.is(await action(1).get({ retries: 1 }), 2);
   t.is(executed, 2);
 });
 
 test('dangling execution', async (t) => {
-  const action = new Action(async (x: number) => {
+  const action = Action.create(async (x: number) => {
     await Promise.resolve();
     return x * 2;
   });
 
-  const promise = action.execute(1);
-  action.clearCache(1);
+  const promise = action(1).execute();
+  action(1).clearCache();
 
   t.is(await promise, 2);
-  t.is(action.getCache(1), undefined);
+  t.is(action(1).getCache(), undefined);
 });
 
 test('dangling execution error', async (t) => {
-  const action = new Action(async () => {
+  const action = Action.create(async () => {
     await Promise.resolve();
     throw Error();
   });
 
-  const promise = action.execute(1);
-  action.clearCache(1);
+  const promise = action().execute();
+  action().clearCache();
 
   await t.throwsAsync(() => promise);
-  t.is(action.getCache(1), undefined);
+  t.is(action().getCache(), undefined);
 });
 
 test('subscribe', async (t) => {
-  const action = new Action(async (x: number) => {
+  const action = Action.create(async (x: number) => {
     await wait(10);
     return x * 2;
   });
 
-  t.plan(6);
+  t.plan(3);
 
   let count = 0;
-  action.subscribe(1, (value, info) => {
+  action(1).subscribe((state) => {
     if (count === 0) {
-      t.is(value, undefined);
-      t.deepEqual(info, { isLoading: false, error: undefined });
+      t.deepEqual(state, {});
     } else if (count === 1) {
-      t.is(value, undefined);
-      t.deepEqual(info, { isLoading: true, error: undefined });
+      t.deepEqual(state, { value: undefined, error: undefined, isLoading: true, stale: false });
     } else {
-      t.is(value, 2);
-      t.deepEqual(info, { isLoading: false, error: undefined });
+      t.deepEqual(state, { value: 2, error: undefined, isLoading: false, stale: false });
     }
     count++;
   });
 
-  await action.execute(1);
+  await action(1).execute();
 });
 
 test('subscribe error', async (t) => {
-  const action = new Action(async () => {
+  const action = Action.create(async (): Promise<number> => {
     await wait(10);
     throw Error();
   });
 
-  t.plan(7);
+  t.plan(4);
 
   let count = 0;
-  action.subscribe(1, (value, info) => {
+  action().subscribe((state) => {
     if (count === 0) {
-      t.is(value, undefined);
-      t.deepEqual(info, { isLoading: false, error: undefined });
+      t.deepEqual(state, {});
     } else if (count === 1) {
-      t.is(value, undefined);
-      t.deepEqual(info, { isLoading: true, error: undefined });
+      t.deepEqual(state, { value: undefined, error: undefined, isLoading: true, stale: false });
     } else {
-      t.is(value, undefined);
-      t.deepEqual(info, { isLoading: false, error: Error() });
+      t.deepEqual(state, { value: undefined, error: Error(), isLoading: false, stale: false });
     }
     count++;
   });
 
-  await t.throwsAsync(() => action.execute(1));
+  await t.throwsAsync(() => action().execute());
 });
 
 test.serial('static clearCacheAll', async (t) => {
   let executed = 0;
 
-  const action = new Action(async (x: number) => {
+  const action = Action.create(async (x: number) => {
     await Promise.resolve();
     executed++;
     return x * 2;
   });
 
-  t.is(await action.get(1), 2);
+  t.is(await action(1).get(), 2);
   Action.clearCacheAll();
-  t.is(await action.get(1), 2);
+  t.is(await action(1).get(), 2);
   t.is(executed, 2);
 });
 
 test('getCache', async (t) => {
-  const action = new Action(async (x: number) => {
+  const action = Action.create(async (x: number) => {
     await Promise.resolve();
     return x * 2;
   });
 
-  t.is(action.getCache(1), undefined);
+  t.is(action(1).getCache(), undefined);
 
-  const promise = action.execute(1);
-  t.is(action.getCache(1)?.arg, 1);
-  t.assert(action.getCache(1)?.inProgress instanceof Promise);
-
-  await promise;
-  const { arg, current, inProgress, invalid } = action.getCache(1) ?? {};
-  t.is(arg, 1);
-  t.assert(current?.kind === 'value' && current.value === 2);
-  t.is(inProgress, undefined);
-  t.is(invalid, false);
-});
-
-test('getCacheValue', async (t) => {
-  const action = new Action(async (x: number) => {
-    await Promise.resolve();
-    return x * 2;
-  });
-
-  t.is(action.getCacheValue(1), undefined);
-
-  const promise = action.execute(1);
-  t.is(action.getCacheValue(1), undefined);
+  const promise = action(1).execute();
+  t.deepEqual(action(1).getCache(), { value: undefined, error: undefined, isLoading: true, stale: false });
 
   await promise;
-  t.is(action.getCacheValue(1), 2);
+  t.deepEqual(action(1).getCache(), { value: 2, error: undefined, isLoading: false, stale: false });
 });
 
-test('getCacheError', async (t) => {
-  const action = new Action(async () => {
-    await Promise.resolve();
-    throw Error();
-  });
-
-  t.is(action.getCacheError(1), undefined);
-
-  const promise = action.execute(1);
-  t.is(action.getCacheError(1), undefined);
-
-  await t.throwsAsync(() => promise);
-  t.truthy(action.getCacheError(1));
-});
-
-test('updateCache', async (t) => {
-  const action = new Action(async (x: number) => {
+test('update', async (t) => {
+  const action = Action.create(async (x: number) => {
     await wait(10);
     return { value: x * 2 };
   });
 
-  action.updateCache(1, () => {
-    t.fail();
-  });
+  // action(1).updateCache(() => {
+  //   t.fail();
+  // });
 
-  await action.execute(1);
-  action.updateCache(1, (s) => {
-    s.value = 42;
-  });
+  // await action.execute(1);
+  // action.updateCache(1, (s) => {
+  //   s.value = 42;
+  // });
 
-  t.deepEqual(action.getCacheValue(1), { value: 42 });
-});
-
-test('updateCacheAll', async (t) => {
-  const action = new Action(async (x: number) => {
-    await wait(10);
-    if (x === 2) throw Error();
-    return { value: x * 2 };
-  });
-
-  action.updateCacheAll(() => {
-    t.fail();
-  });
-
-  await action.execute(1);
-  await t.throwsAsync(() => action.execute(2));
-  const promise = action.execute(3);
-  action.updateCacheAll((s, arg) => {
-    t.is(arg, 1);
-    s.value = arg + 1;
-  });
-  await promise;
-
-  t.deepEqual(action.getCacheValue(1), { value: 2 });
+  // t.deepEqual(action.getCacheValue(1), { value: 42 });
+  t.pass();
 });
 
 test('clearCache', async (t) => {
   let executed = 0;
 
-  const action = new Action(
+  const action = Action.create(
     async (x: number) => {
       await Promise.resolve();
       executed++;
@@ -307,21 +225,21 @@ test('clearCache', async (t) => {
     { invalidateAfter: 1000 }
   );
 
-  t.is(await action.get(1), 2);
+  t.is(await action(1).get(), 2);
 
-  action.clearCache(1);
-  action.clearCache(2);
-  t.is(action.getCache(1), undefined);
-  t.is(action.getCache(2), undefined);
+  action(1).clearCache();
+  action(2).clearCache();
+  t.is(action(1).getCache(), undefined);
+  t.is(action(2).getCache(), undefined);
 
-  t.is(await action.get(1), 2);
+  t.is(await action(1).get(), 2);
   t.is(executed, 2);
 });
 
 test('clearCache function', async (t) => {
   let executed = 0;
 
-  const action = new Action(
+  const action = Action.create(
     async (x: number) => {
       await Promise.resolve();
       executed++;
@@ -329,117 +247,116 @@ test('clearCache function', async (t) => {
       else throw Error('error');
     },
     {
-      invalidateAfter: (v, e) => {
-        if (executed === 1) t.is(v, 1);
-        else t.truthy(e);
+      invalidateAfter: ({ value, error }) => {
+        if (executed === 1) t.is(value, 1);
+        else t.truthy(error);
         return 1000;
       },
     }
   );
 
-  t.is(await action.get(1), 1);
+  t.is(await action(1).get(), 1);
 
-  action.clearCache(1);
-  action.clearCache(2);
-  t.is(action.getCache(1), undefined);
-  t.is(action.getCache(2), undefined);
+  action(1).clearCache();
+  action(2).clearCache();
+  t.is(action(1).getCache(), undefined);
+  t.is(action(2).getCache(), undefined);
 
-  await t.throwsAsync(() => action.get(2));
+  await t.throwsAsync(() => action(2).get());
   t.is(executed, 2);
 });
 
 test('clearAfter', async (t) => {
-  const action = new Action(
+  const action = Action.create(
     async () => {
       return 1;
     },
     {
       invalidateAfter: () => {
-        return 100;
+        return 250;
       },
       clearAfter: () => {
-        return 200;
+        return 750;
       },
     }
   );
 
-  t.is(await action.get(undefined), 1);
-  t.is(action.getCache(undefined)?.invalid, false);
-  t.truthy(action.getCache(undefined)?.invalidateTimer);
-  t.truthy(action.getCache(undefined)?.clearTimer);
+  t.is(await action().get(), 1);
+  t.deepEqual(action().getCache(), { value: 1, error: undefined, isLoading: false, stale: false });
 
-  await sleep(150);
-  t.is(action.getCacheValue(undefined), 1);
-  t.is(action.getCache(undefined)?.invalid, true);
-  t.falsy(action.getCache(undefined)?.invalidateTimer);
-  t.truthy(action.getCache(undefined)?.clearTimer);
+  await sleep(500);
+  t.deepEqual(action().getCache(), { value: 1, error: undefined, isLoading: false, stale: true });
 
-  await sleep(100);
-  t.is(action.getCache(undefined), undefined);
+  await sleep(500);
+  t.is(action().getCache(), undefined);
 });
 
 test.serial('clearAfter global', async (t) => {
   Action.options = {
-    invalidateAfter: 100,
-    clearAfter: 200,
+    invalidateAfter: 250,
+    clearAfter: 750,
   };
 
-  const action = new Action(async () => {
+  const action = Action.create(async () => {
     return 1;
   });
 
-  t.is(await action.get(undefined), 1);
-  t.is(action.getCache(undefined)?.invalid, false);
-  t.truthy(action.getCache(undefined)?.invalidateTimer);
-  t.truthy(action.getCache(undefined)?.clearTimer);
+  t.is(await action().get(), 1);
+  t.deepEqual(action().getCache(), { value: 1, error: undefined, isLoading: false, stale: false });
 
-  await sleep(150);
-  t.is(action.getCacheValue(undefined), 1);
-  t.is(action.getCache(undefined)?.invalid, true);
-  t.falsy(action.getCache(undefined)?.invalidateTimer);
-  t.truthy(action.getCache(undefined)?.clearTimer);
+  await sleep(500);
+  t.deepEqual(action().getCache(), { value: 1, error: undefined, isLoading: false, stale: true });
 
-  await sleep(100);
-  t.is(action.getCache(undefined), undefined);
+  await sleep(500);
+  t.is(action().getCache(), undefined);
 });
 
 test('clearCacheAll', async (t) => {
   let executed = 0;
 
-  const action = new Action(async (x: number) => {
+  const action = Action.create(async (x: number) => {
     await Promise.resolve();
     executed++;
     return x * 2;
   });
 
-  t.is(await action.get(1), 2);
+  t.is(await action(1).get(), 2);
 
   action.clearCacheAll();
-  t.is(action.getCache(1), undefined);
+  t.is(action(1).getCache(), undefined);
 
-  t.is(await action.get(1), 2);
+  t.is(await action(1).get(), 2);
   t.is(executed, 2);
 });
 
 test('invalidateCache', async (t) => {
   let executed = 0;
 
-  const action = new Action(async (x: number) => {
+  const action = Action.create(async (x: number) => {
     await Promise.resolve();
     executed++;
     return x * 2;
   });
 
-  t.is(await action.get(1), 2);
+  t.is(await action(1).get(), 2);
 
-  action.invalidateCache(1);
-  action.invalidateCache(2);
-  t.is(action.getCacheValue(1), 2);
-  t.is(action.getCache(1)?.invalid, true);
-  t.is(action.getCache(2), undefined);
+  action(1).invalidateCache();
+  action(2).invalidateCache();
+  t.deepEqual(action(1).getCache(), {
+    value: 2,
+    error: undefined,
+    isLoading: false,
+    stale: true,
+  });
+  t.is(action(2).getCache(), undefined);
 
-  t.is(await action.get(1), 2);
-  t.is(action.getCache(1)?.invalid, false);
+  t.is(await action(1).get(), 2);
+  t.deepEqual(action(1).getCache(), {
+    value: 2,
+    error: undefined,
+    isLoading: false,
+    stale: false,
+  });
 
   t.is(executed, 2);
 });
@@ -447,49 +364,65 @@ test('invalidateCache', async (t) => {
 test('invalidateCacheAll', async (t) => {
   let executed = 0;
 
-  const action = new Action(async (x: number) => {
+  const action = Action.create(async () => {
     await Promise.resolve();
-    executed++;
-    return x * 2;
+    return executed++;
   });
 
-  t.is(await action.get(1), 2);
+  t.is(await action().get(), 0);
 
   action.invalidateCacheAll();
-  t.is(action.getCacheValue(1), 2);
-  t.is(action.getCache(1)?.invalid, true);
+  t.deepEqual(action().getCache(), {
+    value: 0,
+    error: undefined,
+    isLoading: false,
+    stale: true,
+  });
 
-  t.is(await action.get(1), 2);
-  t.is(action.getCache(1)?.invalid, false);
+  t.is(await action().get(), 1);
+  t.deepEqual(action().getCache(), {
+    value: 1,
+    error: undefined,
+    isLoading: false,
+    stale: false,
+  });
 
   t.is(executed, 2);
 });
 
 test('update timer', async (t) => {
-  const action = new Action(
+  const action = Action.create(
     async (x: number) => {
       await Promise.resolve();
       return x * 2;
     },
-    { invalidateAfter: 100 }
+    { invalidateAfter: 500 }
   );
 
-  await action.execute(1);
-  t.is(action.getCacheValue(1), 2);
-  t.truthy(action.getCache(1)?.invalidateTimer);
+  await action(1).execute();
+  t.deepEqual(action(1).getCache(), {
+    value: 2,
+    error: undefined,
+    isLoading: false,
+    stale: false,
+  });
 
-  await sleep(50);
-  await action.execute(1);
-  t.is(action.getCacheValue(1), 2);
-  t.truthy(action.getCache(1)?.invalidateTimer);
+  await sleep(400);
+  await action(1).execute();
 
-  await sleep(75);
-  t.is(action.getCacheValue(1), 2);
-  t.is(action.getCache(1)?.invalid, false);
-  t.truthy(action.getCache(1)?.invalidateTimer);
+  await sleep(350);
+  t.deepEqual(action(1).getCache(), {
+    value: 2,
+    error: undefined,
+    isLoading: false,
+    stale: false,
+  });
 
-  await sleep(50);
-  t.is(action.getCacheValue(1), 2);
-  t.is(action.getCache(1)?.invalid, true);
-  t.is(action.getCache(1)?.invalidateTimer, undefined);
+  await sleep(500);
+  t.deepEqual(action(1).getCache(), {
+    value: 2,
+    error: undefined,
+    isLoading: false,
+    stale: true,
+  });
 });

@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import test from 'ava';
 import React from 'react';
 import { Store, StoreScope } from '../../src/react';
+import './_setup';
 
 const storeScope = new StoreScope({ foo: 1 });
 

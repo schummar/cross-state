@@ -3,7 +3,7 @@ import test from 'ava';
 import React, { ReactNode, useEffect, useState } from 'react';
 import { sleep } from '../../src/helpers/misc';
 import { Store } from '../../src/react';
-import { UseStorePropResult } from '../../src/react/useStoreProp';
+import './_setup';
 
 function Simple({ useValue }: { useValue: () => ReactNode }) {
   const value = useValue();

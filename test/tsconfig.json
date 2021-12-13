@@ -1,8 +1,4 @@
 {
-  "extends": "..",
-  "compilerOptions": {
-    "jsx": "react",
-    "module": "CommonJS"
-  },
+  "extends": "../tsconfig.json",
   "include": ["."]
 }

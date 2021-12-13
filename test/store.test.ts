@@ -1,6 +1,10 @@
+import { cleanup } from '@testing-library/react';
 import test from 'ava';
+import { Patch } from 'immer';
 import { Store } from '../src';
 import { sleep } from '../src/helpers/misc';
+
+test.afterEach.always(cleanup);
 
 test('getState', (t) => {
   const store = new Store({ foo: 'bar' });
@@ -17,7 +21,7 @@ test('getState', (t) => {
 
 test('subscribe', async (t) => {
   const store = new Store({ foo: 0 });
-  let value,
+  let value: number | undefined,
     count = 0;
 
   store.subscribe(
@@ -69,7 +73,7 @@ test('subscribe additional properties', async (t) => {
 
 test('subscribe with run now', async (t) => {
   const store = new Store({ foo: 0 });
-  let value,
+  let value: number | undefined,
     count = 0;
 
   store.subscribe(
@@ -99,7 +103,7 @@ test('subscribe with run now', async (t) => {
 
 test('subscribe throttled', async (t) => {
   const store = new Store({ foo: 0 });
-  let value,
+  let value: number | undefined,
     count = 0;
 
   store.subscribe(
@@ -151,7 +155,7 @@ test('subscribe same value ignored', async (t) => {
 
 test('cancel subscription', async (t) => {
   const store = new Store({ foo: 0 });
-  let value,
+  let value: number | undefined,
     count = 0;
 
   const cancel = store.subscribe(
@@ -402,7 +406,7 @@ test('addReaction rerun with runNow', async (t) => {
 
 test('subscribePatches', async (t) => {
   const store = new Store({ foo: 0 });
-  let patches,
+  let patches: Patch[] | undefined,
     count = 0;
 
   store.subscribePatches((p) => {
