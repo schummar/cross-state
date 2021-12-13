@@ -12,7 +12,6 @@ test('get', async () => {
   let executed = 0;
 
   const action = Action.create(async (x: number) => {
-    await sleep(1);
     executed++;
     return x * 2;
   });
@@ -26,7 +25,6 @@ test('get parallel', async () => {
   let executed = 0;
 
   const action = Action.create(async (x: number) => {
-    await sleep(1);
     executed++;
     return x * 2;
   });
@@ -40,7 +38,6 @@ test('get parallel', async () => {
 
 test('get error', async () => {
   const action = Action.create(async () => {
-    await sleep(1);
     throw Error();
   });
 
@@ -52,7 +49,6 @@ test('execute', async () => {
   let executed = 0;
 
   const action = Action.create(async (x: number) => {
-    await sleep(1);
     executed++;
     return x * 2;
   });
@@ -66,7 +62,6 @@ test('execute parallel', async () => {
   let executed = 0;
 
   const action = Action.create(async (x: number) => {
-    await sleep(2);
     executed++;
     return x * 2;
   });
@@ -81,321 +76,349 @@ test('execute parallel', async () => {
   expect(executed).toBe(2);
 });
 
-// test('retry', async (t) => {
-//   let executed = 0;
+test('retry', async () => {
+  let executed = 0;
 
-//   const action = Action.create(async (x: number) => {
-//     await sleep(1);
-//     if (executed++ === 0) throw Error();
-//     return x * 2;
-//   });
+  const action = Action.create(async (x: number) => {
+    if (executed++ === 0) throw Error();
+    return x * 2;
+  });
 
-//   t.is(await action(1).get({ retries: 1 }), 2);
-//   t.is(executed, 2);
-// });
+  const promise = action(1).get({ retries: 1 });
+  await Promise.resolve();
+  jest.runAllTimers();
+  expect(await promise).toBe(2);
+  expect(executed).toBe(2);
+});
 
-// test('dangling execution', async (t) => {
-//   const action = Action.create(async (x: number) => {
-//     await sleep(1);
-//     return x * 2;
-//   });
+test('dangling execution', async () => {
+  const action = Action.create(async (x: number) => {
+    return x * 2;
+  });
 
-//   const promise = action(1).execute();
-//   action(1).clearCache();
+  const promise = action(1).execute();
+  action(1).clearCache();
 
-//   t.is(await promise, 2);
-//   t.is(action(1).getCache(), undefined);
-// });
+  expect(await promise).toBe(2);
+  expect(action(1).getCache()).toBe(undefined);
+});
 
-// test('dangling execution error', async (t) => {
-//   const action = Action.create(async () => {
-//     await sleep(1);
-//     throw Error();
-//   });
+test('dangling execution error', async () => {
+  const action = Action.create(async () => {
+    throw Error();
+  });
 
-//   const promise = action().execute();
-//   action().clearCache();
+  const promise = action().execute();
+  action().clearCache();
 
-//   await t.throwsAsync(() => promise);
-//   t.is(action().getCache(), undefined);
-// });
+  await expect(promise).rejects.toBeTruthy();
+  expect(action().getCache()).toBe(undefined);
+});
 
-// test('subscribe', async (t) => {
-//   const action = Action.create(async (x: number) => {
-//     await wait(10);
-//     return x * 2;
-//   });
+test('subscribe', async () => {
+  const action = Action.create(async (x: number) => {
+    await sleep(1);
+    return x * 2;
+  });
 
-//   t.plan(3);
+  expect.assertions(3);
 
-//   let count = 0;
-//   action(1).subscribe((state) => {
-//     if (count === 0) {
-//       t.deepEqual(state, {});
-//     } else if (count === 1) {
-//       t.deepEqual(state, { value: undefined, error: undefined, isLoading: true, stale: false });
-//     } else {
-//       t.deepEqual(state, { value: 2, error: undefined, isLoading: false, stale: false });
-//     }
-//     count++;
-//   });
+  let state;
+  action(1).subscribe((_state) => {
+    state = _state;
+  });
 
-//   await action(1).execute();
-// });
+  const promise = action(1).execute();
+  expect(state).toEqual({});
 
-// test('subscribe error', async (t) => {
-//   const action = Action.create(async (): Promise<number> => {
-//     await wait(10);
-//     throw Error();
-//   });
+  jest.runAllTimers();
+  expect(state).toEqual({ value: undefined, error: undefined, isLoading: true, stale: false });
 
-//   t.plan(4);
+  await promise;
+  jest.runAllTimers();
+  expect(state).toEqual({ value: 2, error: undefined, isLoading: false, stale: false });
+});
 
-//   let count = 0;
-//   action().subscribe((state) => {
-//     if (count === 0) {
-//       t.deepEqual(state, {});
-//     } else if (count === 1) {
-//       t.deepEqual(state, { value: undefined, error: undefined, isLoading: true, stale: false });
-//     } else {
-//       t.deepEqual(state, { value: undefined, error: Error(), isLoading: false, stale: false });
-//     }
-//     count++;
-//   });
+test('subscribe error', async () => {
+  const action = Action.create(async (): Promise<number> => {
+    await sleep(1);
+    throw Error();
+  });
 
-//   await t.throwsAsync(() => action().execute());
-// });
+  expect.assertions(3);
 
-// test.serial('static clearCacheAll', async (t) => {
-//   let executed = 0;
+  let state;
+  action().subscribe((_state) => {
+    state = _state;
+  });
 
-//   const action = Action.create(async (x: number) => {
-//     await sleep(1);
-//     executed++;
-//     return x * 2;
-//   });
+  const promise = action()
+    .execute()
+    .catch(() => {
+      // ignore
+    });
+  expect(state).toEqual({});
 
-//   t.is(await action(1).get(), 2);
-//   Action.clearCacheAll();
-//   t.is(await action(1).get(), 2);
-//   t.is(executed, 2);
-// });
+  jest.runAllTimers();
+  expect(state).toEqual({ value: undefined, error: undefined, isLoading: true, stale: false });
 
-// test('getCache', async (t) => {
-//   const action = Action.create(async (x: number) => {
-//     await sleep(1);
-//     return x * 2;
-//   });
+  await promise;
+  jest.runAllTimers();
+  expect(state).toEqual({ value: undefined, error: Error(), isLoading: false, stale: false });
+});
 
-//   t.is(action(1).getCache(), undefined);
+test('static invalidateCacheAll', async () => {
+  const action = Action.create(async (x: number) => {
+    return x * 2;
+  });
 
-//   const promise = action(1).execute();
-//   t.deepEqual(action(1).getCache(), { value: undefined, error: undefined, isLoading: true, stale: false });
+  expect(await action(1).get()).toBe(2);
+  Action.invalidateCacheAll();
+  expect(await action(1).getCache()?.stale).toBe(true);
+});
 
-//   await promise;
-//   t.deepEqual(action(1).getCache(), { value: 2, error: undefined, isLoading: false, stale: false });
-// });
+test('static clearCacheAll', async () => {
+  const action = Action.create(async (x: number) => {
+    return x * 2;
+  });
 
-// test('update', async (t) => {
-//   const action = Action.create(async (x: number) => {
-//     await wait(10);
-//     return { value: x * 2 };
-//   });
+  expect(await action(1).get()).toBe(2);
+  Action.clearCacheAll();
+  expect(await action(1).getCache()).toBe(undefined);
+});
 
-//   // action(1).updateCache(() => {
-//   //   t.fail();
-//   // });
+test('getCache', async () => {
+  const action = Action.create(async (x: number) => {
+    return x * 2;
+  });
 
-//   // await action.execute(1);
-//   // action.updateCache(1, (s) => {
-//   //   s.value = 42;
-//   // });
+  expect(action(1).getCache()).toBe(undefined);
 
-//   // t.deepEqual(action.getCacheValue(1), { value: 42 });
-//   t.pass();
-// });
+  const promise = action(1).execute();
+  expect(action(1).getCache()).toEqual({ value: undefined, error: undefined, isLoading: true, stale: false });
 
-// test('clearCache', async (t) => {
-//   let executed = 0;
+  await promise;
+  expect(action(1).getCache()).toEqual({ value: 2, error: undefined, isLoading: false, stale: false });
+});
 
-//   const action = Action.create(
-//     async (x: number) => {
-//       await sleep(1);
-//       executed++;
-//       return x * 2;
-//     },
-//     { invalidateAfter: 1000 }
-//   );
+test('update', async () => {
+  const action = Action.create(async (x: number) => {
+    return { value: x * 2 };
+  });
 
-//   t.is(await action(1).get(), 2);
+  action(1).update({ value: 42 });
+  expect(action(1).getCache()?.value).toEqual({ value: 42 });
+});
 
-//   action(1).clearCache();
-//   action(2).clearCache();
-//   t.is(action(1).getCache(), undefined);
-//   t.is(action(2).getCache(), undefined);
+test('update by function', async () => {
+  const action = Action.create(async (x: number) => {
+    return { value: x * 2 };
+  });
 
-//   t.is(await action(1).get(), 2);
-//   t.is(executed, 2);
-// });
+  await action(1).get();
+  action(1).update(({ value }) => ({ value: (value?.value ?? 0) + 1 }));
+  expect(action(1).getCache()?.value).toEqual({ value: 3 });
+});
 
-// test('clearCache function', async (t) => {
-//   let executed = 0;
+test('update with invalidation', async () => {
+  const action = Action.create(async (x: number) => {
+    return { value: x * 2 };
+  });
 
-//   const action = Action.create(
-//     async (x: number) => {
-//       await sleep(1);
-//       executed++;
-//       if (x === 1) return 1;
-//       else throw Error('error');
-//     },
-//     {
-//       invalidateAfter: ({ value, error }) => {
-//         if (executed === 1) t.is(value, 1);
-//         else t.truthy(error);
-//         return 1000;
-//       },
-//     }
-//   );
+  action(1).update({ value: 42 }, true);
+  expect(action(1).getCache()?.value).toEqual({ value: 42 });
 
-//   t.is(await action(1).get(), 1);
+  await action(1).get();
+  expect(action(1).getCache()?.value).toEqual({ value: 2 });
+});
 
-//   action(1).clearCache();
-//   action(2).clearCache();
-//   t.is(action(1).getCache(), undefined);
-//   t.is(action(2).getCache(), undefined);
+test('update with confirmation', async () => {
+  const action = Action.create(async (x: number) => {
+    return { value: x * 2 };
+  });
 
-//   await t.throwsAsync(() => action(2).get());
-//   t.is(executed, 2);
-// });
+  action(1).update({ value: 42 }, Promise.resolve({ value: 43 }));
+  expect(action(1).getCache()?.value).toEqual({ value: 42 });
 
-// test.serial('clearAfter', async (t) => {
-//   const action = Action.create(
-//     async () => {
-//       return 1;
-//     },
-//     {
-//       invalidateAfter: () => {
-//         return 250;
-//       },
-//       clearAfter: () => {
-//         return 750;
-//       },
-//     }
-//   );
+  await action(1).get();
+  expect(action(1).getCache()?.value).toEqual({ value: 43 });
+});
 
-//   t.is(await action().get(), 1);
-//   t.deepEqual(action().getCache(), { value: 1, error: undefined, isLoading: false, stale: false });
+test('clearCache', async () => {
+  let executed = 0;
 
-//   await sleep(500);
-//   t.deepEqual(action().getCache(), { value: 1, error: undefined, isLoading: false, stale: true });
+  const action = Action.create(
+    async (x: number) => {
+      executed++;
+      return x * 2;
+    },
+    { invalidateAfter: 1000 }
+  );
 
-//   await sleep(500);
-//   t.is(action().getCache(), undefined);
-// });
+  expect(await action(1).get()).toBe(2);
 
-// test.serial('clearAfter global', async (t) => {
-//   Action.options = {
-//     invalidateAfter: 250,
-//     clearAfter: 750,
-//   };
+  action(1).clearCache();
+  action(2).clearCache();
+  expect(action(1).getCache()).toBe(undefined);
+  expect(action(2).getCache()).toBe(undefined);
 
-//   const action = Action.create(async () => {
-//     return 1;
-//   });
+  expect(await action(1).get()).toBe(2);
+  expect(executed).toBe(2);
+});
 
-//   t.is(await action().get(), 1);
-//   t.deepEqual(action().getCache(), { value: 1, error: undefined, isLoading: false, stale: false });
+test('clearCache function', async () => {
+  let executed = 0;
 
-//   await sleep(500);
-//   t.deepEqual(action().getCache(), { value: 1, error: undefined, isLoading: false, stale: true });
+  const action = Action.create(
+    async (x: number) => {
+      executed++;
+      if (x === 1) return 1;
+      else throw Error('error');
+    },
+    {
+      invalidateAfter: ({ value, error }) => {
+        if (executed === 1) expect(value).toBe(1);
+        else expect(error).toBeTruthy();
+        return 1000;
+      },
+    }
+  );
 
-//   await sleep(500);
-//   t.is(action().getCache(), undefined);
-// });
+  expect(await action(1).get()).toBe(1);
 
-// test('clearCacheAll', async (t) => {
-//   let executed = 0;
+  action(1).clearCache();
+  action(2).clearCache();
+  expect(action(1).getCache()).toBe(undefined);
+  expect(action(2).getCache()).toBe(undefined);
 
-//   const action = Action.create(async (x: number) => {
-//     await sleep(1);
-//     executed++;
-//     return x * 2;
-//   });
+  await expect(action(2).get()).rejects.toBeTruthy();
+  expect(executed).toBe(2);
+});
 
-//   t.is(await action(1).get(), 2);
+test('clearAfter', async () => {
+  const action = Action.create(
+    async () => {
+      return 1;
+    },
+    {
+      invalidateAfter: () => {
+        return 100;
+      },
+      clearAfter: () => {
+        return 200;
+      },
+    }
+  );
 
-//   action.clearCacheAll();
-//   t.is(action(1).getCache(), undefined);
+  await action().get();
+  expect(action().getCache()).toEqual({ value: 1, error: undefined, isLoading: false, stale: false });
 
-//   t.is(await action(1).get(), 2);
-//   t.is(executed, 2);
-// });
+  jest.advanceTimersByTime(100);
+  expect(action().getCache()).toEqual({ value: 1, error: undefined, isLoading: false, stale: true });
 
-// test('invalidateCache', async (t) => {
-//   let executed = 0;
+  jest.advanceTimersByTime(100);
+  expect(action().getCache()).toBe(undefined);
+});
 
-//   const action = Action.create(async (x: number) => {
-//     await sleep(1);
-//     executed++;
-//     return x * 2;
-//   });
+test('clearAfter global', async () => {
+  Action.options = {
+    invalidateAfter: 100,
+    clearAfter: 200,
+  };
 
-//   t.is(await action(1).get(), 2);
+  const action = Action.create(async () => {
+    return 1;
+  });
 
-//   action(1).invalidateCache();
-//   action(2).invalidateCache();
-//   t.deepEqual(action(1).getCache(), {
-//     value: 2,
-//     error: undefined,
-//     isLoading: false,
-//     stale: true,
-//   });
-//   t.is(action(2).getCache(), undefined);
+  await action().get();
+  expect(action().getCache()).toEqual({ value: 1, error: undefined, isLoading: false, stale: false });
 
-//   t.is(await action(1).get(), 2);
-//   t.deepEqual(action(1).getCache(), {
-//     value: 2,
-//     error: undefined,
-//     isLoading: false,
-//     stale: false,
-//   });
+  jest.advanceTimersByTime(100);
+  expect(action().getCache()).toEqual({ value: 1, error: undefined, isLoading: false, stale: true });
 
-//   t.is(executed, 2);
-// });
+  jest.advanceTimersByTime(100);
+  expect(action().getCache()).toBe(undefined);
+});
 
-// test('invalidateCacheAll', async (t) => {
-//   let executed = 0;
+test('clearCacheAll', async () => {
+  let executed = 0;
 
-//   const action = Action.create(async () => {
-//     await sleep(1);
-//     return executed++;
-//   });
+  const action = Action.create(async (x: number) => {
+    executed++;
+    return x * 2;
+  });
 
-//   t.is(await action().get(), 0);
+  expect(await action(1).get()).toBe(2);
 
-//   action.invalidateCacheAll();
-//   t.deepEqual(action().getCache(), {
-//     value: 0,
-//     error: undefined,
-//     isLoading: false,
-//     stale: true,
-//   });
+  action.clearCacheAll();
+  expect(action(1).getCache()).toBe(undefined);
 
-//   t.is(await action().get(), 1);
-//   t.deepEqual(action().getCache(), {
-//     value: 1,
-//     error: undefined,
-//     isLoading: false,
-//     stale: false,
-//   });
+  expect(await action(1).get()).toBe(2);
+  expect(executed).toBe(2);
+});
 
-//   t.is(executed, 2);
-// });
+test('invalidateCache', async () => {
+  let executed = 0;
+
+  const action = Action.create(async (x: number) => {
+    executed++;
+    return x * 2;
+  });
+
+  expect(await action(1).get()).toBe(2);
+
+  action(1).invalidateCache();
+  action(2).invalidateCache();
+  expect(action(1).getCache()).toEqual({
+    value: 2,
+    error: undefined,
+    isLoading: false,
+    stale: true,
+  });
+  expect(action(2).getCache()).toBe(undefined);
+
+  expect(await action(1).get()).toBe(2);
+  expect(action(1).getCache()).toEqual({
+    value: 2,
+    error: undefined,
+    isLoading: false,
+    stale: false,
+  });
+
+  expect(executed).toBe(2);
+});
+
+test('invalidateCacheAll', async () => {
+  let executed = 0;
+
+  const action = Action.create(async () => {
+    return executed++;
+  });
+
+  expect(await action().get()).toBe(0);
+
+  action.invalidateCacheAll();
+  expect(action().getCache()).toEqual({
+    value: 0,
+    error: undefined,
+    isLoading: false,
+    stale: true,
+  });
+
+  expect(await action().get()).toBe(1);
+  expect(action().getCache()).toEqual({
+    value: 1,
+    error: undefined,
+    isLoading: false,
+    stale: false,
+  });
+
+  expect(executed).toBe(2);
+});
 
 test('update timer', async () => {
   const action = Action.create(
     async (x: number) => {
-      await sleep(1);
       return x * 2;
     },
     { invalidateAfter: 2 }

@@ -1,268 +1,277 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+/**
+ * @jest-environment jsdom
+ */
+
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import React, { ReactNode, useEffect, useState } from 'react';
-import { sleep } from '../../src/helpers/misc';
 import { Store } from '../../src/react';
 import './_setup';
 
-// function Simple({ useValue }: { useValue: () => ReactNode }) {
-//   const value = useValue();
+jest.useFakeTimers();
 
-//   return <div data-testid="div">{value}</div>;
-// }
+afterEach(() => {
+  jest.runAllTimers();
+});
 
-// function Dynamic({ store }: { store: Store<{ foo: number; bar: number }> }) {
-//   const [key, setKey] = useState<'foo' | 'bar'>('foo');
-//   const value = store.useState((s) => s[key], [key]);
+function Simple({ useValue }: { useValue: () => ReactNode }) {
+  const value = useValue();
 
-//   const toggle = () => {
-//     setKey(key === 'foo' ? 'bar' : 'foo');
-//   };
+  return <div data-testid="div">{value}</div>;
+}
 
-//   return (
-//     <div data-testid="div" onClick={toggle}>
-//       {key}: {value}
-//     </div>
-//   );
-// }
+function Dynamic({ store }: { store: Store<{ foo: number; bar: number }> }) {
+  const [key, setKey] = useState<'foo' | 'bar'>('foo');
+  const value = store.useState((s) => s[key], [key]);
 
-// function WithProp({ useProp }: { useProp: () => [value: number, update: (value: number) => void] }) {
-//   const [value, update] = useProp();
+  const toggle = () => {
+    setKey(key === 'foo' ? 'bar' : 'foo');
+  };
 
-//   return (
-//     <div data-testid="div" onClick={() => update(value + 1)}>
-//       {value}
-//     </div>
-//   );
-// }
+  return (
+    <div data-testid="div" onClick={toggle}>
+      {key}: {value}
+    </div>
+  );
+}
 
-// function NoSelector({ store, throttle }: { store: Store<{ foo: number }>; throttle?: number }) {
-//   const value = store.useState(throttle ? { throttle } : undefined);
+function WithProp({ useProp }: { useProp: () => [value: number, update: (value: number) => void] }) {
+  const [value, update] = useProp();
 
-//   return <div data-testid="div">{JSON.stringify(value)}</div>;
-// }
+  return (
+    <div data-testid="div" onClick={() => update(value + 1)}>
+      {value}
+    </div>
+  );
+}
 
-// test.serial('simple', async (t) => {
-//   const store = new Store({ foo: 1 });
+function NoSelector({ store, throttle }: { store: Store<{ foo: number }>; throttle?: number }) {
+  const value = store.useState(throttle ? { throttle } : undefined);
 
-//   render(<Simple useValue={() => store.useState((state) => state.foo)} />);
-//   const div = screen.getByTestId('div');
-//   t.is(div.textContent, '1');
+  return <div data-testid="div">{JSON.stringify(value)}</div>;
+}
 
-//   store.update((s) => {
-//     s.foo = 2;
-//   });
-//   await Promise.resolve();
-//   t.is(div.textContent, '2');
-// });
+test('simple', async () => {
+  const store = new Store({ foo: 1 });
 
-// test.serial('dynamic selector', async (t) => {
-//   const store = new Store({ foo: 1, bar: 10 });
+  render(<Simple useValue={() => store.useState((state) => state.foo)} />);
+  const div = screen.getByTestId('div');
+  expect(div.textContent).toBe('1');
 
-//   render(<Dynamic store={store} />);
-//   const div = screen.getByTestId('div');
-//   t.is(div.textContent, 'foo: 1');
+  store.update((s) => {
+    s.foo = 2;
+  });
+  act(() => jest.runAllTimers());
+  expect(div.textContent).toBe('2');
+});
 
-//   fireEvent.click(div);
-//   t.is(div.textContent, 'bar: 10');
-// });
+test('dynamic selector', async () => {
+  const store = new Store({ foo: 1, bar: 10 });
 
-// test.serial('string selector', async (t) => {
-//   const store = new Store({ foo: 1 });
+  render(<Dynamic store={store} />);
+  const div = screen.getByTestId('div');
+  expect(div.textContent).toBe('foo: 1');
 
-//   render(<Simple useValue={() => store.useState('foo')} />);
-//   const div = screen.getByTestId('div');
-//   t.is(div.textContent, '1');
+  fireEvent.click(div);
+  expect(div.textContent).toBe('bar: 10');
+});
 
-//   store.update((s) => {
-//     s.foo = 2;
-//   });
-//   await Promise.resolve();
-//   t.is(div.textContent, '2');
-// });
+test('string selector', async () => {
+  const store = new Store({ foo: 1 });
 
-// test.serial('prop error undefined', async (t) => {
-//   t.plan(2);
-//   const store = new Store({ foo: 1 });
+  render(<Simple useValue={() => store.useState('foo')} />);
+  const div = screen.getByTestId('div');
+  expect(div.textContent).toBe('1');
 
-//   render(
-//     <WithProp
-//       useProp={() => {
-//         const [value, update] = store.useProp('bar.baz' as any);
-//         return [value, (v: any) => t.throws(() => update(v))];
-//       }}
-//     />
-//   );
-//   const div = screen.getByTestId('div');
-//   t.is(div.textContent, '');
-//   fireEvent.click(div);
-// });
+  store.update((s) => {
+    s.foo = 2;
+  });
+  act(() => jest.runAllTimers());
+  expect(div.textContent).toBe('2');
+});
 
-// test.serial('prop error wrong type', async (t) => {
-//   t.plan(2);
-//   const store = new Store({ foo: 1 });
+test('prop error undefined', async () => {
+  expect.assertions(2);
+  const store = new Store({ foo: 1 });
 
-//   render(
-//     <WithProp
-//       useProp={() => {
-//         const [value, update] = store.useProp('foo.baz' as any);
-//         return [value, (v: any) => t.throws(() => update(v))];
-//       }}
-//     />
-//   );
-//   const div = screen.getByTestId('div');
-//   t.is(div.textContent, '');
-//   fireEvent.click(div);
-// });
+  render(
+    <WithProp
+      useProp={() => {
+        const [value, update] = store.useProp('bar.baz' as any);
+        return [value, (v: any) => expect(() => update(v)).toThrow()];
+      }}
+    />
+  );
+  const div = screen.getByTestId('div');
+  expect(div.textContent).toBe('');
+  fireEvent.click(div);
+});
 
-// test.serial('prop', async (t) => {
-//   const store = new Store({ foo: 1 });
+test('prop error wrong type', async () => {
+  expect.assertions(2);
+  const store = new Store({ foo: 1 });
 
-//   render(<WithProp useProp={() => store.useProp('foo')} />);
-//   const div = screen.getByTestId('div');
-//   t.is(div.textContent, '1');
+  render(
+    <WithProp
+      useProp={() => {
+        const [value, update] = store.useProp('foo.baz' as any);
+        return [value, (v: any) => expect(() => update(v)).toThrow()];
+      }}
+    />
+  );
+  const div = screen.getByTestId('div');
+  expect(div.textContent).toBe('');
+  fireEvent.click(div);
+});
 
-//   store.update((s) => {
-//     s.foo = 2;
-//   });
-//   await Promise.resolve();
-//   t.is(div.textContent, '2');
+test('prop', async () => {
+  const store = new Store({ foo: 1 });
 
-//   fireEvent.click(div);
-//   await Promise.resolve();
-//   t.is(div.textContent, '3');
-// });
+  render(<WithProp useProp={() => store.useProp('foo')} />);
+  const div = screen.getByTestId('div');
+  expect(div.textContent).toBe('1');
 
-// test.serial('throttled', async (t) => {
-//   const store = new Store({ foo: 1 });
+  store.update((s) => {
+    s.foo = 2;
+  });
+  act(() => jest.runAllTimers());
+  expect(div.textContent).toBe('2');
 
-//   render(<Simple useValue={() => store.useState((state) => state.foo, undefined, { throttle: 100 })} />);
-//   const div = screen.getByTestId('div');
+  fireEvent.click(div);
+  act(() => jest.runAllTimers());
+  expect(div.textContent).toBe('3');
+});
 
-//   store.update((s) => {
-//     s.foo++;
-//   });
-//   await Promise.resolve();
-//   t.is(div.textContent, '2');
+test('throttled', async () => {
+  const store = new Store({ foo: 1 });
 
-//   store.update((s) => {
-//     s.foo++;
-//   });
-//   await Promise.resolve();
+  render(<Simple useValue={() => store.useState((state) => state.foo, undefined, { throttle: 100 })} />);
+  const div = screen.getByTestId('div');
 
-//   store.update((s) => {
-//     s.foo++;
-//   });
-//   await Promise.resolve();
-//   t.is(div.textContent, '2');
+  store.update((s) => {
+    s.foo++;
+  });
+  act(() => jest.advanceTimersByTime(0));
+  expect(div.textContent).toBe('2');
 
-//   await sleep(125);
-//   t.is(div.textContent, '4');
-// });
+  store.update((s) => {
+    s.foo++;
+  });
+  act(() => jest.advanceTimersByTime(50));
 
-// test.serial('throttled string selector', async (t) => {
-//   const store = new Store({ foo: 1 });
+  store.update((s) => {
+    s.foo++;
+  });
+  act(() => jest.advanceTimersByTime(49));
+  expect(div.textContent).toBe('2');
 
-//   render(<Simple useValue={() => store.useState('foo', { throttle: 100 })} />);
-//   const div = screen.getByTestId('div');
+  act(() => jest.advanceTimersByTime(1));
+  expect(div.textContent).toBe('4');
+});
 
-//   store.update((s) => {
-//     s.foo++;
-//   });
-//   await Promise.resolve();
-//   t.is(div.textContent, '2');
+test('throttled string selector', async () => {
+  const store = new Store({ foo: 1 });
 
-//   store.update((s) => {
-//     s.foo++;
-//   });
-//   await Promise.resolve();
+  render(<Simple useValue={() => store.useState('foo', { throttle: 100 })} />);
+  const div = screen.getByTestId('div');
 
-//   store.update((s) => {
-//     s.foo++;
-//   });
-//   await Promise.resolve();
-//   t.is(div.textContent, '2');
+  store.update((s) => {
+    s.foo++;
+  });
+  act(() => jest.advanceTimersByTime(0));
+  expect(div.textContent).toBe('2');
 
-//   await sleep(125);
-//   t.is(div.textContent, '4');
-// });
+  store.update((s) => {
+    s.foo++;
+  });
+  act(() => jest.advanceTimersByTime(50));
 
-// test.serial('no selector', async (t) => {
-//   const store = new Store({ foo: 1 });
+  store.update((s) => {
+    s.foo++;
+  });
+  act(() => jest.advanceTimersByTime(49));
+  expect(div.textContent).toBe('2');
 
-//   render(<NoSelector store={store} />);
-//   const div = screen.getByTestId('div');
-//   t.is(div.textContent, '{"foo":1}');
+  act(() => jest.advanceTimersByTime(1));
+  expect(div.textContent).toBe('4');
+});
 
-//   store.update((s) => {
-//     s.foo = 2;
-//   });
-//   await Promise.resolve();
-//   t.is(div.textContent, '{"foo":2}');
-// });
+test('no selector', async () => {
+  const store = new Store({ foo: 1 });
 
-// test.serial('no selector throttled', async (t) => {
-//   const store = new Store({ foo: 1 });
+  render(<NoSelector store={store} />);
+  const div = screen.getByTestId('div');
+  expect(div.textContent).toBe('{"foo":1}');
 
-//   render(<NoSelector store={store} throttle={100} />);
-//   const div = screen.getByTestId('div');
+  store.update((s) => {
+    s.foo = 2;
+  });
+  act(() => jest.runAllTimers());
+  expect(div.textContent).toBe('{"foo":2}');
+});
 
-//   store.update((s) => {
-//     s.foo++;
-//   });
-//   await Promise.resolve();
-//   t.is(div.textContent, '{"foo":2}');
+test('no selector throttled', async () => {
+  const store = new Store({ foo: 1 });
 
-//   store.update((s) => {
-//     s.foo++;
-//   });
-//   await Promise.resolve();
+  render(<NoSelector store={store} throttle={100} />);
+  const div = screen.getByTestId('div');
 
-//   store.update((s) => {
-//     s.foo++;
-//   });
-//   await Promise.resolve();
-//   t.is(div.textContent, '{"foo":2}');
+  store.update((s) => {
+    s.foo++;
+  });
+  act(() => jest.advanceTimersByTime(0));
+  expect(div.textContent).toBe('{"foo":2}');
 
-//   await sleep(125);
-//   t.is(div.textContent, '{"foo":4}');
-// });
+  store.update((s) => {
+    s.foo++;
+  });
+  act(() => jest.advanceTimersByTime(50));
 
-// test.serial('addReaction', async (t) => {
-//   const store = new Store({ foo: 0 });
+  store.update((s) => {
+    s.foo++;
+  });
+  act(() => jest.advanceTimersByTime(49));
+  expect(div.textContent).toBe('{"foo":2}');
 
-//   render(<Simple useValue={() => store.useState((s) => s.foo * 2)} />);
-//   const div = screen.getByTestId('div');
+  act(() => jest.advanceTimersByTime(1));
+  expect(div.textContent).toBe('{"foo":4}');
+});
 
-//   store.addReaction(
-//     (s) => s.foo,
-//     (foo, state) => {
-//       if (foo % 2 === 1) state.foo++;
-//     }
-//   );
-//   store.update((s) => {
-//     s.foo++;
-//   });
+test('addReaction', async () => {
+  const store = new Store({ foo: 0 });
 
-//   await Promise.resolve();
-//   t.is(div.textContent, '4');
-// });
+  render(<Simple useValue={() => store.useState((s) => s.foo * 2)} />);
+  const div = screen.getByTestId('div');
 
-// test.serial('useStoreState with change before useEffect kicks in', async (t) => {
-//   const store = new Store({ foo: 0 });
+  store.addReaction(
+    (s) => s.foo,
+    (foo, state) => {
+      if (foo % 2 === 1) state.foo++;
+    }
+  );
+  store.update((s) => {
+    s.foo++;
+  });
 
-//   function X() {
-//     useEffect(() => {
-//       store.update((state) => {
-//         state.foo++;
-//       });
-//     }, []);
+  act(() => jest.runAllTimers());
+  expect(div.textContent).toBe('4');
+});
 
-//     const value = store.useState('foo');
+test('useStoreState with change before useEffect kicks in', async () => {
+  const store = new Store({ foo: 0 });
 
-//     return <div data-testid="div">{value}</div>;
-//   }
+  function X() {
+    useEffect(() => {
+      store.update((state) => {
+        state.foo++;
+      });
+    }, []);
 
-//   render(<X />);
-//   const div = screen.getByTestId('div');
-//   t.is(div.textContent, '1');
-// });
+    const value = store.useState('foo');
+
+    return <div data-testid="div">{value}</div>;
+  }
+
+  render(<X />);
+  const div = screen.getByTestId('div');
+  expect(div.textContent).toBe('1');
+});

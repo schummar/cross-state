@@ -1,25 +1,26 @@
-import { cleanup } from '@testing-library/react';
-import test from 'ava';
 import { Patch } from 'immer';
 import { Store } from '../src';
-import { sleep } from '../src/helpers/misc';
 
-test.afterEach.always(cleanup);
+jest.useFakeTimers();
 
-test('getState', (t) => {
+afterEach(() => {
+  jest.runAllTimers();
+});
+
+test('getState', async () => {
   const store = new Store({ foo: 'bar' });
-  t.deepEqual(store.getState(), { foo: 'bar' });
+  expect(store.getState()).toEqual({ foo: 'bar' });
 
   store.update((s) => {
     s.foo = 'baz';
   });
-  t.deepEqual(store.getState(), { foo: 'baz' });
+  expect(store.getState()).toEqual({ foo: 'baz' });
 
   store.set({ foo: 'bar' });
-  t.deepEqual(store.getState(), { foo: 'bar' });
+  expect(store.getState()).toEqual({ foo: 'bar' });
 });
 
-test('subscribe', async (t) => {
+test('subscribe', async () => {
   const store = new Store({ foo: 0 });
   let value: number | undefined,
     count = 0;
@@ -31,8 +32,8 @@ test('subscribe', async (t) => {
       count++;
     }
   );
-  t.is(value, 0);
-  t.is(count, 1);
+  expect(value).toBe(0);
+  expect(count).toBe(1);
 
   store.update((s) => {
     s.foo = 1;
@@ -40,23 +41,23 @@ test('subscribe', async (t) => {
   store.update((s) => {
     s.foo = 2;
   });
-  t.is(value, 0);
-  t.is(count, 1);
+  expect(value).toBe(0);
+  expect(count).toBe(1);
 
-  await Promise.resolve();
-  t.is(value, 4);
-  t.is(count, 2);
+  jest.runAllTimers();
+  expect(value).toBe(4);
+  expect(count).toBe(2);
 });
 
-test('subscribe additional properties', async (t) => {
+test('subscribe additional properties', async () => {
   const store = new Store({ foo: 0 });
-  t.plan(6);
+  expect.assertions(6);
 
   store.subscribe(
     (s) => s.foo,
     (foo, prev, state) => {
-      t.is(prev, foo === 2 ? 1 : 0);
-      t.deepEqual(state, { foo });
+      expect(prev).toBe(foo === 2 ? 1 : 0);
+      expect(state).toEqual({ foo });
     },
     { runNow: true }
   );
@@ -65,13 +66,13 @@ test('subscribe additional properties', async (t) => {
     s.foo = 1;
   });
 
-  await Promise.resolve();
+  jest.runAllTimers();
   store.update((s) => {
     s.foo = 2;
   });
 });
 
-test('subscribe with run now', async (t) => {
+test('subscribe with run now', async () => {
   const store = new Store({ foo: 0 });
   let value: number | undefined,
     count = 0;
@@ -84,8 +85,8 @@ test('subscribe with run now', async (t) => {
     },
     { runNow: true }
   );
-  t.is(value, 0);
-  t.is(count, 1);
+  expect(value).toBe(0);
+  expect(count).toBe(1);
 
   store.update((s) => {
     s.foo = 1;
@@ -93,15 +94,15 @@ test('subscribe with run now', async (t) => {
   store.update((s) => {
     s.foo = 2;
   });
-  t.is(value, 0);
-  t.is(count, 1);
+  expect(value).toBe(0);
+  expect(count).toBe(1);
 
-  await Promise.resolve();
-  t.is(value, 4);
-  t.is(count, 2);
+  jest.runAllTimers();
+  expect(value).toBe(4);
+  expect(count).toBe(2);
 });
 
-test('subscribe throttled', async (t) => {
+test('subscribe throttled', async () => {
   const store = new Store({ foo: 0 });
   let value: number | undefined,
     count = 0;
@@ -118,42 +119,42 @@ test('subscribe throttled', async (t) => {
   store.update((s) => {
     s.foo = 1;
   });
-  await Promise.resolve();
+  jest.advanceTimersByTime(50);
   store.update((s) => {
     s.foo = 2;
   });
-  await Promise.resolve();
+  jest.advanceTimersByTime(49);
 
-  t.is(value, 2);
-  t.is(count, 2);
+  expect(value).toBe(2);
+  expect(count).toBe(2);
 
-  await sleep(125);
-  t.is(value, 4);
-  t.is(count, 3);
+  jest.advanceTimersByTime(1);
+  expect(value).toBe(4);
+  expect(count).toBe(3);
 });
 
-test('subscribe same value ignored', async (t) => {
+test('subscribe same value ignored', async () => {
   const store = new Store({ foo: 0 });
-  t.plan(2);
+  expect.assertions(2);
 
   store.subscribe(
     (s) => s.foo,
     () => {
-      t.pass();
+      expect(true).toBe(true);
     }
   );
 
   store.update((s) => {
     s.foo = 1;
   });
-  await Promise.resolve();
+  jest.runAllTimers();
   store.update((s) => {
     s.foo = 1;
   });
-  await Promise.resolve();
+  jest.runAllTimers();
 });
 
-test('cancel subscription', async (t) => {
+test('cancel subscription', async () => {
   const store = new Store({ foo: 0 });
   let value: number | undefined,
     count = 0;
@@ -169,21 +170,21 @@ test('cancel subscription', async (t) => {
   store.update((s) => {
     s.foo = 1;
   });
-  await Promise.resolve();
-  t.is(value, 1);
-  t.is(count, 2);
+  jest.runAllTimers();
+  expect(value).toBe(1);
+  expect(count).toBe(2);
 
   cancel();
 
   store.update((s) => {
     s.foo = 2;
   });
-  await Promise.resolve();
-  t.is(value, 1);
-  t.is(count, 2);
+  jest.runAllTimers();
+  expect(value).toBe(1);
+  expect(count).toBe(2);
 });
 
-test('subscription error caught', async (t) => {
+test('subscription error caught', async () => {
   let logged = '';
   const store = new Store({ foo: 0 }, { log: (s: string) => (logged = s) });
 
@@ -194,17 +195,17 @@ test('subscription error caught', async (t) => {
     }
   );
 
-  t.notThrows(() =>
+  expect(() =>
     store.update((s) => {
       s.foo = 1;
     })
-  );
+  ).not.toThrow();
 
-  await Promise.resolve();
-  t.regex(logged, /^Failed to execute listener:/);
+  jest.runAllTimers();
+  expect(logged).toMatch(/^Failed to execute listener:/);
 });
 
-test('addReaction', async (t) => {
+test('addReaction', async () => {
   const store = new Store({ foo: 0, bar: 0 });
   let count = 0;
 
@@ -215,17 +216,17 @@ test('addReaction', async (t) => {
       count++;
     }
   );
-  t.is(store.getState().bar, 0);
-  t.is(count, 1);
+  expect(store.getState().bar).toBe(0);
+  expect(count).toBe(1);
 
   store.update((s) => {
     s.foo = 1;
   });
-  t.is(store.getState().bar, 2);
-  t.is(count, 2);
+  expect(store.getState().bar).toBe(2);
+  expect(count).toBe(2);
 });
 
-test('addReaction rerun', async (t) => {
+test('addReaction rerun', async () => {
   const store = new Store({ foo: 0, bar: 0, baz: 0 });
   let count1 = 0,
     count2 = 0;
@@ -250,12 +251,12 @@ test('addReaction rerun', async (t) => {
     s.foo = 1;
     s.bar = 1;
   });
-  t.is(store.getState().baz, 3);
-  t.is(count1, 3);
-  t.is(count2, 2);
+  expect(store.getState().baz).toBe(3);
+  expect(count1).toBe(3);
+  expect(count2).toBe(2);
 });
 
-test('addReaction with runNow', async (t) => {
+test('addReaction with runNow', async () => {
   const store = new Store({ foo: 1, bar: 0 });
   let count = 0;
 
@@ -267,17 +268,17 @@ test('addReaction with runNow', async (t) => {
     },
     { runNow: true }
   );
-  t.is(store.getState().bar, 2);
-  t.is(count, 1);
+  expect(store.getState().bar).toBe(2);
+  expect(count).toBe(1);
 
   store.update((s) => {
     s.foo = 2;
   });
-  t.is(store.getState().bar, 4);
-  t.is(count, 2);
+  expect(store.getState().bar).toBe(4);
+  expect(count).toBe(2);
 });
 
-test('addReaction cancel', async (t) => {
+test('addReaction cancel', async () => {
   const store = new Store({ foo: 1, bar: 0 });
 
   const cancel = store.addReaction(
@@ -291,17 +292,17 @@ test('addReaction cancel', async (t) => {
   store.update((s) => {
     s.foo = 2;
   });
-  t.is(store.getState().bar, 4);
+  expect(store.getState().bar).toBe(4);
 
   cancel();
 
   store.update((s) => {
     s.foo = 3;
   });
-  t.is(store.getState().bar, 4);
+  expect(store.getState().bar).toBe(4);
 });
 
-test('addReaction error caught', async (t) => {
+test('addReaction error caught', async () => {
   let logged = '';
   const store = new Store({ foo: 1, bar: 0 }, { log: (s: string) => (logged = s) });
 
@@ -312,39 +313,39 @@ test('addReaction error caught', async (t) => {
     }
   );
 
-  t.notThrows(() =>
+  expect(() =>
     store.update((s) => {
       s.foo = 2;
     })
-  );
-  t.regex(logged, /^Failed to execute reaction:/);
+  ).not.toThrow();
+  expect(logged).toMatch(/^Failed to execute reaction:/);
 });
 
-test('addReaction throw on nested updates', async (t) => {
+test('addReaction throw on nested updates', async () => {
   const store = new Store({ foo: 0, bar: 0 });
-  t.plan(1);
+  expect.assertions(1);
 
   store.addReaction(
     (s) => s.foo,
     (foo) => {
-      t.throws(() =>
+      expect(() =>
         store.update((s) => {
           s.bar = foo;
         })
-      );
+      ).toThrow();
     }
   );
 });
 
-test('addReaction with subscribe', async (t) => {
+test('addReaction with subscribe', async () => {
   const store = new Store({ foo: 0, bar: 0 });
-  t.plan(2);
+  expect.assertions(2);
 
   let count = 0;
   store.subscribe(
     (s) => s.bar,
     (bar) => {
-      t.is(bar, count++);
+      expect(bar).toBe(count++);
     }
   );
 
@@ -359,17 +360,17 @@ test('addReaction with subscribe', async (t) => {
     s.foo = 1;
   });
 
-  await Promise.resolve();
+  jest.runAllTimers();
 });
 
-test('addReaction with runNow=false subscribe', async (t) => {
+test('addReaction with runNow=false subscribe', async () => {
   const store = new Store({ foo: 1, bar: 0 });
-  t.plan(1);
+  expect.assertions(1);
 
   store.subscribe(
     (s) => s.bar,
     (bar) => {
-      t.is(bar, 0);
+      expect(bar).toBe(0);
     }
   );
 
@@ -381,17 +382,17 @@ test('addReaction with runNow=false subscribe', async (t) => {
     { runNow: false }
   );
 
-  await Promise.resolve();
+  jest.runAllTimers();
 });
 
-test('addReaction rerun with runNow', async (t) => {
+test('addReaction rerun with runNow', async () => {
   const store = new Store({ foo: 1 });
-  t.plan(4);
+  expect.assertions(4);
 
   store.addReaction(
     (s) => s.foo,
     (foo, s) => {
-      t.pass();
+      expect(true).toBeTruthy();
       if (foo % 2 === 1) s.foo++;
     },
     { runNow: true }
@@ -401,10 +402,10 @@ test('addReaction rerun with runNow', async (t) => {
     s.foo = 1;
   });
 
-  await Promise.resolve();
+  jest.runAllTimers();
 });
 
-test('subscribePatches', async (t) => {
+test('subscribePatches', async () => {
   const store = new Store({ foo: 0 });
   let patches: Patch[] | undefined,
     count = 0;
@@ -413,21 +414,21 @@ test('subscribePatches', async (t) => {
     patches = p;
     count++;
   });
-  t.is(patches, undefined);
-  t.is(count, 0);
+  expect(patches).toBe(undefined);
+  expect(count).toBe(0);
 
   store.update((s) => {
     s.foo = 1;
   });
-  t.is(patches, undefined);
-  t.is(count, 0);
+  expect(patches).toBe(undefined);
+  expect(count).toBe(0);
 
-  await Promise.resolve();
-  t.deepEqual(patches, [{ op: 'replace', path: ['foo'], value: 1 }]);
-  t.is(count, 1);
+  jest.runAllTimers();
+  expect(patches).toEqual([{ op: 'replace', path: ['foo'], value: 1 }]);
+  expect(count).toBe(1);
 });
 
-test('subscribePatches cancel', async (t) => {
+test('subscribePatches cancel', async () => {
   const store = new Store({ foo: 0 });
   let count = 0;
 
@@ -438,19 +439,19 @@ test('subscribePatches cancel', async (t) => {
   store.update((s) => {
     s.foo = 1;
   });
-  await Promise.resolve();
-  t.is(count, 1);
+  jest.runAllTimers();
+  expect(count).toBe(1);
 
   cancel();
 
   store.update((s) => {
     s.foo = 2;
   });
-  await Promise.resolve();
-  t.is(count, 1);
+  jest.runAllTimers();
+  expect(count).toBe(1);
 });
 
-test('subscribePatches error caught', async (t) => {
+test('subscribePatches error caught', async () => {
   let logged = '';
   const store = new Store({ foo: 0 }, { log: (s: string) => (logged = s) });
 
@@ -458,36 +459,35 @@ test('subscribePatches error caught', async (t) => {
     throw Error('test');
   });
 
-  t.notThrows(() =>
+  expect(() =>
     store.update((s) => {
       s.foo = 1;
     })
-  );
-  await Promise.resolve();
-  t.regex(logged, /^Failed to execute patch listener:/);
+  ).not.toThrow();
+  jest.runAllTimers();
+  expect(logged).toMatch(/^Failed to execute patch listener:/);
 });
 
-test('apply patches', async (t) => {
+test('apply patches', async () => {
   const store = new Store({ foo: 0 });
 
   store.applyPatches([{ op: 'replace', path: ['foo'], value: 1 }]);
-  t.is(store.getState().foo, 1);
+  expect(store.getState().foo).toBe(1);
 });
 
-test('update during subscribe callback', async (t) => {
+test('update during subscribe callback', async () => {
   const store = new Store({ foo: 0 });
 
-  t.plan(4);
+  expect.assertions(4);
 
   store.subscribePatches((patches) => {
-    t.is(patches.length, 1);
+    expect(patches.length).toBe(1);
   });
 
   store.subscribe(
     (state) => state.foo,
     (foo) => {
-      t.pass();
-
+      expect(true).toBeTruthy();
       if (foo === 1) {
         store.update((state) => {
           state.foo++;
@@ -502,13 +502,13 @@ test('update during subscribe callback', async (t) => {
   });
 });
 
-test('update by returning new value', async (t) => {
+test('update by returning new value', async () => {
   const store = new Store({ foo: 0 });
 
-  t.plan(1);
+  expect.assertions(1);
   store.subscribe(
     (s) => s.foo,
-    (foo) => t.is(foo, 1),
+    (foo) => expect(foo).toBe(1),
     { runNow: false }
   );
 

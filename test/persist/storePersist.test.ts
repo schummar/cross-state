@@ -1,8 +1,16 @@
-import test from 'ava';
+/**
+ * @jest-environment jsdom
+ */
+
 import localforage from 'localforage';
 import nodePersist from 'node-persist';
 import { Store, StorePersist } from '../../src';
-import { sleep } from '../../src/helpers/misc';
+
+jest.useFakeTimers();
+
+afterEach(() => {
+  jest.runAllTimers();
+});
 
 type State = {
   wellKnownObject: { wellKnownProp: string };
@@ -60,7 +68,7 @@ class MockStorageWithoutKeys {
   }
 }
 
-test('save', async (t) => {
+test('save', async () => {
   const store = new Store(initalState);
   const storage = new MockStorage();
   const persist = new StorePersist(store, storage, {
@@ -89,9 +97,9 @@ test('save', async (t) => {
     state.notPersisted.notPersitedProps = 'value6';
   });
 
-  await Promise.resolve();
+  jest.runAllTimers();
 
-  t.deepEqual(storage.items, {
+  expect(storage.items).toEqual({
     wellKnownObject: '{"wellKnownProp":"b"}',
     'simpleDict.id1': '"value1"',
     'complexDict.id2': '{"complexDictProps":"value2"}',
@@ -103,7 +111,7 @@ test('save', async (t) => {
   });
 });
 
-test('save throttled', async (t) => {
+test('save throttled', async () => {
   const store = new Store(initalState);
   const storage = new MockStorage();
   const persist = new StorePersist(store, storage, {
@@ -117,21 +125,19 @@ test('save throttled', async (t) => {
     state.complexDict.id2 = { complexDictProps: 'value2' };
   });
 
-  await Promise.resolve();
-
-  t.deepEqual(storage.items, {
+  jest.advanceTimersByTime(99);
+  expect(storage.items).toEqual({
     wellKnownObject: '{"wellKnownProp":"b"}',
   });
 
-  await sleep(150);
-
-  t.deepEqual(storage.items, {
+  jest.advanceTimersByTime(1);
+  expect(storage.items).toEqual({
     wellKnownObject: '{"wellKnownProp":"b"}',
     'complexDict.id2': '{"complexDictProps":"value2"}',
   });
 });
 
-test('load', async (t) => {
+test('load', async () => {
   const store = new Store(initalState);
   const storage = new MockStorage({
     wellKnownObject: '{"wellKnownProp":"b"}',
@@ -147,7 +153,7 @@ test('load', async (t) => {
 
   await persist.initialization;
 
-  t.deepEqual(store.getState(), {
+  expect(store.getState()).toEqual({
     wellKnownObject: { wellKnownProp: 'b' },
     simpleDict: { id1: 'value1' },
     complexDict: { id2: { complexDictProps: 'value2' } },
@@ -158,7 +164,7 @@ test('load', async (t) => {
   });
 });
 
-test('load alternative storage', async (t) => {
+test('load alternative storage', async () => {
   const store = new Store(initalState);
   const storage = new MockStorageWithoutKeys({
     wellKnownObject: '{"wellKnownProp":"b"}',
@@ -174,7 +180,7 @@ test('load alternative storage', async (t) => {
 
   await persist.initialization;
 
-  t.deepEqual(store.getState(), {
+  expect(store.getState()).toEqual({
     wellKnownObject: { wellKnownProp: 'b' },
     simpleDict: { id1: 'value1' },
     complexDict: { id2: { complexDictProps: 'value2' } },
@@ -185,25 +191,22 @@ test('load alternative storage', async (t) => {
   });
 });
 
-test('compatible with localStorage', async (t) => {
+test('compatible with localStorage', async () => {
   const store = new Store(initalState);
   new StorePersist(store, localStorage);
-  t.pass();
 });
 
-test('compatible with localforage', async (t) => {
+test('compatible with localforage', async () => {
   const store = new Store(initalState);
   new StorePersist(store, localforage);
-  t.pass();
 });
 
-test('compatible with node-persist', async (t) => {
+test('compatible with node-persist', async () => {
   const store = new Store(initalState);
   new StorePersist(store, nodePersist);
-  t.pass();
 });
 
-test('stop', async (t) => {
+test('stop', async () => {
   const store = new Store(initalState);
   const storage = new MockStorage();
   const persist = new StorePersist(store, storage, {
@@ -216,9 +219,9 @@ test('stop', async (t) => {
     state.wellKnownObject.wellKnownProp = 'b';
   });
 
-  await Promise.resolve();
+  jest.runAllTimers();
 
-  t.deepEqual(storage.items, {
+  expect(storage.items).toEqual({
     wellKnownObject: '{"wellKnownProp":"b"}',
   });
 
@@ -228,14 +231,14 @@ test('stop', async (t) => {
     state.wellKnownObject.wellKnownProp = 'c';
   });
 
-  await Promise.resolve();
+  jest.runAllTimers();
 
-  t.deepEqual(storage.items, {
+  expect(storage.items).toEqual({
     wellKnownObject: '{"wellKnownProp":"b"}',
   });
 });
 
-test('undefined', async (t) => {
+test('undefined', async () => {
   const store = new Store<{ foo?: string }>({ foo: '' as string | undefined });
   const storage = new MockStorage();
   const persist = new StorePersist(store, storage, { paths: ['foo'] });
@@ -246,11 +249,11 @@ test('undefined', async (t) => {
     state.foo = undefined;
   });
 
-  await Promise.resolve();
+  jest.runAllTimers();
 
   const newStore = new Store<{ foo?: string }>({});
   const newPersist = new StorePersist(newStore, storage, { paths: ['foo'] });
   await newPersist.initialization;
 
-  t.is(newStore.getState().foo, undefined);
+  expect(newStore.getState().foo).toBe(undefined);
 });

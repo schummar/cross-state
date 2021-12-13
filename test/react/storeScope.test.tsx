@@ -1,65 +1,75 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+/**
+ * @jest-environment jsdom
+ */
+
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
 import { Store, StoreScope } from '../../src/react';
 import './_setup';
 
-// const storeScope = new StoreScope({ foo: 1 });
+jest.useFakeTimers();
 
-// function ChildComponent({ id }: { id: string }) {
-//   const value = storeScope.useState('foo');
+afterEach(() => {
+  jest.runAllTimers();
+});
 
-//   return <div data-testid={`${id}_child`}>{value}</div>;
-// }
+const storeScope = new StoreScope({ foo: 1 });
 
-// const Component = storeScope.withScope(function Simple({ id }: { id: string }) {
-//   const [value, update] = storeScope.useProp('foo');
+function ChildComponent({ id }: { id: string }) {
+  const value = storeScope.useState('foo');
 
-//   return (
-//     <div>
-//       <div data-testid={id} onClick={() => update(value + 1)}>
-//         {value}
-//       </div>
+  return <div data-testid={`${id}_child`}>{value}</div>;
+}
 
-//       <ChildComponent id={id} />
-//     </div>
-//   );
-// });
+const Component = storeScope.withScope(function Simple({ id }: { id: string }) {
+  const [value, update] = storeScope.useProp('foo');
 
-// function Simple() {
-//   const value = storeScope.useState('foo');
-//   return <div data-testid="div">{value}</div>;
-// }
+  return (
+    <div>
+      <div data-testid={id} onClick={() => update(value + 1)}>
+        {value}
+      </div>
 
-// test.serial('two scopes', async (t) => {
-//   render(<Component id="div1" />);
-//   const div1 = screen.getByTestId('div1');
-//   const div1Child = screen.getByTestId('div1_child');
+      <ChildComponent id={id} />
+    </div>
+  );
+});
 
-//   render(<Component id="div2" />);
-//   const div2 = screen.getByTestId('div2');
-//   const div2Child = screen.getByTestId('div2_child');
+function Simple() {
+  const value = storeScope.useState('foo');
+  return <div data-testid="div">{value}</div>;
+}
 
-//   t.is(div1.textContent, '1');
-//   t.is(div1Child.textContent, '1');
-//   t.is(div2.textContent, '1');
-//   t.is(div2Child.textContent, '1');
+test('two scopes', async () => {
+  render(<Component id="div1" />);
+  const div1 = screen.getByTestId('div1');
+  const div1Child = screen.getByTestId('div1_child');
 
-//   fireEvent.click(div1);
-//   await Promise.resolve();
-//   t.is(div1.textContent, '2');
-//   t.is(div1Child.textContent, '2');
-//   t.is(div2.textContent, '1');
-//   t.is(div2Child.textContent, '1');
-// });
+  render(<Component id="div2" />);
+  const div2 = screen.getByTestId('div2');
+  const div2Child = screen.getByTestId('div2_child');
 
-// test.serial('provided scopes', async (t) => {
-//   const store = new Store({ foo: 2 });
-//   render(
-//     <storeScope.Provider store={store}>
-//       <Simple />
-//     </storeScope.Provider>
-//   );
+  expect(div1.textContent).toBe('1');
+  expect(div1Child.textContent).toBe('1');
+  expect(div2.textContent).toBe('1');
+  expect(div2Child.textContent).toBe('1');
 
-//   const div = screen.getByTestId('div');
-//   t.is(div.textContent, '2');
-// });
+  fireEvent.click(div1);
+  act(() => jest.runAllTimers());
+  expect(div1.textContent).toBe('2');
+  expect(div1Child.textContent).toBe('2');
+  expect(div2.textContent).toBe('1');
+  expect(div2Child.textContent).toBe('1');
+});
+
+test('provided scopes', async () => {
+  const store = new Store({ foo: 2 });
+  render(
+    <storeScope.Provider store={store}>
+      <Simple />
+    </storeScope.Provider>
+  );
+
+  const div = screen.getByTestId('div');
+  expect(div.textContent).toBe('2');
+});
