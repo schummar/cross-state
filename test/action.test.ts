@@ -266,7 +266,7 @@ test('clearCache function', async (t) => {
   t.is(executed, 2);
 });
 
-test('clearAfter', async (t) => {
+test.serial('clearAfter', async (t) => {
   const action = Action.create(
     async () => {
       return 1;
@@ -390,7 +390,7 @@ test('invalidateCacheAll', async (t) => {
   t.is(executed, 2);
 });
 
-test('update timer', async (t) => {
+test.serial('update timer', async (t) => {
   const action = Action.create(
     async (x: number) => {
       await Promise.resolve();
@@ -425,4 +425,6 @@ test('update timer', async (t) => {
     isLoading: false,
     stale: true,
   });
+
+  t.tim;
 });
