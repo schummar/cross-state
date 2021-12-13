@@ -21,10 +21,11 @@ const ignore = () => {
 };
 
 export function useCombinedActions<Actions extends readonly ActionInstance<any, any>[]>(
-  ...args: [...actions: Actions, options?: UseActionOptions]
+  ...args: [...actions: Actions] | [...actions: Actions, options?: UseActionOptions]
 ): CombinedActionState<Actions> {
-  const actions = args.slice(0, -1) as unknown as Actions;
-  const { watchOnly, updateOnMount, dormant, throttle } = (args[args.length - 1] as UseActionOptions | undefined) ?? {};
+  const actions = args.filter((x) => x instanceof ActionInstance) as unknown as Actions;
+  const options = args.find((x) => !(x instanceof ActionInstance)) as UseActionOptions | undefined;
+  const { watchOnly, updateOnMount, dormant, throttle } = options ?? {};
 
   // This id is updated when the action notifies about changes, in order to trigger another render
   const [, setId] = useState({});

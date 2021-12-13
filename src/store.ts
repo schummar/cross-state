@@ -153,8 +153,7 @@ export class Store<T> {
     if (this.notifyScheduled) return;
     this.notifyScheduled = true;
 
-    (async () => {
-      await Promise.resolve();
+    setTimeout(() => {
       this.notifyScheduled = false;
 
       const patches = this.patches;
@@ -162,6 +161,6 @@ export class Store<T> {
       for (const subscription of this.subscriptions) {
         subscription(this.state, patches);
       }
-    })();
+    });
   }
 }

@@ -1,11 +1,21 @@
-import { render, screen } from '@testing-library/react';
-import test from 'ava';
+/**
+ * @jest-environment jsdom
+ */
+
+import { act, render, screen } from '@testing-library/react';
 import React from 'react';
 import { Action, ActionState } from '../../src';
 import { sleep } from '../../src/helpers/misc';
 import { useAction } from '../../src/react';
-import { wait } from '../_helpers';
 import './_setup';
+
+jest.useFakeTimers();
+
+afterEach(() => {
+  jest.runAllTimers();
+});
+
+const tick = () => act(async () => null);
 
 function Component({ useAction }: { useAction: () => ActionState<unknown> }) {
   const { value, error, isLoading } = useAction();
@@ -17,219 +27,234 @@ function Component({ useAction }: { useAction: () => ActionState<unknown> }) {
   );
 }
 
-test.serial('simple', async (t) => {
+test('simple', async () => {
   const action = Action.create(async (x: number) => {
-    await wait(0);
     return x * 2;
   });
 
   render(<Component useAction={() => useAction(action(1))} />);
   const div = screen.getByTestId('div');
-  t.is(div.textContent, 'v: l:true e:');
+  expect(div.textContent).toBe('v: l:true e:');
 
-  await wait(1);
-  t.is(div.textContent, 'v:2 l:false e:');
+  await tick();
+  act(() => jest.runAllTimers());
+  expect(div.textContent).toBe('v:2 l:false e:');
 });
 
-test.serial('clear', async (t) => {
+test('clear', async () => {
   let executed = 0;
   const action = Action.create(async (x: number) => {
     executed++;
-    await wait(1);
     return x + executed;
   });
 
   render(<Component useAction={() => useAction(action(1))} />);
   const div = screen.getByTestId('div');
 
-  await wait(1);
-  t.is(div.textContent, 'v:2 l:false e:');
+  await tick();
+  act(() => jest.runAllTimers());
+  expect(div.textContent).toBe('v:2 l:false e:');
 
   action(1).clearCache();
-  await wait(1);
-  t.is(div.textContent, 'v: l:true e:');
+  await tick();
+  act(() => jest.runAllTimers());
+  expect(div.textContent).toBe('v: l:true e:');
 
-  await wait(1);
-  t.is(div.textContent, 'v:3 l:false e:');
+  await tick();
+  act(() => jest.runAllTimers());
+  expect(div.textContent).toBe('v:3 l:false e:');
 
-  t.is(executed, 2);
+  expect(executed).toBe(2);
 });
 
-test.serial('invalidate', async (t) => {
+test('invalidate', async () => {
   let executed = 0;
   const action = Action.create(async (x: number) => {
     executed++;
-    await wait(1);
     return x + executed;
   });
 
   render(<Component useAction={() => useAction(action(1))} />);
   const div = screen.getByTestId('div');
 
-  await wait(1);
-  t.is(div.textContent, 'v:2 l:false e:');
+  await tick();
+  act(() => jest.runAllTimers());
+  expect(div.textContent).toBe('v:2 l:false e:');
 
   action(1).invalidateCache();
-  await wait(1);
-  t.is(div.textContent, 'v:2 l:true e:');
+  await tick();
+  act(() => jest.runAllTimers());
+  expect(div.textContent).toBe('v:2 l:true e:');
 
-  await wait(1);
-  t.is(div.textContent, 'v:3 l:false e:');
+  await tick();
+  act(() => jest.runAllTimers());
+  expect(div.textContent).toBe('v:3 l:false e:');
 
-  t.is(executed, 2);
+  expect(executed).toBe(2);
 });
 
-test.serial('invalidateAfter', async (t) => {
+test('invalidateAfter', async () => {
   let executed = 0;
   const action = Action.create(
     async (x: number) => {
       executed++;
-      await sleep(100);
       return x + executed;
     },
-    { invalidateAfter: 100 }
+    { invalidateAfter: 2 }
   );
 
   render(<Component useAction={() => useAction(action(1))} />);
   const div = screen.getByTestId('div');
 
-  await sleep(150);
-  t.is(div.textContent, 'v:2 l:false e:');
+  await tick();
+  act(() => jest.advanceTimersByTime(1));
+  expect(div.textContent).toBe('v:2 l:false e:');
 
-  await sleep(100);
-  t.is(div.textContent, 'v:2 l:true e:');
+  await tick();
+  act(() => jest.advanceTimersByTime(2));
+  expect(div.textContent).toBe('v:2 l:true e:');
 
-  await sleep(100);
-  t.is(div.textContent, 'v:3 l:false e:');
+  await tick();
+  act(() => jest.advanceTimersByTime(1));
+  expect(div.textContent).toBe('v:3 l:false e:');
 
-  t.is(executed, 2);
+  expect(executed).toBe(2);
 });
 
-test.serial('dormant', async (t) => {
+// test.serial('dormant', async (t) => {
+//   let executed = 0;
+//   const action = Action.create(async (x: number) => {
+//     executed++;
+//     await wait(0);
+//     return x * 2;
+//   });
+
+//   render(<Component useAction={() => useAction(action(1), { dormant: true })} />);
+//   const div = screen.getByTestId('div');
+
+//   await wait(10);
+//   t.is(div.textContent, 'v: l:false e:');
+//   t.is(executed, 0);
+// });
+
+// test.serial('updateOnMount', async (t) => {
+//   let executed = 0;
+//   const action = Action.create(async (x: number) => {
+//     executed++;
+//     await wait(0);
+//     return x * 2;
+//   });
+//   await action(1).execute();
+
+//   render(<Component useAction={() => useAction(action(1), { updateOnMount: true })} />);
+//   const div = screen.getByTestId('div');
+//   t.is(div.textContent, 'v:2 l:true e:');
+
+//   await wait(1);
+//   t.is(div.textContent, 'v:2 l:false e:');
+//   t.is(executed, 2);
+// });
+
+// test.serial('updateOnMount not double', async (t) => {
+//   let executed = 0;
+//   const action = Action.create(async (x: number) => {
+//     executed++;
+//     await wait(0);
+//     return x * 2;
+//   });
+
+//   render(<Component useAction={() => useAction(action(1), { updateOnMount: true })} />);
+//   const div = screen.getByTestId('div');
+//   t.is(div.textContent, 'v: l:true e:');
+
+//   await wait(1);
+//   t.is(div.textContent, 'v:2 l:false e:');
+//   t.is(executed, 1);
+// });
+
+// test.serial('watchOnly', async (t) => {
+//   let executed = 0;
+//   const action = Action.create(async (x: number) => {
+//     executed++;
+//     await wait(0);
+//     return x * 2;
+//   });
+
+//   render(<Component useAction={() => useAction(action(1), { watchOnly: true })} />);
+//   const div = screen.getByTestId('div');
+//   t.is(div.textContent, 'v: l:false e:');
+
+//   await wait(0);
+//   t.is(div.textContent, 'v: l:false e:');
+
+//   await action(1).execute();
+//   t.is(div.textContent, 'v:2 l:false e:');
+//   t.is(executed, 1);
+// });
+
+test('throttle', async () => {
   let executed = 0;
   const action = Action.create(async (x: number) => {
     executed++;
-    await wait(0);
-    return x * 2;
-  });
-
-  render(<Component useAction={() => useAction(action(1), { dormant: true })} />);
-  const div = screen.getByTestId('div');
-
-  await wait(10);
-  t.is(div.textContent, 'v: l:false e:');
-  t.is(executed, 0);
-});
-
-test.serial('updateOnMount', async (t) => {
-  let executed = 0;
-  const action = Action.create(async (x: number) => {
-    executed++;
-    await wait(0);
-    return x * 2;
-  });
-  await action(1).execute();
-
-  render(<Component useAction={() => useAction(action(1), { updateOnMount: true })} />);
-  const div = screen.getByTestId('div');
-  t.is(div.textContent, 'v:2 l:true e:');
-
-  await wait(1);
-  t.is(div.textContent, 'v:2 l:false e:');
-  t.is(executed, 2);
-});
-
-test.serial('updateOnMount not double', async (t) => {
-  let executed = 0;
-  const action = Action.create(async (x: number) => {
-    executed++;
-    await wait(0);
-    return x * 2;
-  });
-
-  render(<Component useAction={() => useAction(action(1), { updateOnMount: true })} />);
-  const div = screen.getByTestId('div');
-  t.is(div.textContent, 'v: l:true e:');
-
-  await wait(1);
-  t.is(div.textContent, 'v:2 l:false e:');
-  t.is(executed, 1);
-});
-
-test.serial('watchOnly', async (t) => {
-  let executed = 0;
-  const action = Action.create(async (x: number) => {
-    executed++;
-    await wait(0);
-    return x * 2;
-  });
-
-  render(<Component useAction={() => useAction(action(1), { watchOnly: true })} />);
-  const div = screen.getByTestId('div');
-  t.is(div.textContent, 'v: l:false e:');
-
-  await wait(0);
-  t.is(div.textContent, 'v: l:false e:');
-
-  await action(1).execute();
-  t.is(div.textContent, 'v:2 l:false e:');
-  t.is(executed, 1);
-});
-
-test.serial('throttle', async (t) => {
-  let executed = 0;
-  const action = Action.create(async (x: number) => {
-    executed++;
-    await wait(5);
+    await sleep(1);
     return x + executed;
   });
 
-  render(<Component useAction={() => useAction(action(1), { throttle: 100 })} />);
+  render(<Component useAction={() => useAction(action(1), { throttle: 2 })} />);
   const div = screen.getByTestId('div');
-  t.is(div.textContent, 'v: l:true e:');
+  expect(div.textContent).toBe('v: l:true e:');
 
-  await sleep(50);
-  t.is(div.textContent, 'v: l:true e:');
+  await tick();
+  act(() => jest.advanceTimersByTime(1));
+  expect(div.textContent).toBe('v: l:true e:');
 
-  await sleep(150);
-  t.is(div.textContent, 'v:2 l:false e:');
+  await tick();
+  act(() => jest.advanceTimersByTime(1));
+  expect(div.textContent).toBe('v:2 l:false e:');
 
-  t.is(executed, 1);
+  expect(executed).toBe(1);
 });
 
-test.serial('error', async (t) => {
-  const action = Action.create<number, number>(async () => {
-    await wait(0);
-    throw 'error';
-  });
+// test.serial('error', async (t) => {
+//   const action = Action.create<number, number>(async () => {
+//     await wait(0);
+//     throw 'error';
+//   });
 
-  render(<Component useAction={() => useAction(action(1))} />);
-  const div = screen.getByTestId('div');
-  t.is(div.textContent, 'v: l:true e:');
+//   render(<Component useAction={() => useAction(action(1))} />);
+//   const div = screen.getByTestId('div');
+//   t.is(div.textContent, 'v: l:true e:');
 
-  await wait(1);
-  t.is(div.textContent, 'v: l:false e:error');
-});
+//   await wait(1);
+//   t.is(div.textContent, 'v: l:false e:error');
+// });
 
-test.serial('complex key', async (t) => {
-  let executed = 0;
-  const action = Action.create(
-    async (key: { foo: string }) => {
-      executed++;
-      await wait(0);
-      return key.foo + executed;
-    },
-    { invalidateAfter: 10 }
-  );
+// test('complex key', async () => {
+//   let executed = 0;
+//   const action = Action.create(
+//     async (key: { foo: string }) => {
+//       executed++;
+//       // await sleep(1);
+//       return key.foo + executed;
+//     },
+//     { invalidateAfter: 10 }
+//   );
 
-  render(<Component useAction={() => useAction(action({ foo: 'bar' }))} />);
-  const div = screen.getByTestId('div');
-  t.is(div.textContent, 'v: l:true e:');
+//   act(() => {
+//     render(<Component useAction={() => useAction(action({ foo: 'bar' }))} />);
+//   });
 
-  await wait(1);
-  t.is(div.textContent, 'v:bar1 l:false e:');
+//   const div = screen.getByTestId('div');
+//   expect(div.textContent).toBe('v: l:true e:');
 
-  await sleep(15);
-  t.is(div.textContent, 'v:bar2 l:false e:');
-  t.is(executed, 2);
-});
+//   // await Promise.resolve();
+//   // jest.advanceTimersByTime();
+//   act(() => {
+//     jest.advanceTimersByTime(2);
+//   });
+//   expect(div.textContent).toBe('v:bar1 l:false e:');
+
+//   jest.advanceTimersByTime(1);
+//   expect(div.textContent).toBe('v:bar2 l:false e:');
+//   expect(executed).toBe(2);
+// });
