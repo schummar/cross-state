@@ -21,54 +21,54 @@ export type CacheEntry<Arg, Value> = {
   tClear?: number;
 };
 
-export type ActionState<Value> = {
+export type ResourceState<Value> = {
   value?: Value;
   error?: unknown;
   isLoading?: boolean;
   stale?: boolean;
 };
 
-export type ActionImplemenation<Arg, Value> = (arg: Arg) => Promise<Value>;
+export type ResourceImplemenation<Arg, Value> = (arg: Arg) => Promise<Value>;
 
-export type ActionOptions<Value> = {
-  invalidateAfter?: number | ((state: ActionState<Value>) => number | undefined);
-  clearAfter?: number | ((state: ActionState<Value>) => number | undefined);
+export type ResourceOptions<Value> = {
+  invalidateAfter?: number | ((state: ResourceState<Value>) => number | undefined);
+  clearAfter?: number | ((state: ResourceState<Value>) => number | undefined);
 };
 
-export class Action<Arg, Value> {
-  static allActions = new Array<Action<any, any>>();
+export class Resource<Arg, Value> {
+  static allResources = new Array<Resource<any, any>>();
 
   static create<Arg = undefined, Value = unknown>(
-    implementation: ActionImplemenation<Arg, Value>,
-    options?: ActionOptions<Value>
-  ): Action<Arg, Value> & { (...args: Arg extends undefined ? [arg?: Arg] : [arg: Arg]): ActionInstance<Arg, Value> } {
-    const action = new Action(implementation, options);
+    implementation: ResourceImplemenation<Arg, Value>,
+    options?: ResourceOptions<Value>
+  ): Resource<Arg, Value> & { (...args: Arg extends undefined ? [arg?: Arg] : [arg: Arg]): ResourceInstance<Arg, Value> } {
+    const resource = new Resource(implementation, options);
 
     return new Proxy<any>(
       function (...[arg]: Arg extends undefined ? [arg?: Arg] : [arg: Arg]) {
-        return action.run(arg as Arg);
+        return resource.run(arg as Arg);
       },
       {
         get(_target, prop) {
-          return action[prop as keyof Action<Arg, Value>];
+          return resource[prop as keyof Resource<Arg, Value>];
         },
       }
     );
   }
 
   static invalidateCacheAll() {
-    for (const action of Action.allActions) {
-      action.invalidateCacheAll();
+    for (const resource of Resource.allResources) {
+      resource.invalidateCacheAll();
     }
   }
 
   static clearCacheAll() {
-    for (const action of Action.allActions) {
-      action.clearCacheAll();
+    for (const resource of Resource.allResources) {
+      resource.clearCacheAll();
     }
   }
 
-  static options: ActionOptions<unknown> = {};
+  static options: ResourceOptions<unknown> = {};
 
   id = Math.random().toString(36);
   cache = new Store(new Map<string, CacheEntry<Arg, Value>>());
@@ -76,16 +76,16 @@ export class Action<Arg, Value> {
 
   protected constructor(
     //
-    public readonly implementation: ActionImplemenation<Arg, Value>,
-    public readonly options: ActionOptions<Value> = {}
+    public readonly implementation: ResourceImplemenation<Arg, Value>,
+    public readonly options: ResourceOptions<Value> = {}
   ) {
     enableMapSet();
-    Action.allActions.push(this);
+    Resource.allResources.push(this);
     this.start();
   }
 
-  run(arg: Arg): ActionInstance<Arg, Value> {
-    return new ActionInstance(this, arg);
+  run(arg: Arg): ResourceInstance<Arg, Value> {
+    return new ResourceInstance(this, arg);
   }
 
   invalidateCacheAll(): void {
@@ -134,16 +134,16 @@ export class Action<Arg, Value> {
   }
 }
 
-export class ActionInstance<Arg, Value> {
-  constructor(public readonly action: Action<Arg, Value>, public readonly arg: Arg) {}
+export class ResourceInstance<Arg, Value> {
+  constructor(public readonly resource: Resource<Arg, Value>, public readonly arg: Arg) {}
 
   readonly key = hash(this.arg);
-  readonly id = `${this.action.id}:${this.key}`;
-  protected cache = this.action.cache;
-  protected implementation = this.action.implementation;
-  protected options = this.action.options;
+  readonly id = `${this.resource.id}:${this.key}`;
+  protected cache = this.resource.cache;
+  protected implementation = this.resource.implementation;
+  protected options = this.resource.options;
 
-  getCache(): ActionState<Value> | undefined {
+  getCache(): ResourceState<Value> | undefined {
     const entry = this.cache.getState().get(this.key);
     return (
       entry && {
@@ -168,7 +168,7 @@ export class ActionInstance<Arg, Value> {
     });
   }
 
-  update(update: Value | ((state: ActionState<Value>) => Value), invalidate?: boolean | Promise<Value>): void {
+  update(update: Value | ((state: ResourceState<Value>) => Value), invalidate?: boolean | Promise<Value>): void {
     if (update instanceof Function) {
       update = update(this.getCache() ?? {});
     }
@@ -182,28 +182,34 @@ export class ActionInstance<Arg, Value> {
     }
   }
 
-  async get({ allowStale = false, retries = 0 } = {}): Promise<Value> {
+  async get({ returnStale = false, updateStale = true, forceUpdate = false, retries = 0 } = {}): Promise<Value> {
     const { current, future, stale } = this.cache.getState().get(this.key) ?? {};
 
-    if (current && (!stale || allowStale)) {
+    const update = () => {
+      const promise = retry(() => this.implementation(this.arg), retries);
+      this.setFuture(promise);
+      return promise;
+    };
+
+    if (current && (!stale || returnStale)) {
+      if ((stale && updateStale && !future) || forceUpdate) {
+        update();
+      }
+
       if (current.kind === 'value') return current.value;
       throw current.error;
-    }
+    } else if (future) {
+      if (forceUpdate) {
+        update();
+      }
 
-    if (future) {
       return future;
+    } else {
+      return update();
     }
-
-    return this.execute({ retries });
   }
 
-  async execute({ retries = 0 } = {}): Promise<Value> {
-    const task = retry(() => this.implementation(this.arg), retries);
-    this.setFuture(task);
-    return task;
-  }
-
-  subscribe(listener: (state: ActionState<Value>) => void, options?: Parameters<Store<any>['subscribe']>[2]): Cancel {
+  subscribe(listener: (state: ResourceState<Value>) => void, options?: Parameters<Store<any>['subscribe']>[2]): Cancel {
     return this.cache.subscribe(() => this.getCache() ?? {}, listener, options);
   }
 
@@ -262,7 +268,7 @@ export class ActionInstance<Arg, Value> {
   }
 
   protected setTimers(): void {
-    let { invalidateAfter = Action.options.invalidateAfter, clearAfter = Action.options.clearAfter } = this.options;
+    let { invalidateAfter = Resource.options.invalidateAfter, clearAfter = Resource.options.clearAfter } = this.options;
     const state = this.getCache();
     const now = Date.now();
 

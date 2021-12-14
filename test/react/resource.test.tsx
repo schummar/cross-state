@@ -4,9 +4,9 @@
 
 import { act, render, screen } from '@testing-library/react';
 import React from 'react';
-import { Action, ActionState } from '../../src';
+import { Resource, ResourceState } from '../../src';
 import { sleep } from '../../src/helpers/misc';
-import { useAction } from '../../src/react';
+import { useResource } from '../../src/react';
 import './_setup';
 
 jest.useFakeTimers();
@@ -17,8 +17,8 @@ afterEach(() => {
 
 const tick = () => act(async () => null);
 
-function Component({ useAction }: { useAction: () => ActionState<unknown> }) {
-  const { value, error, isLoading } = useAction();
+function Component({ useResource }: { useResource: () => ResourceState<unknown> }) {
+  const { value, error, isLoading } = useResource();
 
   return (
     <div data-testid="div">
@@ -28,11 +28,11 @@ function Component({ useAction }: { useAction: () => ActionState<unknown> }) {
 }
 
 test('simple', async () => {
-  const action = Action.create(async (x: number) => {
+  const resource = Resource.create(async (x: number) => {
     return x * 2;
   });
 
-  render(<Component useAction={() => useAction(action(1))} />);
+  render(<Component useResource={() => useResource(resource(1))} />);
   const div = screen.getByTestId('div');
   expect(div.textContent).toBe('v: l:true e:');
 
@@ -43,19 +43,19 @@ test('simple', async () => {
 
 test('clear', async () => {
   let executed = 0;
-  const action = Action.create(async (x: number) => {
+  const resource = Resource.create(async (x: number) => {
     executed++;
     return x + executed;
   });
 
-  render(<Component useAction={() => useAction(action(1))} />);
+  render(<Component useResource={() => useResource(resource(1))} />);
   const div = screen.getByTestId('div');
 
   await tick();
   act(() => jest.runAllTimers());
   expect(div.textContent).toBe('v:2 l:false e:');
 
-  action(1).clearCache();
+  resource(1).clearCache();
   await tick();
   act(() => jest.runAllTimers());
   expect(div.textContent).toBe('v: l:true e:');
@@ -69,19 +69,19 @@ test('clear', async () => {
 
 test('invalidate', async () => {
   let executed = 0;
-  const action = Action.create(async (x: number) => {
+  const resource = Resource.create(async (x: number) => {
     executed++;
     return x + executed;
   });
 
-  render(<Component useAction={() => useAction(action(1))} />);
+  render(<Component useResource={() => useResource(resource(1))} />);
   const div = screen.getByTestId('div');
 
   await tick();
   act(() => jest.runAllTimers());
   expect(div.textContent).toBe('v:2 l:false e:');
 
-  action(1).invalidateCache();
+  resource(1).invalidateCache();
   await tick();
   act(() => jest.runAllTimers());
   expect(div.textContent).toBe('v:2 l:true e:');
@@ -95,7 +95,7 @@ test('invalidate', async () => {
 
 test('invalidateAfter', async () => {
   let executed = 0;
-  const action = Action.create(
+  const resource = Resource.create(
     async (x: number) => {
       executed++;
       return x + executed;
@@ -103,7 +103,7 @@ test('invalidateAfter', async () => {
     { invalidateAfter: 2 }
   );
 
-  render(<Component useAction={() => useAction(action(1))} />);
+  render(<Component useResource={() => useResource(resource(1))} />);
   const div = screen.getByTestId('div');
 
   await tick();
@@ -123,12 +123,12 @@ test('invalidateAfter', async () => {
 
 test('dormant', async () => {
   let executed = 0;
-  const action = Action.create(async (x: number) => {
+  const resource = Resource.create(async (x: number) => {
     executed++;
     return x * 2;
   });
 
-  render(<Component useAction={() => useAction(action(1), { dormant: true })} />);
+  render(<Component useResource={() => useResource(resource(1), { dormant: true })} />);
   const div = screen.getByTestId('div');
 
   await tick();
@@ -139,13 +139,13 @@ test('dormant', async () => {
 
 test('updateOnMount', async () => {
   let executed = 0;
-  const action = Action.create(async (x: number) => {
+  const resource = Resource.create(async (x: number) => {
     executed++;
     return x * 2;
   });
-  await action(1).execute();
+  await resource(1).get();
 
-  render(<Component useAction={() => useAction(action(1), { updateOnMount: true })} />);
+  render(<Component useResource={() => useResource(resource(1), { updateOnMount: true })} />);
   const div = screen.getByTestId('div');
   expect(div.textContent).toBe('v:2 l:true e:');
 
@@ -157,12 +157,12 @@ test('updateOnMount', async () => {
 
 test('updateOnMount not double', async () => {
   let executed = 0;
-  const action = Action.create(async (x: number) => {
+  const resource = Resource.create(async (x: number) => {
     executed++;
     return x * 2;
   });
 
-  render(<Component useAction={() => useAction(action(1), { updateOnMount: true })} />);
+  render(<Component useResource={() => useResource(resource(1), { updateOnMount: true })} />);
   const div = screen.getByTestId('div');
   expect(div.textContent).toBe('v: l:true e:');
 
@@ -174,12 +174,12 @@ test('updateOnMount not double', async () => {
 
 test('watchOnly', async () => {
   let executed = 0;
-  const action = Action.create(async (x: number) => {
+  const resource = Resource.create(async (x: number) => {
     executed++;
     return x * 2;
   });
 
-  render(<Component useAction={() => useAction(action(1), { watchOnly: true })} />);
+  render(<Component useResource={() => useResource(resource(1), { watchOnly: true })} />);
   const div = screen.getByTestId('div');
   expect(div.textContent).toBe('v: l:false e:');
 
@@ -187,7 +187,7 @@ test('watchOnly', async () => {
   act(() => jest.runAllTimers());
   expect(div.textContent).toBe('v: l:false e:');
 
-  await action(1).execute();
+  await resource(1).get();
   await tick();
   act(() => jest.runAllTimers());
   expect(div.textContent).toBe('v:2 l:false e:');
@@ -196,13 +196,13 @@ test('watchOnly', async () => {
 
 test('throttle', async () => {
   let executed = 0;
-  const action = Action.create(async (x: number) => {
+  const resource = Resource.create(async (x: number) => {
     executed++;
     await sleep(1);
     return x + executed;
   });
 
-  render(<Component useAction={() => useAction(action(1), { throttle: 2 })} />);
+  render(<Component useResource={() => useResource(resource(1), { throttle: 2 })} />);
   const div = screen.getByTestId('div');
   expect(div.textContent).toBe('v: l:true e:');
 
@@ -218,11 +218,11 @@ test('throttle', async () => {
 });
 
 test('error', async () => {
-  const action = Action.create<number, number>(async () => {
+  const resource = Resource.create<number, number>(async () => {
     throw 'error';
   });
 
-  render(<Component useAction={() => useAction(action(1))} />);
+  render(<Component useResource={() => useResource(resource(1))} />);
   const div = screen.getByTestId('div');
   expect(div.textContent).toBe('v: l:true e:');
 
@@ -232,11 +232,11 @@ test('error', async () => {
 });
 
 test('complex key', async () => {
-  const action = Action.create(async (key: { foo: string }) => {
+  const resource = Resource.create(async (key: { foo: string }) => {
     return key.foo;
   });
 
-  render(<Component useAction={() => useAction(action({ foo: 'bar' }))} />);
+  render(<Component useResource={() => useResource(resource({ foo: 'bar' }))} />);
   const div = screen.getByTestId('div');
   expect(div.textContent).toBe('v: l:true e:');
 
