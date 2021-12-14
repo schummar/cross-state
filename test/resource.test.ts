@@ -1,4 +1,4 @@
-import { Resource } from '../src';
+import { createResource, globalResouceGroup, Resource } from '../src';
 import { sleep } from '../src/helpers/misc';
 
 jest.useFakeTimers();
@@ -11,7 +11,7 @@ afterEach(() => {
 test('get', async () => {
   let executed = 0;
 
-  const resource = Resource.create(async (x: number) => {
+  const resource = createResource(async (x: number) => {
     executed++;
     return x * 2;
   });
@@ -24,7 +24,7 @@ test('get', async () => {
 test('get parallel', async () => {
   let executed = 0;
 
-  const resource = Resource.create(async (x: number) => {
+  const resource = createResource(async (x: number) => {
     executed++;
     return x * 2;
   });
@@ -37,7 +37,7 @@ test('get parallel', async () => {
 });
 
 test('get error', async () => {
-  const resource = Resource.create(async () => {
+  const resource = createResource(async () => {
     throw Error();
   });
 
@@ -48,7 +48,7 @@ test('get error', async () => {
 test('forceUpdate', async () => {
   let executed = 0;
 
-  const resource = Resource.create(async (x: number) => {
+  const resource = createResource(async (x: number) => {
     executed++;
     return x * 2;
   });
@@ -61,7 +61,7 @@ test('forceUpdate', async () => {
 test('forceUpdate parallel', async () => {
   let executed = 0;
 
-  const resource = Resource.create(async (x: number) => {
+  const resource = createResource(async (x: number) => {
     executed++;
     return x * 2;
   });
@@ -79,7 +79,7 @@ test('forceUpdate parallel', async () => {
 test('retry', async () => {
   let executed = 0;
 
-  const resource = Resource.create(async (x: number) => {
+  const resource = createResource(async (x: number) => {
     if (executed++ === 0) throw Error();
     return x * 2;
   });
@@ -92,7 +92,7 @@ test('retry', async () => {
 });
 
 test('dangling execution', async () => {
-  const resource = Resource.create(async (x: number) => {
+  const resource = createResource(async (x: number) => {
     return x * 2;
   });
 
@@ -104,7 +104,7 @@ test('dangling execution', async () => {
 });
 
 test('dangling execution error', async () => {
-  const resource = Resource.create(async () => {
+  const resource = createResource(async () => {
     throw Error();
   });
 
@@ -116,79 +116,72 @@ test('dangling execution error', async () => {
 });
 
 test('subscribe', async () => {
-  const resource = Resource.create(async (x: number) => {
+  const resource = createResource(async (x: number) => {
     await sleep(1);
     return x * 2;
   });
 
-  expect.assertions(3);
+  expect.assertions(2);
 
   let state;
   resource(1).subscribe((_state) => {
     state = _state;
   });
 
-  const promise = resource(1).get();
-  expect(state).toEqual({});
-
   jest.runAllTimers();
   expect(state).toEqual({ value: undefined, error: undefined, isLoading: true, stale: false });
 
-  await promise;
+  await resource(1).get();
   jest.runAllTimers();
   expect(state).toEqual({ value: 2, error: undefined, isLoading: false, stale: false });
 });
 
 test('subscribe error', async () => {
-  const resource = Resource.create(async (): Promise<number> => {
-    await sleep(1);
+  const resource = createResource(async (): Promise<number> => {
     throw Error();
   });
 
-  expect.assertions(3);
+  expect.assertions(2);
 
   let state;
   resource().subscribe((_state) => {
     state = _state;
   });
 
-  const promise = resource()
+  jest.runAllTimers();
+  expect(state).toEqual({ value: undefined, error: undefined, isLoading: true, stale: false });
+
+  await resource()
     .get()
     .catch(() => {
       // ignore
     });
-  expect(state).toEqual({});
-
-  jest.runAllTimers();
-  expect(state).toEqual({ value: undefined, error: undefined, isLoading: true, stale: false });
-
-  await promise;
   jest.runAllTimers();
   expect(state).toEqual({ value: undefined, error: Error(), isLoading: false, stale: false });
 });
 
-test('static invalidateCacheAll', async () => {
-  const resource = Resource.create(async (x: number) => {
+test('globalResouceGroup invalidateCacheAll', async () => {
+  const resource = createResource(async (x: number) => {
     return x * 2;
   });
 
   expect(await resource(1).get()).toBe(2);
-  Resource.invalidateCacheAll();
+  globalResouceGroup.invalidateCacheAll();
   expect(await resource(1).getCache()?.stale).toBe(true);
 });
 
-test('static clearCacheAll', async () => {
-  const resource = Resource.create(async (x: number) => {
+test('globalResouceGroup clearCacheAll', async () => {
+  const resource = createResource(async (x: number) => {
     return x * 2;
   });
 
   expect(await resource(1).get()).toBe(2);
-  Resource.clearCacheAll();
+  globalResouceGroup.clearCacheAll();
   expect(await resource(1).getCache()).toBe(undefined);
 });
 
 test('getCache', async () => {
-  const resource = Resource.create(async (x: number) => {
+  const resource = createResource(async (x: number) => {
     return x * 2;
   });
 
@@ -202,7 +195,7 @@ test('getCache', async () => {
 });
 
 test('update', async () => {
-  const resource = Resource.create(async (x: number) => {
+  const resource = createResource(async (x: number) => {
     return { value: x * 2 };
   });
 
@@ -211,7 +204,7 @@ test('update', async () => {
 });
 
 test('update by function', async () => {
-  const resource = Resource.create(async (x: number) => {
+  const resource = createResource(async (x: number) => {
     return { value: x * 2 };
   });
 
@@ -221,7 +214,7 @@ test('update by function', async () => {
 });
 
 test('update with invalidation', async () => {
-  const resource = Resource.create(async (x: number) => {
+  const resource = createResource(async (x: number) => {
     return { value: x * 2 };
   });
 
@@ -233,7 +226,7 @@ test('update with invalidation', async () => {
 });
 
 test('update with confirmation', async () => {
-  const resource = Resource.create(async (x: number) => {
+  const resource = createResource(async (x: number) => {
     return { value: x * 2 };
   });
 
@@ -247,7 +240,7 @@ test('update with confirmation', async () => {
 test('clearCache', async () => {
   let executed = 0;
 
-  const resource = Resource.create(
+  const resource = createResource(
     async (x: number) => {
       executed++;
       return x * 2;
@@ -269,7 +262,7 @@ test('clearCache', async () => {
 test('clearCache function', async () => {
   let executed = 0;
 
-  const resource = Resource.create(
+  const resource = createResource(
     async (x: number) => {
       executed++;
       if (x === 1) return 1;
@@ -296,7 +289,7 @@ test('clearCache function', async () => {
 });
 
 test('clearAfter', async () => {
-  const resource = Resource.create(
+  const resource = createResource(
     async () => {
       return 1;
     },
@@ -326,7 +319,7 @@ test('clearAfter global', async () => {
     clearAfter: 200,
   };
 
-  const resource = Resource.create(async () => {
+  const resource = createResource(async () => {
     return 1;
   });
 
@@ -343,7 +336,7 @@ test('clearAfter global', async () => {
 test('clearCacheAll', async () => {
   let executed = 0;
 
-  const resource = Resource.create(async (x: number) => {
+  const resource = createResource(async (x: number) => {
     executed++;
     return x * 2;
   });
@@ -360,7 +353,7 @@ test('clearCacheAll', async () => {
 test('invalidateCache', async () => {
   let executed = 0;
 
-  const resource = Resource.create(async (x: number) => {
+  const resource = createResource(async (x: number) => {
     executed++;
     return x * 2;
   });
@@ -391,7 +384,7 @@ test('invalidateCache', async () => {
 test('invalidateCacheAll', async () => {
   let executed = 0;
 
-  const resource = Resource.create(async () => {
+  const resource = createResource(async () => {
     return executed++;
   });
 
@@ -417,7 +410,7 @@ test('invalidateCacheAll', async () => {
 });
 
 test('update timer', async () => {
-  const resource = Resource.create(
+  const resource = createResource(
     async (x: number) => {
       return x * 2;
     },

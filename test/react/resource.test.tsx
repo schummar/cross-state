@@ -4,7 +4,7 @@
 
 import { act, render, screen } from '@testing-library/react';
 import React from 'react';
-import { Resource, ResourceState } from '../../src';
+import { createResource, ResourceState } from '../../src';
 import { sleep } from '../../src/helpers/misc';
 import { useResource } from '../../src/react';
 import './_setup';
@@ -28,7 +28,7 @@ function Component({ useResource }: { useResource: () => ResourceState<unknown> 
 }
 
 test('simple', async () => {
-  const resource = Resource.create(async (x: number) => {
+  const resource = createResource(async (x: number) => {
     return x * 2;
   });
 
@@ -43,7 +43,7 @@ test('simple', async () => {
 
 test('clear', async () => {
   let executed = 0;
-  const resource = Resource.create(async (x: number) => {
+  const resource = createResource(async (x: number) => {
     executed++;
     return x + executed;
   });
@@ -69,7 +69,7 @@ test('clear', async () => {
 
 test('invalidate', async () => {
   let executed = 0;
-  const resource = Resource.create(async (x: number) => {
+  const resource = createResource(async (x: number) => {
     executed++;
     return x + executed;
   });
@@ -95,7 +95,7 @@ test('invalidate', async () => {
 
 test('invalidateAfter', async () => {
   let executed = 0;
-  const resource = Resource.create(
+  const resource = createResource(
     async (x: number) => {
       executed++;
       return x + executed;
@@ -123,7 +123,7 @@ test('invalidateAfter', async () => {
 
 test('dormant', async () => {
   let executed = 0;
-  const resource = Resource.create(async (x: number) => {
+  const resource = createResource(async (x: number) => {
     executed++;
     return x * 2;
   });
@@ -139,7 +139,7 @@ test('dormant', async () => {
 
 test('updateOnMount', async () => {
   let executed = 0;
-  const resource = Resource.create(async (x: number) => {
+  const resource = createResource(async (x: number) => {
     executed++;
     return x * 2;
   });
@@ -157,7 +157,7 @@ test('updateOnMount', async () => {
 
 test('updateOnMount not double', async () => {
   let executed = 0;
-  const resource = Resource.create(async (x: number) => {
+  const resource = createResource(async (x: number) => {
     executed++;
     return x * 2;
   });
@@ -174,7 +174,7 @@ test('updateOnMount not double', async () => {
 
 test('watchOnly', async () => {
   let executed = 0;
-  const resource = Resource.create(async (x: number) => {
+  const resource = createResource(async (x: number) => {
     executed++;
     return x * 2;
   });
@@ -196,7 +196,7 @@ test('watchOnly', async () => {
 
 test('throttle', async () => {
   let executed = 0;
-  const resource = Resource.create(async (x: number) => {
+  const resource = createResource(async (x: number) => {
     executed++;
     await sleep(1);
     return x + executed;
@@ -218,7 +218,7 @@ test('throttle', async () => {
 });
 
 test('error', async () => {
-  const resource = Resource.create<number, number>(async () => {
+  const resource = createResource<number, number>(async () => {
     throw 'error';
   });
 
@@ -232,7 +232,7 @@ test('error', async () => {
 });
 
 test('complex key', async () => {
-  const resource = Resource.create(async (key: { foo: string }) => {
+  const resource = createResource(async (key: { foo: string }) => {
     return key.foo;
   });
 

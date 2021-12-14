@@ -3,6 +3,27 @@ import { applyPatches, Draft, enableMapSet, enablePatches, freeze, Patch, produc
 import { Cancel } from './helpers/misc';
 import { throttle as throttleFn } from './helpers/throttle';
 
+export type StoreOptions = {
+  /** Log errors. Default: console.error */
+  log?: (...data: any[]) => void;
+};
+
+export type StoreSubscribeOptions = {
+  /** Invoke callback immediately with the current value? Default: true */
+  callbackNow?: boolean;
+  /** Throttle invocations of callback. */
+  throttle?: number;
+  /** Comparison function to determine if the data has changed. Default: fast-deep-equal */
+  compare?: (a: any, b: any) => boolean;
+};
+
+export type StoreAddReactionOptions = {
+  /** Invoke callback immediately with the current value? Default: true */
+  callbackNow?: boolean;
+  /** Comparison function to determine if the data has changed. Default: fast-deep-equal */
+  compare?: (a: any, b: any) => boolean;
+};
+
 const RESTART_UPDATE = Symbol('RESTART_UPDATE');
 
 export class Store<T> {
@@ -11,11 +32,16 @@ export class Store<T> {
   private patches = new Array<Patch>();
   private notifyScheduled = false;
   private lock?: 'reaction';
+  private options;
 
-  constructor(private state: T, private options = { log: (...data: any[]) => console.error(...data) }) {
+  constructor(private state: T, { log = (...data: any[]) => console.error(...data) }: StoreOptions = {}) {
     freeze(state, true);
     enableMapSet();
     enablePatches();
+
+    this.options = {
+      log,
+    };
   }
 
   getState(): T {
@@ -55,7 +81,7 @@ export class Store<T> {
   subscribe<S>(
     selector: (state: T) => S,
     listener: (value: S, prev: S | undefined, state: T) => void,
-    { runNow = true, throttle = 0, compare = eq } = {}
+    { callbackNow = true, throttle = 0, compare = eq }: StoreSubscribeOptions = {}
   ): Cancel {
     const throttledListener = throttle ? throttleFn(listener, throttle) : listener;
 
@@ -73,7 +99,7 @@ export class Store<T> {
     };
 
     this.subscriptions.add(internalListener);
-    if (runNow) internalListener(this.state, [], true);
+    if (callbackNow) internalListener(this.state, [], true);
     return () => {
       this.subscriptions.delete(internalListener);
     };
@@ -82,7 +108,7 @@ export class Store<T> {
   addReaction<S>(
     selector: (state: T) => S,
     reaction: (value: S, draft: Draft<T>, original: T, prev: S) => void,
-    { runNow = true, compare = eq } = {}
+    { callbackNow = true, compare = eq }: StoreAddReactionOptions = {}
   ): Cancel {
     let value = selector(this.state);
 
@@ -114,7 +140,7 @@ export class Store<T> {
     };
 
     this.reactions.add(internalListener);
-    if (runNow) internalListener(true);
+    if (callbackNow) internalListener(true);
     return () => {
       this.reactions.delete(internalListener);
     };

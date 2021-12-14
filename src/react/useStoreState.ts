@@ -37,7 +37,7 @@ export function useStoreState<T, S>(store: Store<T>, ...args: any[]): S {
   // The third parameter of subscribe means that it emit and update right after subscription. I think this is important
   // because between evaluating in useMemo and running the effect some time passes, so we can't be sure the value hasn't changed in between.
   useEffect(
-    () => store.subscribe(selector, () => setCounter((c) => c + 1), { runNow: true, throttle: options.throttle }),
+    () => store.subscribe(selector, () => setCounter((c) => c + 1), { callbackNow: true, throttle: options.throttle }),
     [store, ...deps]
   );
 

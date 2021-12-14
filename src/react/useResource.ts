@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ResourceInstance, ResourceState } from '../resource';
+import { ResourceInstance, ResourceState } from '..';
 
 export type UseResourceOptions = {
   /** Watch value without triggering loading it */
@@ -14,10 +14,6 @@ export type UseResourceOptions = {
 
 export type CombinedResourceState<Resources extends readonly ResourceInstance<any, any>[]> = Omit<ResourceState<any>, 'value'> & {
   values: { [K in keyof Resources]: Resources[K] extends ResourceInstance<any, infer Value> ? Value | undefined : never };
-};
-
-const ignore = () => {
-  //ignore
 };
 
 export function useCombinedResources<Resources extends readonly ResourceInstance<any, any>[]>(
@@ -47,9 +43,8 @@ export function useCombinedResources<Resources extends readonly ResourceInstance
       resource.subscribe(
         () => {
           setId({});
-          if (!watchOnly) resource.get().catch(ignore);
         },
-        { throttle }
+        { watchOnly, throttle }
       )
     );
 

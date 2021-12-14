@@ -59,7 +59,7 @@ test('subscribe additional properties', async () => {
       expect(prev).toBe(foo === 2 ? 1 : 0);
       expect(state).toEqual({ foo });
     },
-    { runNow: true }
+    { callbackNow: true }
   );
 
   store.update((s) => {
@@ -83,7 +83,7 @@ test('subscribe with run now', async () => {
       value = foo;
       count++;
     },
-    { runNow: true }
+    { callbackNow: true }
   );
   expect(value).toBe(0);
   expect(count).toBe(1);
@@ -256,7 +256,7 @@ test('addReaction rerun', async () => {
   expect(count2).toBe(2);
 });
 
-test('addReaction with runNow', async () => {
+test('addReaction with callbackNow', async () => {
   const store = new Store({ foo: 1, bar: 0 });
   let count = 0;
 
@@ -266,7 +266,7 @@ test('addReaction with runNow', async () => {
       s.bar = foo * 2;
       count++;
     },
-    { runNow: true }
+    { callbackNow: true }
   );
   expect(store.getState().bar).toBe(2);
   expect(count).toBe(1);
@@ -286,7 +286,7 @@ test('addReaction cancel', async () => {
     (foo, s) => {
       s.bar = foo * 2;
     },
-    { runNow: true }
+    { callbackNow: true }
   );
 
   store.update((s) => {
@@ -363,7 +363,7 @@ test('addReaction with subscribe', async () => {
   jest.runAllTimers();
 });
 
-test('addReaction with runNow=false subscribe', async () => {
+test('addReaction with callbackNow=false subscribe', async () => {
   const store = new Store({ foo: 1, bar: 0 });
   expect.assertions(1);
 
@@ -379,13 +379,13 @@ test('addReaction with runNow=false subscribe', async () => {
     (foo, s) => {
       s.bar = foo;
     },
-    { runNow: false }
+    { callbackNow: false }
   );
 
   jest.runAllTimers();
 });
 
-test('addReaction rerun with runNow', async () => {
+test('addReaction rerun with callbackNow', async () => {
   const store = new Store({ foo: 1 });
   expect.assertions(4);
 
@@ -395,7 +395,7 @@ test('addReaction rerun with runNow', async () => {
       expect(true).toBeTruthy();
       if (foo % 2 === 1) s.foo++;
     },
-    { runNow: true }
+    { callbackNow: true }
   );
 
   store.update((s) => {
@@ -494,7 +494,7 @@ test('update during subscribe callback', async () => {
         });
       }
     },
-    { runNow: false }
+    { callbackNow: false }
   );
 
   store.update((state) => {
@@ -509,7 +509,7 @@ test('update by returning new value', async () => {
   store.subscribe(
     (s) => s.foo,
     (foo) => expect(foo).toBe(1),
-    { runNow: false }
+    { callbackNow: false }
   );
 
   store.update((state) => ({ foo: state.foo + 1 }));
