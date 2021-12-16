@@ -1,8 +1,8 @@
 import { castDraft, Draft, enableMapSet } from 'immer';
+import { globalResouceGroup, ResourceGroup } from '..';
 import { hash } from '../helpers/hash';
 import { Cancel } from '../helpers/misc';
 import { Store, StoreSubscribeOptions } from '../store';
-import { globalResouceGroup } from './resourceGroup';
 
 type CacheEntry<Arg, Value> = {
   readonly arg: Arg;
@@ -16,6 +16,7 @@ type CacheEntry<Arg, Value> = {
         error: unknown;
       };
   future?: Promise<Value>;
+  connectionState?: 'connected' | 'disconnected';
   stale?: true;
   tInvalidate?: number;
   tClear?: number;
@@ -31,6 +32,7 @@ export type ResourceState<Value> = {
 export type ResourceOptions<Value> = {
   invalidateAfter?: number | ((state: ResourceState<Value>) => number | undefined);
   clearAfter?: number | ((state: ResourceState<Value>) => number | undefined);
+  resourceGroup?: ResourceGroup | ResourceGroup[];
 };
 
 export type ResourceSubscribeOptions = StoreSubscribeOptions & {
@@ -44,10 +46,16 @@ export abstract class Resource<Arg, Value> {
   cache = new Store(new Map<string, CacheEntry<Arg, Value>>());
   cleanTimer?: NodeJS.Timeout;
 
-  protected constructor() {
+  protected constructor({ resourceGroup = [] }: ResourceOptions<Value> = {}) {
     enableMapSet();
-    globalResouceGroup.resources.push(this);
     this.start();
+
+    if (!(resourceGroup instanceof Array)) {
+      resourceGroup = [resourceGroup];
+    }
+    for (const r of resourceGroup.concat(globalResouceGroup)) {
+      r.resources.add(this);
+    }
   }
 
   abstract instance(arg: Arg): ResourceInstance<Arg, Value>;

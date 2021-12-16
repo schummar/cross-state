@@ -29,7 +29,7 @@ export class PullResource<Arg, Value> extends Resource<Arg, Value> {
     public readonly implementation: PullResourceImplemenation<Arg, Value>,
     public readonly options: ResourceOptions<Value> = {}
   ) {
-    super();
+    super(options);
   }
 
   instance(arg: Arg): PullResourceInstance<Arg, Value> {

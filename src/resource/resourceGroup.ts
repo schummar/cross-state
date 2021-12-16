@@ -1,7 +1,7 @@
 import { Resource } from './resource';
 
 export class ResourceGroup {
-  resources = new Array<Resource<any, any>>();
+  resources = new Set<Resource<any, any>>();
 
   invalidateCacheAll() {
     for (const resource of this.resources) {

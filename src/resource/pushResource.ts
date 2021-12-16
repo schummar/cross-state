@@ -2,23 +2,23 @@ import { castDraft } from 'immer';
 import { Cancel } from '../helpers/misc';
 import { Resource, ResourceInstance, ResourceOptions, ResourceState, ResourceSubscribeOptions } from './resource';
 
-export type PushResourceImplemenation<Arg, Value> = {
+export type PushResourceOptions<Arg, Value> = ResourceOptions<Value> & {
   getInital?: (arg: Arg) => Promise<Value>;
   connect: (
     callbacks: {
-      onConnect: () => void;
-      onDisconnect: () => void;
+      onConnected: () => void;
+      onDisconnected: () => void;
       onData: (data: Value | ((state: ResourceState<Value>) => Value)) => void;
+      onError: (error: unknown) => void;
     },
     arg: Arg
   ) => Cancel;
 };
 
 export function createPushResource<Arg = undefined, Value = unknown>(
-  implementation: PushResourceImplemenation<Arg, Value>,
-  options?: ResourceOptions<Value>
+  options: PushResourceOptions<Arg, Value>
 ): PushResource<Arg, Value> & { (...args: Arg extends undefined ? [arg?: Arg] : [arg: Arg]): PushResourceInstance<Arg, Value> } {
-  const resource = new PushResource(implementation, options);
+  const resource = new PushResource(options);
 
   return new Proxy<any>(
     function (...[arg]: Arg extends undefined ? [arg?: Arg] : [arg: Arg]) {
@@ -33,11 +33,7 @@ export function createPushResource<Arg = undefined, Value = unknown>(
 }
 
 export class PushResource<Arg, Value> extends Resource<Arg, Value> {
-  constructor(
-    //
-    public readonly implementation: PushResourceImplemenation<Arg, Value>,
-    public readonly options: ResourceOptions<Value> = {}
-  ) {
+  constructor(public readonly options: PushResourceOptions<Arg, Value>) {
     super();
   }
 
@@ -51,7 +47,6 @@ export class PushResourceInstance<Arg, Value> extends ResourceInstance<Arg, Valu
     super(resource, arg);
   }
 
-  readonly implementation = this.resource.implementation;
   readonly options = this.resource.options;
   protected connection?: () => void;
   protected activeSubscribers = 0;
@@ -81,21 +76,37 @@ export class PushResourceInstance<Arg, Value> extends ResourceInstance<Arg, Valu
   }
 
   protected connect() {
-    const { getInital, connect } = this.implementation;
+    const { getInital, connect } = this.options;
 
     let getInitialTask: Promise<Value> | undefined;
     let buffer = new Array<Value | ((state: ResourceState<Value>) => Value)>();
+    let canceled = false;
 
     const process = (update: Value | ((state: ResourceState<Value>) => Value)) => {
       if (update instanceof Function) {
-        update = update(this.getCache() ?? {});
+        try {
+          update = update(this.getCache() ?? {});
+        } catch (e) {
+          this.setError(e);
+          return;
+        }
       }
       this.setValue(update);
     };
 
-    this.connection = connect(
+    this.updateCache((state) => {
+      state.connectionState = 'disconnected';
+    });
+
+    const connection = connect(
       {
-        onConnect: async () => {
+        onConnected: async () => {
+          if (canceled) return;
+
+          this.updateCache((state) => {
+            state.connectionState = 'connected';
+          });
+
           if (getInital) {
             let task;
 
@@ -122,21 +133,40 @@ export class PushResourceInstance<Arg, Value> extends ResourceInstance<Arg, Valu
           }
         },
 
-        onDisconnect: () => {
+        onDisconnected: () => {
+          if (canceled) return;
+
+          this.updateCache((state) => {
+            state.connectionState = 'disconnected';
+          });
+
           this.invalidateCache();
           getInitialTask = undefined;
         },
 
         onData: (update) => {
+          if (canceled) return;
+
           if (getInitialTask) {
             buffer.push(update);
           } else {
             process(update);
           }
         },
+
+        onError: (error) => {
+          if (canceled) return;
+          this.setError(error);
+        },
       },
       this.arg
     );
+
+    this.connection = () => {
+      connection();
+      canceled = true;
+      getInitialTask = undefined;
+    };
   }
 
   protected disconnect() {
