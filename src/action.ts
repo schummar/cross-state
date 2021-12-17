@@ -1,5 +1,4 @@
 import { Draft, enableMapSet } from 'immer';
-import { clearTimeout } from 'timers';
 import { hash } from './helpers/hash';
 import { Cancel } from './helpers/misc';
 import retry from './helpers/retry';
