@@ -1,7 +1,7 @@
 export function throttle<Args extends any[]>(fn: (...args: Args) => void, ms: number): (...args: Args) => void {
   let last = 0;
   let lastArgs: Args | undefined;
-  let timeout: NodeJS.Timeout | undefined;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
 
   function run() {
     const args = lastArgs;

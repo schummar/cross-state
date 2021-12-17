@@ -10,7 +10,7 @@ export class StorePersist<T> {
   private sub?: () => void;
   private saveQueue = new Array<{ path: Path; t: number }>();
   private isSaving = false;
-  private saveTimeout?: NodeJS.Timeout;
+  private saveTimeout?: ReturnType<typeof setTimeout>;
   private paths: { path: Path; throttleMs?: number }[];
 
   constructor(

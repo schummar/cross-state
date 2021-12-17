@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  */
 
+import { afterEach, expect, jest, test } from '@jest/globals';
 import localforage from 'localforage';
 import nodePersist from 'node-persist';
 import { Store, StorePersist } from '../../src';

@@ -1,8 +1,8 @@
 import { castDraft, Draft, enableMapSet } from 'immer';
 import { globalResouceGroup, ResourceGroup } from '..';
-import { hash } from '../helpers/hash';
-import { Cancel } from '../helpers/misc';
-import { Store, StoreSubscribeOptions } from '../store';
+import { hash } from '../helpers/hash.js';
+import { Cancel } from '../helpers/misc.js';
+import { Store, StoreSubscribeOptions } from '../store.js';
 
 type CacheEntry<Arg, Value> = {
   readonly arg: Arg;
@@ -44,7 +44,7 @@ export abstract class Resource<Arg, Value> {
 
   id = Math.random().toString(36);
   cache = new Store(new Map<string, CacheEntry<Arg, Value>>());
-  cleanTimer?: NodeJS.Timeout;
+  cleanTimer?: ReturnType<typeof setTimeout>;
 
   protected constructor({ resourceGroup = [] }: ResourceOptions<Value> = {}) {
     enableMapSet();
@@ -80,7 +80,9 @@ export abstract class Resource<Arg, Value> {
   }
 
   protected calculateNextClean() {
-    return Math.min(...[...this.cache.getState().values()].flatMap((entry) => [entry.tInvalidate ?? Infinity, entry.tClear ?? Infinity]));
+    return Math.min(
+      ...[...this.cache.getState().values()].map((entry) => Math.min(entry.tInvalidate ?? Infinity, entry.tClear ?? Infinity))
+    );
   }
 
   protected scheduleClean(next = this.calculateNextClean()) {

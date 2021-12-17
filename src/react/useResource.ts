@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { ResourceInstance, ResourceState } from '..';
+
+console.log(typeof useSyncExternalStore);
 
 export type UseResourceOptions = {
   /** Watch value without triggering loading it */
