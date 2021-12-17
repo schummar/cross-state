@@ -1,5 +1,12 @@
 # Changelog
 
+### [0.2.1](https://www.github.com/schummar/schummar-state/compare/v0.2.0...v0.2.1) (2021-12-17)
+
+
+### Bug Fixes
+
+* removed nonsense import ([810251e](https://www.github.com/schummar/schummar-state/commit/810251e2e0e860c98ebc95786e873c810f4bc281))
+
 ## [0.2.0](https://www.github.com/schummar/schummar-state/compare/v0.1.3...v0.2.0) (2021-12-10)
 
 
