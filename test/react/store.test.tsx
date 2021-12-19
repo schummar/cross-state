@@ -22,7 +22,7 @@ function Simple({ useValue }: { useValue: () => ReactNode }) {
 
 function Dynamic({ store }: { store: Store<{ foo: number; bar: number }> }) {
   const [key, setKey] = useState<'foo' | 'bar'>('foo');
-  const value = store.useState((s) => s[key], [key]);
+  const value = store.useState((s) => s[key]);
 
   const toggle = () => {
     setKey(key === 'foo' ? 'bar' : 'foo');
@@ -145,7 +145,7 @@ test('prop', async () => {
 test('throttled', async () => {
   const store = new Store({ foo: 1 });
 
-  render(<Simple useValue={() => store.useState((state) => state.foo, undefined, { throttle: 100 })} />);
+  render(<Simple useValue={() => store.useState((state) => state.foo, { throttle: 100 })} />);
   const div = screen.getByTestId('div');
 
   store.update((s) => {

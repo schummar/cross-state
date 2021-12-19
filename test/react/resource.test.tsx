@@ -16,7 +16,7 @@ afterEach(() => {
   jest.runAllTimers();
 });
 
-const tick = () => act(async () => null);
+const tick = () => act(async () => undefined);
 
 function Component({ useResource }: { useResource: () => ResourceState<unknown> }) {
   const { value, error, isLoading } = useResource();

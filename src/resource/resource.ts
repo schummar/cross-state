@@ -1,8 +1,8 @@
 import { castDraft, Draft, enableMapSet } from 'immer';
-import { globalResouceGroup, ResourceGroup } from '..';
-import { hash } from '../helpers/hash.js';
-import { Cancel } from '../helpers/misc.js';
-import { Store, StoreSubscribeOptions } from '../store.js';
+import { globalResouceGroup, ResourceGroup } from './resourceGroup';
+import { hash } from '../helpers/hash';
+import { Cancel } from '../helpers/misc';
+import { Store, StoreSubscribeOptions } from '../store';
 
 type CacheEntry<Arg, Value> = {
   readonly arg: Arg;

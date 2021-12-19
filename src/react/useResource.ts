@@ -1,17 +1,13 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
-import { ResourceInstance, ResourceState } from '..';
+import eq from 'fast-deep-equal/es6/react';
+import { useCallback, useDebugValue, useEffect } from 'react';
+import { useSyncExternalStoreWithSelector } from 'use-sync-external-store/shim/with-selector';
+import { ResourceInstance, ResourceState, ResourceSubscribeOptions } from '..';
 
-console.log(typeof useSyncExternalStore);
-
-export type UseResourceOptions = {
-  /** Watch value without triggering loading it */
-  watchOnly?: boolean;
-  /**  */
+export type UseResourceOptions = Omit<ResourceSubscribeOptions, 'callbackNow'> & {
+  /** Invalidate the resource on mount, causing it to update in the background */
   updateOnMount?: boolean;
-  /** */
+  /** Don't subscribe resource while this is true */
   dormant?: boolean;
-  /** */
-  throttle?: number;
 };
 
 export type CombinedResourceState<Resources extends readonly ResourceInstance<any, any>[]> = Omit<ResourceState<any>, 'value'> & {
@@ -23,10 +19,7 @@ export function useCombinedResources<Resources extends readonly ResourceInstance
 ): CombinedResourceState<Resources> {
   const resources = args.filter((x) => x instanceof ResourceInstance) as unknown as Resources;
   const options = args.find((x) => !(x instanceof ResourceInstance)) as UseResourceOptions | undefined;
-  const { watchOnly, updateOnMount, dormant, throttle } = options ?? {};
-
-  // This id is updated when the resource notifies about changes, in order to trigger another render
-  const [, setId] = useState({});
+  const { watchOnly, updateOnMount, dormant, throttle, compare = eq } = options ?? {};
 
   useEffect(() => {
     if (updateOnMount && !dormant) {
@@ -36,40 +29,53 @@ export function useCombinedResources<Resources extends readonly ResourceInstance
     }
   }, []);
 
-  useEffect(() => {
-    if (dormant) {
-      return;
-    }
+  const subscribe = useCallback(
+    (listener: () => void) => {
+      const handles = dormant
+        ? []
+        : resources.map((resource) =>
+            resource.subscribe(listener, {
+              watchOnly,
+              throttle,
+              callbackNow: false,
+              compare,
+            })
+          );
 
-    const handles = resources.map((resource) =>
-      resource.subscribe(
-        () => {
-          setId({});
-        },
-        { watchOnly, throttle }
-      )
-    );
+      return () => {
+        for (const handle of handles) {
+          handle();
+        }
+      };
+    },
+    [
+      //
+      resources.map((resource) => resource.id).join(','),
+      watchOnly,
+      dormant,
+      throttle,
+    ]
+  );
 
-    return () => {
-      for (const handle of handles) {
-        handle();
-      }
-    };
-  }, [
+  const value = useSyncExternalStoreWithSelector(
     //
-    resources.map((resource) => resource.id).join(','),
-    watchOnly,
-    dormant,
-    throttle,
-  ]);
+    subscribe,
+    () => {
+      const state = resources.map((resource) => resource.getCache());
+      return {
+        values: state.map((x) => x?.value) as any,
+        error: state.find((x) => x?.error !== undefined)?.error,
+        isLoading: state.some((x) => x?.isLoading),
+        stale: state.some((x) => x?.stale),
+      };
+    },
+    undefined,
+    (x) => x,
+    eq
+  );
 
-  const state = resources.map((resource) => resource.getCache());
-  return {
-    values: state.map((x) => x?.value) as any,
-    error: state.find((x) => x?.error !== undefined)?.error,
-    isLoading: state.some((x) => x?.isLoading),
-    stale: state.some((x) => x?.stale),
-  };
+  useDebugValue(value);
+  return value;
 }
 
 export function useResource<Arg, Value>(resource: ResourceInstance<Arg, Value>, options?: UseResourceOptions): ResourceState<Value> {
