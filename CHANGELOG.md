@@ -1,5 +1,14 @@
 # Changelog
 
+### [0.2.2](https://www.github.com/schummar/schummar-state/compare/v0.2.1...v0.2.2) (2021-12-20)
+
+
+### Bug Fixes
+
+* clear on mount race condition ([a335a27](https://www.github.com/schummar/schummar-state/commit/a335a2788ef041cbf8a6aa570ffbbea2e9cfd43b))
+* removed console.log ([8852e19](https://www.github.com/schummar/schummar-state/commit/8852e1942bbf835e8cc8a3213046ac2b538e04a7))
+* throttle test unstable ([8964378](https://www.github.com/schummar/schummar-state/commit/8964378984d1cae392c75f902dc38d081e45e8ab))
+
 ### [0.2.1](https://www.github.com/schummar/schummar-state/compare/v0.2.0...v0.2.1) (2021-12-17)
 
 
