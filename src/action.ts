@@ -221,14 +221,12 @@ export class Action<Arg, Value> {
 
     if (invalidateAfter !== undefined && invalidateAfter !== Infinity) {
       invalidateTimer = setTimeout(() => {
-        console.log('invalidate');
         this.invalidateCache(arg);
       }, invalidateAfter);
     }
 
     if (clearAfter !== undefined && clearAfter !== Infinity) {
       clearTimer = setTimeout(() => {
-        console.log('clear');
         this.clearCache(arg);
       }, clearAfter);
     }
