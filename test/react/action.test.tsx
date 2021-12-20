@@ -209,7 +209,7 @@ test.serial('throttle', async (t) => {
   await sleep(50);
   t.is(div.textContent, 'v:2 l:false e:');
 
-  await sleep(150);
+  await sleep(200);
   t.is(div.textContent, 'v:3 l:false e:');
 });
 
