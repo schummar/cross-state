@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import test from 'ava';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { sleep } from '../../src/helpers/misc';
 import { Action } from '../../src/react';
 import { wait } from '../_helpers';
@@ -196,21 +196,21 @@ test.serial('throttle', async (t) => {
   let executed = 0;
   const action = new Action(async (x: number) => {
     executed++;
-    await wait(5);
     return x + executed;
   });
 
   render(<Component useAction={() => action.useAction(1, { throttle: 100 })} />);
   const div = screen.getByTestId('div');
-  t.is(div.textContent, 'v: l:true e:');
 
-  await sleep(50);
-  t.is(div.textContent, 'v: l:true e:');
-
-  await sleep(150);
+  await wait();
   t.is(div.textContent, 'v:2 l:false e:');
 
-  t.is(executed, 1);
+  action.clearCache(1);
+  await sleep(50);
+  t.is(div.textContent, 'v:2 l:false e:');
+
+  await sleep(150);
+  t.is(div.textContent, 'v:3 l:false e:');
 });
 
 test.serial('error', async (t) => {
@@ -248,4 +248,29 @@ test.serial('complex key', async (t) => {
   await sleep(15);
   t.is(div.textContent, 'v:bar2 l:false e:');
   t.is(executed, 2);
+});
+
+test.serial('manual clear after mount', async (t) => {
+  const action = new Action(async () => {
+    return 1;
+  });
+
+  function Component({ useAction }: { useAction: () => [unknown, { isLoading: boolean; error?: unknown }] }) {
+    const [value, { isLoading, error }] = useAction();
+
+    useEffect(() => action.clearCacheAll(), []);
+
+    return (
+      <div data-testid="div">
+        v:{value} l:{JSON.stringify(isLoading)} e:{error}
+      </div>
+    );
+  }
+
+  render(<Component useAction={() => action.useAction(undefined)} />);
+  const div = screen.getByTestId('div');
+  t.is(div.textContent, 'v: l:false e:');
+
+  await wait(10);
+  t.is(div.textContent, 'v:1 l:false e:');
 });

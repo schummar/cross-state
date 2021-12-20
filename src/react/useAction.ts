@@ -38,6 +38,8 @@ export function useAction<Arg, Value>(
       return;
     }
 
+    if (!watchOnly) action.get(arg).catch(ignore);
+
     return action.subscribe(
       arg,
       () => {
