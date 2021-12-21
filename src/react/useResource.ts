@@ -21,6 +21,8 @@ export function useCombinedResources<Resources extends readonly ResourceInstance
   const options = args.find((x) => !(x instanceof ResourceInstance)) as UseResourceOptions | undefined;
   const { watchOnly, updateOnMount, dormant, throttle, compare = eq } = options ?? {};
 
+  const resourceIds = resources.map((resource) => resource.id).join(',');
+
   useEffect(() => {
     if (updateOnMount && !dormant) {
       for (const resource of resources) {
@@ -48,13 +50,7 @@ export function useCombinedResources<Resources extends readonly ResourceInstance
         }
       };
     },
-    [
-      //
-      resources.map((resource) => resource.id).join(','),
-      watchOnly,
-      dormant,
-      throttle,
-    ]
+    [resourceIds, watchOnly, dormant, throttle]
   );
 
   const value = useSyncExternalStoreWithSelector(
