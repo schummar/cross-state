@@ -58,10 +58,11 @@ test('simple', async () => {
   const div = screen.getByTestId('div');
   expect(div.textContent).toBe('1');
 
-  store.update((s) => {
-    s.foo = 2;
-  });
-  act(() => jest.runAllTimers());
+  act(() =>
+    store.update((s) => {
+      s.foo = 2;
+    })
+  );
   expect(div.textContent).toBe('2');
 });
 
@@ -83,10 +84,11 @@ test('string selector', async () => {
   const div = screen.getByTestId('div');
   expect(div.textContent).toBe('1');
 
-  store.update((s) => {
-    s.foo = 2;
-  });
-  act(() => jest.runAllTimers());
+  act(() =>
+    store.update((s) => {
+      s.foo = 2;
+    })
+  );
   expect(div.textContent).toBe('2');
 });
 
@@ -131,14 +133,14 @@ test('prop', async () => {
   const div = screen.getByTestId('div');
   expect(div.textContent).toBe('1');
 
-  store.update((s) => {
-    s.foo = 2;
-  });
-  act(() => jest.runAllTimers());
+  act(() =>
+    store.update((s) => {
+      s.foo = 2;
+    })
+  );
   expect(div.textContent).toBe('2');
 
   fireEvent.click(div);
-  act(() => jest.runAllTimers());
   expect(div.textContent).toBe('3');
 });
 
@@ -148,10 +150,11 @@ test('throttled', async () => {
   render(<Simple useValue={() => store.useState((state) => state.foo, { throttle: 100 })} />);
   const div = screen.getByTestId('div');
 
-  store.update((s) => {
-    s.foo++;
-  });
-  act(() => jest.advanceTimersByTime(0));
+  act(() =>
+    store.update((s) => {
+      s.foo++;
+    })
+  );
   expect(div.textContent).toBe('2');
 
   store.update((s) => {
@@ -175,10 +178,11 @@ test('throttled string selector', async () => {
   render(<Simple useValue={() => store.useState('foo', { throttle: 100 })} />);
   const div = screen.getByTestId('div');
 
-  store.update((s) => {
-    s.foo++;
-  });
-  act(() => jest.advanceTimersByTime(0));
+  act(() =>
+    store.update((s) => {
+      s.foo++;
+    })
+  );
   expect(div.textContent).toBe('2');
 
   store.update((s) => {
@@ -203,10 +207,11 @@ test('no selector', async () => {
   const div = screen.getByTestId('div');
   expect(div.textContent).toBe('{"foo":1}');
 
-  store.update((s) => {
-    s.foo = 2;
-  });
-  act(() => jest.runAllTimers());
+  act(() =>
+    store.update((s) => {
+      s.foo = 2;
+    })
+  );
   expect(div.textContent).toBe('{"foo":2}');
 });
 
@@ -216,10 +221,11 @@ test('no selector throttled', async () => {
   render(<NoSelector store={store} throttle={100} />);
   const div = screen.getByTestId('div');
 
-  store.update((s) => {
-    s.foo++;
-  });
-  act(() => jest.advanceTimersByTime(0));
+  act(() =>
+    store.update((s) => {
+      s.foo++;
+    })
+  );
   expect(div.textContent).toBe('{"foo":2}');
 
   store.update((s) => {
@@ -249,11 +255,13 @@ test('addReaction', async () => {
       if (foo % 2 === 1) state.foo++;
     }
   );
-  store.update((s) => {
-    s.foo++;
-  });
 
-  act(() => jest.runAllTimers());
+  act(() =>
+    store.update((s) => {
+      s.foo++;
+    })
+  );
+
   expect(div.textContent).toBe('4');
 });
 

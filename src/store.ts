@@ -10,7 +10,7 @@ export type StoreOptions = {
 
 export type StoreSubscribeOptions = {
   /** Invoke callback immediately with the current value? Default: true */
-  callbackNow?: boolean;
+  runNow?: boolean;
   /** Throttle invocations of callback. */
   throttle?: number;
   /** Comparison function to determine if the data has changed. Default: fast-deep-equal */
@@ -19,7 +19,7 @@ export type StoreSubscribeOptions = {
 
 export type StoreAddReactionOptions = {
   /** Invoke callback immediately with the current value? Default: true */
-  callbackNow?: boolean;
+  runNow?: boolean;
   /** Comparison function to determine if the data has changed. Default: fast-deep-equal */
   compare?: (a: any, b: any) => boolean;
 };
@@ -28,10 +28,10 @@ const RESTART_UPDATE = Symbol('RESTART_UPDATE');
 
 export class Store<T> {
   private subscriptions = new Set<(state: T, patches: Patch[]) => void>();
+  private batchCounter = 0;
   private reactions = new Set<() => void>();
   private patches = new Array<Patch>();
-  private notifyScheduled = false;
-  private lock?: 'reaction';
+  private lock?: 'reaction' | 'subscription';
   private options;
 
   constructor(private state: T, { log = (...data: any[]) => console.error(...data) }: StoreOptions = {}) {
@@ -78,38 +78,71 @@ export class Store<T> {
     this.notify();
   }
 
-  subscribe<S>(
-    selector: (state: T) => S,
-    listener: (value: S, prev: S | undefined, state: T) => void,
-    { callbackNow = true, throttle = 0, compare = eq }: StoreSubscribeOptions = {}
-  ): Cancel {
+  batchUpdates(fn: () => void): void {
+    try {
+      this.batchCounter++;
+      fn();
+    } finally {
+      this.batchCounter--;
+      if (this.batchCounter === 0) {
+        this.notify();
+      }
+    }
+  }
+
+  subscribe(listener: (value: T, prev: T, state: T) => void, options?: StoreSubscribeOptions): Cancel;
+  subscribe<S>(selector: (state: T) => S, listener: (value: S, prev: S, state: T) => void, options?: StoreSubscribeOptions): Cancel;
+  subscribe<S>(...args: any[]): Cancel {
+    let selector: (state: T) => S, listener: (value: S, prev: S, state: T) => void, options: StoreSubscribeOptions | undefined;
+    if (args[1] instanceof Function) {
+      [selector, listener, options] = args;
+    } else {
+      [selector, listener, options] = [(x) => x as any, ...args];
+    }
+
+    const { runNow = true, throttle = 0, compare = eq } = options ?? {};
     const throttledListener = throttle ? throttleFn(listener, throttle) : listener;
 
     let value = selector(this.state);
 
     const internalListener = (state: T, _patches: Patch[], init?: boolean) => {
       try {
+        this.lock = 'subscription';
         const oldValue = value;
         value = selector(state);
         if (!init && compare(value, oldValue)) return;
         (init ? listener : throttledListener)(value, oldValue, this.state);
       } catch (e) {
         this.options.log('Failed to execute listener:', e);
+      } finally {
+        delete this.lock;
       }
     };
 
     this.subscriptions.add(internalListener);
-    if (callbackNow) internalListener(this.state, [], true);
+    if (runNow) internalListener(this.state, [], true);
     return () => {
       this.subscriptions.delete(internalListener);
     };
   }
 
+  addReaction(reaction: (value: T, draft: Draft<T>, original: T, prev: T) => void, options?: StoreAddReactionOptions): Cancel;
   addReaction<S>(
     selector: (state: T) => S,
     reaction: (value: S, draft: Draft<T>, original: T, prev: S) => void,
-    { callbackNow = true, compare = eq }: StoreAddReactionOptions = {}
-  ): Cancel {
+    options?: StoreAddReactionOptions
+  ): Cancel;
+  addReaction<S>(...args: any[]): Cancel {
+    let selector: (state: T) => S,
+      reaction: (value: S, draft: Draft<T>, original: T, prev: S) => void,
+      options: StoreAddReactionOptions | undefined;
+    if (args[1] instanceof Function) {
+      [selector, reaction, options] = args;
+    } else {
+      [selector, reaction, options] = [(x) => x as any, ...args];
+    }
+    const { runNow = true, compare = eq } = options ?? {};
+
     let value = selector(this.state);
 
     const internalListener = (init?: boolean) => {
@@ -140,7 +173,7 @@ export class Store<T> {
     };
 
     this.reactions.add(internalListener);
-    if (callbackNow) internalListener(true);
+    if (runNow) internalListener(true);
     return () => {
       this.reactions.delete(internalListener);
     };
@@ -164,10 +197,14 @@ export class Store<T> {
   private checkLock() {
     if (this.lock === 'reaction') {
       throw Error('You cannot call update from within a reaction. Use the passed draft instead.');
+    } else if (this.lock === 'subscription') {
+      throw Error('You cannot call update from within a subscription.');
     }
   }
 
   private notify(): void {
+    if (this.batchCounter > 0) return;
+
     try {
       for (const reaction of this.reactions) {
         reaction();
@@ -176,17 +213,10 @@ export class Store<T> {
       return this.notify();
     }
 
-    if (this.notifyScheduled) return;
-    this.notifyScheduled = true;
-
-    setTimeout(() => {
-      this.notifyScheduled = false;
-
-      const patches = this.patches;
-      this.patches = [];
-      for (const subscription of this.subscriptions) {
-        subscription(this.state, patches);
-      }
-    });
+    const patches = this.patches;
+    this.patches = [];
+    for (const subscription of this.subscriptions) {
+      subscription(this.state, patches);
+    }
   }
 }

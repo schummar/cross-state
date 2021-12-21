@@ -6,8 +6,8 @@ import { afterEach, expect, jest, test } from '@jest/globals';
 import { act, render, screen } from '@testing-library/react';
 import React, { useEffect } from 'react';
 import { createResource, ResourceState } from '../../src';
-import { sleep } from '../../src/helpers/misc';
 import { useResource } from '../../src/react';
+import { sleep } from '../_helpers';
 import './_setup';
 
 jest.useFakeTimers();
@@ -38,13 +38,13 @@ test('simple', async () => {
   expect(div.textContent).toBe('v: l:true e:');
 
   await tick();
-  act(() => jest.runAllTimers());
   expect(div.textContent).toBe('v:2 l:false e:');
 });
 
 test('clear', async () => {
   let executed = 0;
   const resource = createResource(async (x: number) => {
+    await sleep(1);
     executed++;
     return x + executed;
   });
@@ -52,25 +52,24 @@ test('clear', async () => {
   render(<Component useResource={() => useResource(resource(1))} />);
   const div = screen.getByTestId('div');
 
+  act(() => jest.advanceTimersByTime(1));
   await tick();
-  act(() => jest.runAllTimers());
   expect(div.textContent).toBe('v:2 l:false e:');
 
-  resource(1).clearCache();
+  act(() => resource(1).clearCache());
   await tick();
-  act(() => jest.runAllTimers());
   expect(div.textContent).toBe('v: l:true e:');
 
+  act(() => jest.advanceTimersByTime(1));
   await tick();
-  act(() => jest.runAllTimers());
   expect(div.textContent).toBe('v:3 l:false e:');
-
   expect(executed).toBe(2);
 });
 
 test('invalidate', async () => {
   let executed = 0;
   const resource = createResource(async (x: number) => {
+    await sleep(1);
     executed++;
     return x + executed;
   });
@@ -78,46 +77,44 @@ test('invalidate', async () => {
   render(<Component useResource={() => useResource(resource(1))} />);
   const div = screen.getByTestId('div');
 
+  act(() => jest.advanceTimersByTime(1));
   await tick();
-  act(() => jest.runAllTimers());
   expect(div.textContent).toBe('v:2 l:false e:');
 
-  resource(1).invalidateCache();
+  act(() => resource(1).invalidateCache());
   await tick();
-  act(() => jest.runAllTimers());
   expect(div.textContent).toBe('v:2 l:true e:');
 
+  act(() => jest.advanceTimersByTime(1));
   await tick();
-  act(() => jest.runAllTimers());
   expect(div.textContent).toBe('v:3 l:false e:');
-
   expect(executed).toBe(2);
 });
 
 test('invalidateAfter', async () => {
   let executed = 0;
   const resource = createResource(
-    async (x: number) => {
-      executed++;
-      return x + executed;
+    async () => {
+      await sleep(1);
+      return executed++;
     },
     { invalidateAfter: 2 }
   );
 
-  render(<Component useResource={() => useResource(resource(1))} />);
+  render(<Component useResource={() => useResource(resource())} />);
   const div = screen.getByTestId('div');
 
-  await tick();
-  act(() => jest.advanceTimersByTime(1));
-  expect(div.textContent).toBe('v:2 l:false e:');
-
-  await tick();
   act(() => jest.advanceTimersByTime(2));
-  expect(div.textContent).toBe('v:2 l:true e:');
-
   await tick();
+  expect(div.textContent).toBe('v:0 l:false e:');
+
+  act(() => jest.advanceTimersByTime(2));
+  await tick();
+  expect(div.textContent).toBe('v:0 l:true e:');
+
   act(() => jest.advanceTimersByTime(1));
-  expect(div.textContent).toBe('v:3 l:false e:');
+  await tick();
+  expect(div.textContent).toBe('v:1 l:false e:');
 
   expect(executed).toBe(2);
 });
@@ -144,7 +141,9 @@ test('updateOnMount', async () => {
     executed++;
     return x * 2;
   });
-  await resource(1).get();
+  await act(async () => {
+    await resource(1).get();
+  });
 
   render(<Component useResource={() => useResource(resource(1), { updateOnMount: true })} />);
   const div = screen.getByTestId('div');
@@ -188,7 +187,9 @@ test('watchOnly', async () => {
   act(() => jest.runAllTimers());
   expect(div.textContent).toBe('v: l:false e:');
 
-  await resource(1).get();
+  await act(async () => {
+    await resource(1).get();
+  });
   await tick();
   act(() => jest.runAllTimers());
   expect(div.textContent).toBe('v:2 l:false e:');

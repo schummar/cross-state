@@ -5,7 +5,7 @@ import { StoreSubscribeOptions } from '..';
 import { createSelector, SelectorPaths, SelectorValue } from '../helpers/stringSelector';
 import { Store } from './store';
 
-export type UseStoreStateOptions = Omit<StoreSubscribeOptions, 'callbackNow'>;
+export type UseStoreStateOptions = Omit<StoreSubscribeOptions, 'runNow'>;
 
 export function useStoreState<T>(store: Store<T>, options?: UseStoreStateOptions): T;
 export function useStoreState<T, S>(store: Store<T>, selector: (state: T) => S, options?: UseStoreStateOptions): S;
@@ -32,7 +32,7 @@ export function useStoreState<T, S>(store: Store<T>, ...args: any[]): S {
     (listener: () => void) => {
       return store.subscribe((x) => x, listener, {
         throttle: options.throttle,
-        callbackNow: false,
+        runNow: false,
         compare: (a, b) => a === b,
       });
     },

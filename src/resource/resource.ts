@@ -1,8 +1,8 @@
 import { castDraft, Draft, enableMapSet } from 'immer';
-import { globalResouceGroup, ResourceGroup } from './resourceGroup';
 import { hash } from '../helpers/hash';
 import { Cancel } from '../helpers/misc';
 import { Store, StoreSubscribeOptions } from '../store';
+import { globalResouceGroup, ResourceGroup } from './resourceGroup';
 
 type CacheEntry<Arg, Value> = {
   readonly arg: Arg;
@@ -46,7 +46,9 @@ export abstract class Resource<Arg, Value> {
   cache = new Store(new Map<string, CacheEntry<Arg, Value>>());
   cleanTimer?: ReturnType<typeof setTimeout>;
 
-  protected constructor({ resourceGroup = [] }: ResourceOptions<Value> = {}) {
+  protected constructor(public readonly options: ResourceOptions<Value>) {
+    let { resourceGroup = [] } = options;
+
     enableMapSet();
     this.start();
 
@@ -119,16 +121,18 @@ export abstract class ResourceInstance<Arg, Value> {
   readonly id = `${this.resource.id}:${this.key}`;
   protected cache = this.resource.cache;
 
-  getCache(): ResourceState<Value> | undefined {
+  getCache(): ResourceState<Value> {
     const entry = this.cache.getState().get(this.key);
-    return (
-      entry && {
-        value: entry.current?.kind === 'value' ? entry.current.value : undefined,
-        error: entry.current?.kind === 'error' ? entry.current.error : undefined,
-        isLoading: !!entry.future,
-        stale: !!entry.stale,
-      }
-    );
+    return {
+      value: entry?.current?.kind === 'value' ? entry.current.value : undefined,
+      error: entry?.current?.kind === 'error' ? entry.current.error : undefined,
+      isLoading: !!entry?.future,
+      stale: !!entry?.stale,
+    };
+  }
+
+  unsafe_getRawCache(): CacheEntry<Arg, Value> | undefined {
+    return this.cache.getState().get(this.key);
   }
 
   invalidateCache(): void {
@@ -158,4 +162,56 @@ export abstract class ResourceInstance<Arg, Value> {
   }
 
   abstract subscribe(listener: (state: ResourceState<Value>) => void, options?: ResourceSubscribeOptions): Cancel;
+
+  protected setValue(value: Value): void {
+    this.cache.batchUpdates(() => {
+      this.updateCache((entry) => {
+        entry.current = {
+          kind: 'value',
+          value: castDraft(value),
+        };
+        delete entry.future;
+        delete entry.stale;
+      });
+
+      this.setTimers();
+    });
+  }
+
+  protected setError(error: unknown): void {
+    this.cache.batchUpdates(() => {
+      this.updateCache((entry) => {
+        entry.current = {
+          kind: 'error',
+          error,
+        };
+        delete entry.future;
+        delete entry.stale;
+      });
+
+      this.setTimers();
+    });
+  }
+
+  protected setTimers(): void {
+    let { invalidateAfter = Resource.options.invalidateAfter, clearAfter = Resource.options.clearAfter } = this.resource.options;
+    const state = this.getCache();
+    const now = Date.now();
+
+    this.updateCache((entry) => {
+      if (invalidateAfter instanceof Function) {
+        invalidateAfter = invalidateAfter(state);
+      }
+      if (invalidateAfter !== undefined && invalidateAfter !== Infinity) {
+        entry.tInvalidate = now + invalidateAfter;
+      }
+
+      if (clearAfter instanceof Function) {
+        clearAfter = clearAfter(state);
+      }
+      if (clearAfter !== undefined && clearAfter !== Infinity) {
+        entry.tClear = now + clearAfter;
+      }
+    });
+  }
 }

@@ -1,6 +1,4 @@
-import { castDraft } from 'immer';
 import { Cancel } from '../helpers/misc';
-import retry from '../helpers/retry';
 import { Resource, ResourceInstance, ResourceOptions, ResourceState, ResourceSubscribeOptions } from './resource';
 
 export type PullResourceImplemenation<Arg, Value> = (arg: Arg) => Promise<Value>;
@@ -46,24 +44,27 @@ export class PullResourceInstance<Arg, Value> extends ResourceInstance<Arg, Valu
   readonly options = this.resource.options;
 
   update(update: Value | ((state: ResourceState<Value>) => Value), invalidate?: boolean | Promise<Value>): void {
-    if (update instanceof Function) {
-      update = update(this.getCache() ?? {});
-    }
-    this.setValue(update);
+    this.cache.batchUpdates(() => {
+      if (update instanceof Function) {
+        update = update(this.getCache());
+      }
 
-    if (invalidate) {
-      this.invalidateCache();
-    }
-    if (invalidate instanceof Promise) {
-      this.setFuture(invalidate);
-    }
+      this.setValue(update);
+
+      if (invalidate) {
+        this.invalidateCache();
+      }
+      if (invalidate instanceof Promise) {
+        this.setFuture(invalidate);
+      }
+    });
   }
 
-  async get({ returnStale = false, updateStale = true, forceUpdate = false, retries = 0 } = {}): Promise<Value> {
+  async get({ returnStale = false, updateStale = true, forceUpdate = false } = {}): Promise<Value> {
     const { current, future, stale } = this.cache.getState().get(this.key) ?? {};
 
     const update = () => {
-      const promise = retry(() => this.implementation(this.arg), retries);
+      const promise = this.implementation(this.arg);
       this.setFuture(promise);
       return promise;
     };
@@ -90,47 +91,25 @@ export class PullResourceInstance<Arg, Value> extends ResourceInstance<Arg, Valu
     listener: (state: ResourceState<Value>) => void,
     { watchOnly, ...storeSubscribeoOptions }: ResourceSubscribeOptions = {}
   ): Cancel {
-    if (!watchOnly && !storeSubscribeoOptions.callbackNow) {
+    if (!watchOnly && !storeSubscribeoOptions.runNow) {
       this.get().catch(() => {
         // ignore
       });
     }
     return this.cache.subscribe(
-      () => this.getCache() ?? {},
+      () => this.getCache(),
       (state) => {
         if (!watchOnly) {
-          this.get().catch(() => {
-            // ignore
-          });
+          Promise.resolve()
+            .then(() => this.get())
+            .catch(() => {
+              // ignore
+            });
         }
         listener(state);
       },
       storeSubscribeoOptions
     );
-  }
-
-  protected setValue(value: Value): void {
-    this.updateCache((entry) => {
-      entry.current = {
-        kind: 'value',
-        value: castDraft(value),
-      };
-      delete entry.future;
-      delete entry.stale;
-    });
-    this.setTimers();
-  }
-
-  protected setError(error: unknown): void {
-    this.updateCache((entry) => {
-      entry.current = {
-        kind: 'error',
-        error,
-      };
-      delete entry.future;
-      delete entry.stale;
-    });
-    this.setTimers();
   }
 
   protected async setFuture(future: Promise<Value>) {
@@ -148,27 +127,5 @@ export class PullResourceInstance<Arg, Value> extends ResourceInstance<Arg, Valu
         this.setError(e);
       }
     }
-  }
-
-  protected setTimers(): void {
-    let { invalidateAfter = Resource.options.invalidateAfter, clearAfter = Resource.options.clearAfter } = this.options;
-    const state = this.getCache();
-    const now = Date.now();
-
-    this.updateCache((entry) => {
-      if (invalidateAfter instanceof Function) {
-        invalidateAfter = invalidateAfter(state ?? {});
-      }
-      if (invalidateAfter !== undefined && invalidateAfter !== Infinity) {
-        entry.tInvalidate = now + invalidateAfter;
-      }
-
-      if (clearAfter instanceof Function) {
-        clearAfter = clearAfter(state ?? {});
-      }
-      if (clearAfter !== undefined && clearAfter !== Infinity) {
-        entry.tClear = now + clearAfter;
-      }
-    });
   }
 }

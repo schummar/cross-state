@@ -1,4 +1,3 @@
-import { castDraft } from 'immer';
 import { Cancel } from '../helpers/misc';
 import { Resource, ResourceInstance, ResourceOptions, ResourceState, ResourceSubscribeOptions } from './resource';
 
@@ -34,7 +33,7 @@ export function createPushResource<Arg = undefined, Value = unknown>(
 
 export class PushResource<Arg, Value> extends Resource<Arg, Value> {
   constructor(public readonly options: PushResourceOptions<Arg, Value>) {
-    super();
+    super(options);
   }
 
   instance(arg: Arg): PushResourceInstance<Arg, Value> {
@@ -62,7 +61,7 @@ export class PushResourceInstance<Arg, Value> extends ResourceInstance<Arg, Valu
       this.connect();
     }
 
-    const cancelStoreSubscription = this.cache.subscribe(() => this.getCache() ?? {}, listener, storeSubscribeoOptions);
+    const cancelStoreSubscription = this.cache.subscribe(() => this.getCache(), listener, storeSubscribeoOptions);
 
     return () => {
       cancelStoreSubscription();
@@ -85,7 +84,7 @@ export class PushResourceInstance<Arg, Value> extends ResourceInstance<Arg, Valu
     const process = (update: Value | ((state: ResourceState<Value>) => Value)) => {
       if (update instanceof Function) {
         try {
-          update = update(this.getCache() ?? {});
+          update = update(this.getCache());
         } catch (e) {
           this.setError(e);
           return;
@@ -117,15 +116,19 @@ export class PushResourceInstance<Arg, Value> extends ResourceInstance<Arg, Valu
               const value = await task;
 
               if (getInitialTask === task) {
-                this.setValue(value);
-                buffer.forEach(process);
+                this.cache.batchUpdates(() => {
+                  this.setValue(value);
+                  buffer.forEach(process);
+                });
                 buffer = [];
                 getInitialTask = undefined;
               }
             } catch (e) {
               if (getInitialTask === task) {
-                this.setError(e);
-                buffer.forEach(process);
+                this.cache.batchUpdates(() => {
+                  this.setError(e);
+                  buffer.forEach(process);
+                });
                 buffer = [];
                 getInitialTask = undefined;
               }
@@ -136,11 +139,14 @@ export class PushResourceInstance<Arg, Value> extends ResourceInstance<Arg, Valu
         onDisconnected: () => {
           if (canceled) return;
 
-          this.updateCache((state) => {
-            state.connectionState = 'disconnected';
+          this.cache.batchUpdates(() => {
+            this.updateCache((state) => {
+              state.connectionState = 'disconnected';
+            });
+
+            this.invalidateCache();
           });
 
-          this.invalidateCache();
           getInitialTask = undefined;
         },
 
@@ -172,51 +178,5 @@ export class PushResourceInstance<Arg, Value> extends ResourceInstance<Arg, Valu
   protected disconnect() {
     this.connection?.();
     delete this.connection;
-  }
-
-  protected setValue(value: Value): void {
-    this.updateCache((entry) => {
-      entry.current = {
-        kind: 'value',
-        value: castDraft(value),
-      };
-      delete entry.future;
-      delete entry.stale;
-    });
-    this.setTimers();
-  }
-
-  protected setError(error: unknown): void {
-    this.updateCache((entry) => {
-      entry.current = {
-        kind: 'error',
-        error,
-      };
-      delete entry.future;
-      delete entry.stale;
-    });
-    this.setTimers();
-  }
-
-  protected setTimers(): void {
-    let { invalidateAfter = Resource.options.invalidateAfter, clearAfter = Resource.options.clearAfter } = this.options;
-    const state = this.getCache();
-    const now = Date.now();
-
-    this.updateCache((entry) => {
-      if (invalidateAfter instanceof Function) {
-        invalidateAfter = invalidateAfter(state ?? {});
-      }
-      if (invalidateAfter !== undefined && invalidateAfter !== Infinity) {
-        entry.tInvalidate = now + invalidateAfter;
-      }
-
-      if (clearAfter instanceof Function) {
-        clearAfter = clearAfter(state ?? {});
-      }
-      if (clearAfter !== undefined && clearAfter !== Infinity) {
-        entry.tClear = now + clearAfter;
-      }
-    });
   }
 }

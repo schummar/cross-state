@@ -1,6 +1,5 @@
 import { afterEach, expect, jest, test } from '@jest/globals';
 import { createResource, globalResouceGroup, Resource } from '../src';
-import { sleep } from '../src/helpers/misc';
 
 jest.useFakeTimers();
 
@@ -68,27 +67,10 @@ test('forceUpdate parallel', async () => {
   });
 
   const a = resource(1).get({ forceUpdate: true });
-  jest.advanceTimersByTime(1);
   const b = resource(1).get({ forceUpdate: true });
-  jest.advanceTimersByTime(2);
 
   expect(await a).toBe(2);
   expect(await b).toBe(2);
-  expect(executed).toBe(2);
-});
-
-test('retry', async () => {
-  let executed = 0;
-
-  const resource = createResource(async (x: number) => {
-    if (executed++ === 0) throw Error();
-    return x * 2;
-  });
-
-  const promise = resource(1).get({ retries: 1 });
-  await Promise.resolve();
-  jest.runAllTimers();
-  expect(await promise).toBe(2);
   expect(executed).toBe(2);
 });
 
@@ -101,7 +83,7 @@ test('dangling execution', async () => {
   resource(1).clearCache();
 
   expect(await promise).toBe(2);
-  expect(resource(1).getCache()).toBe(undefined);
+  expect(resource(1).getCache().value).toBe(undefined);
 });
 
 test('dangling execution error', async () => {
@@ -113,27 +95,22 @@ test('dangling execution error', async () => {
   resource().clearCache();
 
   await expect(promise).rejects.toBeTruthy();
-  expect(resource().getCache()).toBe(undefined);
+  expect(resource().getCache().error).toBe(undefined);
 });
 
 test('subscribe', async () => {
   const resource = createResource(async (x: number) => {
-    await sleep(1);
     return x * 2;
   });
-
-  expect.assertions(2);
 
   let state;
   resource(1).subscribe((_state) => {
     state = _state;
   });
 
-  jest.runAllTimers();
   expect(state).toEqual({ value: undefined, error: undefined, isLoading: true, stale: false });
 
   await resource(1).get();
-  jest.runAllTimers();
   expect(state).toEqual({ value: 2, error: undefined, isLoading: false, stale: false });
 });
 
@@ -142,14 +119,11 @@ test('subscribe error', async () => {
     throw Error();
   });
 
-  expect.assertions(2);
-
   let state;
   resource().subscribe((_state) => {
     state = _state;
   });
 
-  jest.runAllTimers();
   expect(state).toEqual({ value: undefined, error: undefined, isLoading: true, stale: false });
 
   await resource()
@@ -157,7 +131,6 @@ test('subscribe error', async () => {
     .catch(() => {
       // ignore
     });
-  jest.runAllTimers();
   expect(state).toEqual({ value: undefined, error: Error(), isLoading: false, stale: false });
 });
 
@@ -168,7 +141,7 @@ test('globalResouceGroup invalidateCacheAll', async () => {
 
   expect(await resource(1).get()).toBe(2);
   globalResouceGroup.invalidateCacheAll();
-  expect(await resource(1).getCache()?.stale).toBe(true);
+  expect(resource(1).getCache()?.stale).toBe(true);
 });
 
 test('globalResouceGroup clearCacheAll', async () => {
@@ -178,7 +151,7 @@ test('globalResouceGroup clearCacheAll', async () => {
 
   expect(await resource(1).get()).toBe(2);
   globalResouceGroup.clearCacheAll();
-  expect(await resource(1).getCache()).toBe(undefined);
+  expect(resource(1).getCache().value).toBe(undefined);
 });
 
 test('getCache', async () => {
@@ -186,7 +159,7 @@ test('getCache', async () => {
     return x * 2;
   });
 
-  expect(resource(1).getCache()).toBe(undefined);
+  expect(resource(1).getCache().value).toBe(undefined);
 
   const promise = resource(1).get();
   expect(resource(1).getCache()).toEqual({ value: undefined, error: undefined, isLoading: true, stale: false });
@@ -239,79 +212,37 @@ test('update with confirmation', async () => {
 });
 
 test('clearCache', async () => {
-  let executed = 0;
+  const resource = createResource(async () => {
+    return 1;
+  });
 
-  const resource = createResource(
-    async (x: number) => {
-      executed++;
-      return x * 2;
-    },
-    { invalidateAfter: 1000 }
-  );
-
-  expect(await resource(1).get()).toBe(2);
-
-  resource(1).clearCache();
-  resource(2).clearCache();
-  expect(resource(1).getCache()).toBe(undefined);
-  expect(resource(2).getCache()).toBe(undefined);
-
-  expect(await resource(1).get()).toBe(2);
-  expect(executed).toBe(2);
+  resource().clearCache();
+  expect(resource().getCache().value).toBe(undefined);
 });
 
-test('clearCache function', async () => {
-  let executed = 0;
-
+test('invalidateAfter/clearAfter', async () => {
   const resource = createResource(
     async (x: number) => {
-      executed++;
-      if (x === 1) return 1;
-      else throw Error('error');
+      return x;
     },
     {
-      invalidateAfter: ({ value, error }) => {
-        if (executed === 1) expect(value).toBe(1);
-        else expect(error).toBeTruthy();
-        return 1000;
+      invalidateAfter: ({ value }) => {
+        return value;
+      },
+      clearAfter: ({ value }) => {
+        return value && value * 2;
       },
     }
   );
 
-  expect(await resource(1).get()).toBe(1);
-
-  resource(1).clearCache();
-  resource(2).clearCache();
-  expect(resource(1).getCache()).toBe(undefined);
-  expect(resource(2).getCache()).toBe(undefined);
-
-  await expect(resource(2).get()).rejects.toBeTruthy();
-  expect(executed).toBe(2);
-});
-
-test('clearAfter', async () => {
-  const resource = createResource(
-    async () => {
-      return 1;
-    },
-    {
-      invalidateAfter: () => {
-        return 100;
-      },
-      clearAfter: () => {
-        return 200;
-      },
-    }
-  );
-
-  await resource().get();
-  expect(resource().getCache()).toEqual({ value: 1, error: undefined, isLoading: false, stale: false });
+  await resource(100).get();
+  expect(resource(100).getCache()).toEqual({ value: 100, error: undefined, isLoading: false, stale: false });
 
   jest.advanceTimersByTime(100);
-  expect(resource().getCache()).toEqual({ value: 1, error: undefined, isLoading: false, stale: true });
+  expect(resource(100).getCache()).toEqual({ value: 100, error: undefined, isLoading: false, stale: true });
 
   jest.advanceTimersByTime(100);
-  expect(resource().getCache()).toBe(undefined);
+  expect(resource(100).getCache()).toEqual({ isLoading: false, stale: false });
 });
 
 test('clearAfter global', async () => {
@@ -331,7 +262,7 @@ test('clearAfter global', async () => {
   expect(resource().getCache()).toEqual({ value: 1, error: undefined, isLoading: false, stale: true });
 
   jest.advanceTimersByTime(100);
-  expect(resource().getCache()).toBe(undefined);
+  expect(resource().getCache()).toEqual({ isLoading: false, stale: false });
 });
 
 test('clearCacheAll', async () => {
@@ -345,7 +276,7 @@ test('clearCacheAll', async () => {
   expect(await resource(1).get()).toBe(2);
 
   resource.clearCacheAll();
-  expect(resource(1).getCache()).toBe(undefined);
+  expect(resource(1).getCache().value).toBe(undefined);
 
   expect(await resource(1).get()).toBe(2);
   expect(executed).toBe(2);
@@ -363,13 +294,8 @@ test('invalidateCache', async () => {
 
   resource(1).invalidateCache();
   resource(2).invalidateCache();
-  expect(resource(1).getCache()).toEqual({
-    value: 2,
-    error: undefined,
-    isLoading: false,
-    stale: true,
-  });
-  expect(resource(2).getCache()).toBe(undefined);
+  expect(resource(1).getCache()).toEqual({ value: 2, error: undefined, isLoading: false, stale: true });
+  expect(resource(2).getCache()).toEqual({ isLoading: false, stale: false });
 
   expect(await resource(1).get()).toBe(2);
   expect(resource(1).getCache()).toEqual({

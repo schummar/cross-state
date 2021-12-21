@@ -1,6 +1,6 @@
 import { afterEach, expect, jest, test } from '@jest/globals';
 import { createPushResource, PushResourceOptions, Resource, ResourceState } from '../src';
-import { sleep } from '../src/helpers/misc';
+import { sleep } from './_helpers';
 
 jest.useFakeTimers();
 
@@ -9,31 +9,38 @@ afterEach(() => {
   jest.runAllTimers();
 });
 
-const connect: PushResourceOptions<any, any>['connect'] = ({ onConnected, onDisconnected, onData }) => {
-  let cancel = false;
+const createConnect =
+  (incremental = true): PushResourceOptions<undefined, number>['connect'] =>
+  ({ onConnected, onDisconnected, onData }) => {
+    let cancel = false;
 
-  (async () => {
-    onConnected();
+    (async () => {
+      onConnected();
 
-    for (let i = 0; i < 100; i++) {
-      await sleep(1);
-      if (cancel) return;
+      let i = 0;
+      function trigger() {
+        if (cancel || i++ >= 100) return onDisconnected();
+        setTimeout(() => {
+          onData(({ value = 0, error }) => {
+            if (!incremental) return i;
+            if (error) throw error;
+            return value + 1;
+          });
+          trigger();
+        }, 1);
+      }
+      trigger();
+    })();
 
-      onData(({ value = 0 }) => value + 1);
-    }
-
-    onDisconnected();
-  })();
-
-  return () => {
-    cancel = true;
+    return () => {
+      cancel = true;
+    };
   };
-};
 
 test('subscribe', async () => {
   let value;
 
-  const resource = createPushResource<undefined, number>({ connect });
+  const resource = createPushResource<undefined, number>({ connect: createConnect() });
 
   const cancel = resource().subscribe((state) => {
     value = state.value;
@@ -41,11 +48,8 @@ test('subscribe', async () => {
 
   expect(value).toBe(undefined);
 
-  for (let i = 1; i <= 3; i++) {
-    jest.runAllTimers();
-    await Promise.resolve();
-    jest.runAllTimers();
-
+  for (let i = 1; i <= 50; i++) {
+    jest.advanceTimersByTime(1);
     expect(value).toBe(i);
   }
 
@@ -53,8 +57,7 @@ test('subscribe', async () => {
 
   jest.runAllTimers();
   await Promise.resolve();
-  jest.runAllTimers();
-  expect(value).toBe(3);
+  expect(value).toBe(50);
 });
 
 test('subscribe with getInitial', async () => {
@@ -62,35 +65,35 @@ test('subscribe with getInitial', async () => {
 
   const resource = createPushResource<undefined, number>({
     async getInital() {
-      await sleep(200);
+      await sleep(10);
+
       return 100;
     },
-    connect,
+    connect: createConnect(),
   });
 
   const cancel = resource().subscribe((state) => {
     value = state.value;
   });
 
-  jest.runAllTimers();
+  jest.advanceTimersByTime(5);
   await Promise.resolve();
-  jest.runAllTimers();
   await Promise.resolve();
+  expect(value).toBe(undefined);
 
-  for (let i = 3; i <= 5; i++) {
-    jest.runAllTimers();
-    await Promise.resolve();
-    jest.runAllTimers();
+  jest.advanceTimersByTime(5);
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(value).toBe(110);
 
-    expect(value).toBe(100 + i);
-  }
+  jest.advanceTimersByTime(50);
+  expect(value).toBe(160);
 
   cancel();
 
   jest.runAllTimers();
   await Promise.resolve();
-  jest.runAllTimers();
-  expect(value).toBe(105);
+  expect(value).toBe(160);
 });
 
 test('subscribe with getInitial error', async () => {
@@ -98,51 +101,24 @@ test('subscribe with getInitial error', async () => {
 
   const resource = createPushResource<undefined, number>({
     async getInital() {
-      await sleep(200);
+      await sleep(10);
       throw Error();
     },
-    connect({ onConnected, onDisconnected, onData }) {
-      let cancel = false;
-
-      (async () => {
-        onConnected();
-
-        for (let i = 0; i < 100; i++) {
-          await sleep(1);
-          if (cancel) return;
-
-          onData(({ value = 0, error }) => {
-            if (error) throw error;
-            return value + 1;
-          });
-        }
-
-        onDisconnected();
-      })();
-
-      return () => {
-        cancel = true;
-      };
-    },
+    connect: createConnect(),
   });
 
   const cancel = resource().subscribe((_state) => {
     state = _state;
   });
 
-  jest.runAllTimers();
+  jest.advanceTimersByTime(5);
   await Promise.resolve();
-  jest.runAllTimers();
   await Promise.resolve();
-  jest.runAllTimers();
-  await Promise.resolve();
-  jest.runAllTimers();
+  expect(state?.error).toBe(undefined);
 
-  expect(state).toEqual({
-    value: undefined,
-    error: Error(),
-    isLoading: false,
-    stale: false,
-  });
+  jest.advanceTimersByTime(5);
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(state?.error).toEqual(Error());
   cancel();
 });

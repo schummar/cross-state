@@ -3,7 +3,7 @@ import { useCallback, useDebugValue, useEffect } from 'react';
 import { useSyncExternalStoreWithSelector } from 'use-sync-external-store/shim/with-selector';
 import { ResourceInstance, ResourceState, ResourceSubscribeOptions } from '..';
 
-export type UseResourceOptions = Omit<ResourceSubscribeOptions, 'callbackNow'> & {
+export type UseResourceOptions = Omit<ResourceSubscribeOptions, 'runNow'> & {
   /** Invalidate the resource on mount, causing it to update in the background */
   updateOnMount?: boolean;
   /** Don't subscribe resource while this is true */
@@ -37,7 +37,7 @@ export function useCombinedResources<Resources extends readonly ResourceInstance
             resource.subscribe(listener, {
               watchOnly,
               throttle,
-              callbackNow: false,
+              runNow: false,
               compare,
             })
           );
