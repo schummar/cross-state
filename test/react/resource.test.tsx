@@ -4,7 +4,7 @@
 
 import { afterEach, expect, jest, test } from '@jest/globals';
 import { act, render, screen } from '@testing-library/react';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { createResource, ResourceState } from '../../src';
 import { sleep } from '../../src/helpers/misc';
 import { useResource } from '../../src/react';
@@ -244,4 +244,31 @@ test('complex key', async () => {
   await tick();
   act(() => jest.runAllTimers());
   expect(div.textContent).toBe('v:bar l:false e:');
+});
+
+test('manual clear after mount', async () => {
+  const resource = createResource(async () => {
+    return 1;
+  });
+
+  function Component({ useResource }: { useResource: () => ResourceState<unknown> }) {
+    const { value, error, isLoading } = useResource();
+
+    useEffect(() => resource.clearCacheAll(), []);
+
+    return (
+      <div data-testid="div">
+        v:{value} l:{JSON.stringify(isLoading)} e:{error}
+      </div>
+    );
+  }
+
+  render(<Component useResource={() => useResource(resource())} />);
+  const div = screen.getByTestId('div');
+  expect(div.textContent).toBe('v: l:false e:');
+
+  act(() => jest.runAllTimers());
+  await tick();
+  act(() => jest.runAllTimers());
+  expect(div.textContent).toBe('v:1 l:false e:');
 });
