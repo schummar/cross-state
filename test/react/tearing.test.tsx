@@ -71,7 +71,7 @@ test('tearing', async () => {
   act(() => screen.getByRole('button').click());
 
   await act(async () => {
-    await sleep(5000);
+    await sleep(2000);
   });
   expect(maxCount).toBe(1);
-}, 10000);
+}, 5000);

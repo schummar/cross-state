@@ -50,6 +50,18 @@ export class PushResourceInstance<Arg, Value> extends ResourceInstance<Arg, Valu
   protected connection?: () => void;
   protected activeSubscribers = 0;
 
+  get(): Promise<Value> {
+    return new Promise((resolve, reject) => {
+      const cancel = this.subscribe(() => {
+        const cache = this.unsafe_getRawCache();
+        if (cache?.current?.kind === 'value') resolve(cache.current.value);
+        if (cache?.current?.kind === 'error') reject(cache.current.error);
+        else return;
+        cancel();
+      });
+    });
+  }
+
   subscribe(
     listener: (state: ResourceState<Value>) => void,
     { watchOnly, ...storeSubscribeoOptions }: ResourceSubscribeOptions = {}

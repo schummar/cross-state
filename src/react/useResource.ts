@@ -59,12 +59,24 @@ export function useCombinedResources<Resources extends readonly ResourceInstance
     //
     subscribe,
     () => {
-      const state = resources.map((resource) => resource.getCache());
+      const caches = resources.map((resource) => resource.getCache());
+
+      if (suspense) {
+        if (resources.some((resource) => !resource.unsafe_getRawCache()?.current)) {
+          throw Promise.all(resources.map((resource) => resource.get()));
+        }
+
+        const error = caches.find((resource) => resource.error)?.error;
+        if (error) {
+          throw error;
+        }
+      }
+
       return {
-        values: state.map((x) => x?.value) as any,
-        error: state.find((x) => x?.error !== undefined)?.error,
-        isLoading: state.some((x) => x?.isLoading),
-        stale: state.some((x) => x?.stale),
+        values: caches.map((x) => x?.value) as any,
+        error: caches.find((x) => x?.error !== undefined)?.error,
+        isLoading: caches.some((x) => x?.isLoading),
+        stale: caches.some((x) => x?.stale),
       };
     },
     undefined,

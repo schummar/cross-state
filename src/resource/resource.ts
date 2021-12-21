@@ -161,6 +161,8 @@ export abstract class ResourceInstance<Arg, Value> {
     });
   }
 
+  abstract get(): Promise<Value>;
+
   abstract subscribe(listener: (state: ResourceState<Value>) => void, options?: ResourceSubscribeOptions): Cancel;
 
   protected setValue(value: Value): void {

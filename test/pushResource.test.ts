@@ -122,3 +122,17 @@ test('subscribe with getInitial error', async () => {
   expect(state?.error).toEqual(Error());
   cancel();
 });
+
+test('get', async () => {
+  const resource = createPushResource({
+    async getInital() {
+      await sleep(10);
+      return 42;
+    },
+    connect: createConnect(),
+  });
+
+  const promise = resource().get();
+  jest.advanceTimersByTime(10);
+  await expect(promise).resolves.toBe(52);
+});
