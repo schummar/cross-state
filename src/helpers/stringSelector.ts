@@ -1,10 +1,14 @@
 type FilterString<T> = T extends string ? T : never;
 
-export type SelectorPaths<T> = FilterString<
+export declare type SelectorPaths<T> = FilterString<
   keyof {
-    [K in FilterString<keyof NonNullable<T>> as
+    [K in keyof NonNullable<T> as
       | K
-      | (NonNullable<T>[K] extends Record<string, unknown> | undefined | null ? `${K}.${SelectorPaths<NonNullable<T>[K]>}` : never)]: 1;
+      | (0 extends 1 & NonNullable<T>[K]
+          ? `${FilterString<K>}.${any}`
+          : NonNullable<NonNullable<T>[K]> extends Record<string, unknown>
+          ? `${FilterString<K>}.${SelectorPaths<NonNullable<T>[K]>}`
+          : never)]: 1;
   }
 >;
 

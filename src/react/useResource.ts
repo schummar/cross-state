@@ -8,6 +8,8 @@ export type UseResourceOptions = Omit<ResourceSubscribeOptions, 'runNow'> & {
   updateOnMount?: boolean;
   /** Don't subscribe resource while this is true */
   dormant?: boolean;
+  /** Enable suspense mode */
+  suspense?: boolean;
 };
 
 export type CombinedResourceState<Resources extends readonly ResourceInstance<any, any>[]> = Omit<ResourceState<any>, 'value'> & {
@@ -19,7 +21,7 @@ export function useCombinedResources<Resources extends readonly ResourceInstance
 ): CombinedResourceState<Resources> {
   const resources = args.filter((x) => x instanceof ResourceInstance) as unknown as Resources;
   const options = args.find((x) => !(x instanceof ResourceInstance)) as UseResourceOptions | undefined;
-  const { watchOnly, updateOnMount, dormant, throttle, compare = eq } = options ?? {};
+  const { watchOnly, updateOnMount, dormant, throttle, compare = eq, suspense } = options ?? {};
 
   const resourceIds = resources.map((resource) => resource.id).join(',');
 

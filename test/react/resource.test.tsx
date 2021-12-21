@@ -6,7 +6,7 @@ import { afterEach, expect, jest, test } from '@jest/globals';
 import { act, render, screen } from '@testing-library/react';
 import React, { useEffect } from 'react';
 import { createResource, ResourceState } from '../../src';
-import { useResource } from '../../src/react';
+import { useCombinedResources, useResource } from '../../src/react';
 import { sleep } from '../_helpers';
 import './_setup';
 
@@ -20,10 +20,11 @@ const tick = () => act(async () => undefined);
 
 function Component({ useResource }: { useResource: () => ResourceState<unknown> }) {
   const { value, error, isLoading } = useResource();
+  const string = value instanceof Object ? JSON.stringify(value) : value;
 
   return (
     <div data-testid="div">
-      v:{value} l:{JSON.stringify(isLoading)} e:{error}
+      v:{string} l:{JSON.stringify(isLoading)} e:{error}
     </div>
   );
 }
@@ -272,4 +273,38 @@ test('manual clear after mount', async () => {
   await tick();
   act(() => jest.runAllTimers());
   expect(div.textContent).toBe('v:1 l:false e:');
+});
+
+test('useCombinedResources', async () => {
+  const resource = createResource(async (x: number) => {
+    await sleep(x);
+    return x;
+  });
+
+  render(
+    <Component
+      useResource={() => {
+        const { values, isLoading } = useCombinedResources(
+          //
+          resource(1),
+          resource(2),
+          resource(3)
+        );
+        return { value: values, isLoading };
+      }}
+    />
+  );
+  const div = screen.getByTestId('div');
+
+  act(() => jest.advanceTimersByTime(1));
+  await tick();
+  expect(div.textContent).toBe('v:[1,null,null] l:true e:');
+
+  act(() => jest.advanceTimersByTime(1));
+  await tick();
+  expect(div.textContent).toBe('v:[1,2,null] l:true e:');
+
+  act(() => jest.advanceTimersByTime(1));
+  await tick();
+  expect(div.textContent).toBe('v:[1,2,3] l:false e:');
 });

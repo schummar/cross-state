@@ -1,6 +1,7 @@
 import eq from 'fast-deep-equal/es6/react';
 import { applyPatches, Draft, enableMapSet, enablePatches, freeze, Patch, produce } from 'immer';
 import { Cancel } from './helpers/misc';
+import { createSelector, SelectorPaths, SelectorValue } from './helpers/stringSelector';
 import { throttle as throttleFn } from './helpers/throttle';
 
 export type StoreOptions = {
@@ -92,10 +93,19 @@ export class Store<T> {
 
   subscribe(listener: (value: T, prev: T, state: T) => void, options?: StoreSubscribeOptions): Cancel;
   subscribe<S>(selector: (state: T) => S, listener: (value: S, prev: S, state: T) => void, options?: StoreSubscribeOptions): Cancel;
+  subscribe<K extends SelectorPaths<T>>(
+    selector: K,
+    listener: (value: SelectorValue<T, K>, prev: SelectorValue<T, K>, state: T) => void,
+    options?: StoreSubscribeOptions
+  ): Cancel;
   subscribe<S>(...args: any[]): Cancel {
     let selector: (state: T) => S, listener: (value: S, prev: S, state: T) => void, options: StoreSubscribeOptions | undefined;
+
     if (args[1] instanceof Function) {
       [selector, listener, options] = args;
+      if (typeof selector === 'string') {
+        selector = createSelector<T, S>(selector);
+      }
     } else {
       [selector, listener, options] = [(x) => x as any, ...args];
     }
@@ -132,12 +142,21 @@ export class Store<T> {
     reaction: (value: S, draft: Draft<T>, original: T, prev: S) => void,
     options?: StoreAddReactionOptions
   ): Cancel;
+  addReaction<K extends SelectorPaths<T>>(
+    selector: K,
+    reaction: (value: SelectorValue<T, K>, draft: Draft<T>, original: T, prev: SelectorValue<T, K>) => void,
+    options?: StoreAddReactionOptions
+  ): Cancel;
   addReaction<S>(...args: any[]): Cancel {
     let selector: (state: T) => S,
       reaction: (value: S, draft: Draft<T>, original: T, prev: S) => void,
       options: StoreAddReactionOptions | undefined;
+
     if (args[1] instanceof Function) {
       [selector, reaction, options] = args;
+      if (typeof selector === 'string') {
+        selector = createSelector<T, S>(selector);
+      }
     } else {
       [selector, reaction, options] = [(x) => x as any, ...args];
     }

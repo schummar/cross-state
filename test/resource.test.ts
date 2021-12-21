@@ -1,5 +1,5 @@
 import { afterEach, expect, jest, test } from '@jest/globals';
-import { createResource, globalResouceGroup, Resource } from '../src';
+import { createResource, globalResouceGroup, Resource, ResourceGroup } from '../src';
 
 jest.useFakeTimers();
 
@@ -151,6 +151,20 @@ test('globalResouceGroup clearCacheAll', async () => {
 
   expect(await resource(1).get()).toBe(2);
   globalResouceGroup.clearCacheAll();
+  expect(resource(1).getCache().value).toBe(undefined);
+});
+
+test('custom resouceGroup clearCacheAll', async () => {
+  const resourceGroup = new ResourceGroup();
+  const resource = createResource(
+    async (x: number) => {
+      return x * 2;
+    },
+    { resourceGroup }
+  );
+
+  expect(await resource(1).get()).toBe(2);
+  resourceGroup.clearCacheAll();
   expect(resource(1).getCache().value).toBe(undefined);
 });
 
