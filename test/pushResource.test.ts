@@ -1,5 +1,5 @@
 import { afterEach, expect, jest, test } from '@jest/globals';
-import { createPushResource, PushResourceOptions, Resource, ResourceState } from '../src';
+import { createPushResource, PushResourceOptions, Resource } from '../src';
 import { sleep } from './_helpers';
 
 jest.useFakeTimers();
@@ -97,29 +97,36 @@ test('subscribe with getInitial', async () => {
 });
 
 test('subscribe with getInitial error', async () => {
-  let state: ResourceState<number> | undefined;
-
   const resource = createPushResource<undefined, number>({
     async getInital() {
-      await sleep(10);
       throw Error();
     },
     connect: createConnect(),
   });
 
-  const cancel = resource().subscribe((_state) => {
-    state = _state;
+  const cancel = resource().subscribe(() => undefined);
+  await expect(resource().get()).rejects.toBeTruthy();
+  expect(resource().getCache()).toEqual({ state: 'error', error: Error(), isLoading: false });
+
+  jest.advanceTimersByTime(1);
+  expect(resource().getCache()).toEqual({ state: 'error', error: Error(), isLoading: false });
+  cancel();
+});
+
+test('subscribe with getInitial error and non incremental update', async () => {
+  const resource = createPushResource<undefined, number>({
+    async getInital() {
+      throw Error();
+    },
+    connect: createConnect(false),
   });
 
-  jest.advanceTimersByTime(5);
-  await Promise.resolve();
-  await Promise.resolve();
-  expect(state?.error).toBe(undefined);
+  const cancel = resource().subscribe(() => undefined);
+  await expect(resource().get()).rejects.toBeTruthy();
+  expect(resource().getCache()).toEqual({ state: 'error', error: Error(), isLoading: false });
 
-  jest.advanceTimersByTime(5);
-  await Promise.resolve();
-  await Promise.resolve();
-  expect(state?.error).toEqual(Error());
+  jest.advanceTimersByTime(1);
+  expect(resource().getCache()).toEqual({ state: 'value', value: 1, isLoading: false });
   cancel();
 });
 
@@ -135,4 +142,62 @@ test('get', async () => {
   const promise = resource().get();
   jest.advanceTimersByTime(10);
   await expect(promise).resolves.toBe(52);
+});
+
+test('clear', async () => {
+  const resource = createPushResource({
+    async getInital() {
+      return 0;
+    },
+    connect: createConnect(),
+  });
+  const cancel = resource().subscribe(() => undefined);
+  await resource().get();
+  expect(resource().getCache().value).toBe(0);
+
+  resource.clearCacheAll();
+  expect(resource().getCache().value).toBe(undefined);
+
+  jest.advanceTimersByTime(1);
+  expect(resource().getCache().value).toBe(1);
+  cancel();
+});
+
+test('onDisconnected', async () => {
+  const resource = createPushResource({
+    connect: createConnect(),
+  });
+  const cancel = resource().subscribe(() => undefined);
+
+  jest.advanceTimersByTime(100);
+  expect(resource().getCache()).toEqual({ state: 'value', value: 100, isLoading: false, isStale: true });
+  cancel();
+});
+
+test('error in onUpdate', async () => {
+  const resource = createPushResource({
+    connect({ onConnected, onData }) {
+      onConnected();
+      onData(() => {
+        throw Error();
+      });
+      return () => undefined;
+    },
+  });
+
+  await expect(resource().get()).rejects.toBeTruthy();
+  expect(resource().getCache()).toEqual({ state: 'error', error: Error(), isLoading: false });
+});
+
+test('onError', async () => {
+  const resource = createPushResource({
+    connect({ onConnected, onError }) {
+      onConnected();
+      onError(Error());
+      return () => undefined;
+    },
+  });
+
+  await expect(resource().get()).rejects.toBeTruthy();
+  expect(resource().getCache()).toEqual({ state: 'error', error: Error(), isLoading: false });
 });

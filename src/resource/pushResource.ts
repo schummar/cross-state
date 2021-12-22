@@ -56,9 +56,9 @@ export class PushResourceInstance<Arg, Value> extends ResourceInstance<Arg, Valu
       const cancel = this.subscribe(() => {
         const cache = this.getCache();
         if (cache.state === 'value') resolve(cache.value);
-        if (cache.state === 'error') reject(cache.error);
+        else if (cache.state === 'error') reject(cache.error);
         else return;
-        cancel();
+        setTimeout(() => cancel());
       });
     });
   }
@@ -123,9 +123,9 @@ export class PushResourceInstance<Arg, Value> extends ResourceInstance<Arg, Valu
             let task;
 
             try {
+              getInitialTask = undefined;
               task = getInital(this.arg);
               getInitialTask = task;
-
               const value = await task;
 
               if (getInitialTask === task) {

@@ -45,6 +45,34 @@ test('get error', async () => {
   await expect(resource().get()).rejects.toEqual(Error());
 });
 
+test('get returnStale=true', async () => {
+  let executed = 0;
+  const resource = createResource(async () => {
+    return executed++;
+  });
+  await resource().get();
+  resource().invalidateCache();
+  const value = await resource().get({ returnStale: true });
+
+  expect(value).toBe(0);
+  expect(executed).toBe(2);
+  expect(resource().getCache()).toEqual({ state: 'value', value: 1, isLoading: false });
+});
+
+test('get returnStale=true updateStale=false', async () => {
+  let executed = 0;
+  const resource = createResource(async () => {
+    return executed++;
+  });
+  await resource().get();
+  resource().invalidateCache();
+  const value = await resource().get({ returnStale: true, updateStale: false });
+
+  expect(value).toBe(0);
+  expect(executed).toBe(1);
+  expect(resource().getCache()).toEqual({ state: 'value', value: 0, isLoading: false, isStale: true });
+});
+
 test('forceUpdate', async () => {
   let executed = 0;
 

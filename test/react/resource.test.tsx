@@ -291,7 +291,7 @@ test('useCombinedResources', async () => {
             resource(2),
             resource(3)
           ),
-          { dormant: false }
+          { updateOnMount: true }
         )
       }
     />
@@ -305,4 +305,31 @@ test('useCombinedResources', async () => {
   act(() => jest.advanceTimersByTime(1));
   await tick();
   expect(div.textContent).toBe('v:[1,2,3] l:false e:');
+});
+
+test('useCombinedResources with error', async () => {
+  const r1 = createResource(async () => {
+    return 1;
+  });
+  const r2 = createResource(async () => {
+    throw 'error';
+  });
+
+  render(
+    <Component
+      useResource={() =>
+        useResource(
+          combineResources(
+            //
+            r1(),
+            r2()
+          )
+        )
+      }
+    />
+  );
+  const div = screen.getByTestId('div');
+
+  await tick();
+  expect(div.textContent).toBe('v: l:false e:error');
 });

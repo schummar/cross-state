@@ -46,6 +46,28 @@ test('subscribe', async () => {
   expect(count).toBe(3);
 });
 
+test('subscribe with string selector', async () => {
+  const store = new Store({ foo: 0 });
+  let value: number | undefined,
+    count = 0;
+
+  store.subscribe('foo', (foo) => {
+    value = foo;
+    count++;
+  });
+  expect(value).toBe(0);
+  expect(count).toBe(1);
+
+  store.update((s) => {
+    s.foo = 1;
+  });
+  store.update((s) => {
+    s.foo = 2;
+  });
+  expect(value).toBe(2);
+  expect(count).toBe(3);
+});
+
 test('subscribe additional properties', async () => {
   const store = new Store({ foo: 0 });
   let prev, state;
@@ -239,6 +261,24 @@ test('addReaction', async () => {
       count++;
     }
   );
+  expect(store.getState().bar).toBe(0);
+  expect(count).toBe(1);
+
+  store.update((s) => {
+    s.foo = 1;
+  });
+  expect(store.getState().bar).toBe(2);
+  expect(count).toBe(2);
+});
+
+test('addReaction with string selector', async () => {
+  const store = new Store({ foo: 0, bar: 0 });
+  let count = 0;
+
+  store.addReaction('foo', (foo, s) => {
+    s.bar = foo * 2;
+    count++;
+  });
   expect(store.getState().bar).toBe(0);
   expect(count).toBe(1);
 
