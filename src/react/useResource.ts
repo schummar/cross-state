@@ -5,6 +5,7 @@ import { ResourceInfo, ResourceInstance, ResourceSubscribeOptions } from '..';
 import { hash } from '../helpers/hash';
 
 export type UseResource<Value> = Pick<ResourceInstance<unknown, Value>, 'id' | 'invalidateCache' | 'subscribe' | 'getCache' | 'get'>;
+
 export type UseResourceOptions = Omit<ResourceSubscribeOptions, 'runNow'> & {
   /** Invalidate the resource on mount, causing it to update in the background */
   updateOnMount?: boolean;
@@ -12,10 +13,13 @@ export type UseResourceOptions = Omit<ResourceSubscribeOptions, 'runNow'> & {
   dormant?: boolean;
 };
 
-export function useResource<Value>(
-  resource: UseResource<Value>,
-  { compare, dormant, throttle, updateOnMount, watchOnly }: UseResourceOptions = {}
-): ResourceInfo<Value> {
+/** Subscribe to a resource. This will immediately return cached values, if available, and update for future updates.
+ * @param resource the resource to subscribe to.
+ * @param options options
+ */
+export function useResource<Value>(resource: UseResource<Value>, options?: UseResourceOptions): ResourceInfo<Value> {
+  const { compare, dormant, throttle, updateOnMount, watchOnly } = options ?? {};
+
   useEffect(() => {
     if (updateOnMount && !dormant) {
       resource.invalidateCache();
@@ -43,7 +47,7 @@ export function useResource<Value>(
     return resource.getCache();
   };
 
-  const value = useSyncExternalStoreWithSelector(
+  let value = useSyncExternalStoreWithSelector(
     //
     subscribe,
     getSnapshot,
@@ -52,8 +56,31 @@ export function useResource<Value>(
     eq
   );
 
+  if (dormant) {
+    value = { state: 'empty', isLoading: false };
+  }
+
   useDebugValue(value);
   return value;
+}
+
+/** Subscribe to a resource. This will immediately return cached values, if available, and update for future updates. While waiting for data, it throws so that the Component will be suspended. If there is an error, it throws.
+ * @param resource the resource to subscribe to.
+ * @param options options
+ */
+export function useReadResource<Value>(resource: UseResource<Value>, options?: UseResourceOptions): Value {
+  const info = useResource(resource, options);
+
+  if (info.state === 'error') {
+    throw info.error;
+  }
+
+  if (info.state === 'empty') {
+    throw resource.get();
+  }
+
+  useDebugValue(info.value);
+  return info.value;
 }
 
 export type CombineValues<T> = T extends [UseResource<infer Value>]
@@ -64,6 +91,9 @@ export type CombineValues<T> = T extends [UseResource<infer Value>]
   ? Value[]
   : any[];
 
+/** Combine multiple resources into one that can be fed into useResource or useReadResource. Return value will be an array of the combined resources' values.
+ * @param resources resources to be combined
+ */
 export function combineResources<Resources extends readonly UseResource<any>[]>(
   ...resources: Resources
 ): UseResource<CombineValues<Resources>> {

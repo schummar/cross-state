@@ -44,6 +44,7 @@ export type ResourceOptions<Value> = {
 };
 
 export type ResourceSubscribeOptions = StoreSubscribeOptions & {
+  /** If set, the resource won't be triggered. Cached values are still returned. */
   watchOnly?: boolean;
 };
 
