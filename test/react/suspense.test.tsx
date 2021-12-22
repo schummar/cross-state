@@ -6,7 +6,7 @@ import { afterEach, expect, jest, test } from '@jest/globals';
 import { act, render, screen } from '@testing-library/react';
 import { Suspense } from 'react';
 import { createPushResource, createResource } from '../../src';
-import { useReadCombinedResources, useReadResource } from '../../src/react';
+import { combineResources, useReadResource } from '../../src/react';
 import { sleep } from '../_helpers';
 
 jest.useFakeTimers();
@@ -32,17 +32,17 @@ const webSocket = createPushResource({
 });
 
 function User({ id }: { id: string }) {
-  const { name } = useReadResource(user(id), { suspense: true });
+  const { name } = useReadResource(user(id));
   return <>User:{name};</>;
 }
 
 function UserList() {
-  const users = useReadCombinedResources(user('a'), user('b'), { suspense: true });
+  const users = useReadResource(combineResources(user('a'), user('b')));
   return <>UserList:{users.map((user) => user.name).join(',')};</>;
 }
 
 function WebSocket() {
-  const value = useReadResource(webSocket(), { suspense: true });
+  const value = useReadResource(webSocket());
   return <>ws:{value};</>;
 }
 

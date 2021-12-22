@@ -1,3 +1,4 @@
+import { ResourceInfo } from '..';
 import { Cancel } from '../helpers/misc';
 import { Resource, ResourceInstance, ResourceOptions, ResourceState, ResourceSubscribeOptions } from './resource';
 
@@ -53,9 +54,9 @@ export class PushResourceInstance<Arg, Value> extends ResourceInstance<Arg, Valu
   get(): Promise<Value> {
     return new Promise((resolve, reject) => {
       const cancel = this.subscribe(() => {
-        const cache = this.unsafe_getRawCache();
-        if (cache?.current?.kind === 'value') resolve(cache.current.value);
-        if (cache?.current?.kind === 'error') reject(cache.current.error);
+        const cache = this.getCache();
+        if (cache.state === 'value') resolve(cache.value);
+        if (cache.state === 'error') reject(cache.error);
         else return;
         cancel();
       });
@@ -63,7 +64,7 @@ export class PushResourceInstance<Arg, Value> extends ResourceInstance<Arg, Valu
   }
 
   subscribe(
-    listener: (state: ResourceState<Value>) => void,
+    listener: (state: ResourceInfo<Value>) => void,
     { watchOnly, ...storeSubscribeoOptions }: ResourceSubscribeOptions = {}
   ): Cancel {
     if (!watchOnly) {
@@ -90,10 +91,10 @@ export class PushResourceInstance<Arg, Value> extends ResourceInstance<Arg, Valu
     const { getInital, connect } = this.options;
 
     let getInitialTask: Promise<Value> | undefined;
-    let buffer = new Array<Value | ((state: ResourceState<Value>) => Value)>();
+    let buffer = new Array<Value | ((state: ResourceInfo<Value>) => Value)>();
     let canceled = false;
 
-    const process = (update: Value | ((state: ResourceState<Value>) => Value)) => {
+    const process = (update: Value | ((state: ResourceInfo<Value>) => Value)) => {
       if (update instanceof Function) {
         try {
           update = update(this.getCache());

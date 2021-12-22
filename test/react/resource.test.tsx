@@ -5,8 +5,8 @@
 import { afterEach, expect, jest, test } from '@jest/globals';
 import { act, render, screen } from '@testing-library/react';
 import React, { useEffect } from 'react';
-import { createResource, ResourceState } from '../../src';
-import { useCombinedResources, useResource } from '../../src/react';
+import { createResource, ResourceInfo } from '../../src';
+import { combineResources, useResource } from '../../src/react';
 import { sleep } from '../_helpers';
 import './_setup';
 
@@ -18,7 +18,7 @@ afterEach(() => {
 
 const tick = () => act(async () => undefined);
 
-function Component({ useResource }: { useResource: () => ResourceState<unknown> }) {
+function Component({ useResource }: { useResource: () => ResourceInfo<unknown> }) {
   const { value, error, isLoading } = useResource();
   const string = value instanceof Object ? JSON.stringify(value) : value;
 
@@ -253,7 +253,7 @@ test('manual clear after mount', async () => {
     return 1;
   });
 
-  function Component({ useResource }: { useResource: () => ResourceState<unknown> }) {
+  function Component({ useResource }: { useResource: () => ResourceInfo<unknown> }) {
     const { value, error, isLoading } = useResource();
 
     useEffect(() => resource.clearCacheAll(), []);
@@ -283,26 +283,24 @@ test('useCombinedResources', async () => {
 
   render(
     <Component
-      useResource={() => {
-        const { values, isLoading } = useCombinedResources(
-          //
-          resource(1),
-          resource(2),
-          resource(3)
-        );
-        return { value: values, isLoading };
-      }}
+      useResource={() =>
+        useResource(
+          combineResources(
+            //
+            resource(1),
+            resource(2),
+            resource(3)
+          ),
+          { dormant: false }
+        )
+      }
     />
   );
   const div = screen.getByTestId('div');
 
-  act(() => jest.advanceTimersByTime(1));
+  act(() => jest.advanceTimersByTime(2));
   await tick();
-  expect(div.textContent).toBe('v:[1,null,null] l:true e:');
-
-  act(() => jest.advanceTimersByTime(1));
-  await tick();
-  expect(div.textContent).toBe('v:[1,2,null] l:true e:');
+  expect(div.textContent).toBe('v: l:true e:');
 
   act(() => jest.advanceTimersByTime(1));
   await tick();

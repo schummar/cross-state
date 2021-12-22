@@ -4,29 +4,37 @@ import { Cancel } from '../helpers/misc';
 import { Store, StoreSubscribeOptions } from '../store';
 import { globalResouceGroup, ResourceGroup } from './resourceGroup';
 
+export type ResourceState<Value> =
+  | {
+      state: 'empty';
+      value?: undefined;
+      error?: undefined;
+      isStale?: false;
+    }
+  | {
+      state: 'value';
+      value: Value;
+      error?: undefined;
+      isStale?: boolean;
+    }
+  | {
+      state: 'error';
+      value?: undefined;
+      error: unknown;
+      isStale?: boolean;
+    };
+
 type CacheEntry<Arg, Value> = {
   readonly arg: Arg;
-  current?:
-    | {
-        kind: 'value';
-        value: Value;
-      }
-    | {
-        kind: 'error';
-        error: unknown;
-      };
+  current?: ResourceState<Value>;
   future?: Promise<Value>;
   connectionState?: 'connected' | 'disconnected';
-  stale?: true;
   tInvalidate?: number;
   tClear?: number;
 };
 
-export type ResourceState<Value> = {
-  value?: Value;
-  error?: unknown;
+export type ResourceInfo<Value> = ResourceState<Value> & {
   isLoading?: boolean;
-  stale?: boolean;
 };
 
 export type ResourceOptions<Value> = {
@@ -121,23 +129,19 @@ export abstract class ResourceInstance<Arg, Value> {
   readonly id = `${this.resource.id}:${this.key}`;
   protected cache = this.resource.cache;
 
-  getCache(): ResourceState<Value> {
+  getCache(): ResourceInfo<Value> {
     const entry = this.cache.getState().get(this.key);
     return {
-      value: entry?.current?.kind === 'value' ? entry.current.value : undefined,
-      error: entry?.current?.kind === 'error' ? entry.current.error : undefined,
+      ...(entry?.current ?? { state: 'empty' }),
       isLoading: !!entry?.future,
-      stale: !!entry?.stale,
     };
-  }
-
-  unsafe_getRawCache(): CacheEntry<Arg, Value> | undefined {
-    return this.cache.getState().get(this.key);
   }
 
   invalidateCache(): void {
     this.updateCache((entry) => {
-      entry.stale = true;
+      if (entry.current && entry.current.state !== 'empty') {
+        entry.current.isStale = true;
+      }
       delete entry.tInvalidate;
     }, false);
   }
@@ -163,17 +167,16 @@ export abstract class ResourceInstance<Arg, Value> {
 
   abstract get(): Promise<Value>;
 
-  abstract subscribe(listener: (state: ResourceState<Value>) => void, options?: ResourceSubscribeOptions): Cancel;
+  abstract subscribe(listener: (state: ResourceInfo<Value>) => void, options?: ResourceSubscribeOptions): Cancel;
 
   protected setValue(value: Value): void {
     this.cache.batchUpdates(() => {
       this.updateCache((entry) => {
         entry.current = {
-          kind: 'value',
+          state: 'value',
           value: castDraft(value),
         };
         delete entry.future;
-        delete entry.stale;
       });
 
       this.setTimers();
@@ -184,11 +187,10 @@ export abstract class ResourceInstance<Arg, Value> {
     this.cache.batchUpdates(() => {
       this.updateCache((entry) => {
         entry.current = {
-          kind: 'error',
+          state: 'error',
           error,
         };
         delete entry.future;
-        delete entry.stale;
       });
 
       this.setTimers();

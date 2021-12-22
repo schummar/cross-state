@@ -1,3 +1,4 @@
+import { ResourceInfo } from '..';
 import { Cancel } from '../helpers/misc';
 import { Resource, ResourceInstance, ResourceOptions, ResourceState, ResourceSubscribeOptions } from './resource';
 
@@ -61,34 +62,35 @@ export class PullResourceInstance<Arg, Value> extends ResourceInstance<Arg, Valu
   }
 
   async get({ returnStale = false, updateStale = true, forceUpdate = false } = {}): Promise<Value> {
-    const { current, future, stale } = this.cache.getState().get(this.key) ?? {};
+    const { current, future } = this.cache.getState().get(this.key) ?? {};
 
-    const update = () => {
+    const exectute = () => {
       const promise = this.implementation(this.arg);
       this.setFuture(promise);
       return promise;
     };
 
-    if (current && (!stale || returnStale)) {
-      if ((stale && updateStale && !future) || forceUpdate) {
-        update();
-      }
-
-      if (current.kind === 'value') return current.value;
-      throw current.error;
-    } else if (future) {
-      if (forceUpdate) {
-        update();
-      }
-
-      return future;
-    } else {
-      return update();
+    if (forceUpdate) {
+      return exectute();
     }
+
+    if (!current || current.state === 'empty' || (current.isStale && !returnStale)) {
+      return future ?? exectute();
+    }
+
+    if (current?.isStale && returnStale && updateStale) {
+      exectute();
+    }
+
+    if (current.state === 'error') {
+      throw current.error;
+    }
+
+    return current.value;
   }
 
   subscribe(
-    listener: (state: ResourceState<Value>) => void,
+    listener: (state: ResourceInfo<Value>) => void,
     { watchOnly, ...storeSubscribeoOptions }: ResourceSubscribeOptions = {}
   ): Cancel {
     if (!watchOnly && !storeSubscribeoOptions.runNow) {
