@@ -34,7 +34,8 @@
     "lint:eslint": "eslint src",
     "lint:tsc": "tsc --noEmit",
     "prepublishOnly": "npm run build",
-    "test": "jest"
+    "test": "jest --verbose --coverage",
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "fast-deep-equal": "^3.1.3",

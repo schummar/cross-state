@@ -5,7 +5,8 @@ import { PersistPaths } from './persistPaths';
 import { StorePersistStorage } from './persistStorage';
 
 export class StorePersist<T> {
-  initialization = this.load();
+  private replayPatches = new Array<Patch>();
+  isInitialized: boolean | Promise<boolean> = this.load();
   private isStopped = false;
   private sub?: () => void;
   private saveQueue = new Array<{ path: Path; t: number }>();
@@ -19,6 +20,7 @@ export class StorePersist<T> {
     public readonly options: {
       paths?: (PersistPaths<T> | { path: PersistPaths<T>; throttleMs?: number })[];
       throttleMs?: number;
+      log?: (...args: any[]) => void;
     } = {}
   ) {
     if (!options.paths) {
@@ -31,49 +33,68 @@ export class StorePersist<T> {
     }
 
     this.paths.sort((a, b) => b.path.length - a.path.length);
+    this.watch();
   }
 
   private async load() {
-    const storage = this.storage;
+    try {
+      const storage = this.storage;
 
-    let keys;
-    if ('keys' in storage) {
-      keys = await storage.keys();
-    } else {
-      const length = storage.length instanceof Function ? await storage.length() : storage.length;
-      keys = new Array<string>();
-      for (let i = 0; i < length; i++) {
-        const key = await storage.key(i);
-        if (key !== null) keys.push(key);
+      let keys;
+      if ('keys' in storage) {
+        keys = await storage.keys();
+      } else {
+        const length = storage.length instanceof Function ? await storage.length() : storage.length;
+        keys = new Array<string>();
+        for (let i = 0; i < length; i++) {
+          const key = await storage.key(i);
+          if (key !== null) keys.push(key);
+        }
       }
-    }
-    keys.sort((a, b) => a.length - b.length);
+      keys.sort((a, b) => a.length - b.length);
 
-    const patches = new Array<Patch & { persist: StorePersist<T> }>();
-    for (const key of keys) {
-      const value = await storage.getItem(key);
-      if (value) {
-        patches.push({
-          path: key.split('.'),
-          op: 'replace',
-          value: value === 'undefined' ? undefined : JSON.parse(value),
-          persist: this,
-        });
+      const patches = new Array<Patch & { persist: StorePersist<T> }>();
+      for (const key of keys) {
+        const value = await storage.getItem(key);
+        if (value) {
+          patches.push({
+            path: key.split('.'),
+            op: 'replace',
+            value: value === 'undefined' ? undefined : JSON.parse(value),
+            persist: this,
+          });
+        }
       }
-    }
 
-    if (this.isStopped) return;
-    if (patches.length > 0) this.store.applyPatches(patches);
-    this.watch(patches.length === 0);
+      if (this.isStopped) return false;
+
+      if (patches.length > 0) {
+        this.store.applyPatches(patches);
+      }
+
+      this.isInitialized = true;
+      if (this.replayPatches.length > 0) {
+        this.store.applyPatches(this.replayPatches);
+        this.replayPatches = [];
+      }
+
+      return true;
+    } catch (e) {
+      (this.options.log ?? console.error)('Failed to load storePersist:', e);
+      this.isInitialized = false;
+      return false;
+    }
   }
 
-  private watch(isInitialized: boolean) {
+  private watch() {
     this.sub = this.store.subscribePatches((patches) => {
       for (const patch of patches) {
         if ((patch as any).persist === this) {
-          isInitialized = true;
-        } else if (isInitialized) {
+          continue;
+        } else if (this.isInitialized === true) {
           this.addToSaveQueue(patch.path);
+        } else {
+          this.replayPatches.push(patch);
         }
       }
     });

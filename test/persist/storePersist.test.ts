@@ -86,7 +86,7 @@ test('save', async () => {
     ],
   });
 
-  await persist.initialization;
+  await persist.isInitialized;
 
   store.update((state) => {
     state.wellKnownObject.wellKnownProp = 'b';
@@ -119,7 +119,7 @@ test('save throttled', async () => {
     paths: ['wellKnownObject', { path: 'complexDict.*', throttleMs: 100 }],
   });
 
-  await persist.initialization;
+  await persist.isInitialized;
 
   store.update((state) => {
     state.wellKnownObject.wellKnownProp = 'b';
@@ -152,7 +152,7 @@ test('load', async () => {
   });
   const persist = new StorePersist(store, storage);
 
-  await persist.initialization;
+  await persist.isInitialized;
 
   expect(store.getState()).toEqual({
     wellKnownObject: { wellKnownProp: 'b' },
@@ -179,7 +179,7 @@ test('load alternative storage', async () => {
   });
   const persist = new StorePersist(store, storage);
 
-  await persist.initialization;
+  await persist.isInitialized;
 
   expect(store.getState()).toEqual({
     wellKnownObject: { wellKnownProp: 'b' },
@@ -214,7 +214,7 @@ test('stop', async () => {
     paths: ['wellKnownObject'],
   });
 
-  await persist.initialization;
+  await persist.isInitialized;
 
   store.update((state) => {
     state.wellKnownObject.wellKnownProp = 'b';
@@ -244,7 +244,7 @@ test('undefined', async () => {
   const storage = new MockStorage();
   const persist = new StorePersist(store, storage, { paths: ['foo'] });
 
-  await persist.initialization;
+  await persist.isInitialized;
 
   store.update((state) => {
     state.foo = undefined;
@@ -254,7 +254,34 @@ test('undefined', async () => {
 
   const newStore = new Store<{ foo?: string }>({});
   const newPersist = new StorePersist(newStore, storage, { paths: ['foo'] });
-  await newPersist.initialization;
+  await newPersist.isInitialized;
 
   expect(newStore.getState().foo).toBe(undefined);
+});
+
+test('save before load', async () => {
+  const store = new Store({ x: 'x0', y: 'y0', z: 'z0' });
+  const storage = new MockStorage({ y: '"y1"', z: '"z1"' });
+  const persist = new StorePersist(store, storage, { paths: ['*'] });
+
+  store.update((state) => {
+    state.z = 'z2';
+  });
+  expect(store.getState()).toEqual({ x: 'x0', y: 'y0', z: 'z2' });
+  await persist.isInitialized;
+  expect(store.getState()).toEqual({ x: 'x0', y: 'y1', z: 'z2' });
+  expect(storage.items).toEqual({ y: '"y1"', z: '"z2"' });
+});
+
+test('load error', async () => {
+  const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+  const store = new Store({ x: 'x0' });
+  const storage = new MockStorage({ x: 'novalidjson' });
+  const persist = new StorePersist(store, storage, { paths: ['*'] });
+  await persist.isInitialized;
+
+  expect(store.getState()).toEqual({ x: 'x0' });
+  expect(consoleErrorSpy).toBeCalled();
+  expect(persist.isInitialized).toBe(false);
 });
