@@ -51,6 +51,14 @@ export class PushResourceInstance<Arg, Value> extends ResourceInstance<Arg, Valu
   protected connection?: () => void;
   protected activeSubscribers = 0;
 
+  update(update: Value | ((state: ResourceState<Value>) => Value)): void {
+    if (update instanceof Function) {
+      update = update(this.getCache());
+    }
+
+    this.setValue(update);
+  }
+
   get(): Promise<Value> {
     return new Promise((resolve, reject) => {
       const cancel = this.subscribe(() => {

@@ -201,3 +201,15 @@ test('onError', async () => {
   await expect(resource().get()).rejects.toBeTruthy();
   expect(resource().getCache()).toEqual({ state: 'error', error: Error(), isLoading: false });
 });
+
+test('update', async () => {
+  const resource = createPushResource({
+    connect: createConnect(),
+  });
+
+  const promise = resource().get();
+  jest.advanceTimersByTime(1);
+  await promise;
+  resource().update(({ value = 0 }) => value * 100);
+  expect(resource().getCache().value).toBe(100);
+});
