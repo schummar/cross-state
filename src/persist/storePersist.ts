@@ -6,7 +6,8 @@ import { StorePersistStorage } from './persistStorage';
 
 export class StorePersist<T> {
   private replayPatches = new Array<Patch>();
-  isInitialized: boolean | Promise<boolean> = this.load();
+  isInitialized = false;
+  whenInitialized = this.load();
   private isStopped = false;
   private sub?: () => void;
   private saveQueue = new Array<{ path: Path; t: number }>();
@@ -66,7 +67,9 @@ export class StorePersist<T> {
         }
       }
 
-      if (this.isStopped) return false;
+      if (this.isStopped) {
+        return false;
+      }
 
       if (patches.length > 0) {
         this.store.applyPatches(patches);
@@ -81,7 +84,6 @@ export class StorePersist<T> {
       return true;
     } catch (e) {
       (this.options.log ?? console.error)('Failed to load storePersist:', e);
-      this.isInitialized = false;
       return false;
     }
   }

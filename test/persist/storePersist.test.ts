@@ -152,7 +152,7 @@ test('load', async () => {
   });
   const persist = new StorePersist(store, storage);
 
-  await persist.isInitialized;
+  await persist.whenInitialized;
 
   expect(store.getState()).toEqual({
     wellKnownObject: { wellKnownProp: 'b' },
@@ -179,7 +179,7 @@ test('load alternative storage', async () => {
   });
   const persist = new StorePersist(store, storage);
 
-  await persist.isInitialized;
+  await persist.whenInitialized;
 
   expect(store.getState()).toEqual({
     wellKnownObject: { wellKnownProp: 'b' },
@@ -268,7 +268,7 @@ test('save before load', async () => {
     state.z = 'z2';
   });
   expect(store.getState()).toEqual({ x: 'x0', y: 'y0', z: 'z2' });
-  await persist.isInitialized;
+  await persist.whenInitialized;
   expect(store.getState()).toEqual({ x: 'x0', y: 'y1', z: 'z2' });
   expect(storage.items).toEqual({ y: '"y1"', z: '"z2"' });
 });
@@ -279,7 +279,7 @@ test('load error', async () => {
   const store = new Store({ x: 'x0' });
   const storage = new MockStorage({ x: 'novalidjson' });
   const persist = new StorePersist(store, storage, { paths: ['*'] });
-  await persist.isInitialized;
+  await persist.whenInitialized;
 
   expect(store.getState()).toEqual({ x: 'x0' });
   expect(consoleErrorSpy).toBeCalled();
