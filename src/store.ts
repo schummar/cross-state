@@ -50,8 +50,6 @@ export class Store<T> {
   }
 
   update(update: (draft: Draft<T>, original: T) => Draft<T> | void | undefined): void {
-    this.checkLock();
-
     this.state = produce(
       this.state,
       (draft) => update(draft, this.state),
@@ -61,8 +59,6 @@ export class Store<T> {
   }
 
   set(state: T): void {
-    this.checkLock();
-
     this.state = produce(
       this.state,
       () => state,
@@ -72,8 +68,6 @@ export class Store<T> {
   }
 
   applyPatches(patches: Patch[]): void {
-    this.checkLock();
-
     this.state = applyPatches(this.state, patches);
     this.patches.push(...patches);
     this.notify();
@@ -222,7 +216,7 @@ export class Store<T> {
   }
 
   private notify(): void {
-    if (this.batchCounter > 0) return;
+    if (this.batchCounter > 0 || this.patches.length === 0) return;
 
     try {
       for (const reaction of this.reactions) {
@@ -234,8 +228,11 @@ export class Store<T> {
 
     const patches = this.patches;
     this.patches = [];
-    for (const subscription of this.subscriptions) {
-      subscription(this.state, patches);
-    }
+
+    this.batchUpdates(() => {
+      for (const subscription of this.subscriptions) {
+        subscription(this.state, patches);
+      }
+    });
   }
 }
