@@ -36,7 +36,7 @@
     "prepublishOnly": "npm run build",
     "test": "vitest run --coverage",
     "test:watch": "vitest",
-    "test:export": "vitest run --coverage --reporter=junit --outputFile=test/testResults.xml"
+    "test:export": "vitest run --coverage --reporter=verbose --reporter=junit --outputFile=test/testResults.xml"
   },
   "dependencies": {
     "fast-deep-equal": "^3.1.3",
