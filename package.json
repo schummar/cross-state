@@ -35,7 +35,8 @@
     "lint:tsc": "tsc --noEmit",
     "prepublishOnly": "npm run build",
     "test": "vitest run --coverage",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:export": "vitest run --coverage --reporter=junit --outputFile=test/testResults.xml"
   },
   "dependencies": {
     "fast-deep-equal": "^3.1.3",
