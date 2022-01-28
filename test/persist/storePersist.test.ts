@@ -1,16 +1,14 @@
-/**
- * @jest-environment jsdom
- */
-
-import { afterEach, expect, jest, test } from '@jest/globals';
 import localforage from 'localforage';
 import nodePersist from 'node-persist';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { Store, StorePersist } from '../../src';
 
-jest.useFakeTimers();
+beforeEach(() => {
+  vi.useFakeTimers();
+});
 
 afterEach(() => {
-  jest.runAllTimers();
+  vi.resetAllMocks();
 });
 
 type State = {
@@ -86,7 +84,7 @@ test('save', async () => {
     ],
   });
 
-  await persist.isInitialized;
+  await persist.whenInitialized;
 
   store.update((state) => {
     state.wellKnownObject.wellKnownProp = 'b';
@@ -98,7 +96,7 @@ test('save', async () => {
     state.notPersisted.notPersitedProps = 'value6';
   });
 
-  jest.runAllTimers();
+  vi.advanceTimersByTime(1);
 
   expect(storage.items).toEqual({
     wellKnownObject: '{"wellKnownProp":"b"}',
@@ -119,19 +117,19 @@ test('save throttled', async () => {
     paths: ['wellKnownObject', { path: 'complexDict.*', throttleMs: 100 }],
   });
 
-  await persist.isInitialized;
+  await persist.whenInitialized;
 
   store.update((state) => {
     state.wellKnownObject.wellKnownProp = 'b';
     state.complexDict.id2 = { complexDictProps: 'value2' };
   });
 
-  jest.advanceTimersByTime(99);
+  vi.advanceTimersByTime(99);
   expect(storage.items).toEqual({
     wellKnownObject: '{"wellKnownProp":"b"}',
   });
 
-  jest.advanceTimersByTime(1);
+  vi.advanceTimersByTime(1);
   expect(storage.items).toEqual({
     wellKnownObject: '{"wellKnownProp":"b"}',
     'complexDict.id2': '{"complexDictProps":"value2"}',
@@ -214,13 +212,13 @@ test('stop', async () => {
     paths: ['wellKnownObject'],
   });
 
-  await persist.isInitialized;
+  await persist.whenInitialized;
 
   store.update((state) => {
     state.wellKnownObject.wellKnownProp = 'b';
   });
 
-  jest.runAllTimers();
+  vi.advanceTimersByTime(1);
 
   expect(storage.items).toEqual({
     wellKnownObject: '{"wellKnownProp":"b"}',
@@ -232,29 +230,29 @@ test('stop', async () => {
     state.wellKnownObject.wellKnownProp = 'c';
   });
 
-  jest.runAllTimers();
+  vi.advanceTimersByTime(1);
 
   expect(storage.items).toEqual({
     wellKnownObject: '{"wellKnownProp":"b"}',
   });
 });
 
-test('undefined', async () => {
+test('handle undefined', async () => {
   const store = new Store<{ foo?: string }>({ foo: '' as string | undefined });
   const storage = new MockStorage();
   const persist = new StorePersist(store, storage, { paths: ['foo'] });
 
-  await persist.isInitialized;
+  await persist.whenInitialized;
 
   store.update((state) => {
     state.foo = undefined;
   });
 
-  jest.runAllTimers();
+  vi.advanceTimersByTime(1);
 
   const newStore = new Store<{ foo?: string }>({});
   const newPersist = new StorePersist(newStore, storage, { paths: ['foo'] });
-  await newPersist.isInitialized;
+  await newPersist.whenInitialized;
 
   expect(newStore.getState().foo).toBe(undefined);
 });
@@ -274,7 +272,7 @@ test('save before load', async () => {
 });
 
 test('load error', async () => {
-  const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+  const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
   const store = new Store({ x: 'x0' });
   const storage = new MockStorage({ x: 'novalidjson' });

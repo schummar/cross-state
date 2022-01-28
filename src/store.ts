@@ -32,7 +32,7 @@ export class Store<T> {
   private batchCounter = 0;
   private reactions = new Set<() => void>();
   private patches = new Array<Patch>();
-  private lock?: 'reaction' | 'subscription';
+  private lock?: 'reaction';
   private options;
 
   constructor(private state: T, { log = (...data: any[]) => console.error(...data) }: StoreOptions = {}) {
@@ -50,26 +50,35 @@ export class Store<T> {
   }
 
   update(update: (draft: Draft<T>, original: T) => Draft<T> | void | undefined): void {
+    this.checkLock();
+
     this.state = produce(
       this.state,
       (draft) => update(draft, this.state),
       (patches) => this.patches.push(...patches)
     );
+
     this.notify();
   }
 
   set(state: T): void {
+    this.checkLock();
+
     this.state = produce(
       this.state,
       () => state,
       (patches) => this.patches.push(...patches)
     ) as T;
+
     this.notify();
   }
 
   applyPatches(patches: Patch[]): void {
+    this.checkLock();
+
     this.state = applyPatches(this.state, patches);
     this.patches.push(...patches);
+
     this.notify();
   }
 
@@ -111,15 +120,12 @@ export class Store<T> {
 
     const internalListener = (state: T, _patches: Patch[], init?: boolean) => {
       try {
-        this.lock = 'subscription';
         const oldValue = value;
         value = selector(state);
         if (!init && compare(value, oldValue)) return;
         (init ? listener : throttledListener)(value, oldValue, this.state);
       } catch (e) {
         this.options.log('Failed to execute listener:', e);
-      } finally {
-        delete this.lock;
       }
     };
 
@@ -210,8 +216,6 @@ export class Store<T> {
   private checkLock() {
     if (this.lock === 'reaction') {
       throw Error('You cannot call update from within a reaction. Use the passed draft instead.');
-    } else if (this.lock === 'subscription') {
-      throw Error('You cannot call update from within a subscription.');
     }
   }
 

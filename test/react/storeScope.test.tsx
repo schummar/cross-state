@@ -1,17 +1,16 @@
-/**
- * @jest-environment jsdom
- */
-
-import { afterEach, expect, jest, test } from '@jest/globals';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { Store, StoreScope } from '../../src/react';
-import './_setup';
 
-jest.useFakeTimers();
+beforeEach(() => {
+  vi.useFakeTimers();
+  performance.mark = () => undefined as any;
+  performance.clearMarks = () => undefined;
+});
 
 afterEach(() => {
-  jest.runAllTimers();
+  vi.resetAllMocks();
 });
 
 const storeScope = new StoreScope({ foo: 1 });
@@ -56,7 +55,9 @@ test('two scopes', async () => {
   expect(div2Child.textContent).toBe('1');
 
   fireEvent.click(div1);
-  act(() => jest.runAllTimers());
+  act(() => {
+    vi.runAllTimers();
+  });
   expect(div1.textContent).toBe('2');
   expect(div1Child.textContent).toBe('2');
   expect(div2.textContent).toBe('1');

@@ -1,19 +1,21 @@
-/**
- * @jest-environment jsdom
- */
-
-import { afterEach, expect, jest, test } from '@jest/globals';
-import { act, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import React, { useEffect } from 'react';
+import { act } from 'react-dom/test-utils';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { createResource, ResourceInfo } from '../../src';
 import { combineResources, useResource } from '../../src/react';
 import { sleep } from '../_helpers';
-import './_setup';
 
-jest.useFakeTimers();
+// global.IS_REACT_ACT_ENVIRONMENT = true;
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  performance.mark = () => undefined as any;
+  performance.clearMarks = () => undefined;
+});
 
 afterEach(() => {
-  jest.runAllTimers();
+  vi.resetAllMocks();
 });
 
 const tick = () => act(async () => undefined);
@@ -53,7 +55,9 @@ test('clear', async () => {
   render(<Component useResource={() => useResource(resource(1))} />);
   const div = screen.getByTestId('div');
 
-  act(() => jest.advanceTimersByTime(1));
+  act(() => {
+    vi.advanceTimersByTime(1);
+  });
   await tick();
   expect(div.textContent).toBe('v:2 l:false e:');
 
@@ -61,7 +65,9 @@ test('clear', async () => {
   await tick();
   expect(div.textContent).toBe('v: l:true e:');
 
-  act(() => jest.advanceTimersByTime(1));
+  act(() => {
+    vi.advanceTimersByTime(1);
+  });
   await tick();
   expect(div.textContent).toBe('v:3 l:false e:');
   expect(executed).toBe(2);
@@ -78,7 +84,9 @@ test('invalidate', async () => {
   render(<Component useResource={() => useResource(resource(1))} />);
   const div = screen.getByTestId('div');
 
-  act(() => jest.advanceTimersByTime(1));
+  act(() => {
+    vi.advanceTimersByTime(1);
+  });
   await tick();
   expect(div.textContent).toBe('v:2 l:false e:');
 
@@ -86,7 +94,9 @@ test('invalidate', async () => {
   await tick();
   expect(div.textContent).toBe('v:2 l:true e:');
 
-  act(() => jest.advanceTimersByTime(1));
+  act(() => {
+    vi.advanceTimersByTime(1);
+  });
   await tick();
   expect(div.textContent).toBe('v:3 l:false e:');
   expect(executed).toBe(2);
@@ -105,15 +115,21 @@ test('invalidateAfter', async () => {
   render(<Component useResource={() => useResource(resource())} />);
   const div = screen.getByTestId('div');
 
-  act(() => jest.advanceTimersByTime(2));
+  act(() => {
+    vi.advanceTimersByTime(2);
+  });
   await tick();
   expect(div.textContent).toBe('v:0 l:false e:');
 
-  act(() => jest.advanceTimersByTime(2));
+  act(() => {
+    vi.advanceTimersByTime(2);
+  });
   await tick();
   expect(div.textContent).toBe('v:0 l:true e:');
 
-  act(() => jest.advanceTimersByTime(1));
+  act(() => {
+    vi.advanceTimersByTime(1);
+  });
   await tick();
   expect(div.textContent).toBe('v:1 l:false e:');
 
@@ -131,7 +147,9 @@ test('dormant', async () => {
   const div = screen.getByTestId('div');
 
   await tick();
-  act(() => jest.runAllTimers());
+  act(() => {
+    vi.advanceTimersByTime(1);
+  });
   expect(div.textContent).toBe('v: l:false e:');
   expect(executed).toBe(0);
 });
@@ -151,7 +169,9 @@ test('updateOnMount', async () => {
   expect(div.textContent).toBe('v:2 l:true e:');
 
   await tick();
-  act(() => jest.runAllTimers());
+  act(() => {
+    vi.advanceTimersByTime(1);
+  });
   expect(div.textContent).toBe('v:2 l:false e:');
   expect(executed).toBe(2);
 });
@@ -168,7 +188,9 @@ test('updateOnMount not double', async () => {
   expect(div.textContent).toBe('v: l:true e:');
 
   await tick();
-  act(() => jest.runAllTimers());
+  act(() => {
+    vi.advanceTimersByTime(1);
+  });
   expect(div.textContent).toBe('v:2 l:false e:');
   expect(executed).toBe(1);
 });
@@ -185,14 +207,18 @@ test('watchOnly', async () => {
   expect(div.textContent).toBe('v: l:false e:');
 
   await tick();
-  act(() => jest.runAllTimers());
+  act(() => {
+    vi.advanceTimersByTime(1);
+  });
   expect(div.textContent).toBe('v: l:false e:');
 
   await act(async () => {
     await resource(1).get();
   });
   await tick();
-  act(() => jest.runAllTimers());
+  act(() => {
+    vi.advanceTimersByTime(1);
+  });
   expect(div.textContent).toBe('v:2 l:false e:');
   expect(executed).toBe(1);
 });
@@ -210,11 +236,15 @@ test('throttle', async () => {
   expect(div.textContent).toBe('v: l:true e:');
 
   await tick();
-  act(() => jest.advanceTimersByTime(1));
+  act(() => {
+    vi.advanceTimersByTime(1);
+  });
   expect(div.textContent).toBe('v: l:true e:');
 
   await tick();
-  act(() => jest.advanceTimersByTime(1));
+  act(() => {
+    vi.advanceTimersByTime(1);
+  });
   expect(div.textContent).toBe('v:2 l:false e:');
 
   expect(executed).toBe(1);
@@ -230,7 +260,9 @@ test('error', async () => {
   expect(div.textContent).toBe('v: l:true e:');
 
   await tick();
-  act(() => jest.runAllTimers());
+  act(() => {
+    vi.advanceTimersByTime(1);
+  });
   expect(div.textContent).toBe('v: l:false e:error');
 });
 
@@ -244,7 +276,9 @@ test('complex key', async () => {
   expect(div.textContent).toBe('v: l:true e:');
 
   await tick();
-  act(() => jest.runAllTimers());
+  act(() => {
+    vi.advanceTimersByTime(1);
+  });
   expect(div.textContent).toBe('v:bar l:false e:');
 });
 
@@ -269,9 +303,13 @@ test('manual clear after mount', async () => {
   const div = screen.getByTestId('div');
   expect(div.textContent).toBe('v: l:false e:');
 
-  act(() => jest.runAllTimers());
+  act(() => {
+    vi.advanceTimersByTime(1);
+  });
   await tick();
-  act(() => jest.runAllTimers());
+  act(() => {
+    vi.advanceTimersByTime(1);
+  });
   expect(div.textContent).toBe('v:1 l:false e:');
 });
 
@@ -298,11 +336,15 @@ test('useCombinedResources', async () => {
   );
   const div = screen.getByTestId('div');
 
-  act(() => jest.advanceTimersByTime(2));
+  act(() => {
+    vi.advanceTimersByTime(2);
+  });
   await tick();
   expect(div.textContent).toBe('v: l:true e:');
 
-  act(() => jest.advanceTimersByTime(1));
+  act(() => {
+    vi.advanceTimersByTime(1);
+  });
   await tick();
   expect(div.textContent).toBe('v:[1,2,3] l:false e:');
 });

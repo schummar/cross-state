@@ -1,18 +1,18 @@
-/**
- * @jest-environment jsdom
- */
-
-import { afterEach, expect, jest, test } from '@jest/globals';
 import { act, render, screen } from '@testing-library/react';
-import { Component, Suspense } from 'react';
+import React, { Component, Suspense } from 'react';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { createPushResource, createResource } from '../../src';
 import { combineResources, useReadResource } from '../../src/react';
 import { sleep } from '../_helpers';
 
-jest.useFakeTimers();
+beforeEach(() => {
+  vi.useFakeTimers();
+  performance.mark = () => undefined as any;
+  performance.clearMarks = () => undefined;
+});
 
 afterEach(() => {
-  jest.runAllTimers();
+  vi.resetAllMocks();
 });
 
 const user = createResource(async (name: string) => {
@@ -71,21 +71,27 @@ test('suspense', async () => {
   );
   const div = screen.getByTestId('div');
 
-  act(() => jest.advanceTimersByTime(50));
+  act(() => {
+    vi.advanceTimersByTime(50);
+  });
   await act(() => Promise.resolve());
   expect(div.textContent).toBe('suspense1_suspense2');
 
-  act(() => jest.advanceTimersByTime(200));
+  act(() => {
+    vi.advanceTimersByTime(200);
+  });
   await act(() => Promise.resolve());
   expect(div.textContent).toBe('User:a;User:b;_suspense2');
 
-  act(() => jest.advanceTimersByTime(100));
+  act(() => {
+    vi.advanceTimersByTime(100);
+  });
   await act(() => Promise.resolve());
   expect(div.textContent).toBe('User:a;User:b;_UserList:a,b;ws:ok;');
 });
 
 test('suspense error', async () => {
-  jest.spyOn(console, 'error').mockImplementation(() => undefined);
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
   let error;
 
   class ErrorBoundary extends Component {

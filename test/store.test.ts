@@ -1,11 +1,13 @@
-import { afterEach, expect, jest, test, describe } from '@jest/globals';
 import { Patch } from 'immer';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Store } from '../src';
 
-jest.useFakeTimers();
+beforeEach(() => {
+  vi.useFakeTimers();
+});
 
 afterEach(() => {
-  jest.runAllTimers();
+  vi.resetAllMocks();
 });
 
 test('getState', async () => {
@@ -136,16 +138,16 @@ describe('subscribe', () => {
     store.update((s) => {
       s.foo = 1;
     });
-    jest.advanceTimersByTime(50);
+    vi.advanceTimersByTime(50);
     store.update((s) => {
       s.foo = 2;
     });
-    jest.advanceTimersByTime(49);
+    vi.advanceTimersByTime(49);
 
     expect(value).toBe(2);
     expect(count).toBe(2);
 
-    jest.advanceTimersByTime(1);
+    vi.advanceTimersByTime(1);
     expect(value).toBe(4);
     expect(count).toBe(3);
   });
@@ -186,7 +188,7 @@ describe('subscribe', () => {
     store.update((s) => {
       s.foo = 1;
     });
-    jest.runAllTimers();
+    vi.runAllTimers();
     expect(value).toBe(1);
     expect(count).toBe(2);
 
@@ -195,7 +197,7 @@ describe('subscribe', () => {
     store.update((s) => {
       s.foo = 2;
     });
-    jest.runAllTimers();
+    vi.runAllTimers();
     expect(value).toBe(1);
     expect(count).toBe(2);
   });
@@ -217,28 +219,25 @@ describe('subscribe', () => {
       })
     ).not.toThrow();
 
-    jest.runAllTimers();
+    vi.runAllTimers();
     expect(logged).toMatch(/^Failed to execute listener:/);
   });
 
-  test('subscription throw on nested updates', async () => {
-    const store = new Store({ foo: 0, bar: 0 });
-    let errorCount = 0;
+  test('nested updates', async () => {
+    const store = new Store({ foo: 0 });
 
     store.subscribe(
       (s) => s.foo,
       (foo) => {
-        try {
-          store.update((s) => {
-            s.bar = foo;
-          });
-        } catch {
-          errorCount++;
-        }
+        if (foo === 1) return;
+
+        store.update((s) => {
+          s.foo = 1;
+        });
       }
     );
 
-    expect(errorCount).toBe(1);
+    expect(store.getState().foo).toBe(1);
   });
 
   test('subscription without selector', async () => {
@@ -385,7 +384,7 @@ describe('addReaction', () => {
     expect(logged).toMatch(/^Failed to execute reaction:/);
   });
 
-  test('addReaction throw on nested updates', async () => {
+  test('addReaction nested updates', async () => {
     const store = new Store({ foo: 0, bar: 0 });
     let errorCount = 0;
 
@@ -523,7 +522,7 @@ describe('subscribePatches', () => {
     store.update((s) => {
       s.foo = 1;
     });
-    jest.runAllTimers();
+    vi.runAllTimers();
     expect(count).toBe(1);
 
     cancel();
@@ -531,7 +530,7 @@ describe('subscribePatches', () => {
     store.update((s) => {
       s.foo = 2;
     });
-    jest.runAllTimers();
+    vi.runAllTimers();
     expect(count).toBe(1);
   });
 
@@ -548,7 +547,7 @@ describe('subscribePatches', () => {
         s.foo = 1;
       })
     ).not.toThrow();
-    jest.runAllTimers();
+    vi.runAllTimers();
     expect(logged).toMatch(/^Failed to execute patch listener:/);
   });
 });

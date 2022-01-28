@@ -1,12 +1,14 @@
-import { afterEach, expect, jest, test } from '@jest/globals';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { createPushResource, PushResourceOptions, Resource } from '../src';
 import { sleep } from './_helpers';
 
-jest.useFakeTimers();
+beforeEach(() => {
+  vi.useFakeTimers();
+});
 
 afterEach(() => {
+  vi.resetAllMocks();
   Resource.options = {};
-  jest.runAllTimers();
 });
 
 const createConnect =
@@ -49,13 +51,13 @@ test('subscribe', async () => {
   expect(value).toBe(undefined);
 
   for (let i = 1; i <= 50; i++) {
-    jest.advanceTimersByTime(1);
+    vi.advanceTimersByTime(1);
     expect(value).toBe(i);
   }
 
   cancel();
 
-  jest.runAllTimers();
+  vi.advanceTimersByTime(1000);
   await Promise.resolve();
   expect(value).toBe(50);
 });
@@ -76,22 +78,23 @@ test('subscribe with getInitial', async () => {
     value = state.value;
   });
 
-  jest.advanceTimersByTime(5);
+  vi.advanceTimersByTime(5);
   await Promise.resolve();
   await Promise.resolve();
   expect(value).toBe(undefined);
 
-  jest.advanceTimersByTime(5);
+  vi.advanceTimersByTime(5);
   await Promise.resolve();
   await Promise.resolve();
   expect(value).toBe(110);
 
-  jest.advanceTimersByTime(50);
+  vi.advanceTimersByTime(50);
   expect(value).toBe(160);
 
   cancel();
 
-  jest.runAllTimers();
+  vi.advanceTimersByTime(1000);
+  await Promise.resolve();
   await Promise.resolve();
   expect(value).toBe(160);
 });
@@ -108,7 +111,7 @@ test('subscribe with getInitial error', async () => {
   await expect(resource().get()).rejects.toBeTruthy();
   expect(resource().getCache()).toEqual({ state: 'error', error: Error(), isLoading: false });
 
-  jest.advanceTimersByTime(1);
+  vi.advanceTimersByTime(1);
   expect(resource().getCache()).toEqual({ state: 'error', error: Error(), isLoading: false });
   cancel();
 });
@@ -125,7 +128,7 @@ test('subscribe with getInitial error and non incremental update', async () => {
   await expect(resource().get()).rejects.toBeTruthy();
   expect(resource().getCache()).toEqual({ state: 'error', error: Error(), isLoading: false });
 
-  jest.advanceTimersByTime(1);
+  vi.advanceTimersByTime(1);
   expect(resource().getCache()).toEqual({ state: 'value', value: 1, isLoading: false });
   cancel();
 });
@@ -140,7 +143,7 @@ test('get', async () => {
   });
 
   const promise = resource().get();
-  jest.advanceTimersByTime(10);
+  vi.advanceTimersByTime(10);
   await expect(promise).resolves.toBe(52);
 });
 
@@ -158,7 +161,7 @@ test('clear', async () => {
   resource.clearCacheAll();
   expect(resource().getCache().value).toBe(undefined);
 
-  jest.advanceTimersByTime(1);
+  vi.advanceTimersByTime(1);
   expect(resource().getCache().value).toBe(1);
   cancel();
 });
@@ -169,7 +172,7 @@ test('onDisconnected', async () => {
   });
   const cancel = resource().subscribe(() => undefined);
 
-  jest.advanceTimersByTime(100);
+  vi.advanceTimersByTime(100);
   expect(resource().getCache()).toEqual({ state: 'value', value: 100, isLoading: false, isStale: true });
   cancel();
 });
@@ -208,7 +211,7 @@ test('update', async () => {
   });
 
   const promise = resource().get();
-  jest.advanceTimersByTime(1);
+  vi.advanceTimersByTime(1);
   await promise;
   resource().update(({ value = 0 }) => value * 100);
   expect(resource().getCache().value).toBe(100);

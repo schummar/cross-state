@@ -1,17 +1,16 @@
-/**
- * @jest-environment jsdom
- */
-
-import { afterEach, expect, jest, test } from '@jest/globals';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import React, { ReactNode, useEffect, useState } from 'react';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { Store } from '../../src/react';
-import './_setup';
 
-jest.useFakeTimers();
+beforeEach(() => {
+  vi.useFakeTimers();
+  performance.mark = () => undefined as any;
+  performance.clearMarks = () => undefined;
+});
 
 afterEach(() => {
-  jest.runAllTimers();
+  vi.resetAllMocks();
 });
 
 function Simple({ useValue }: { useValue: () => ReactNode }) {
@@ -160,15 +159,21 @@ test('throttled', async () => {
   store.update((s) => {
     s.foo++;
   });
-  act(() => jest.advanceTimersByTime(50));
+  act(() => {
+    vi.advanceTimersByTime(50);
+  });
 
   store.update((s) => {
     s.foo++;
   });
-  act(() => jest.advanceTimersByTime(49));
+  act(() => {
+    vi.advanceTimersByTime(49);
+  });
   expect(div.textContent).toBe('2');
 
-  act(() => jest.advanceTimersByTime(1));
+  act(() => {
+    vi.advanceTimersByTime(1);
+  });
   expect(div.textContent).toBe('4');
 });
 
@@ -188,15 +193,21 @@ test('throttled string selector', async () => {
   store.update((s) => {
     s.foo++;
   });
-  act(() => jest.advanceTimersByTime(50));
+  act(() => {
+    vi.advanceTimersByTime(50);
+  });
 
   store.update((s) => {
     s.foo++;
   });
-  act(() => jest.advanceTimersByTime(49));
+  act(() => {
+    vi.advanceTimersByTime(49);
+  });
   expect(div.textContent).toBe('2');
 
-  act(() => jest.advanceTimersByTime(1));
+  act(() => {
+    vi.advanceTimersByTime(1);
+  });
   expect(div.textContent).toBe('4');
 });
 
@@ -231,15 +242,21 @@ test('no selector throttled', async () => {
   store.update((s) => {
     s.foo++;
   });
-  act(() => jest.advanceTimersByTime(50));
+  act(() => {
+    vi.advanceTimersByTime(50);
+  });
 
   store.update((s) => {
     s.foo++;
   });
-  act(() => jest.advanceTimersByTime(49));
+  act(() => {
+    vi.advanceTimersByTime(49);
+  });
   expect(div.textContent).toBe('{"foo":2}');
 
-  act(() => jest.advanceTimersByTime(1));
+  act(() => {
+    vi.advanceTimersByTime(1);
+  });
   expect(div.textContent).toBe('{"foo":4}');
 });
 

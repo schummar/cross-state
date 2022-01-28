@@ -1,11 +1,13 @@
-import { afterEach, expect, jest, test } from '@jest/globals';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { createResource, globalResouceGroup, Resource, ResourceGroup } from '../src';
 
-jest.useFakeTimers();
+beforeEach(() => {
+  vi.useFakeTimers();
+});
 
 afterEach(() => {
+  vi.resetAllMocks();
   Resource.options = {};
-  jest.runAllTimers();
 });
 
 test('get', async () => {
@@ -280,10 +282,10 @@ test('invalidateAfter/clearAfter', async () => {
   await resource(100).get();
   expect(resource(100).getCache()).toEqual({ state: 'value', value: 100, isLoading: false });
 
-  jest.advanceTimersByTime(100);
+  vi.advanceTimersByTime(100);
   expect(resource(100).getCache()).toEqual({ state: 'value', value: 100, isLoading: false, isStale: true });
 
-  jest.advanceTimersByTime(100);
+  vi.advanceTimersByTime(100);
   expect(resource(100).getCache()).toEqual({ state: 'empty', isLoading: false });
 });
 
@@ -300,10 +302,10 @@ test('clearAfter global', async () => {
   await resource().get();
   expect(resource().getCache()).toEqual({ state: 'value', value: 1, isLoading: false });
 
-  jest.advanceTimersByTime(100);
+  vi.advanceTimersByTime(100);
   expect(resource().getCache()).toEqual({ state: 'value', value: 1, isLoading: false, isStale: true });
 
-  jest.advanceTimersByTime(100);
+  vi.advanceTimersByTime(100);
   expect(resource().getCache()).toEqual({ state: 'empty', isLoading: false });
 });
 
@@ -374,12 +376,12 @@ test('update timer', async () => {
   await resource(1).get();
   expect(resource(1).getCache()).toEqual({ state: 'value', value: 2, isLoading: false });
 
-  jest.advanceTimersByTime(1);
+  vi.advanceTimersByTime(1);
   resource(1).update(1);
 
-  jest.advanceTimersByTime(1);
+  vi.advanceTimersByTime(1);
   expect(resource(1).getCache()).toEqual({ state: 'value', value: 1, isLoading: false });
 
-  jest.advanceTimersByTime(1);
+  vi.advanceTimersByTime(1);
   expect(resource(1).getCache()).toEqual({ state: 'value', value: 1, isLoading: false, isStale: true });
 });
