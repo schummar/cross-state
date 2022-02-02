@@ -39,11 +39,13 @@ export function useStoreState<T, S>(store: Store<T>, ...args: any[]): S {
     [store, options.throttle]
   );
 
+  const getSnapshot = useCallback(() => store.getState(), [store]);
+
   const value = useSyncExternalStoreWithSelector(
     //
     subscribe,
-    () => store.getState(),
-    undefined,
+    getSnapshot,
+    getSnapshot,
     selector,
     options.compare ?? eq
   );

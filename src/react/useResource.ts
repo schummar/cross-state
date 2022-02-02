@@ -43,9 +43,7 @@ export function useResource<Value>(resource: UseResource<Value>, options?: UseRe
     [resource.id, watchOnly, dormant, throttle]
   );
 
-  const getSnapshot = () => {
-    return resource.getCache();
-  };
+  const getSnapshot = useCallback(() => resource.getCache(), [resource.id]);
 
   let value = useSyncExternalStoreWithSelector(
     //
