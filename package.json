@@ -19,6 +19,7 @@
       "default": "./dist/es/react.js"
     }
   },
+  "types": "dist/types/index.d.ts",
   "typesVersions": {
     "*": {
       "*": [
