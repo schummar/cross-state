@@ -6,17 +6,17 @@
   "type": "module",
   "sideEffects": false,
   "main": "dist/cjs/index.js",
-  "module": "dist/esm/index.js",
+  "module": "dist/es/index.js",
   "exports": {
     ".": {
-      "import": "./dist/esm/index.js",
+      "import": "./dist/es/index.js",
       "require": "./dist/cjs/index.js",
-      "default": "./dist/esm/index.js"
+      "default": "./dist/es/index.js"
     },
     "./react": {
-      "import": "./dist/esm/react/index.js",
-      "require": "./dist/cjs/react/index.js",
-      "default": "./dist/esm/react/index.js"
+      "import": "./dist/es/react.js",
+      "require": "./dist/cjs/react.js",
+      "default": "./dist/es/react.js"
     }
   },
   "author": {
@@ -26,10 +26,11 @@
   "license": "ISC",
   "scripts": {
     "start": "tsc --watch",
-    "build": "npm-run-all -s build:clean -p build:compile:*",
-    "build:clean": "rimraf dist/**",
-    "build:compile:esm": "tsc",
-    "build:compile:cjs": "tsc -p tsconfig-cjs.json && echo '{\"type\":\"commonjs\"}' > dist/cjs/package.json",
+    "build": "npm-run-all -s build:clean -p build:compile:* -s build:cjsPackage",
+    "build:clean": "rimraf \"dist/**/*\"",
+    "build:compile:js": "vite build",
+    "build:compile:types": "tsc",
+    "build:cjsPackage": "echo '{\"type\":\"commonjs\"}' > dist/cjs/package.json",
     "lint": "run-p lint:*",
     "lint:eslint": "eslint src",
     "lint:tsc": "tsc --noEmit",
