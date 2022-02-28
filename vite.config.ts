@@ -1,6 +1,6 @@
 /// <reference types="vitest" />
-import { isAbsolute } from 'path';
 import { defineConfig } from 'vite';
+import { peerDependencies } from './package.json';
 
 export default defineConfig({
   test: {
@@ -26,7 +26,7 @@ export default defineConfig({
         entryFileNames: '[format]/[name].js',
         chunkFileNames: '[format]/[name].js',
       },
-      external: (source) => !(isAbsolute(source) || source.startsWith('.')),
+      external: Object.keys(peerDependencies),
     },
   },
 });
