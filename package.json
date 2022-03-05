@@ -1,7 +1,7 @@
 {
   "name": "schummar-state",
   "repository": "schummar/schummar-state",
-  "version": "0.2.1-experimental-12",
+  "version": "0.2.1-experimental-13",
   "description": "(React) state library",
   "type": "module",
   "sideEffects": false,
@@ -93,6 +93,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "react.js",
+    "react.d.ts"
   ]
 }
