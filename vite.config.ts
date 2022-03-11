@@ -11,16 +11,16 @@ export default defineConfig({
 
   build: {
     sourcemap: true,
-    minify: false,
+    minify: true,
 
     lib: {
-      entry: 'src/index.ts',
+      entry: 'src-new/index.ts',
       formats: ['es', 'cjs'],
     },
     rollupOptions: {
       input: {
-        index: 'src/index.ts',
-        react: 'src/react/index.ts',
+        index: 'src-new/index.ts',
+        // react: 'src/react/index.ts',
       },
       output: {
         entryFileNames: '[format]/[name].js',
