@@ -1,14 +1,20 @@
-import { store } from './atomicStore';
+import { AtomicStoreInternal, store } from './atomicStore';
 import { Cancel, Store } from './commonTypes';
 import { defaultEquals, shallowEquals } from './equals';
 
-type AsyncStoreValueObj<Value> =
-  | { value: Value; error: undefined; isPending: boolean; isStale: boolean; status: 'value' }
-  | { value: undefined; error: unknown; isPending: boolean; isStale: boolean; status: 'error' }
-  | { value: undefined; error: undefined; isPending: boolean; isStale: boolean; status: 'empty' };
+///////////////////////////////////////////////////////////
+// Types
+///////////////////////////////////////////////////////////
 
-export type AsyncStoreValue<Value> = [AsyncStoreValueObj<Value>['value'], AsyncStoreValueObj<Value>['error'], AsyncStoreValueObj<Value>] &
-  AsyncStoreValueObj<Value>;
+type WithValue<T> = { value: T; error: undefined; isPending: boolean; isStale: boolean; status: 'value' };
+type WithError = { value: undefined; error: unknown; isPending: boolean; isStale: boolean; status: 'error' };
+type Empty = { value: undefined; error: undefined; isPending: boolean; isStale: boolean; status: 'empty' };
+type State<T> = WithValue<T> | WithError | Empty;
+
+export type AsyncStoreValue<T> =
+  | ([value: T, error: undefined, isPending: boolean, isStale: boolean, status: 'value'] & WithValue<T>)
+  | ([value: undefined, error: unknown, isPending: boolean, isStale: boolean, status: 'error'] & WithError)
+  | ([value: undefined, error: undefined, isPending: boolean, isStale: boolean, status: 'empty'] & Empty);
 
 export type AsyncStoreOptions<Value> = {
   invalidateAfter?: number | ((state: AsyncStoreValue<Value>) => number);
@@ -23,15 +29,15 @@ export interface AsyncStore<Value> extends Store<AsyncStoreValue<Value>> {
   clear(): void;
 }
 
-const asyncStoreValueEquals = <Value>(
-  { value: va, ...a }: AsyncStoreValueObj<Value>,
-  { value: vb, ...b }: AsyncStoreValueObj<Value>,
-  equals = defaultEquals
-) => {
+///////////////////////////////////////////////////////////
+// Helpers
+///////////////////////////////////////////////////////////
+
+const asyncStoreValueEquals = <Value>({ value: va, ...a }: State<Value>, { value: vb, ...b }: State<Value>, equals = defaultEquals) => {
   return equals(va, vb) && shallowEquals(a, b);
 };
 
-const createState = <Value>(x: Partial<AsyncStoreValueObj<Value>> = {}): AsyncStoreValueObj<Value> =>
+const createState = <Value>(x: Partial<State<Value>> = {}): State<Value> =>
   ({
     value: x.value,
     error: x.error,
@@ -39,6 +45,10 @@ const createState = <Value>(x: Partial<AsyncStoreValueObj<Value>> = {}): AsyncSt
     isStale: x.isStale ?? false,
     status: 'value' in x ? 'value' : 'error' in x ? 'error' : 'empty',
   } as any);
+
+///////////////////////////////////////////////////////////
+// Implementation
+///////////////////////////////////////////////////////////
 
 export function async<Value>(
   fn: (use: <T>(store: Store<T>) => T) => Promise<Value>,
@@ -49,7 +59,7 @@ export function async<Value>(
   let clearTimer: ReturnType<typeof setTimeout> | undefined;
 
   let future: Promise<Value> | undefined;
-  const innerStore = store(createState<Value>());
+  const innerStore = store(createState()) as unknown as AtomicStoreInternal<State<Value>>;
 
   const asyncStore: AsyncStore<Value> = {
     get() {
@@ -58,19 +68,14 @@ export function async<Value>(
     },
 
     subscribe(listener, options) {
-      return innerStore.subscribe(
-        ({ status, isStale, isPending }) => {
-          if ((status === 'empty' || isStale) && !isPending) {
-            run();
-          } else {
-            listener(asyncStore.get());
-          }
-        },
-        {
-          ...options,
-          equals: (a, b) => asyncStoreValueEquals(a, b, options?.equals),
-        }
-      );
+      if ((innerStore.get().status === 'empty' || innerStore.get().isStale) && !future) {
+        run();
+      }
+
+      return innerStore.subscribe(() => listener(asyncStore.get()), {
+        ...options,
+        equals: (a, b) => asyncStoreValueEquals(a, b, options?.equals),
+      });
     },
 
     getPromise({ returnStale } = {}) {
@@ -90,9 +95,9 @@ export function async<Value>(
       });
     },
 
-    set(newValue) {
+    set(value) {
       future = undefined;
-      innerStore.set(createState({ value: newValue }));
+      innerStore.set(createState({ value }));
       setTimers();
     },
 
@@ -104,12 +109,18 @@ export function async<Value>(
 
     invalidate() {
       future = undefined;
-      innerStore.set((s) => ({ ...s, isStale: s.status !== 'empty' }));
+      innerStore.set((s) => ({ ...s, isPending: innerStore.listeners.size > 0, isStale: s.status !== 'empty' }));
+      if (innerStore.listeners.size > 0) {
+        run();
+      }
     },
 
     clear() {
       future = undefined;
-      innerStore.set(createState());
+      innerStore.set(createState({ isPending: innerStore.listeners.size > 0 }));
+      if (innerStore.listeners.size > 0) {
+        run();
+      }
     },
   };
 

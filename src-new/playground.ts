@@ -68,7 +68,13 @@ const asyncStore = async(async () => {
   return c++;
 });
 
-asyncStore.subscribe((s) => console.log('async', s));
-asyncStore.set(42);
+asyncStore.subscribe((s) => console.log('async', s[2]));
+asyncStore.invalidate();
+setTimeout(asyncStore.clear);
+
+const [v, e, , , status] = asyncStore.get();
+if (status === 'value') {
+  console.log(v);
+}
 
 console.log('end');
