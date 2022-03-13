@@ -1,5 +1,6 @@
+import { async } from './asyncStore';
 import { store } from './atomicStore';
-import { calc } from './calc';
+import { computed } from './computed';
 
 const simpleStore = store('foo');
 simpleStore.subscribe((s) => console.log('simple', s));
@@ -44,7 +45,7 @@ customActionsStore.add(42);
 customActionsStore.sub(10);
 customActionsStore.set(3);
 
-const calculated = calc((use) => {
+const calculated = computed((use) => {
   console.log('calc');
   return [use(simpleStore), use(mapStore).size, use(customActionsStore)].join(', ');
 });
@@ -52,7 +53,7 @@ const calculated = calc((use) => {
 simpleStore.set('xyz1');
 console.log('-');
 
-const nestedCalc = calc((use) => use(calculated) + '#');
+const nestedCalc = computed((use) => use(calculated) + '#');
 nestedCalc.subscribe((s) => console.log('nested', s));
 
 mapStore.mset('x1', 1);
@@ -61,5 +62,13 @@ calculated.subscribe((s) => console.log('calculated', s));
 
 simpleStore.set('xyz');
 mapStore.mset('y', 1);
+
+let c = 0;
+const asyncStore = async(async () => {
+  return c++;
+});
+
+asyncStore.subscribe((s) => console.log('async', s));
+asyncStore.set(42);
 
 console.log('end');

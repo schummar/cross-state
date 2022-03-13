@@ -1,4 +1,5 @@
 import { Listener, Store } from './commonTypes';
+import { defaultEquals } from './equals';
 import { arrayActions, mapActions, setActions } from './storeHelpers';
 import { throttle } from './throttle';
 
@@ -13,6 +14,8 @@ export interface AtomicStore<Value> extends Store<Value> {
 export interface AtomicStoreInternal<Value> extends AtomicStore<Value> {
   value: Value;
   listeners: Set<Listener<Value>>;
+  notifyId: unknown;
+  notify(): void;
 }
 
 export type ASActions = Record<string, (...args: any[]) => any>;
@@ -38,20 +41,29 @@ export function store<Value, Actions extends ASActions>(
     value: initialValue,
 
     listeners: new Set(),
+    notifyId: {},
 
-    subscribe(listener, { runNow = true, throttle: throttleOption } = {}) {
+    subscribe(listener, { runNow = true, throttle: throttleOption, equals = defaultEquals } = {}) {
       if (throttleOption) {
         listener = throttle(listener, throttleOption);
       }
 
-      store.listeners.add(listener);
+      let last: { v: Value } | undefined;
+      const innerListener = (value: Value) => {
+        if (!last || !equals(value, last.v)) {
+          last = { v: store.value };
+          listener(store.value);
+        }
+      };
+
+      store.listeners.add(innerListener);
 
       if (runNow) {
-        listener(store.value);
+        innerListener(store.value);
       }
 
       return () => {
-        store.listeners.delete(listener);
+        store.listeners.delete(innerListener);
       };
     },
 
@@ -65,20 +77,17 @@ export function store<Value, Actions extends ASActions>(
       }
 
       store.value = newValue;
-      notify();
+      store.notify();
+    },
+
+    notify() {
+      const notifyId = (this.notifyId = {});
+      for (const listener of [...store.listeners]) {
+        listener(store.value);
+        if (notifyId !== this.notifyId) break;
+      }
     },
   };
-
-  const notifyQ: [Listener<Value>, Value][] = [];
-  function notify() {
-    notifyQ.push(...[...store.listeners].map<[Listener<Value>, Value]>((l) => [l, store.value]));
-    if (notifyQ.length === store.listeners.size) {
-      let next;
-      while ((next = notifyQ.shift())) {
-        next[0](next[1]);
-      }
-    }
-  }
 
   if (initialValue instanceof Map && !actions) {
     actions = mapActions as any;
