@@ -10,6 +10,8 @@ type WithValue<T> = { value: T; error: undefined; isPending: boolean; isStale: b
 type WithError = { value: undefined; error: unknown; isPending: boolean; isStale: boolean; status: 'error' };
 type Empty = { value: undefined; error: undefined; isPending: boolean; isStale: boolean; status: 'empty' };
 type State<T> = WithValue<T> | WithError | Empty;
+type Update<T> = T | ((value: T) => T);
+type UpdateFn<T> = (update: Update<T>) => void;
 
 export type AsyncStoreValue<T> =
   | ([value: T, error: undefined, isPending: boolean, isStale: boolean, status: 'value'] & WithValue<T>)
@@ -51,14 +53,13 @@ const createState = <Value>(x: Partial<State<Value>> = {}): State<Value> =>
 ///////////////////////////////////////////////////////////
 
 export function async<Value>(
-  fn: (use: <T>(store: Store<T>) => T) => Promise<Value>,
+  fn: (use: <T>(store: Store<T>) => T, register: (process: (set: UpdateFn<Value>) => Cancel) => void) => Value | Promise<Value>,
   { invalidateAfter, clearAfter }: AsyncStoreOptions<Value> = {}
 ): AsyncStore<Value> {
-  let handles: Cancel[] = [];
   let invalidateTimer: ReturnType<typeof setTimeout> | undefined;
   let clearTimer: ReturnType<typeof setTimeout> | undefined;
 
-  let future: Promise<Value> | undefined;
+  let cancelRun: Cancel | undefined;
   const innerStore = store(createState()) as unknown as AtomicStoreInternal<State<Value>>;
 
   const asyncStore: AsyncStore<Value> = {
@@ -68,7 +69,7 @@ export function async<Value>(
     },
 
     subscribe(listener, options) {
-      if ((innerStore.get().status === 'empty' || innerStore.get().isStale) && !future) {
+      if ((innerStore.get().status === 'empty' || innerStore.get().isStale) && !innerStore.get().isPending) {
         run();
       }
 
@@ -96,19 +97,19 @@ export function async<Value>(
     },
 
     set(value) {
-      future = undefined;
+      cancelRun?.();
       innerStore.set(createState({ value }));
       setTimers();
     },
 
     setError(error) {
-      future = undefined;
+      cancelRun?.();
       innerStore.set(createState({ error }));
       setTimers();
     },
 
     invalidate() {
-      future = undefined;
+      cancelRun?.();
       innerStore.set((s) => ({ ...s, isPending: innerStore.listeners.size > 0, isStale: s.status !== 'empty' }));
       if (innerStore.listeners.size > 0) {
         run();
@@ -116,7 +117,7 @@ export function async<Value>(
     },
 
     clear() {
-      future = undefined;
+      cancelRun?.();
       innerStore.set(createState({ isPending: innerStore.listeners.size > 0 }));
       if (innerStore.listeners.size > 0) {
         run();
@@ -125,35 +126,74 @@ export function async<Value>(
   };
 
   async function run() {
-    for (const handle of handles) {
-      handle();
-    }
-    handles = [];
     resetTimers();
 
     const deps = new Set<Store<any>>();
+    const handles: Cancel[] = [];
     let job;
-    future = undefined;
+    let cancelProcess: Cancel | undefined;
+    const buffer: Update<Value>[] = [];
+    let isCanceled = false;
+    let curVal: { v: Value } | undefined;
+
+    cancelRun = () => {
+      for (const handle of handles) {
+        handle();
+      }
+
+      cancelProcess?.();
+      isCanceled = true;
+    };
+
+    const applyUpdate = (update: Update<Value>) => {
+      if (isCanceled) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn(
+            `[schummar-state:async] process has been canceled. 'set' should not be called anymore. Having no proper teardown might result in memory leaks.`
+          );
+        }
+        return;
+      }
+
+      if (!curVal) {
+        buffer.push(update);
+      } else {
+        if (update instanceof Function) {
+          update = update(curVal.v);
+        }
+        curVal.v = update;
+        innerStore.set(createState({ value: update }));
+        setTimers();
+      }
+    };
 
     try {
-      job = fn((store) => {
-        deps.add(store);
-        return store.get();
-      });
+      job = fn(
+        (store) => {
+          deps.add(store);
+          return store.get();
+        },
+        (process) => {
+          cancelProcess = process(applyUpdate);
+        }
+      );
 
-      future = job;
       innerStore.set((s) => ({ ...s, isPending: true }));
       const value = await job;
 
-      if (job === future) {
-        asyncStore.set(value);
+      if (!isCanceled) {
+        curVal = { v: value };
+        innerStore.set(createState({ value }));
+        setTimers();
+        buffer.forEach(applyUpdate);
+        buffer.length = 0;
       }
     } catch (error) {
-      if (job === future) {
+      if (!isCanceled) {
         asyncStore.setError(error);
       }
     } finally {
-      if (job === future) {
+      if (!isCanceled) {
         for (const store of deps) {
           handles.push(store.subscribe(asyncStore.clear, { runNow: false }));
         }

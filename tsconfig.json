@@ -17,7 +17,7 @@
     "allowSyntheticDefaultImports": true,
     "noUncheckedIndexedAccess": true,
     "jsx": "react-jsx",
-    "types": ["react/next", "react-dom/next"]
+    "types": ["react/next", "react-dom/next", "vite/client"]
   },
   "include": ["src", "src-new"]
 }

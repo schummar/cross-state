@@ -2,6 +2,8 @@ import { async } from './asyncStore';
 import { store } from './atomicStore';
 import { computed } from './computed';
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 const simpleStore = store('foo');
 simpleStore.subscribe((s) => console.log('simple', s));
 simpleStore.set((s) => s + '#');
@@ -68,7 +70,7 @@ const asyncStore = async(async () => {
   return c++;
 });
 
-asyncStore.subscribe((s) => console.log('async', s[2]));
+asyncStore.subscribe((s) => console.log('async', s.value, s.isPending, s.isStale));
 asyncStore.invalidate();
 setTimeout(asyncStore.clear);
 
@@ -76,5 +78,31 @@ const [v, e, , , status] = asyncStore.get();
 if (status === 'value') {
   console.log(v);
 }
+
+const pushStore = async<Record<string, number>>(async (get, register) => {
+  register((set) => {
+    let stopped = false;
+
+    (async () => {
+      for (let i = 0; !stopped; i++) {
+        if (i % 4 === 0) set({ [`${get(simpleStore)}_${i}`]: i });
+        else set((items) => ({ ...items, [`${get(simpleStore)}_${i}`]: i }));
+        await sleep(1000);
+      }
+    })().catch((e) => {
+      console.error('fail', e);
+    });
+
+    return () => {
+      stopped = true;
+    };
+  });
+
+  await sleep(2000);
+  return { [`${get(simpleStore)}_0`]: 42 };
+});
+const cancelPush = pushStore.subscribe((s) => console.log('push', s.value, s.isPending, s.isStale));
+sleep(4000).then(pushStore.clear);
+sleep(10000).then(cancelPush);
 
 console.log('end');
