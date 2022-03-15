@@ -1,6 +1,6 @@
 import { useCallback, useDebugValue } from 'react';
 import { useSyncExternalStoreWithSelector } from 'use-sync-external-store/shim/with-selector';
-import { Store, SubscribeOptions } from '../commonTypes';
+import { Store, SubscribeOptions } from '../types';
 import { shallowEquals } from '../equals';
 
 export type UseStoreOptions = Omit<SubscribeOptions, 'runNow'>;

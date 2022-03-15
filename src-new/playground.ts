@@ -1,13 +1,13 @@
-import { async } from './asyncStore';
-import { store } from './atomicStore';
-import { computed } from './computed';
+import { computed } from './core/computed';
+import { async } from './core/async';
+import { store } from './core/store';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-const simpleStore = store('foo');
-simpleStore.subscribe((s) => console.log('simple', s));
-simpleStore.set((s) => s + '#');
-simpleStore.set('bar');
+const AtomicStore = store('foo');
+AtomicStore.subscribe((s) => console.log('simple', s));
+AtomicStore.set((s) => s + '#');
+AtomicStore.set('bar');
 
 const mapStore = store(new Map<string, number>());
 mapStore.subscribe((s) => console.log('map', s));
@@ -49,10 +49,10 @@ customActionsStore.set(3);
 
 const calculated = computed((use) => {
   console.log('calc');
-  return [use(simpleStore), use(mapStore).size, use(customActionsStore)].join(', ');
+  return [use(AtomicStore), use(mapStore).size, use(customActionsStore)].join(', ');
 });
 
-simpleStore.set('xyz1');
+AtomicStore.set('xyz1');
 console.log('-');
 
 const nestedCalc = computed((use) => use(calculated) + '#');
@@ -62,7 +62,7 @@ mapStore.mset('x1', 1);
 
 calculated.subscribe((s) => console.log('calculated', s));
 
-simpleStore.set('xyz');
+AtomicStore.set('xyz');
 mapStore.mset('y', 1);
 
 let c = 0;
@@ -85,8 +85,8 @@ const pushStore = async<Record<string, number>>(async (get, register) => {
 
     (async () => {
       for (let i = 0; !stopped; i++) {
-        if (i % 4 === 0) set({ [`${get(simpleStore)}_${i}`]: i });
-        else set((items) => ({ ...items, [`${get(simpleStore)}_${i}`]: i }));
+        if (i % 4 === 0) set({ [`${get(AtomicStore)}_${i}`]: i });
+        else set((items) => ({ ...items, [`${get(AtomicStore)}_${i}`]: i }));
         await sleep(1000);
       }
     })().catch((e) => {
@@ -99,7 +99,7 @@ const pushStore = async<Record<string, number>>(async (get, register) => {
   });
 
   await sleep(2000);
-  return { [`${get(simpleStore)}_0`]: 42 };
+  return { [`${get(AtomicStore)}_0`]: 42 };
 });
 const cancelPush = pushStore.subscribe((s) => console.log('push', s.value, s.isPending, s.isStale));
 sleep(4000).then(pushStore.clear);

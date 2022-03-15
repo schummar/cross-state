@@ -1,13 +1,15 @@
 import React, { StrictMode } from 'react';
 import { createRoot } from 'react-dom';
-import { async } from '../asyncStore';
-import { store } from '../atomicStore';
-import { computed } from '../computed';
+import { async } from '../core/async';
+import { computed } from '../core/computed';
+import { store } from '../core/store';
+import { recordActions } from '../core/storeActions';
 import { useStore } from './useStore';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const numberStore = store(42);
+const objectStore = store({ a: 1, b: 2, c: 3 } as Record<string, number>, recordActions);
 
 const computeddStore = computed((get) => get(numberStore) * 2);
 
@@ -40,13 +42,21 @@ export function Playground() {
   const y = useStore(computeddStore);
   const [z] = useStore(asyncStore);
   const [w] = useStore(pushStore);
+  const o = useStore(objectStore);
 
   return (
-    <div onClick={() => numberStore.set((x) => x + 1)}>
-      <div>{x}</div>
-      <div>{y}</div>
+    <div
+      onClick={() => {
+        numberStore.set((x) => x + 1);
+        // objectStore.with('c', 42);
+        objectStore.with('d', 42);
+      }}
+    >
+      <div>{JSON.stringify(x)}</div>
+      <div>{JSON.stringify(y)}</div>
       <div>{JSON.stringify(z)}</div>
       <div>{JSON.stringify(w)}</div>
+      <div>{JSON.stringify(o)}</div>
     </div>
   );
 }

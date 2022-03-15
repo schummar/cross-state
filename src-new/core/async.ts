@@ -1,6 +1,7 @@
-import { AtomicStoreInternal, store } from './atomicStore';
-import { Cancel, Store } from './commonTypes';
-import { defaultEquals, shallowEquals } from './equals';
+import { defaultEquals, shallowEquals } from '../equals';
+import { Cancel, Store } from '../types';
+import { store } from './store';
+import { recordActions } from './storeActions';
 
 ///////////////////////////////////////////////////////////
 // Types
@@ -60,20 +61,24 @@ export function async<Value>(
   let clearTimer: ReturnType<typeof setTimeout> | undefined;
 
   let cancelRun: Cancel | undefined;
-  const innerStore = store(createState()) as unknown as AtomicStoreInternal<State<Value>>;
+  const s = store(createState<Value>(), recordActions);
+
+  let on = false;
+  s.hook('on', () => (on = true));
+  s.hook('off', () => (on = false));
 
   const asyncStore: AsyncStore<Value> = {
     get() {
-      const state = innerStore.get();
+      const state = s.get();
       return Object.assign<any, any>([state.value, state.error, state], state);
     },
 
     subscribe(listener, options) {
-      if ((innerStore.get().status === 'empty' || innerStore.get().isStale) && !innerStore.get().isPending) {
+      if ((s.get().status === 'empty' || s.get().isStale) && !s.get().isPending) {
         run();
       }
 
-      return innerStore.subscribe(() => listener(asyncStore.get()), {
+      return s.subscribe(() => listener(asyncStore.get()), {
         ...options,
         equals: (a, b) => asyncStoreValueEquals(a, b, options?.equals),
       });
@@ -98,31 +103,33 @@ export function async<Value>(
 
     set(value) {
       cancelRun?.();
-      innerStore.set(createState({ value }));
+      s.set(createState({ value }));
       setTimers();
     },
 
     setError(error) {
       cancelRun?.();
-      innerStore.set(createState({ error }));
+      s.set(createState({ error }));
       setTimers();
     },
 
     invalidate() {
       cancelRun?.();
-      innerStore.set((s) => ({ ...s, isPending: innerStore.listeners.size > 0, isStale: s.status !== 'empty' }));
-      if (innerStore.listeners.size > 0) {
+      s.set((s) => ({ ...s, isPending: on, isStale: s.status !== 'empty' }));
+      if (on) {
         run();
       }
     },
 
     clear() {
       cancelRun?.();
-      innerStore.set(createState({ isPending: innerStore.listeners.size > 0 }));
-      if (innerStore.listeners.size > 0) {
+      s.set(createState({ isPending: on }));
+      if (on) {
         run();
       }
     },
+
+    hook: s.hook,
   };
 
   async function run() {
@@ -162,7 +169,7 @@ export function async<Value>(
           update = update(curVal.v);
         }
         curVal.v = update;
-        innerStore.set(createState({ value: update }));
+        s.set(createState({ value: update }));
         setTimers();
       }
     };
@@ -178,12 +185,12 @@ export function async<Value>(
         }
       );
 
-      innerStore.set((s) => ({ ...s, isPending: true }));
+      s.set((s) => ({ ...s, isPending: true }));
       const value = await job;
 
       if (!isCanceled) {
         curVal = { v: value };
-        innerStore.set(createState({ value }));
+        s.set(createState({ value }));
         setTimers();
         buffer.forEach(applyUpdate);
         buffer.length = 0;
