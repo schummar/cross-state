@@ -1,50 +1,43 @@
-import { Cancel, Store } from '../types';
+import { Store } from '../types';
 import { store } from './store';
 
-const throws = {
-  get v(): any {
-    throw Error('[schummar-state:compute] circular reference in computation!');
-  },
-};
+const Undefined = Symbol('undefined');
+const Computing = Symbol('computing');
 
 export function computed<Value>(fn: (use: <T>(store: Store<T>) => T) => Value): Store<Value> {
-  let handles: Cancel[] = [];
-  let value: { readonly v: Value } | undefined;
-
-  // value will be calculated just in time
+  let value: Value | typeof Undefined | typeof Computing = Undefined;
   const s = store({});
 
   const compute = () => {
-    if (!value) {
-      value = throws;
-
-      for (const handle of handles) {
-        handle();
-      }
-      handles = [];
-
-      const deps = new Set<Store<any>>();
-      value = {
-        v: fn((store) => {
-          deps.add(store);
-          return store.get();
-        }),
-      };
-
-      for (const store of deps) {
-        handles.push(
-          store.subscribe(
-            () => {
-              value = undefined;
-              s.set({});
-            },
-            { runNow: false }
-          )
-        );
-      }
+    if (value === Computing) {
+      throw Error('[schummar-state:compute] circular reference in computation!');
     }
 
-    return value.v;
+    if (value === Undefined) {
+      value = Computing;
+
+      const deps = new Set<Store<any>>();
+      value = fn((store) => {
+        deps.add(store);
+        return store.get();
+      });
+
+      const handles = [...deps].map((store) =>
+        store.subscribe(
+          () => {
+            for (const handle of handles) {
+              handle();
+            }
+
+            value = Undefined;
+            s.set({});
+          },
+          { runNow: false }
+        )
+      );
+    }
+
+    return value;
   };
 
   return {
@@ -56,6 +49,6 @@ export function computed<Value>(fn: (use: <T>(store: Store<T>) => T) => Value): 
       return compute();
     },
 
-    hook: s.hook,
+    addEffect: s.addEffect,
   };
 }

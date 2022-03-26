@@ -1,6 +1,7 @@
+import { Cancel } from '../../src/helpers/misc';
 import { defaultEquals } from '../equals';
 import { throttle } from '../lib/throttle';
-import { AtomicStore, Listener } from '../types';
+import { AtomicStore, Effect, Listener } from '../types';
 import { arrayActions, mapActions, setActions } from './storeActions';
 
 export type StoreActions = Record<string, (...args: any[]) => any>;
@@ -24,8 +25,24 @@ export function store<Value, Actions extends StoreActions = StoreActions>(
 ): AtomicStore<Value> & Omit<BoundStoreActions<Value, Actions>, keyof AtomicStore<Value>> {
   let value = initialValue;
   const listeners = new Set<Listener<Value>>();
-  const hooks = { on: new Set<() => void>(), off: new Set<() => void>() };
+  const effects = new Map<Effect, void | Cancel | undefined>();
   let notifyId = {};
+
+  const onSubscribe = () => {
+    if (listeners.size > 0) return;
+
+    for (const effect of effects.keys()) {
+      effects.set(effect, effect());
+    }
+  };
+
+  const onUnsubscribe = () => {
+    if (listeners.size > 0) return;
+
+    for (const handle of effects.values()) {
+      handle?.();
+    }
+  };
 
   const notify = () => {
     const n = (notifyId = {});
@@ -49,11 +66,7 @@ export function store<Value, Actions extends StoreActions = StoreActions>(
         }
       };
 
-      if (listeners.size === 0) {
-        for (const listener of hooks.on) {
-          listener();
-        }
-      }
+      onSubscribe();
       listeners.add(innerListener);
 
       if (runNow) {
@@ -63,11 +76,7 @@ export function store<Value, Actions extends StoreActions = StoreActions>(
       return () => {
         listeners.delete(innerListener);
 
-        if (listeners.size === 0) {
-          for (const listener of hooks.off) {
-            listener();
-          }
-        }
+        onUnsubscribe();
       };
     },
 
@@ -84,11 +93,12 @@ export function store<Value, Actions extends StoreActions = StoreActions>(
       notify();
     },
 
-    hook(event, listener) {
-      hooks[event].add(listener);
+    addEffect(effect) {
+      effects.set(effect, listeners.size > 0 ? effect() : undefined);
 
       return () => {
-        hooks[event].delete(listener);
+        effects.get(effect)?.();
+        effects.delete(effect);
       };
     },
   };

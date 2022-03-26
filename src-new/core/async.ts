@@ -1,5 +1,6 @@
 import { defaultEquals, shallowEquals } from '../equals';
 import { Cancel, Store } from '../types';
+import { once } from './once';
 import { store } from './store';
 import { recordActions } from './storeActions';
 
@@ -64,8 +65,13 @@ export function async<Value>(
   const s = store(createState<Value>(), recordActions);
 
   let on = false;
-  s.hook('on', () => (on = true));
-  s.hook('off', () => (on = false));
+  s.addEffect(() => {
+    on = true;
+
+    return () => {
+      on = false;
+    };
+  });
 
   const asyncStore: AsyncStore<Value> = {
     get() {
@@ -84,21 +90,16 @@ export function async<Value>(
       });
     },
 
-    getPromise({ returnStale } = {}) {
-      return new Promise((resolve, reject) => {
-        const cancel = asyncStore.subscribe(({ value, error, isStale, status }) => {
-          if (isStale && !returnStale) {
-            return;
-          }
-          if (status === 'value') {
-            resolve(value);
-            setTimeout(cancel);
-          } else if (status === 'error') {
-            reject(error);
-            setTimeout(cancel);
-          }
-        });
-      });
+    async getPromise({ returnStale } = {}) {
+      const state = await once(
+        asyncStore,
+        (state): state is AsyncStoreValue<Value> & { status: 'value' | 'error' } =>
+          (returnStale || !state.isStale) && (state.status === 'value' || state.status === 'error')
+      );
+      if (state.status === 'value') {
+        return state.value;
+      }
+      throw state.error;
     },
 
     set(value) {
@@ -129,7 +130,7 @@ export function async<Value>(
       }
     },
 
-    hook: s.hook,
+    addEffect: s.addEffect,
   };
 
   async function run() {

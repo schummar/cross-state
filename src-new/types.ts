@@ -2,6 +2,10 @@ export interface Listener<T> {
   (value: T): void;
 }
 
+export interface Effect {
+  (): void | Cancel;
+}
+
 export interface SubscribeOptions {
   runNow?: boolean;
   throttle?: number;
@@ -15,7 +19,7 @@ export interface Cancel {
 export interface Store<Value> {
   get(): Value;
   subscribe(listener: Listener<Value>, options?: SubscribeOptions): Cancel;
-  hook(event: 'on' | 'off', listener: () => void): Cancel;
+  addEffect(effect: Effect): Cancel;
 }
 
 export type Update<Value> = Value | ((value: Value) => Value);

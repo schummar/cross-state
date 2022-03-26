@@ -1,6 +1,7 @@
 import { computed } from './core/computed';
 import { async } from './core/async';
 import { store } from './core/store';
+import { once } from './core/once';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -10,10 +11,12 @@ AtomicStore.set((s) => s + '#');
 AtomicStore.set('bar');
 
 const mapStore = store(new Map<string, number>());
+once(mapStore).then((v) => console.log('mapStore once', v));
+once(mapStore, (m) => m.has('bar')).then((v) => console.log('mapStore once condition', v));
 mapStore.subscribe((s) => console.log('map', s));
-mapStore.mset('foo', 42);
-mapStore.mset('bar', 43);
-mapStore.delete('foo');
+mapStore.with('foo', 42);
+mapStore.with('bar', 43);
+mapStore.without('foo');
 console.log(mapStore.get().has('bar'));
 mapStore.clear();
 
@@ -58,12 +61,12 @@ console.log('-');
 const nestedCalc = computed((use) => use(calculated) + '#');
 nestedCalc.subscribe((s) => console.log('nested', s));
 
-mapStore.mset('x1', 1);
+mapStore.with('x1', 1);
 
 calculated.subscribe((s) => console.log('calculated', s));
 
 AtomicStore.set('xyz');
-mapStore.mset('y', 1);
+mapStore.with('y', 1);
 
 let c = 0;
 const asyncStore = async(async () => {
