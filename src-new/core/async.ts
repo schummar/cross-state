@@ -20,9 +20,11 @@ export type AsyncStoreValue<T> =
   | ([value: undefined, error: unknown, isPending: boolean, isStale: boolean, status: 'error'] & WithError)
   | ([value: undefined, error: undefined, isPending: boolean, isStale: boolean, status: 'empty'] & Empty);
 
+export type Time = number | { milliseconds?: number; seconds?: number; minutes?: number; hours?: number; days?: number };
+
 export type AsyncStoreOptions<Value> = {
-  invalidateAfter?: number | ((state: AsyncStoreValue<Value>) => number);
-  clearAfter?: number | ((state: AsyncStoreValue<Value>) => number);
+  invalidateAfter?: Time | ((state: AsyncStoreValue<Value>) => Time);
+  clearAfter?: Time | ((state: AsyncStoreValue<Value>) => Time);
 };
 
 export interface AsyncStore<Value> extends Store<AsyncStoreValue<Value>> {
@@ -50,11 +52,36 @@ const createState = <Value>(x: Partial<State<Value>> = {}): State<Value> =>
     status: 'value' in x ? 'value' : 'error' in x ? 'error' : 'empty',
   } as any);
 
+const calcTime = (t: Time) => {
+  if (typeof t === 'number') return t;
+  return (
+    (t.milliseconds ?? 0) +
+    (t.seconds ?? 0) * 1000 +
+    (t.minutes ?? 0) * 60 * 1000 +
+    (t.hours ?? 0) * 60 * 60 * 1000 +
+    (t.days ?? 0) * 24 * 60 * 60 * 1000
+  );
+};
+
+///////////////////////////////////////////////////////////
+// Global
+///////////////////////////////////////////////////////////
+
+let defaultOptions = {
+  invalidateAfter: undefined as Time | undefined,
+  clearAfter: undefined as Time | undefined,
+  clearUnusedAfter: { days: 1 } as Time | undefined,
+};
+
+function setDefaultOptions(options: typeof defaultOptions) {
+  defaultOptions = options;
+}
+
 ///////////////////////////////////////////////////////////
 // Implementation
 ///////////////////////////////////////////////////////////
 
-export function async<Value>(
+function _async<Value>(
   fn: (use: <T>(store: Store<T>) => T, register: (process: (set: UpdateFn<Value>) => Cancel) => void) => Value | Promise<Value>,
   { invalidateAfter, clearAfter }: AsyncStoreOptions<Value> = {}
 ): AsyncStore<Value> {
@@ -216,14 +243,14 @@ export function async<Value>(
       invalidateAfter = invalidateAfter(asyncStore.get());
     }
     if (invalidateAfter) {
-      invalidateTimer = setTimeout(asyncStore.invalidate, invalidateAfter);
+      invalidateTimer = setTimeout(asyncStore.invalidate, calcTime(invalidateAfter));
     }
 
     if (clearAfter instanceof Function) {
       clearAfter = clearAfter(asyncStore.get());
     }
     if (clearAfter) {
-      clearTimer = setTimeout(asyncStore.invalidate, clearAfter);
+      clearTimer = setTimeout(asyncStore.invalidate, calcTime(clearAfter));
     }
   }
 
@@ -234,3 +261,7 @@ export function async<Value>(
 
   return asyncStore;
 }
+
+export const async = Object.assign(_async, {
+  setDefaultOptions,
+});
