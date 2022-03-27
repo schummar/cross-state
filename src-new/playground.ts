@@ -2,13 +2,14 @@ import { computed } from './core/computed';
 import { async } from './core/async';
 import { store } from './core/store';
 import { once } from './core/once';
+import { hash } from './lib/hash';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-const AtomicStore = store('foo');
-AtomicStore.subscribe((s) => console.log('simple', s));
-AtomicStore.set((s) => s + '#');
-AtomicStore.set('bar');
+const atomicStore = store('foo');
+atomicStore.subscribe((s) => console.log('simple', s));
+atomicStore.set((s) => s + '#');
+atomicStore.set('bar');
 
 const mapStore = store(new Map<string, number>());
 once(mapStore).then((v) => console.log('mapStore once', v));
@@ -52,10 +53,10 @@ customActionsStore.set(3);
 
 const calculated = computed((use) => {
   console.log('calc');
-  return [use(AtomicStore), use(mapStore).size, use(customActionsStore)].join(', ');
+  return [use(atomicStore), use(mapStore).size, use(customActionsStore)].join(', ');
 });
 
-AtomicStore.set('xyz1');
+atomicStore.set('xyz1');
 console.log('-');
 
 const nestedCalc = computed((use) => use(calculated) + '#');
@@ -65,13 +66,13 @@ mapStore.with('x1', 1);
 
 calculated.subscribe((s) => console.log('calculated', s));
 
-AtomicStore.set('xyz');
+atomicStore.set('xyz');
 mapStore.with('y', 1);
 
 let c = 0;
 const asyncStore = async(async () => {
   return c++;
-});
+})();
 
 asyncStore.subscribe((s) => console.log('async', s.value, s.isPending, s.isStale));
 asyncStore.invalidate();
@@ -82,30 +83,35 @@ if (status === 'value') {
   console.log(v);
 }
 
-const pushStore = async<Record<string, number>>(async (get, register) => {
-  register((set) => {
-    let stopped = false;
-
-    (async () => {
-      for (let i = 0; !stopped; i++) {
-        if (i % 4 === 0) set({ [`${get(AtomicStore)}_${i}`]: i });
-        else set((items) => ({ ...items, [`${get(AtomicStore)}_${i}`]: i }));
-        await sleep(1000);
-      }
-    })().catch((e) => {
-      console.error('fail', e);
-    });
-
-    return () => {
-      stopped = true;
-    };
-  });
-
-  await sleep(2000);
-  return { [`${get(AtomicStore)}_0`]: 42 };
+const paramAsyncStore = async(async (id: string) => {
+  return { id, name: 'foo' };
 });
-const cancelPush = pushStore.subscribe((s) => console.log('push', s.value, s.isPending, s.isStale));
-sleep(4000).then(pushStore.clear);
-sleep(10000).then(cancelPush);
+paramAsyncStore('42').subscribe((s) => console.log('paramAsyncStore', s));
 
-console.log('end');
+// const pushStore = async<Record<string, number>>(async (get, register) => {
+//   register((set) => {
+//     let stopped = false;
+
+//     (async () => {
+//       for (let i = 0; !stopped; i++) {
+//         if (i % 4 === 0) set({ [`${get(atomicStore)}_${i}`]: i });
+//         else set((items) => ({ ...items, [`${get(atomicStore)}_${i}`]: i }));
+//         await sleep(1000);
+//       }
+//     })().catch((e) => {
+//       console.error('fail', e);
+//     });
+
+//     return () => {
+//       stopped = true;
+//     };
+//   });
+
+//   await sleep(2000);
+//   return { [`${get(atomicStore)}_0`]: 42 };
+// });
+// const cancelPush = pushStore.subscribe((s) => console.log('push', s.value, s.isPending, s.isStale));
+// sleep(4000).then(pushStore.clear);
+// sleep(10000).then(cancelPush);
+
+// console.log('end');

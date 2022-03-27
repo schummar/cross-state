@@ -101,6 +101,10 @@ export function store<Value, Actions extends StoreActions = StoreActions>(
         effects.delete(effect);
       };
     },
+
+    get isActive() {
+      return listeners.size > 0;
+    },
   };
 
   if (initialValue instanceof Map && !actions) {

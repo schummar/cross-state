@@ -20,6 +20,7 @@ export interface Store<Value> {
   get(): Value;
   subscribe(listener: Listener<Value>, options?: SubscribeOptions): Cancel;
   addEffect(effect: Effect): Cancel;
+  readonly isActive: boolean;
 }
 
 export type Update<Value> = Value | ((value: Value) => Value);

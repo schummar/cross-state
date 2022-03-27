@@ -50,5 +50,8 @@ export function computed<Value>(fn: (use: <T>(store: Store<T>) => T) => Value): 
     },
 
     addEffect: s.addEffect,
+    get isActive() {
+      return s.isActive;
+    },
   };
 }
