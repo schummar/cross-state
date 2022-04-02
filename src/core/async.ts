@@ -31,20 +31,20 @@ export type AsyncStoreOptions<Value> = {
 
 export interface AsyncStore<Value> extends Store<AsyncStoreValue<Value>> {
   getPromise(options?: { returnStale?: boolean }): Promise<Value>;
-  set(value: Value): void;
+  set(update: Value | ((value?: Value) => Value)): void;
   setError(error: unknown): void;
   invalidate(): void;
   clear(): void;
 }
 
-export interface AsyncCollection<Args extends any[], Value> {
-  (...args: Args): AsyncStore<Value>;
+export interface AsyncCollection<Arg, Value> {
+  (...[arg]: Arg extends undefined ? [arg?: undefined] : [arg: Arg]): AsyncStore<Value>;
   invalidate(): void;
   clear(): void;
 }
 
-export interface AsyncAction<Args extends any[], Value> {
-  (args: Args, use: <T>(store: Store<T>) => T, register: (process: (set: UpdateFn<Value>) => Cancel) => void): Value | Promise<Value>;
+export interface AsyncAction<Arg, Value> {
+  (arg: Arg, use: <T>(store: Store<T>) => T, register: (process: (set: UpdateFn<Value>) => Cancel) => void): Value | Promise<Value>;
 }
 
 ///////////////////////////////////////////////////////////
@@ -93,59 +93,17 @@ function setDefaultOptions(options: typeof defaultOptions) {
 // Implementation
 ///////////////////////////////////////////////////////////
 
-function _async<Args extends any[], Value>(
-  fn: AsyncAction<Args, Value>,
+function _async<Arg = undefined, Value = unknown>(
+  fn: AsyncAction<Arg, Value>,
   options: AsyncStoreOptions<Value> = {}
-): AsyncCollection<Args, Value> {
-  const {
-    invalidateAfter = defaultOptions.invalidateAfter,
-    clearAfter = defaultOptions.clearAfter,
-    clearUnusedAfter = defaultOptions.clearUnusedAfter,
-  } = options;
-
-  const collection = new Map<
-    string,
-    {
-      store: Store<State<Value>>;
-      ref(): void;
-    }
-  >();
-
-  const getInstance = (args: Args) => {
-    const key = hash(args);
-    let instance = collection.get(key);
-    if (instance) {
-      return instance;
-    }
-
-    let timer: ReturnType<typeof setTimeout> | undefined;
-
-    instance = {
-      store: store(createState<Value>()),
-      ref() {
-        if (timer) {
-          clearTimeout(timer);
-        }
-        if (!instance?.store.isActive && clearUnusedAfter !== undefined) {
-          timer = setTimeout(() => {
-            console.log('unref', instance);
-            collection.delete(key);
-          }, calcTime(clearUnusedAfter));
-        }
-      },
-    };
-
-    instance.store.addEffect(() => {
-      instance?.ref();
-      return instance?.ref;
-    });
-  };
+): AsyncCollection<Arg, Value> {
+  const collection = new Map<string, AsyncStore<Value>>();
 
   const invalidate = () => {};
 
   const clear = () => {};
 
-  const getAsyncStore = (...args: Args) => {
+  const createAsyncStore = (arg: Arg) => {
     let invalidateTimer: ReturnType<typeof setTimeout> | undefined;
     let clearTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -191,6 +149,9 @@ function _async<Args extends any[], Value>(
       },
 
       set(value) {
+        if (value instanceof Function) {
+          value = value(asyncStore.get().value);
+        }
         cancelRun?.();
         s.set(createState({ value }));
         setTimers();
@@ -268,6 +229,7 @@ function _async<Args extends any[], Value>(
 
       try {
         job = fn(
+          arg,
           (store) => {
             deps.add(store);
             return store.get();
@@ -303,6 +265,12 @@ function _async<Args extends any[], Value>(
     function setTimers() {
       resetTimers();
 
+      let {
+        invalidateAfter = defaultOptions.invalidateAfter,
+        clearAfter = defaultOptions.clearAfter,
+        // clearUnusedAfter = defaultOptions.clearUnusedAfter,
+      } = options;
+
       if (invalidateAfter instanceof Function) {
         invalidateAfter = invalidateAfter(asyncStore.get());
       }
@@ -325,6 +293,16 @@ function _async<Args extends any[], Value>(
 
     return asyncStore;
   };
+
+  function getAsyncStore(arg?: Arg) {
+    const key = hash(arg);
+    let asyncStore = collection.get(key);
+    if (!asyncStore) {
+      asyncStore = createAsyncStore(arg!);
+      collection.set(key, asyncStore);
+    }
+    return asyncStore;
+  }
 
   return Object.assign(getAsyncStore, {
     invalidate,

@@ -13,9 +13,9 @@ const objectStore = store({ a: 1, b: 2, c: 3 } as Record<string, number>, record
 
 const computeddStore = computed((get) => get(numberStore) * 2);
 
-const asyncStore = async(async (get) => `async:${get(computeddStore)}`);
+const asyncStore = async(async (_v, get) => `async:${get(computeddStore)}`)();
 
-const pushStore = async<Record<string, number>>(async (get, register) => {
+const pushStore = async<null, Record<string, number>>(async (_v, get, register) => {
   register((set) => {
     let stopped = false;
 
@@ -35,7 +35,7 @@ const pushStore = async<Record<string, number>>(async (get, register) => {
 
   await sleep(2000);
   return { computed: get(computeddStore) };
-});
+})(null);
 
 export function Playground() {
   const x = useStore(numberStore);

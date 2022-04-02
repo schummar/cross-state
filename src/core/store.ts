@@ -1,7 +1,6 @@
-import { Cancel } from '../../src/helpers/misc';
 import { defaultEquals } from '../equals';
 import { throttle } from '../lib/throttle';
-import { AtomicStore, Effect, Listener } from '../types';
+import { AtomicStore, Cancel, Effect, Listener } from '../types';
 import { arrayActions, mapActions, setActions } from './storeActions';
 
 export type StoreActions = Record<string, (...args: any[]) => any>;

@@ -1,6 +1,6 @@
 /// <reference types="vitest" />
+import { isAbsolute } from 'path';
 import { defineConfig } from 'vite';
-import { peerDependencies } from './package.json';
 
 export default defineConfig({
   test: {
@@ -14,19 +14,21 @@ export default defineConfig({
     minify: true,
 
     lib: {
-      entry: 'src-new/index.ts',
+      entry: 'src/index.ts',
       formats: ['es', 'cjs'],
     },
     rollupOptions: {
       input: {
-        index: 'src-new/index.ts',
-        // react: 'src/react/index.ts',
+        index: 'src/index.ts',
+        react: 'src/react/index.ts',
       },
       output: {
         entryFileNames: '[format]/[name].js',
         chunkFileNames: '[format]/[name].js',
       },
-      external: Object.keys(peerDependencies),
+      external: (source) => {
+        return !(isAbsolute(source) || source.startsWith('.'));
+      },
     },
   },
 });

@@ -3,6 +3,7 @@ import { async } from './core/async';
 import { store } from './core/store';
 import { once } from './core/once';
 import { hash } from './lib/hash';
+import { immerActions } from './integrations/immerActions';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -10,6 +11,12 @@ const atomicStore = store('foo');
 atomicStore.subscribe((s) => console.log('simple', s));
 atomicStore.set((s) => s + '#');
 atomicStore.set('bar');
+
+const immerStore = store({ foo: 'bar' }, immerActions);
+immerStore.subscribe((s) => console.log('immer', s));
+immerStore.update((state) => {
+  state.foo = 'baz';
+});
 
 const mapStore = store(new Map<string, number>());
 once(mapStore).then((v) => console.log('mapStore once', v));
@@ -88,30 +95,37 @@ const paramAsyncStore = async(async (id: string) => {
 });
 paramAsyncStore('42').subscribe((s) => console.log('paramAsyncStore', s));
 
-// const pushStore = async<Record<string, number>>(async (get, register) => {
-//   register((set) => {
-//     let stopped = false;
+console.log('####################################');
 
-//     (async () => {
-//       for (let i = 0; !stopped; i++) {
-//         if (i % 4 === 0) set({ [`${get(atomicStore)}_${i}`]: i });
-//         else set((items) => ({ ...items, [`${get(atomicStore)}_${i}`]: i }));
-//         await sleep(1000);
-//       }
-//     })().catch((e) => {
-//       console.error('fail', e);
-//     });
+const pushStore = async<undefined, Record<string, number>>(async (_v, get, register) => {
+  console.log('start');
 
-//     return () => {
-//       stopped = true;
-//     };
-//   });
+  register((set) => {
+    console.log('register');
+    let stopped = false;
 
-//   await sleep(2000);
-//   return { [`${get(atomicStore)}_0`]: 42 };
-// });
-// const cancelPush = pushStore.subscribe((s) => console.log('push', s.value, s.isPending, s.isStale));
-// sleep(4000).then(pushStore.clear);
-// sleep(10000).then(cancelPush);
+    (async () => {
+      for (let i = 0; !stopped; i++) {
+        if (i % 4 === 0) set({ [`${get(atomicStore)}_${i}`]: i });
+        else set((items) => ({ ...items, [`${get(atomicStore)}_${i}`]: i }));
+        await sleep(1000);
+      }
+    })().catch((e) => {
+      console.error('fail', e);
+    });
 
-// console.log('end');
+    return () => {
+      stopped = true;
+    };
+  });
+
+  await sleep(2000);
+  return { [`${get(atomicStore)}_0`]: 42 };
+});
+const cancelPush = pushStore().subscribe((s) => console.log('push', s.value, s.isPending, s.isStale));
+pushStore().subscribe((s) => console.log('push', s.value, s.isPending, s.isStale));
+pushStore().subscribe((s) => console.log('push', s.value, s.isPending, s.isStale));
+sleep(4000).then(pushStore.clear);
+sleep(10000).then(cancelPush);
+
+console.log('end');
