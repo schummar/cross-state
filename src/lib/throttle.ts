@@ -3,11 +3,20 @@ export function throttle<Args extends any[]>(fn: (...args: Args) => void, ms: nu
   let timeout: ReturnType<typeof setTimeout> | undefined;
 
   return (...args: Args) => {
-    clearTimeout(timeout);
+    if (timeout !== undefined) {
+      clearTimeout(timeout);
+    }
+
+    const dt = t + ms - Date.now();
+    if (dt <= 0) {
+      fn(...args);
+      t = Date.now();
+      return;
+    }
 
     timeout = setTimeout(() => {
       fn(...args);
       t = Date.now();
-    }, t + ms - Date.now());
+    }, dt);
   };
 }

@@ -38,8 +38,9 @@ export function store<Value, Actions extends StoreActions = StoreActions>(
   const onUnsubscribe = () => {
     if (listeners.size > 0) return;
 
-    for (const handle of effects.values()) {
+    for (const [effect, handle] of effects.entries()) {
       handle?.();
+      effects.set(effect, undefined);
     }
   };
 

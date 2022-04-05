@@ -1,8 +1,7 @@
-import { computed } from './core/computed';
 import { async } from './core/async';
-import { store } from './core/store';
+import { computed } from './core/computed';
 import { once } from './core/once';
-import { hash } from './lib/hash';
+import { store } from './core/store';
 import { immerActions } from './integrations/immerActions';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
