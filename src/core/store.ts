@@ -1,4 +1,4 @@
-import { defaultEquals } from '../equals';
+import { defaultEquals } from '../lib/equals';
 import { throttle } from '../lib/throttle';
 import { AtomicStore, Cancel, Effect, Listener } from '../types';
 import { arrayActions, mapActions, setActions } from './storeActions';

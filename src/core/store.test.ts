@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { store } from '..';
-import { shallowEquals } from '../equals';
+import { shallowEquals } from '../lib/equals';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -111,15 +111,17 @@ describe('store', () => {
     test('store.subscribe throttle', async () => {
       const x = store(1);
       const listener = vi.fn();
-      x.subscribe(listener, { throttle: 1 });
+      x.subscribe(listener, { throttle: 2 });
       x.set(2);
+      vi.advanceTimersByTime(1);
+      x.set(3);
       expect(listener.mock.calls).toEqual([[1]]);
 
       vi.advanceTimersByTime(1);
-      expect(listener.mock.calls).toEqual([[1], [2]]);
+      expect(listener.mock.calls).toEqual([[1], [3]]);
     });
 
-    test('store.subscribe default equals function', async () => {
+    test('store.subscribe default equals', async () => {
       const x = store({ a: 1 });
       const listener = vi.fn();
       x.subscribe(listener);

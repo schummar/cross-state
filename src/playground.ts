@@ -1,4 +1,4 @@
-import { async } from './core/async';
+import { asyncStore } from './core/asyncStore';
 import { computed } from './core/computed';
 import { once } from './core/once';
 import { store } from './core/store';
@@ -76,7 +76,7 @@ atomicStore.set('xyz');
 mapStore.with('y', 1);
 
 let c = 0;
-const asyncStore = async(async () => {
+const asyncStore = asyncStore(async () => {
   return c++;
 })();
 
@@ -89,14 +89,14 @@ if (status === 'value') {
   console.log(v);
 }
 
-const paramAsyncStore = async(async (id: string) => {
+const paramAsyncStore = asyncStore(async (id: string) => {
   return { id, name: 'foo' };
 });
 paramAsyncStore('42').subscribe((s) => console.log('paramAsyncStore', s));
 
 console.log('####################################');
 
-const pushStore = async<undefined, Record<string, number>>(async (_v, get, register) => {
+const pushStore = asyncStore<undefined, Record<string, number>>(async (_v, get, register) => {
   console.log('start');
 
   register((set) => {

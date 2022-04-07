@@ -1,9 +1,9 @@
 import React, { StrictMode } from 'react';
 import { createRoot } from 'react-dom';
-import { async } from '../core/async';
-import { computed } from '../core/computed';
-import { store } from '../core/store';
-import { recordActions } from '../core/storeActions';
+import { asyncStore } from '../../core/asyncStore';
+import { computed } from '../../core/computed';
+import { store } from '../../core/store';
+import { recordActions } from '../../core/storeActions';
 import { useStore } from './useStore';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -13,9 +13,9 @@ const objectStore = store({ a: 1, b: 2, c: 3 } as Record<string, number>, record
 
 const computeddStore = computed((get) => get(numberStore) * 2);
 
-const asyncStore = async(async (_v, get) => `async:${get(computeddStore)}`)();
+const asyncStore = asyncStore(async (_v, get) => `async:${get(computeddStore)}`)();
 
-const pushStore = async<null, Record<string, number>>(async (_v, get, register) => {
+const pushStore = asyncStore<null, Record<string, number>>(async (_v, get, register) => {
   register((set) => {
     let stopped = false;
 

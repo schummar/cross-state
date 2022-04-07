@@ -1,9 +1,8 @@
-import { defaultEquals, shallowEquals } from '../equals';
+import { defaultEquals, shallowEquals } from '../lib/equals';
 import { hash } from '../lib/hash';
 import { Cancel, Store } from '../types';
 import { once } from './once';
 import { store } from './store';
-import { recordActions } from './storeActions';
 
 ///////////////////////////////////////////////////////////
 // Types
@@ -122,7 +121,7 @@ function _async<Arg = undefined, Value = unknown>(
     const asyncStore: AsyncStore<Value> = {
       get() {
         const state = s.get();
-        return Object.assign<any, any>([state.value, state.error, state], state);
+        return Object.assign<any, any>([state.value, state.error, state.isPending, state.isStale, state.status], state);
       },
 
       subscribe(listener, options) {
@@ -209,7 +208,7 @@ function _async<Arg = undefined, Value = unknown>(
         if (isCanceled) {
           if (process.env.NODE_ENV !== 'production') {
             console.warn(
-              `[schummar-state:async] process has been canceled. 'set' should not be called anymore. Having no proper teardown might result in memory leaks.`
+              `[schummar-state:asyncStore] process has been canceled. 'set' should not be called anymore. Having no proper teardown might result in memory leaks.`
             );
           }
           return;
@@ -287,8 +286,8 @@ function _async<Arg = undefined, Value = unknown>(
     }
 
     function resetTimers() {
-      clearTimeout(invalidateTimer);
-      clearTimeout(clearTimer);
+      invalidateTimer !== undefined && clearTimeout(invalidateTimer);
+      clearTimer !== undefined && clearTimeout(clearTimer);
     }
 
     return asyncStore;
@@ -310,6 +309,6 @@ function _async<Arg = undefined, Value = unknown>(
   });
 }
 
-export const async = Object.assign(_async, {
+export const asyncStore = Object.assign(_async, {
   setDefaultOptions,
 });
