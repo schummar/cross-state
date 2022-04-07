@@ -98,9 +98,13 @@ function _async<Arg = undefined, Value = unknown>(
 ): AsyncCollection<Arg, Value> {
   const collection = new Map<string, AsyncStore<Value>>();
 
-  const invalidate = () => {};
+  const invalidate = () => {
+    throw Error('Not implemented');
+  };
 
-  const clear = () => {};
+  const clear = () => {
+    throw Error('Not implemented');
+  };
 
   const createAsyncStore = (arg: Arg) => {
     let invalidateTimer: ReturnType<typeof setTimeout> | undefined;

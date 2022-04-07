@@ -15,13 +15,14 @@ export default defineConfig({
     minify: true,
 
     lib: {
-      entry: 'src/index.ts',
+      entry: './src/index.ts',
       formats: ['es', 'cjs'],
     },
     rollupOptions: {
       input: {
-        index: 'src/index.ts',
-        react: 'src/react/index.ts',
+        index: './src/index.ts',
+        react: './src/integrations/react/index.ts',
+        immer: './src/integrations/immer/index.ts',
       },
       output: {
         entryFileNames: '[format]/[name].js',

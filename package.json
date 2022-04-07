@@ -1,7 +1,7 @@
 {
   "name": "schummar-state",
   "repository": "schummar/schummar-state",
-  "version": "0.2.1-experimental-13",
+  "version": "0.2.1-experimental-15",
   "description": "(React) state library",
   "sideEffects": false,
   "main": "dist/cjs/index.js",
@@ -16,6 +16,11 @@
       "import": "./dist/es/react.js",
       "require": "./dist/cjs/react.js",
       "default": "./dist/es/react.js"
+    },
+    "./immer": {
+      "import": "./dist/es/immer.js",
+      "require": "./dist/cjs/immer.js",
+      "default": "./dist/es/immer.js"
     }
   },
   "types": "dist/types/index.d.ts",
@@ -25,7 +30,10 @@
         "dist/types/index.d.ts"
       ],
       "react": [
-        "dist/types/react/index.d.ts"
+        "dist/types/integrations/react/index.d.ts"
+      ],
+      "immer": [
+        "dist/types/integrations/immer/index.d.ts"
       ]
     }
   },
@@ -50,14 +58,14 @@
     "test:export": "vitest run --coverage --reporter=verbose --reporter=junit --outputFile=test/testResults.xml"
   },
   "dependencies": {
-    "use-sync-external-store": "^1.0.0-rc.0"
+    "use-sync-external-store": "^1.0.0"
   },
   "devDependencies": {
     "@testing-library/react": "^13.0.0-alpha.5",
     "@types/node": "^17.0.23",
     "@types/node-persist": "^3.1.2",
-    "@types/react": "^17.0.43",
-    "@types/react-dom": "^17.0.14",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
     "@types/use-sync-external-store": "^0.0.3",
     "@typescript-eslint/eslint-plugin": "^5.18.0",
     "@typescript-eslint/parser": "^5.18.0",
@@ -72,15 +80,15 @@
     "node-persist": "^3.1.0",
     "npm-run-all": "^4.1.5",
     "prettier": "^2.6.2",
-    "react": "^18.0.0-rc.0",
-    "react-dom": "^18.0.0-rc.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
     "rimraf": "^3.0.2",
     "typescript": "^4.6.3",
     "vitest": "^0.8.4"
   },
   "peerDependencies": {
     "@types/react": ">=16.0.8",
-    "immer": "^9.0.1",
+    "immer": ">=9.0.0",
     "react": ">=16.0.8"
   },
   "peerDependenciesMeta": {
