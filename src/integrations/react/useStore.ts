@@ -1,7 +1,7 @@
 import { useCallback, useDebugValue } from 'react';
 import { useSyncExternalStoreWithSelector } from 'use-sync-external-store/shim/with-selector';
-import { Store, SubscribeOptions } from '../../types';
 import { shallowEquals } from '../../lib/equals';
+import { Store, SubscribeOptions } from '../../types';
 
 export type UseStoreOptions = Omit<SubscribeOptions, 'runNow'>;
 
@@ -23,13 +23,11 @@ export function useStore<T, S = T>(
     [store, options?.throttle, options?.equals]
   );
 
-  const getSnapshot = useCallback(() => store.get(), [store]);
-
   const value = useSyncExternalStoreWithSelector(
     //
     subscribe,
-    getSnapshot,
-    getSnapshot,
+    store.get,
+    undefined,
     selector,
     options?.equals ?? shallowEquals
   );

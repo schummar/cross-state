@@ -4,10 +4,11 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   test: {
-    environment: 'jsdom',
-    open: true,
+    environment: 'happy-dom',
     include: ['./src/**/*.test.{ts,tsx}'],
     exclude: ['**/_*'],
+    setupFiles: ['./src/lib/testSetup.ts'],
+    api: { port: 6200, strictPort: true },
   },
 
   build: {
