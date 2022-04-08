@@ -1,46 +1,63 @@
+import { calcTime } from '../lib/calcTime';
 import { defaultEquals } from '../lib/equals';
 import { throttle } from '../lib/throttle';
-import { AtomicStore, Cancel, Effect, Listener } from '../types';
+import { BaseStore, Cancel, Effect, Listener } from '../types';
 import { arrayActions, mapActions, setActions } from './storeActions';
 
 export type StoreActions = Record<string, (...args: any[]) => any>;
 
-export type BoundStoreActions<Value, Actions extends StoreActions> = Actions & ThisType<AtomicStore<Value> & Actions>;
+export type BoundStoreActions<Value, Actions extends StoreActions> = Actions & ThisType<BaseStore<Value> & Actions>;
+
+const noop = () => {
+  // noop
+};
 
 ///////////////////////////////////////////////////////////
 // Implementation
 ///////////////////////////////////////////////////////////
 
-export function store<K, V>(value: Map<K, V>): AtomicStore<Map<K, V>> & typeof mapActions;
-export function store<T>(value: Set<T>): AtomicStore<Set<T>> & typeof setActions;
-export function store<T>(value: Array<T>): AtomicStore<Array<T>> & typeof arrayActions;
+export function store<K, V>(value: Map<K, V>): BaseStore<Map<K, V>> & typeof mapActions;
+export function store<T>(value: Set<T>): BaseStore<Set<T>> & typeof setActions;
+export function store<T>(value: Array<T>): BaseStore<Array<T>> & typeof arrayActions;
 export function store<Value, Actions extends StoreActions = StoreActions>(
   value: Value,
   actions?: BoundStoreActions<Value, Actions>
-): AtomicStore<Value> & Omit<BoundStoreActions<Value, Actions>, keyof AtomicStore<Value>>;
+): BaseStore<Value> & Omit<BoundStoreActions<Value, Actions>, keyof BaseStore<Value>>;
 export function store<Value, Actions extends StoreActions = StoreActions>(
   initialValue: Value,
   actions?: BoundStoreActions<Value, Actions>
-): AtomicStore<Value> & Omit<BoundStoreActions<Value, Actions>, keyof AtomicStore<Value>> {
+): BaseStore<Value> & Omit<BoundStoreActions<Value, Actions>, keyof BaseStore<Value>> {
   let value = initialValue;
   const listeners = new Set<Listener<Value>>();
-  const effects = new Map<Effect, void | Cancel | undefined>();
+  const effects = new Map<Effect, { handle?: Cancel; retain?: number; timeout?: ReturnType<typeof setTimeout> }>();
   let notifyId = {};
 
   const onSubscribe = () => {
     if (listeners.size > 0) return;
 
-    for (const effect of effects.keys()) {
-      effects.set(effect, effect());
+    for (const [effect, { handle, retain, timeout }] of effects.entries()) {
+      timeout !== undefined && clearTimeout(timeout);
+
+      effects.set(effect, {
+        handle: handle ?? effect() ?? noop,
+        retain,
+        timeout: undefined,
+      });
     }
   };
 
   const onUnsubscribe = () => {
     if (listeners.size > 0) return;
 
-    for (const [effect, handle] of effects.entries()) {
-      handle?.();
-      effects.set(effect, undefined);
+    for (const [effect, { handle, retain, timeout }] of effects.entries()) {
+      !retain && handle?.();
+      timeout !== undefined && clearTimeout(timeout);
+
+      effects.set(effect, {
+        handle: retain ? handle : undefined,
+        retain,
+        timeout: retain && handle ? setTimeout(handle, retain) : undefined,
+      });
     }
   };
 
@@ -52,7 +69,7 @@ export function store<Value, Actions extends StoreActions = StoreActions>(
     }
   };
 
-  const store: AtomicStore<Value> = {
+  const store: BaseStore<Value> = {
     subscribe(listener, { runNow = true, throttle: throttleOption, equals = defaultEquals } = {}) {
       if (throttleOption) {
         listener = throttle(listener, throttleOption);
@@ -93,11 +110,16 @@ export function store<Value, Actions extends StoreActions = StoreActions>(
       notify();
     },
 
-    addEffect(effect) {
-      effects.set(effect, listeners.size > 0 ? effect() : undefined);
+    addEffect(effect, retain) {
+      effects.set(effect, {
+        handle: listeners.size > 0 ? effect() ?? noop : undefined,
+        retain: retain !== undefined ? calcTime(retain) : undefined,
+      });
 
       return () => {
-        effects.get(effect)?.();
+        const { handle, timeout } = effects.get(effect) ?? {};
+        handle?.();
+        timeout !== undefined && clearTimeout(timeout);
         effects.delete(effect);
       };
     },

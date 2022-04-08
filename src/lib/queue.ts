@@ -1,6 +1,8 @@
+import { MaybePromise } from './maybePromise';
+
 type Action<T> = () => T | Promise<T>;
 interface Queue {
-  <T>(action: Action<T>): Promise<T>;
+  <T>(action: Action<T>): MaybePromise<T>;
   clear: () => void;
 }
 
@@ -15,7 +17,11 @@ export function queue(): Queue {
       let next;
       while ((next = q.shift())) {
         try {
-          next.resolve(await next.action());
+          let result = next.action();
+          if (result instanceof Promise) {
+            result = await result;
+          }
+          next.resolve(result);
         } catch (e) {
           next.reject(e);
         }

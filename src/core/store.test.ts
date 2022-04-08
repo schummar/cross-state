@@ -42,8 +42,8 @@ describe('store', () => {
     expect(x.isActive).toBe(false);
   });
 
-  describe('store.addEffect', () => {
-    test('store.addEffect', () => {
+  describe('addEffect', () => {
+    test('addEffect', () => {
       const x = store(1);
       const effect = vi.fn();
       x.addEffect(effect);
@@ -57,9 +57,11 @@ describe('store', () => {
       const x = store(1);
       const effect = vi.fn();
       x.addEffect(effect);
+
       const cancel = x.subscribe(vi.fn());
       cancel();
       x.subscribe(vi.fn());
+
       expect(effect.mock.calls).toEqual([[], []]);
     });
 

@@ -1,9 +1,9 @@
 import { queue } from '../lib/queue';
-import { AtomicStore } from '../types';
+import { BaseStore } from '../types';
 import { PersistOptions } from './persistOptions';
 import { PersistStorage } from './persistStorage';
 
-export function persist<T>(s: AtomicStore<T>, storage: PersistStorage, options: PersistOptions<T>) {
+export function persist<T>(s: BaseStore<T>, storage: PersistStorage, options: PersistOptions<T>) {
   const { id, throttle } = options;
   let canceled = false;
   let handle: (() => void) | undefined;

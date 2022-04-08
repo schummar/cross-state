@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { shallowEquals } from '../lib/equals';
+import { flushPromises, getValues, sleep } from '../lib/testHelpers';
 import { asyncStore } from './asyncStore';
 import { store } from './store';
 
@@ -11,9 +12,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const tick = Promise.resolve();
-
-const createState = (x: any = {}) => {
+export const createState = (x: any = {}) => {
   const state = {
     value: x.value,
     error: x.error,
@@ -38,7 +37,7 @@ describe('asyncStore', () => {
       testStore.subscribe(vi.fn());
       expect(testStore.get()).toEqual(createState({ isPending: true }));
 
-      await tick;
+      await flushPromises();
       expect(testStore.get()).toEqual(createState({ value: 1 }));
     });
 
@@ -47,7 +46,7 @@ describe('asyncStore', () => {
       testStore(1).subscribe(vi.fn());
       testStore(2).subscribe(vi.fn());
 
-      await tick;
+      await flushPromises();
       expect(testStore(1).get()).toEqual(createState({ value: 2 }));
       expect(testStore(2).get()).toEqual(createState({ value: 3 }));
     });
@@ -60,7 +59,7 @@ describe('asyncStore', () => {
       testStore.subscribe(listener);
       expect(listener.mock.calls.length).toBe(1);
 
-      await tick;
+      await flushPromises();
       expect(listener.mock.calls).toEqual([
         //
         [createState({ isPending: true })],
@@ -75,9 +74,9 @@ describe('asyncStore', () => {
       testStore(1).subscribe(listener1);
       testStore(2).subscribe(listener2);
 
-      await tick;
-      expect(listener1.mock.calls[1]).toEqual([createState({ value: 2 })]);
-      expect(listener2.mock.calls[1]).toEqual([createState({ value: 3 })]);
+      await flushPromises();
+      expect(getValues(listener1)).toEqual([undefined, 2]);
+      expect(getValues(listener2)).toEqual([undefined, 3]);
     });
 
     test('when the actions throws an error', async () => {
@@ -87,7 +86,7 @@ describe('asyncStore', () => {
       const listener = vi.fn();
       testStore().subscribe(listener);
 
-      await tick;
+      await flushPromises();
       expect(listener.mock.calls).toEqual([
         //
         [createState({ isPending: true })],
@@ -99,13 +98,10 @@ describe('asyncStore', () => {
       const testStore = asyncStore(async () => 1);
       const listener = vi.fn();
       testStore().subscribe(listener, { runNow: false });
-      expect(listener.mock.calls.length).toBe(0);
+      expect(getValues(listener).length).toBe(0);
 
-      await tick;
-      expect(listener.mock.calls).toEqual([
-        //
-        [createState({ value: 1 })],
-      ]);
+      await flushPromises();
+      expect(getValues(listener)).toEqual([1]);
     });
 
     test('with throttle', async () => {
@@ -117,97 +113,48 @@ describe('asyncStore', () => {
       testStore().set(3);
 
       vi.advanceTimersByTime(1);
-      expect(listener.mock.calls).toEqual([
-        //
-        [createState({ isPending: true })],
-        [createState({ value: 3 })],
-      ]);
+      expect(getValues(listener)).toEqual([undefined, 3]);
     });
 
     test('with default equals', async () => {
       const testStore = asyncStore(async () => [1]);
       const listener = vi.fn();
       testStore().subscribe(listener);
-      await tick;
+      await flushPromises();
       testStore().set([1]);
 
-      expect(listener.mock.calls).toEqual([
-        //
-        [createState({ isPending: true })],
-        [createState({ value: [1] })],
-        [createState({ value: [1] })],
-      ]);
+      expect(getValues(listener)).toEqual([undefined, [1], [1]]);
     });
 
     test('with shallowEquals', async () => {
       const testStore = asyncStore(async () => [1]);
       const listener = vi.fn();
       testStore().subscribe(listener, { equals: shallowEquals });
-      await tick;
+      await flushPromises();
       testStore().set([1]);
 
-      expect(listener.mock.calls).toEqual([
-        //
-        [createState({ isPending: true })],
-        [createState({ value: [1] })],
-      ]);
+      expect(getValues(listener)).toEqual([undefined, [1]]);
     });
 
-    test('with dependencies', async () => {
+    test('with dependencies1', async () => {
       const dep1 = store(1);
-      const dep2 = asyncStore(async () => 10)();
-      const y = asyncStore(async (_v, get) => get(dep1) + (get(dep2).value ?? 0) + 100);
-      const listener = vi.fn();
-      y().subscribe(listener);
-      await tick;
-      await tick;
-      dep1.set(2);
-      await tick;
-      dep2.set(20);
-      await tick;
-
-      expect(listener.mock.calls).toEqual([
-        //
-        [createState({ isPending: true })],
-        [createState({ value: 101 })],
-        [createState({ isPending: true })],
-        [createState({ value: 111 })],
-        [createState({ isPending: true })],
-        [createState({ value: 122 })],
-      ]);
-    });
-  });
-
-  describe('push', () => {
-    test('push', async () => {
-      const testStore = asyncStore<undefined, number>(async (_v, get, register) => {
-        register((set) => {
-          let c = 1;
-          const interval = setInterval(() => set(c++), 1);
-          return () => {
-            clearInterval(interval);
-          };
-        });
-
-        return 0;
+      const dep2 = asyncStore(async () => {
+        await sleep(1);
+        return 10;
+      })();
+      const s = asyncStore(async function () {
+        return this.use(dep1) + (this.use(dep2).value ?? 0) + 100;
       });
-
       const listener = vi.fn();
-      const cancel = testStore().subscribe(listener);
+      s().subscribe(listener);
+      vi.advanceTimersByTime(1);
+      await flushPromises();
+      dep1.set(2);
+      await flushPromises();
+      dep2.set(20);
+      await flushPromises();
 
-      await tick;
-      vi.advanceTimersByTime(1);
-      vi.advanceTimersByTime(1);
-      cancel();
-      vi.advanceTimersByTime(1);
-
-      expect(listener.mock.calls).toEqual([
-        //
-        [createState({ isPending: true })],
-        [createState({ value: 0 })],
-        [createState({ value: 1 })],
-        [createState({ value: 2 })],
-      ]);
+      expect(getValues(listener)).toEqual([undefined, 101, undefined, 111, undefined, 112, undefined, 122]);
     });
   });
 });
