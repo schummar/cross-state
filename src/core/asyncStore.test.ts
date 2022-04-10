@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { shallowEquals } from '../lib/equals';
-import { flushPromises, getValues, sleep } from '../lib/testHelpers';
+import { flushPromises, getValues, sleep, testAsyncState } from '../lib/testHelpers';
 import { asyncStore } from './asyncStore';
 import { store } from './store';
 
@@ -12,17 +12,6 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-export const createState = (x: any = {}) => {
-  const state = {
-    value: x.value,
-    error: x.error,
-    isPending: x.isPending ?? false,
-    isStale: x.isStale ?? false,
-    status: 'value' in x ? 'value' : 'error' in x ? 'error' : 'empty',
-  };
-  return Object.assign(Object.values(state), state);
-};
-
 describe('asyncStore', () => {
   test('create', () => {
     const testStore = asyncStore(async () => 1);
@@ -32,13 +21,13 @@ describe('asyncStore', () => {
   describe('get', () => {
     test('Without parameters', async () => {
       const testStore = asyncStore(async () => 1)();
-      expect(testStore.get()).toEqual(createState());
+      expect(testStore.get()).toEqual(testAsyncState());
 
       testStore.subscribe(vi.fn());
-      expect(testStore.get()).toEqual(createState({ isPending: true }));
+      expect(testStore.get()).toEqual(testAsyncState({ isPending: true }));
 
       await flushPromises();
-      expect(testStore.get()).toEqual(createState({ value: 1 }));
+      expect(testStore.get()).toEqual(testAsyncState({ value: 1 }));
     });
 
     test('With parameters', async () => {
@@ -47,8 +36,8 @@ describe('asyncStore', () => {
       testStore(2).subscribe(vi.fn());
 
       await flushPromises();
-      expect(testStore(1).get()).toEqual(createState({ value: 2 }));
-      expect(testStore(2).get()).toEqual(createState({ value: 3 }));
+      expect(testStore(1).get()).toEqual(testAsyncState({ value: 2 }));
+      expect(testStore(2).get()).toEqual(testAsyncState({ value: 3 }));
     });
   });
 
@@ -62,8 +51,8 @@ describe('asyncStore', () => {
       await flushPromises();
       expect(listener.mock.calls).toEqual([
         //
-        [createState({ isPending: true })],
-        [createState({ value: 1 })],
+        [testAsyncState({ isPending: true })],
+        [testAsyncState({ value: 1 })],
       ]);
     });
 
@@ -89,8 +78,8 @@ describe('asyncStore', () => {
       await flushPromises();
       expect(listener.mock.calls).toEqual([
         //
-        [createState({ isPending: true })],
-        [createState({ error: Error('error') })],
+        [testAsyncState({ isPending: true })],
+        [testAsyncState({ error: Error('error') })],
       ]);
     });
 

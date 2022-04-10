@@ -13,8 +13,6 @@ type WithValue<T> = { value: T; error: undefined; isPending: boolean; isStale: b
 type WithError = { value: undefined; error: unknown; isPending: boolean; isStale: boolean; status: 'error' };
 type Empty = { value: undefined; error: undefined; isPending: boolean; isStale: boolean; status: 'empty' };
 type State<T> = WithValue<T> | WithError | Empty;
-type Update<T> = T | ((value: T) => T);
-type UpdateFn<T> = (update: Update<T>) => void;
 
 export type AsyncStoreValue<T> =
   | ([value: T, error: undefined, isPending: boolean, isStale: boolean, status: 'value'] & WithValue<T>)
@@ -27,6 +25,7 @@ export type AsyncStoreOptions<Value> = {
 };
 
 export interface AsyncStore<Value> extends Store<AsyncStoreValue<Value>> {
+  type: 'asyncStore';
   getPromise(options?: { returnStale?: boolean }): Promise<Value>;
   set(update: Value | ((value?: Value) => Value)): void;
   setError(error: unknown): void;
@@ -49,21 +48,24 @@ export interface AsyncAction<Value, Args extends any[]> {
 ///////////////////////////////////////////////////////////
 
 export const asyncStoreValueEquals = <Value>(
-  { value: va, ...a }: State<Value>,
-  { value: vb, ...b }: State<Value>,
+  [va, ...a]: AsyncStoreValue<Value>,
+  [vb, ...b]: AsyncStoreValue<Value>,
   equals = defaultEquals
 ) => {
   return equals(va, vb) && shallowEquals(a, b);
 };
 
-export const createState = <Value>(x: Partial<State<Value>> = {}): State<Value> =>
-  ({
+export const createState = <Value>(x: Partial<State<Value>> = {}): AsyncStoreValue<Value> => {
+  const state = {
     value: x.value,
     error: x.error,
     isPending: x.isPending ?? false,
     isStale: x.isStale ?? false,
-    status: 'value' in x ? 'value' : 'error' in x ? 'error' : 'empty',
-  } as any);
+    status: x.status ?? 'empty',
+  } as any;
+
+  return Object.assign(Object.values(state), state);
+};
 
 ///////////////////////////////////////////////////////////
 // Global
@@ -113,10 +115,9 @@ function _asyncStore<Value = unknown, Args extends any[] = []>(
     });
 
     const asyncStore: AsyncStore<Value> = {
-      get() {
-        const state = s.get();
-        return Object.assign<any, any>([state.value, state.error, state.isPending, state.isStale, state.status], state);
-      },
+      type: 'asyncStore',
+
+      get: s.get,
 
       subscribe(listener, options) {
         if ((s.get().status === 'empty' || s.get().isStale) && !s.get().isPending) {
@@ -146,19 +147,19 @@ function _asyncStore<Value = unknown, Args extends any[] = []>(
           value = value(asyncStore.get().value);
         }
         cancelRun?.();
-        s.set(createState({ value }));
+        s.set(createState({ value, status: 'value' }));
         setTimers();
       },
 
       setError(error) {
         cancelRun?.();
-        s.set(createState({ error }));
+        s.set(createState({ error, status: 'error' }));
         setTimers();
       },
 
       invalidate() {
         cancelRun?.();
-        s.set((s) => ({ ...s, isPending: on, isStale: s.status !== 'empty' }));
+        s.set((s) => createState({ ...s, isPending: on, isStale: s.status !== 'empty' }));
         if (on) {
           run();
         }
@@ -205,16 +206,16 @@ function _asyncStore<Value = unknown, Args extends any[] = []>(
           args
         );
 
-        s.set((s) => ({ ...s, isPending: true }));
+        s.set((s) => createState({ ...s, isPending: true }));
         const value = await job;
 
         if (!isCanceled) {
-          s.set(createState({ value }));
+          s.set(createState({ value, status: 'value' }));
           setTimers();
         }
       } catch (error) {
         if (!isCanceled) {
-          s.set(createState({ error }));
+          s.set(createState({ error, status: 'error' }));
         }
       }
     }

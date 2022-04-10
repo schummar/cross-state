@@ -1,7 +1,9 @@
 import { act, render, screen } from '@testing-library/react';
 import React, { ReactNode } from 'react';
 import { describe, expect, test, vi } from 'vitest';
+import { asyncStore } from '../../core/asyncStore';
 import { store } from '../../core/store';
+import { flushPromises } from '../../lib/testHelpers';
 import { useStore } from './useStore';
 
 function c<T>(name: string, before: T, after1: T, after2: T, select: (t: T) => ReactNode) {
@@ -56,5 +58,45 @@ describe('useStore', () => {
       expect(div.textContent).toBe(String(select(after2)));
       expect(Component.mock.calls.length).toBe(1);
     });
+
+    test('same without selector', async () => {
+      const s = store(before);
+
+      const Component = vi.fn<[], any>(function Component() {
+        const v = useStore(s);
+
+        return <div data-testid="div">{select(v)}</div>;
+      });
+
+      render(<Component />);
+      const div = screen.getByTestId('div');
+
+      act(() => {
+        s.set(after2);
+      });
+
+      expect(div.textContent).toBe(String(select(after2)));
+      expect(Component.mock.calls.length).toBe(1);
+    });
+  });
+
+  test('only watch value', async () => {
+    const s = asyncStore(async () => 1)();
+
+    const Component = vi.fn<[], any>(function Component() {
+      const [value] = useStore(s);
+
+      return <div data-testid="div">{value}</div>;
+    });
+
+    render(<Component />);
+    const div = screen.getByTestId('div');
+
+    await act(() => flushPromises());
+    act(() => s.clear());
+    await act(() => flushPromises());
+
+    expect(div.textContent).toBe('1');
+    expect(Component.mock.calls.length).toBe(4);
   });
 });

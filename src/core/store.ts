@@ -16,9 +16,9 @@ const noop = () => {
 // Implementation
 ///////////////////////////////////////////////////////////
 
-export function store<K, V>(value: Map<K, V>): BaseStore<Map<K, V>> & typeof mapActions;
-export function store<T>(value: Set<T>): BaseStore<Set<T>> & typeof setActions;
-export function store<T>(value: Array<T>): BaseStore<Array<T>> & typeof arrayActions;
+export function store<T extends Map<any, any>>(value: T): BaseStore<T> & typeof mapActions;
+export function store<T extends Set<T>>(value: T): BaseStore<T> & typeof setActions;
+export function store<T extends Array<any>>(value: T): BaseStore<T> & typeof arrayActions;
 export function store<Value, Actions extends StoreActions = StoreActions>(
   value: Value,
   actions?: BoundStoreActions<Value, Actions>
@@ -70,6 +70,8 @@ export function store<Value, Actions extends StoreActions = StoreActions>(
   };
 
   const store: BaseStore<Value> = {
+    type: 'baseStore',
+
     subscribe(listener, { runNow = true, throttle: throttleOption, equals = defaultEquals } = {}) {
       if (throttleOption) {
         listener = throttle(listener, throttleOption);
@@ -112,7 +114,7 @@ export function store<Value, Actions extends StoreActions = StoreActions>(
 
     addEffect(effect, retain) {
       effects.set(effect, {
-        handle: listeners.size > 0 ? effect() ?? noop : undefined,
+        handle: listeners.size > 0 ? effect ?? noop : undefined,
         retain: retain !== undefined ? calcTime(retain) : undefined,
       });
 

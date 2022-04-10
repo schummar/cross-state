@@ -1,6 +1,6 @@
-import { useCallback, useDebugValue } from 'react';
+import { useCallback, useDebugValue, useLayoutEffect, useRef } from 'react';
 import { useSyncExternalStoreWithSelector } from 'use-sync-external-store/shim/with-selector';
-import { shallowEquals } from '../../lib/equals';
+import { trackingProxy } from '../../lib/trackingProxy';
 import { Store, SubscribeOptions } from '../../types';
 
 export type UseStoreOptions = Omit<SubscribeOptions, 'runNow'>;
@@ -16,6 +16,8 @@ export function useStore<T, S = T>(
     selector = (x) => x as any;
   }
 
+  const lastEqualsRef = useRef<(newValue: S) => boolean>();
+
   const subscribe = useCallback(
     (listener: () => void) => {
       return store.subscribe(listener, { ...options, runNow: false });
@@ -29,9 +31,14 @@ export function useStore<T, S = T>(
     store.get,
     undefined,
     selector,
-    options?.equals ?? shallowEquals
+    options?.equals ?? ((_v, newValue) => lastEqualsRef.current?.(newValue) ?? false)
   );
+  const [proxiedValue, equals] = trackingProxy(value);
+
+  useLayoutEffect(() => {
+    lastEqualsRef.current = equals;
+  });
 
   useDebugValue(value);
-  return value;
+  return proxiedValue;
 }

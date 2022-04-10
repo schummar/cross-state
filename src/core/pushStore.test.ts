@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { flushPromises, getValues, sleep } from '../lib/testHelpers';
-import { createState } from './asyncStore.test';
+import { flushPromises, getValues, sleep, testAsyncState } from '../lib/testHelpers';
 import { pushStore } from './pushStore';
 import { store } from './store';
 
@@ -40,7 +39,7 @@ class FakeWebSocket<T> {
 describe('pushStore', () => {
   test('create', async () => {
     const s = pushStore<number>(function () {
-      this.set(0);
+      this.update(0);
     })();
 
     expect(s).toBeInstanceOf(Object);
@@ -53,7 +52,7 @@ describe('pushStore', () => {
         [2, 2],
       ]);
 
-      ws.onmessage = this.set;
+      ws.onmessage = this.update;
     })();
 
     const listener = vi.fn();
@@ -63,9 +62,9 @@ describe('pushStore', () => {
 
     expect(listener.mock.calls).toEqual([
       //
-      [createState()],
-      [createState({ value: 1 })],
-      [createState({ value: 2 })],
+      [testAsyncState()],
+      [testAsyncState({ value: 1 })],
+      [testAsyncState({ value: 2 })],
     ]);
   });
 
@@ -77,7 +76,7 @@ describe('pushStore', () => {
         [this.use(other) + 2, 2],
       ]);
 
-      ws.onmessage = this.set;
+      ws.onmessage = this.update;
       return ws.close;
     })();
 
@@ -99,7 +98,7 @@ describe('pushStore', () => {
         [2, 2],
       ]);
 
-      ws.onmessage = (n) => this.set(sleep(2 - n).then(() => n));
+      ws.onmessage = (n) => this.update(sleep(2 - n).then(() => n));
     })();
 
     const listener = vi.fn();
@@ -118,8 +117,8 @@ describe('pushStore', () => {
         [2, 2],
       ]);
 
-      this.set(reload());
-      ws.onmessage = this.set;
+      this.update(reload());
+      ws.onmessage = this.update;
     })();
 
     const listener = vi.fn();
@@ -140,10 +139,10 @@ describe('pushStore', () => {
         [4, 4],
       ]);
 
-      this.set(reload());
-      setTimeout(() => this.set(reload()), 2.5);
+      this.update(reload());
+      setTimeout(() => this.update(reload()), 2.5);
 
-      ws.onmessage = this.set;
+      ws.onmessage = this.update;
     })();
 
     const listener = vi.fn();
@@ -162,7 +161,7 @@ describe('pushStore', () => {
         [3, 3],
       ]);
 
-      ws.onmessage = this.set;
+      ws.onmessage = this.update;
       ws.onerror = this.setError;
     })();
 
@@ -183,7 +182,7 @@ describe('pushStore', () => {
             [2, 2],
           ]);
 
-          ws.onmessage = this.set;
+          ws.onmessage = this.update;
           return ws.close;
         },
         { retain: 0 }
@@ -209,7 +208,7 @@ describe('pushStore', () => {
             [3, 3],
           ]);
 
-          ws.onmessage = this.set;
+          ws.onmessage = this.update;
           return ws.close;
         },
         { retain: 1 }
@@ -230,7 +229,7 @@ describe('pushStore', () => {
     test('getPromise', async () => {
       const s = pushStore<number>(function () {
         const ws = new FakeWebSocket([[1, 1]]);
-        ws.onmessage = this.set;
+        ws.onmessage = this.update;
       })();
 
       const promise = s.getPromise();
@@ -253,7 +252,7 @@ describe('pushStore', () => {
 
     test('set', async () => {
       const s = pushStore<number>(function () {
-        this.set(1);
+        this.update(1);
       })();
 
       const listener = vi.fn();
@@ -264,7 +263,7 @@ describe('pushStore', () => {
 
     test('setError', async () => {
       const s = pushStore<number>(function () {
-        this.set(1);
+        this.update(1);
       })();
 
       const listener = vi.fn();

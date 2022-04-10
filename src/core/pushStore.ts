@@ -15,6 +15,7 @@ export type PushStoreOptions = {
 };
 
 export interface PushStore<Value> extends Store<AsyncStoreValue<Value>> {
+  type: 'pushStore';
   getPromise(options?: { returnStale?: boolean }): Promise<Value>;
   set(update: Value | ((value?: Value) => Value)): void;
   setError(error: unknown): void;
@@ -28,7 +29,7 @@ export interface PushAction<Value, Args extends any[]> {
   (
     this: {
       use: <T>(store: Store<T>) => T;
-      set: (update: MaybePromise<Value> | ((value?: Value) => MaybePromise<Value>)) => Promise<void>;
+      update: (update: MaybePromise<Value> | ((value?: Value) => MaybePromise<Value>)) => Promise<void>;
       setError: (error: unknown) => Promise<void>;
     },
     ...args: Args
@@ -67,7 +68,7 @@ export function pushStore<Value = unknown, Args extends any[] = []>(
             return s.get();
           },
 
-          async set(value) {
+          async update(value) {
             if (isCanceled) {
               if (process.env.NODE_ENV !== 'production') {
                 console.warn(
@@ -87,7 +88,7 @@ export function pushStore<Value = unknown, Args extends any[] = []>(
               }
 
               if (!isCanceled) {
-                s.set(createState({ value }));
+                s.set(createState({ value, status: 'value' }));
               }
             });
           },
@@ -104,7 +105,7 @@ export function pushStore<Value = unknown, Args extends any[] = []>(
 
             return q(async () => {
               if (!isCanceled) {
-                s.set(createState({ error }));
+                s.set(createState({ error, status: 'error' }));
               }
             });
           },
@@ -132,6 +133,8 @@ export function pushStore<Value = unknown, Args extends any[] = []>(
     }, retain);
 
     const pushStore: PushStore<Value> = {
+      type: 'pushStore',
+
       get() {
         const state = s.get();
         return Object.assign<any, any>([state.value, state.error, state.isPending, state.isStale, state.status], state);
@@ -160,11 +163,11 @@ export function pushStore<Value = unknown, Args extends any[] = []>(
         if (value instanceof Function) {
           value = value(pushStore.get().value);
         }
-        s.set(createState({ value }));
+        s.set(createState({ value, status: 'value' }));
       },
 
       setError(error) {
-        s.set(createState({ error }));
+        s.set(createState({ error, status: 'error' }));
       },
 
       addEffect: s.addEffect,
