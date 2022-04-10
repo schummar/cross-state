@@ -145,10 +145,7 @@ export function pushStore<Value = unknown, Args extends any[] = []>(
     const pushStore: PushStore<Value> = {
       type: 'pushStore',
 
-      get() {
-        const state = s.get();
-        return Object.assign<any, any>([state.value, state.error, state.isPending, state.isStale, state.status], state);
-      },
+      get: s.get,
 
       subscribe(listener, options) {
         return s.subscribe(() => listener(pushStore.get()), {

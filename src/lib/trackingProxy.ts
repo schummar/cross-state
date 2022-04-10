@@ -4,7 +4,7 @@ type Obj = Record<string | symbol, unknown>;
 const ProxyKeys = ['get', 'getOwnPropertyDescriptor', 'getPrototypeOf', 'has', 'isExtensible', 'ownKeys'] as const;
 
 export function trackingProxy<T>(value: T): TrackingProxy<T> {
-  if (!(value instanceof Object) || value instanceof Function) {
+  if (!(value instanceof Object) || value instanceof Function || value instanceof Set || value instanceof Map) {
     return [value, (other) => other === value];
   }
 

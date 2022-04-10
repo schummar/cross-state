@@ -1,7 +1,7 @@
 {
   "name": "schummar-state",
   "repository": "schummar/schummar-state",
-  "version": "0.2.1-experimental-17",
+  "version": "0.2.1-experimental-18",
   "description": "(React) state library",
   "sideEffects": false,
   "main": "dist/cjs/index.js",
