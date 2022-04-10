@@ -2,6 +2,8 @@ export { asyncStore } from './core/asyncStore';
 export type { AsyncAction, AsyncCollection, AsyncStore, AsyncStoreOptions, AsyncStoreValue } from './core/asyncStore';
 export { computed } from './core/computed';
 export { once } from './core/once';
+export { pushStore } from './core/pushStore';
+export type { PushAction, PushCollection, PushStore, PushStoreOptions } from './core/pushStore';
 export { store } from './core/store';
 export type { BoundStoreActions, StoreActions } from './core/store';
 export { arrayActions, mapActions, recordActions, setActions } from './core/storeActions';
