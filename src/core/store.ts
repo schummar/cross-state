@@ -17,7 +17,7 @@ const noop = () => {
 ///////////////////////////////////////////////////////////
 
 export function store<T extends Map<any, any>>(value: T): BaseStore<T> & typeof mapActions;
-export function store<T extends Set<T>>(value: T): BaseStore<T> & typeof setActions;
+export function store<T extends Set<any>>(value: T): BaseStore<T> & typeof setActions;
 export function store<T extends Array<any>>(value: T): BaseStore<T> & typeof arrayActions;
 export function store<Value, Actions extends StoreActions = StoreActions>(
   value: Value,

@@ -34,7 +34,7 @@ describe('store actions', () => {
   });
 
   test('array store', () => {
-    const x = store<number>([]);
+    const x = store<number[]>([]);
 
     expect(x.push(1, 2, 3)).toBe(3);
     expect(x.get()).toEqual([1, 2, 3]);

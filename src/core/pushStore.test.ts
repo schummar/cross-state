@@ -62,7 +62,7 @@ describe('pushStore', () => {
 
     expect(listener.mock.calls).toEqual([
       //
-      [testAsyncState()],
+      [testAsyncState({ isPending: true })],
       [testAsyncState({ value: 1 })],
       [testAsyncState({ value: 2 })],
     ]);
@@ -88,7 +88,15 @@ describe('pushStore', () => {
     vi.advanceTimersByTime(2);
     await flushPromises();
 
-    expect(getValues(listener)).toEqual([undefined, 1, 11, 12]);
+    expect(listener.mock.calls).toEqual([
+      //
+      [testAsyncState({ isPending: true })],
+      [testAsyncState({ value: 1 })],
+      [testAsyncState({ value: 1, isStale: true })],
+      [testAsyncState({ value: 1, isPending: true, isStale: true })],
+      [testAsyncState({ value: 11 })],
+      [testAsyncState({ value: 12 })],
+    ]);
   });
 
   test('push some async messages', async () => {
@@ -162,7 +170,7 @@ describe('pushStore', () => {
       ]);
 
       ws.onmessage = this.update;
-      ws.onerror = this.setError;
+      ws.onerror = this.updateError;
     })();
 
     const listener = vi.fn();
@@ -241,7 +249,7 @@ describe('pushStore', () => {
     test('getPromise with error', async () => {
       const s = pushStore<number>(function () {
         const ws = new FakeWebSocket([[Error('error'), 1]]);
-        ws.onerror = this.setError;
+        ws.onerror = this.updateError;
       })();
 
       const promise = s.getPromise();

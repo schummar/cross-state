@@ -30,7 +30,9 @@ export interface PushAction<Value, Args extends any[]> {
     this: {
       use: <T>(store: Store<T>) => T;
       update: (update: MaybePromise<Value> | ((value?: Value) => MaybePromise<Value>)) => Promise<void>;
-      setError: (error: unknown) => Promise<void>;
+      updateError: (error: unknown) => Promise<void>;
+      updateIsPending: (isPending: boolean) => void;
+      reconnect: () => void;
     },
     ...args: Args
   ): void | Cancel;
@@ -54,14 +56,27 @@ export function pushStore<Value = unknown, Args extends any[] = []>(
     const connect = () => {
       cancel?.();
 
+      s.set((s) => createState({ ...s, isPending: true }));
+
       let isCanceled = false;
       const q = queue();
       const deps = new Map<Store<any>, Cancel>();
 
+      const check = (name: string) => {
+        if (isCanceled) {
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn(
+              `[schummar-state:pushStore] process has been canceled. '${name}' should not be called anymore. Having no proper teardown might result in memory leaks.`
+            );
+          }
+        }
+        return isCanceled;
+      };
+
       const cancelAction = fn.apply(
         {
           use(s) {
-            if (!deps.has(s)) {
+            if (!isCanceled && !deps.has(s)) {
               deps.set(s, s.subscribe(connect, { runNow: false }));
             }
 
@@ -69,14 +84,7 @@ export function pushStore<Value = unknown, Args extends any[] = []>(
           },
 
           async update(value) {
-            if (isCanceled) {
-              if (process.env.NODE_ENV !== 'production') {
-                console.warn(
-                  `[schummar-state:pushStore] process has been canceled. 'set' should not be called anymore. Having no proper teardown might result in memory leaks.`
-                );
-              }
-              return;
-            }
+            if (check('update')) return;
 
             await q(async () => {
               if (value instanceof Function) {
@@ -93,15 +101,8 @@ export function pushStore<Value = unknown, Args extends any[] = []>(
             });
           },
 
-          async setError(error) {
-            if (isCanceled) {
-              if (process.env.NODE_ENV !== 'production') {
-                console.warn(
-                  `[schummar-state:pushStore] process has been canceled. 'setError' should not be called anymore. Having no proper teardown might result in memory leaks.`
-                );
-              }
-              return;
-            }
+          async updateError(error) {
+            if (check('setError')) return;
 
             return q(async () => {
               if (!isCanceled) {
@@ -109,11 +110,20 @@ export function pushStore<Value = unknown, Args extends any[] = []>(
               }
             });
           },
+
+          updateIsPending(isPending) {
+            if (check('updateIsPending')) return;
+
+            s.set((s) => createState({ ...s, isPending }));
+          },
+
+          reconnect: connect,
         },
         args
       );
 
       cancel = () => {
+        s.set((s) => createState({ ...s, isPending: false, isStale: true }));
         isCanceled = true;
         cancelAction?.();
         q.clear();
