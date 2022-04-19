@@ -3,6 +3,7 @@ import { calcTime } from '../lib/calcTime';
 import { defaultEquals, shallowEquals } from '../lib/equals';
 import { Cancel, Store, Time } from '../types';
 import { once } from './once';
+import { allResources, Resource, ResourceGroup } from './resourceGroup';
 import { store } from './store';
 
 ///////////////////////////////////////////////////////////
@@ -23,21 +24,18 @@ export type AsyncStoreOptions<Value> = {
   invalidateAfter?: Time | ((state: AsyncStoreValue<Value>) => Time);
   clearAfter?: Time | ((state: AsyncStoreValue<Value>) => Time);
   clearUnusedAfter?: Time;
+  resourceGroup?: ResourceGroup | ResourceGroup[];
 };
 
-export interface AsyncStore<Value> extends Store<AsyncStoreValue<Value>> {
+export interface AsyncStore<Value> extends Store<AsyncStoreValue<Value>>, Resource {
   type: 'asyncStore';
   getPromise(options?: { returnStale?: boolean }): Promise<Value>;
   set(update: Value | ((value?: Value) => Value)): void;
   setError(error: unknown): void;
-  invalidate(): void;
-  clear(): void;
 }
 
-export interface AsyncCollection<Value, Args extends any[]> {
+export interface AsyncCollection<Value, Args extends any[]> extends Resource {
   (...args: Args): AsyncStore<Value>;
-  invalidate(): void;
-  clear(): void;
 }
 
 export interface AsyncAction<Value, Args extends any[]> {
@@ -253,10 +251,13 @@ function _asyncStore<Value = unknown, Args extends any[] = []>(
     }
   };
 
-  return Object.assign(get, {
-    invalidate,
-    clear,
-  });
+  const resource = { invalidate, clear };
+  const groups = Array.isArray(options.resourceGroup) ? options.resourceGroup : options.resourceGroup ? [options.resourceGroup] : [];
+  for (const group of groups.concat(allResources)) {
+    group.add(resource);
+  }
+
+  return Object.assign(get, resource);
 }
 
 export const asyncStore = Object.assign(_asyncStore, {

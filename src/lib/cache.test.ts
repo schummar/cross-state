@@ -79,6 +79,17 @@ describe('cache', () => {
       expect(first).toEqual({});
       expect(second).toBe(first);
     });
+
+    test('with no cacheTime', async () => {
+      const factory = vi.fn(() => ({}));
+      const cache = new Cache(factory);
+
+      cache.get();
+      vi.advanceTimersByTime(1000);
+      cache.get();
+
+      expect(factory.mock.calls.length).toBe(1);
+    });
   });
 
   describe('cached value timeout', () => {
