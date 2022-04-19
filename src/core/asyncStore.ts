@@ -1,6 +1,6 @@
+import { Cache } from '../lib/cache';
 import { calcTime } from '../lib/calcTime';
 import { defaultEquals, shallowEquals } from '../lib/equals';
-import { hash } from '../lib/hash';
 import { Cancel, Store, Time } from '../types';
 import { once } from './once';
 import { store } from './store';
@@ -22,6 +22,7 @@ export type AsyncStoreValue<T> =
 export type AsyncStoreOptions<Value> = {
   invalidateAfter?: Time | ((state: AsyncStoreValue<Value>) => Time);
   clearAfter?: Time | ((state: AsyncStoreValue<Value>) => Time);
+  clearUnusedAfter?: Time;
 };
 
 export interface AsyncStore<Value> extends Store<AsyncStoreValue<Value>> {
@@ -71,9 +72,10 @@ export const createState = <Value>(x: Partial<State<Value>> = {}): AsyncStoreVal
 // Global
 ///////////////////////////////////////////////////////////
 
-let defaultOptions = {
+let defaultOptions: AsyncStoreOptions<any> = {
   invalidateAfter: undefined as Time | undefined,
   clearAfter: undefined as Time | undefined,
+  clearUnusedAfter: { days: 1 },
 };
 
 function setDefaultOptions(options: typeof defaultOptions) {
@@ -84,181 +86,174 @@ function setDefaultOptions(options: typeof defaultOptions) {
 // Implementation
 ///////////////////////////////////////////////////////////
 
+const createAsyncStore = <Value = unknown, Args extends any[] = []>(
+  fn: AsyncAction<Value, Args>,
+  options: AsyncStoreOptions<Value> = {},
+  ...args: Args
+) => {
+  let invalidateTimer: ReturnType<typeof setTimeout> | undefined;
+  let clearTimer: ReturnType<typeof setTimeout> | undefined;
+
+  let cancelRun: Cancel | undefined;
+  const base = store(createState<Value>());
+
+  base.addEffect(() => {
+    if ((base.get().status === 'empty' || base.get().isStale) && !base.get().isPending) {
+      run();
+    }
+  });
+
+  const asyncStore: AsyncStore<Value> = {
+    ...base,
+
+    type: 'asyncStore',
+
+    subscribe(listener, options) {
+      return base.subscribe(listener, {
+        ...options,
+        equals: (a, b) => asyncStoreValueEquals(a, b, options?.equals),
+      });
+    },
+
+    async getPromise({ returnStale } = {}) {
+      const state = await once(
+        asyncStore,
+        (state): state is AsyncStoreValue<Value> & { status: 'value' | 'error' } =>
+          (returnStale || !state.isStale) && (state.status === 'value' || state.status === 'error')
+      );
+      if (state.status === 'value') {
+        return state.value;
+      }
+      throw state.error;
+    },
+
+    set(value) {
+      if (value instanceof Function) {
+        value = value(asyncStore.get().value);
+      }
+      cancelRun?.();
+      base.set(createState({ value, status: 'value' }));
+      setTimers();
+    },
+
+    setError(error) {
+      cancelRun?.();
+      base.set(createState({ error, status: 'error' }));
+      setTimers();
+    },
+
+    invalidate() {
+      cancelRun?.();
+      base.set((s) => createState({ ...s, isPending: base.isActive(), isStale: s.status !== 'empty' }));
+      if (base.isActive()) {
+        run();
+      }
+    },
+
+    clear() {
+      cancelRun?.();
+      base.set(createState({ isPending: base.isActive() }));
+      if (base.isActive()) {
+        run();
+      }
+    },
+  };
+
+  async function run() {
+    resetTimers();
+
+    const deps = new Map<Store<any>, Cancel>();
+    let isCanceled = false;
+
+    cancelRun = () => {
+      for (const handle of deps.values()) {
+        handle();
+      }
+
+      isCanceled = true;
+    };
+
+    try {
+      const job = fn.apply(
+        {
+          use(store) {
+            if (!deps.has(store)) {
+              deps.set(store, store.subscribe(asyncStore.clear, { runNow: false }));
+            }
+            return store.get();
+          },
+        },
+        args
+      );
+
+      base.set((s) => createState({ ...s, isPending: true }));
+      const value = await job;
+
+      if (!isCanceled) {
+        base.set(createState({ value, status: 'value' }));
+        setTimers();
+      }
+    } catch (error) {
+      if (!isCanceled) {
+        base.set(createState({ error, status: 'error' }));
+      }
+    }
+  }
+
+  function setTimers() {
+    resetTimers();
+
+    let { invalidateAfter = defaultOptions.invalidateAfter, clearAfter = defaultOptions.clearAfter } = options;
+
+    if (invalidateAfter instanceof Function) {
+      invalidateAfter = invalidateAfter(asyncStore.get());
+    }
+    if (invalidateAfter) {
+      invalidateTimer = setTimeout(asyncStore.invalidate, calcTime(invalidateAfter));
+    }
+
+    if (clearAfter instanceof Function) {
+      clearAfter = clearAfter(asyncStore.get());
+    }
+    if (clearAfter) {
+      clearTimer = setTimeout(asyncStore.invalidate, calcTime(clearAfter));
+    }
+  }
+
+  function resetTimers() {
+    invalidateTimer !== undefined && clearTimeout(invalidateTimer);
+    clearTimer !== undefined && clearTimeout(clearTimer);
+  }
+
+  return asyncStore;
+};
+
 function _asyncStore<Value = unknown, Args extends any[] = []>(
   fn: AsyncAction<Value, Args>,
   options: AsyncStoreOptions<Value> = {}
 ): AsyncCollection<Value, Args> {
-  const collection = new Map<string, AsyncStore<Value>>();
+  const cache = new Cache(
+    (...args: Args) => createAsyncStore(fn, options, ...args),
+    calcTime(options.clearUnusedAfter ?? defaultOptions.clearUnusedAfter ?? 0)
+  );
+
+  const get = (...args: Args) => {
+    return cache.get(...args);
+  };
 
   const invalidate = () => {
-    throw Error('Not implemented');
+    for (const instance of cache.values()) {
+      instance.invalidate();
+    }
   };
 
   const clear = () => {
-    throw Error('Not implemented');
+    for (const instance of cache.values()) {
+      instance.clear();
+    }
   };
 
-  const createAsyncStore = (...args: Args) => {
-    let invalidateTimer: ReturnType<typeof setTimeout> | undefined;
-    let clearTimer: ReturnType<typeof setTimeout> | undefined;
-
-    let cancelRun: Cancel | undefined;
-    const s = store(createState<Value>());
-
-    let on = false;
-    s.addEffect(() => {
-      on = true;
-
-      return () => {
-        on = false;
-      };
-    });
-
-    const asyncStore: AsyncStore<Value> = {
-      type: 'asyncStore',
-
-      get: s.get,
-
-      subscribe(listener, options) {
-        if ((s.get().status === 'empty' || s.get().isStale) && !s.get().isPending) {
-          run();
-        }
-
-        return s.subscribe(() => listener(asyncStore.get()), {
-          ...options,
-          equals: (a, b) => asyncStoreValueEquals(a, b, options?.equals),
-        });
-      },
-
-      async getPromise({ returnStale } = {}) {
-        const state = await once(
-          asyncStore,
-          (state): state is AsyncStoreValue<Value> & { status: 'value' | 'error' } =>
-            (returnStale || !state.isStale) && (state.status === 'value' || state.status === 'error')
-        );
-        if (state.status === 'value') {
-          return state.value;
-        }
-        throw state.error;
-      },
-
-      set(value) {
-        if (value instanceof Function) {
-          value = value(asyncStore.get().value);
-        }
-        cancelRun?.();
-        s.set(createState({ value, status: 'value' }));
-        setTimers();
-      },
-
-      setError(error) {
-        cancelRun?.();
-        s.set(createState({ error, status: 'error' }));
-        setTimers();
-      },
-
-      invalidate() {
-        cancelRun?.();
-        s.set((s) => createState({ ...s, isPending: on, isStale: s.status !== 'empty' }));
-        if (on) {
-          run();
-        }
-      },
-
-      clear() {
-        cancelRun?.();
-        s.set(createState({ isPending: on }));
-        if (on) {
-          run();
-        }
-      },
-
-      addEffect: s.addEffect,
-      get isActive() {
-        return s.isActive;
-      },
-    };
-
-    async function run() {
-      resetTimers();
-
-      const deps = new Map<Store<any>, Cancel>();
-      let isCanceled = false;
-
-      cancelRun = () => {
-        for (const handle of deps.values()) {
-          handle();
-        }
-
-        isCanceled = true;
-      };
-
-      try {
-        const job = fn.apply(
-          {
-            use(store) {
-              if (!deps.has(store)) {
-                deps.set(store, store.subscribe(asyncStore.clear, { runNow: false }));
-              }
-              return store.get();
-            },
-          },
-          args
-        );
-
-        s.set((s) => createState({ ...s, isPending: true }));
-        const value = await job;
-
-        if (!isCanceled) {
-          s.set(createState({ value, status: 'value' }));
-          setTimers();
-        }
-      } catch (error) {
-        if (!isCanceled) {
-          s.set(createState({ error, status: 'error' }));
-        }
-      }
-    }
-
-    function setTimers() {
-      resetTimers();
-
-      let { invalidateAfter = defaultOptions.invalidateAfter, clearAfter = defaultOptions.clearAfter } = options;
-
-      if (invalidateAfter instanceof Function) {
-        invalidateAfter = invalidateAfter(asyncStore.get());
-      }
-      if (invalidateAfter) {
-        invalidateTimer = setTimeout(asyncStore.invalidate, calcTime(invalidateAfter));
-      }
-
-      if (clearAfter instanceof Function) {
-        clearAfter = clearAfter(asyncStore.get());
-      }
-      if (clearAfter) {
-        clearTimer = setTimeout(asyncStore.invalidate, calcTime(clearAfter));
-      }
-    }
-
-    function resetTimers() {
-      invalidateTimer !== undefined && clearTimeout(invalidateTimer);
-      clearTimer !== undefined && clearTimeout(clearTimer);
-    }
-
-    return asyncStore;
-  };
-
-  function getAsyncStore(...args: Args) {
-    const key = hash(args);
-    let asyncStore = collection.get(key);
-    if (!asyncStore) {
-      asyncStore = createAsyncStore(...args);
-      collection.set(key, asyncStore);
-    }
-    return asyncStore;
-  }
-
-  return Object.assign(getAsyncStore, {
+  return Object.assign(get, {
     invalidate,
     clear,
   });

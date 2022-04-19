@@ -126,7 +126,7 @@ export function store<Value, Actions extends StoreActions = StoreActions>(
       };
     },
 
-    get isActive() {
+    isActive() {
       return listeners.size > 0;
     },
   };

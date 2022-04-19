@@ -125,7 +125,7 @@ describe('asyncStore', () => {
       expect(getValues(listener)).toEqual([undefined, [1]]);
     });
 
-    test('with dependencies1', async () => {
+    test('with dependencies', async () => {
       const dep1 = store(1);
       const dep2 = asyncStore(async () => {
         await sleep(1);

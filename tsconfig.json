@@ -11,7 +11,7 @@
     "noImplicitReturns": true,
     "noImplicitAny": true,
     "target": "ES2015",
-    "lib": ["ES2019", "DOM"],
+    "lib": ["ES2019", "ESNext.WeakRef", "DOM"],
     "allowJs": true,
     "downlevelIteration": true,
     "allowSyntheticDefaultImports": true,

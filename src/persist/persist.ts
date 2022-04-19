@@ -8,6 +8,7 @@ export function persist<T>(s: BaseStore<T>, storage: PersistStorage, options: Pe
   let canceled = false;
   let handle: (() => void) | undefined;
   const q = queue();
+  let hasHydrated = false;
 
   const init = async () => {
     try {
@@ -15,6 +16,7 @@ export function persist<T>(s: BaseStore<T>, storage: PersistStorage, options: Pe
       if (value !== null) {
         const parsed = value === 'undefined' ? undefined : JSON.parse(value);
         s.set(parsed);
+        hasHydrated = true;
       }
     } catch (e) {
       console.error('Failed to restore store persist:', e);
@@ -34,7 +36,10 @@ export function persist<T>(s: BaseStore<T>, storage: PersistStorage, options: Pe
           console.error('Failed to save store persist:', e);
         }
       },
-      { throttle }
+      {
+        throttle,
+        runNow: !hasHydrated,
+      }
     );
   };
 

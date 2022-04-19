@@ -6,7 +6,7 @@ const Computing = Symbol('computing');
 
 export function computed<Value>(fn: (use: <T>(store: Store<T>) => T) => Value): Store<Value> {
   let value: Value | typeof Undefined | typeof Computing = Undefined;
-  const s = store({});
+  const base = store({});
 
   const compute = () => {
     if (value === Computing) {
@@ -30,7 +30,7 @@ export function computed<Value>(fn: (use: <T>(store: Store<T>) => T) => Value): 
             }
 
             value = Undefined;
-            s.set({});
+            base.set({});
           },
           { runNow: false }
         )
@@ -41,17 +41,14 @@ export function computed<Value>(fn: (use: <T>(store: Store<T>) => T) => Value): 
   };
 
   return {
+    ...base,
+
     subscribe(listener, options) {
-      return s.subscribe(() => listener(compute()), options);
+      return base.subscribe(() => listener(compute()), options);
     },
 
     get() {
       return compute();
-    },
-
-    addEffect: s.addEffect,
-    get isActive() {
-      return s.isActive;
     },
   };
 }
