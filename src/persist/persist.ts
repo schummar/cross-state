@@ -1,7 +1,7 @@
+import type { BaseStore } from '../core/types';
 import { queue } from '../lib/queue';
-import { BaseStore } from '../types';
-import { PersistOptions } from './persistOptions';
-import { PersistStorage } from './persistStorage';
+import type { PersistOptions } from './persistOptions';
+import type { PersistStorage } from './persistStorage';
 
 export function persist<T>(s: BaseStore<T>, storage: PersistStorage, options: PersistOptions<T>) {
   const { id, throttle } = options;

@@ -1,4 +1,4 @@
-import { Store } from '../types';
+import type { Store } from './types';
 
 export function once<T, S extends T>(store: Store<T>, condition: (value: T) => value is S): Promise<S>;
 export function once<T>(store: Store<T>, condition?: (value: T) => boolean): Promise<T>;

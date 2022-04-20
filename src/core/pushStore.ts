@@ -1,10 +1,11 @@
 import { hash } from '../lib/hash';
-import { MaybePromise } from '../lib/maybePromise';
+import type { MaybePromise } from '../lib/maybePromise';
 import { queue } from '../lib/queue';
-import { Cancel, Store, Time } from '../types';
-import { AsyncStoreValue, asyncStoreValueEquals, createState } from './asyncStore';
+import type { AsyncStoreValue } from './asyncStore';
+import { asyncStoreValueEquals, createState } from './asyncStore';
 import { once } from './once';
 import { store } from './store';
+import type { Cancel, Store, Time } from './types';
 
 ///////////////////////////////////////////////////////////
 // Types

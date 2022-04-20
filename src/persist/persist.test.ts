@@ -74,7 +74,7 @@ describe('persist', () => {
   describe('restore', () => {
     test('simple', async () => {
       const getItem = vi.fn(() => `{"a":1}`);
-      const storage: any = { getItem, setItem: () => void 0 };
+      const storage: any = { getItem, setItem: () => undefined };
 
       const s = store(undefined);
       persist(s, storage, { id: 'store' });
@@ -85,7 +85,7 @@ describe('persist', () => {
 
     test('undefined', async () => {
       const getItem = vi.fn(() => `undefined`);
-      const storage: any = { getItem, setItem: () => void 0 };
+      const storage: any = { getItem, setItem: () => undefined };
 
       const s = store(undefined);
       persist(s, storage, { id: 'store' });
@@ -95,7 +95,7 @@ describe('persist', () => {
     });
 
     test('wait for hydrated', async () => {
-      const storage: any = { getItem: () => null, setItem: () => void 0 };
+      const storage: any = { getItem: () => null, setItem: () => undefined };
       const s = store(undefined);
       const { hydrated } = persist(s, storage, { id: 'store' });
       const resolve = vi.fn();
@@ -112,7 +112,7 @@ describe('persist', () => {
       const getItem = () => {
         throw Error('error');
       };
-      const storage: any = { getItem, setItem: () => void 0 };
+      const storage: any = { getItem, setItem: () => undefined };
 
       const s = store(undefined);
       persist(s, storage, { id: 'store' });

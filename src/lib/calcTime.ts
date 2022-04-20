@@ -1,4 +1,4 @@
-import { Time } from '../types';
+import type { Time } from '../core/types';
 
 export const calcTime = (t: Time) => {
   if (typeof t === 'number') return t;

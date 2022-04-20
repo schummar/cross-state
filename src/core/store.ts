@@ -1,8 +1,8 @@
 import { calcTime } from '../lib/calcTime';
 import { defaultEquals } from '../lib/equals';
 import { throttle } from '../lib/throttle';
-import { BaseStore, Cancel, Effect, Listener } from '../types';
 import { arrayActions, mapActions, setActions } from './storeActions';
+import type { BaseStore, Cancel, Effect, Listener } from './types';
 
 export type StoreActions = Record<string, (...args: any[]) => any>;
 

@@ -15,4 +15,4 @@ export { persist } from './persist/persist';
 export type { PersistOptions } from './persist/persistOptions';
 export type { PersistPath } from './persist/persistPath';
 export type { PersistStorage } from './persist/persistStorage';
-export type { BaseStore, Cancel, Effect, Listener, Store, SubscribeOptions, Time } from './types';
+export type { BaseStore, Cancel, Effect, Listener, Store, SubscribeOptions, Time } from './core/types';

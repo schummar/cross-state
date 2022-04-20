@@ -1,5 +1,6 @@
-import { Draft, produce } from 'immer';
-import { BaseStore } from '../../types';
+import { produce } from 'immer';
+import type { BaseStore } from '../../core/types';
+import type { Draft} from 'immer';
 
 export const immerActions = {
   update<T>(this: BaseStore<T>, recipe: (draft: Draft<T>) => Draft<T> | void | undefined) {

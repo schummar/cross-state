@@ -1,4 +1,4 @@
-import { BaseStore } from '../types';
+import type { BaseStore } from './types';
 
 export const mapActions = {
   with<K, V>(this: BaseStore<Map<K, V>>, key: K, value: V) {

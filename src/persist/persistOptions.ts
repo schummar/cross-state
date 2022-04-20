@@ -1,4 +1,4 @@
-import { PersistPath } from './persistPath';
+import type { PersistPath } from './persistPath';
 
 export interface PersistOptions<T> {
   id: string;

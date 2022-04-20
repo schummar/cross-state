@@ -1,10 +1,11 @@
 import { Cache } from '../lib/cache';
 import { calcTime } from '../lib/calcTime';
 import { defaultEquals, shallowEquals } from '../lib/equals';
-import { Cancel, Store, Time } from '../types';
 import { once } from './once';
-import { allResources, Resource, ResourceGroup } from './resourceGroup';
+import type { Resource, ResourceGroup } from './resourceGroup';
+import { allResources } from './resourceGroup';
 import { store } from './store';
+import type { Cancel, Store, Time } from './types';
 
 ///////////////////////////////////////////////////////////
 // Types

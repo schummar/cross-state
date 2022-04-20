@@ -1,7 +1,7 @@
 import { useCallback, useDebugValue, useLayoutEffect, useRef } from 'react';
 import { useSyncExternalStoreWithSelector } from 'use-sync-external-store/shim/with-selector';
+import type { Store, SubscribeOptions } from '../../core/types';
 import { trackingProxy } from '../../lib/trackingProxy';
-import { Store, SubscribeOptions } from '../../types';
 
 export type UseStoreOptions = Omit<SubscribeOptions, 'runNow'>;
 

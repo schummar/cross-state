@@ -1,4 +1,4 @@
-import { MaybePromise } from './maybePromise';
+import type { MaybePromise } from './maybePromise';
 
 type Action<T> = () => T | Promise<T>;
 interface Queue {

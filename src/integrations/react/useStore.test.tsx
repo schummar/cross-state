@@ -1,10 +1,11 @@
 import { act, render, screen } from '@testing-library/react';
-import React, { ReactNode } from 'react';
+import React from 'react';
 import { describe, expect, test, vi } from 'vitest';
 import { asyncStore } from '../../core/asyncStore';
 import { store } from '../../core/store';
 import { flushPromises } from '../../lib/testHelpers';
 import { useStore } from './useStore';
+import type { ReactNode } from 'react';
 
 function c<T>(name: string, before: T, after1: T, after2: T, select: (t: T) => ReactNode) {
   return [name, before, after1, after2, select] as const;

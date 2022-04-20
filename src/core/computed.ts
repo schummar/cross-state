@@ -1,5 +1,5 @@
-import { Store } from '../types';
 import { store } from './store';
+import type { Store } from './types';
 
 const Undefined = Symbol('undefined');
 const Computing = Symbol('computing');
