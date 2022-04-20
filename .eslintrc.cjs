@@ -7,12 +7,9 @@ module.exports = {
   ],
 
   rules: {
-    // 'no-param-reassign': 'off',
     '@typescript-eslint/no-explicit-any': 'off',
     '@typescript-eslint/no-non-null-assertion': 'off',
     '@typescript-eslint/consistent-type-imports': 'error',
-    // '@typescript-eslint/explicit-member-accessibility': 'off',
-    // '@typescript-eslint/no-parameter-properties': 'off',
     'import/order': [
       'error',
       {
