@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://www.github.com/schummar/schummar-state/compare/v0.2.2...v0.3.0) (2022-05-10)
+
+
+### Features
+
+* new builder ([b47f376](https://www.github.com/schummar/schummar-state/commit/b47f376c43bb9324fad92e2c37888c2746928d9a))
+
 ### [0.2.2](https://www.github.com/schummar/schummar-state/compare/v0.2.1...v0.2.2) (2021-12-20)
 
 
