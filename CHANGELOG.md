@@ -1,5 +1,12 @@
 # Changelog
 
+### [0.3.1](https://www.github.com/schummar/schummar-state/compare/v0.3.0...v0.3.1) (2022-05-10)
+
+
+### Bug Fixes
+
+* export path ([36ec28f](https://www.github.com/schummar/schummar-state/commit/36ec28f0a78ebe7b3575b79f555b7f9a3a70bb81))
+
 ## [0.3.0](https://www.github.com/schummar/schummar-state/compare/v0.2.2...v0.3.0) (2022-05-10)
 
 
