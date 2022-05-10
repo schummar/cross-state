@@ -14,9 +14,9 @@
       "default": "./dist/es/index.js"
     },
     "./react": {
-      "import": "./dist/es/react/index.js",
-      "require": "./dist/cjs/react/index.js",
-      "default": "./dist/es/react/index.js"
+      "import": "./dist/es/react.js",
+      "require": "./dist/cjs/react.js",
+      "default": "./dist/es/react.js"
     }
   },
   "types": "dist/types/index.d.ts",
