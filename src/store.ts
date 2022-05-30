@@ -1,14 +1,15 @@
 import eq from 'fast-deep-equal/es6/react';
-import produce, { applyPatches, Draft, enableMapSet, enablePatches, freeze, Patch } from 'immer';
+import { applyPatches, Draft, enableMapSet, enablePatches, freeze, Patch, produce } from 'immer';
 import { Cancel } from './helpers/misc';
 import { throttle as throttleFn } from './helpers/throttle';
 
 const RESTART_UPDATE = Symbol('RESTART_UPDATE');
 
 export class Store<T> {
-  private subscriptions = new Set<(state: T, patches: Patch[]) => void>();
+  private subscriptions = new Set<(state: T, patches: Patch[], inversePatches: Patch[]) => void>();
   private reactions = new Set<() => void>();
   private patches = new Array<Patch>();
+  private inversePatches = new Array<Patch>();
   private notifyScheduled = false;
   private lock?: 'reaction';
 
@@ -28,7 +29,10 @@ export class Store<T> {
     this.state = produce(
       this.state,
       (draft) => update(draft, this.state),
-      (patches) => this.patches.push(...patches)
+      (patches, inversePatches) => {
+        this.patches.push(...patches);
+        this.inversePatches.push(...inversePatches);
+      }
     );
     this.notify();
   }
@@ -39,7 +43,10 @@ export class Store<T> {
     this.state = produce(
       this.state,
       () => state,
-      (patches) => this.patches.push(...patches)
+      (patches, inversePatches) => {
+        this.patches.push(...patches);
+        this.inversePatches.push(...inversePatches);
+      }
     ) as T;
     this.notify();
   }
@@ -61,7 +68,7 @@ export class Store<T> {
 
     let value = selector(this.state);
 
-    const internalListener = (state: T, _patches: Patch[], init?: boolean) => {
+    const internalListener = (state: T, _patches: Patch[], _inversePatches: Patch[], init?: boolean) => {
       try {
         const oldValue = value;
         value = selector(state);
@@ -73,7 +80,7 @@ export class Store<T> {
     };
 
     this.subscriptions.add(internalListener);
-    if (runNow) internalListener(this.state, [], true);
+    if (runNow) internalListener(this.state, [], [], true);
     return () => {
       this.subscriptions.delete(internalListener);
     };
@@ -120,10 +127,10 @@ export class Store<T> {
     };
   }
 
-  subscribePatches(listener: (patches: Patch[]) => void): Cancel {
-    const internalListener = (_state: T, patches: Patch[]) => {
+  subscribePatches(listener: (patches: Patch[], inversePatches: Patch[]) => void): Cancel {
+    const internalListener = (_state: T, patches: Patch[], inversePatches: Patch[]) => {
       try {
-        listener(patches);
+        listener(patches, inversePatches);
       } catch (e) {
         this.options.log('Failed to execute patch listener:', e);
       }
@@ -158,9 +165,11 @@ export class Store<T> {
       this.notifyScheduled = false;
 
       const patches = this.patches;
+      const inversePatches = this.inversePatches;
       this.patches = [];
+      this.inversePatches = [];
       for (const subscription of this.subscriptions) {
-        subscription(this.state, patches);
+        subscription(this.state, patches, inversePatches);
       }
     })();
   }

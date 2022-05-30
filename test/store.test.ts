@@ -403,23 +403,28 @@ test('addReaction rerun with runNow', async (t) => {
 test('subscribePatches', async (t) => {
   const store = new Store({ foo: 0 });
   let patches,
+    inversePatches,
     count = 0;
 
-  store.subscribePatches((p) => {
+  store.subscribePatches((p, i) => {
     patches = p;
+    inversePatches = i;
     count++;
   });
   t.is(patches, undefined);
+  t.is(inversePatches, undefined);
   t.is(count, 0);
 
   store.update((s) => {
     s.foo = 1;
   });
   t.is(patches, undefined);
+  t.is(inversePatches, undefined);
   t.is(count, 0);
 
   await Promise.resolve();
   t.deepEqual(patches, [{ op: 'replace', path: ['foo'], value: 1 }]);
+  t.deepEqual(inversePatches, [{ op: 'replace', path: ['foo'], value: 0 }]);
   t.is(count, 1);
 });
 
