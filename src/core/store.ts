@@ -72,6 +72,8 @@ export function store<Value, Actions extends StoreActions = StoreActions>(
   const store: BaseStore<Value> = {
     type: 'baseStore',
 
+    initialValue,
+
     subscribe(listener, { runNow = true, throttle: throttleOption, equals = defaultEquals } = {}) {
       if (throttleOption) {
         listener = throttle(listener, throttleOption);

@@ -33,5 +33,6 @@ export interface UpdateFn<Value> {
 
 export interface BaseStore<Value> extends Store<Value> {
   type: 'baseStore';
+  initialValue: Value;
   set: UpdateFn<Value>;
 }

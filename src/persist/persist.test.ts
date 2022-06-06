@@ -139,4 +139,26 @@ describe('persist', () => {
 
     expect(setItem.mock.calls).toEqual([['store', `{"a":1}`]]);
   });
+
+  describe('paths', () => {
+    test('paths', async () => {
+      const setItem = vi.fn();
+      const storage: any = {
+        getItem: () => null,
+        setItem,
+      };
+
+      const s = store({ a: 1, b: [1, 2, 3], c: { x: 1, y: 2, z: 3 } });
+      persist(s, storage, { id: 'store', paths: ['', 'c.*'] });
+      await tick;
+
+      expect(setItem.mock.calls).toEqual([
+        //
+        ['store_c.x', `1`],
+        ['store_c.y', `2`],
+        ['store_c.z', `3`],
+        ['store', `{"a":1,"b":[1,2,3]}`],
+      ]);
+    });
+  });
 });

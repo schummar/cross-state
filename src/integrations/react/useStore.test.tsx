@@ -1,11 +1,11 @@
 import { act, render, screen } from '@testing-library/react';
-import React from 'react';
+import type { ReactNode } from 'react';
 import { describe, expect, test, vi } from 'vitest';
 import { asyncStore } from '../../core/asyncStore';
 import { store } from '../../core/store';
 import { flushPromises } from '../../lib/testHelpers';
+import { StoreContextProvider, useStoreContext } from './storeContext';
 import { useStore } from './useStore';
-import type { ReactNode } from 'react';
 
 function c<T>(name: string, before: T, after1: T, after2: T, select: (t: T) => ReactNode) {
   return [name, before, after1, after2, select] as const;
@@ -99,5 +99,41 @@ describe('useStore', () => {
 
     expect(div.textContent).toBe('1');
     expect(Component.mock.calls.length).toBe(4);
+  });
+
+  test('scope context', async () => {
+    const s = store(1);
+
+    const Component = vi.fn<[], any>(function Component() {
+      const _s = useStoreContext(s);
+      const v = useStore(_s);
+
+      return (
+        <div data-testid="div" onClick={() => _s.set((v) => v + 1)}>
+          {v}
+        </div>
+      );
+    });
+
+    render(
+      <>
+        <Component />
+        <StoreContextProvider store={s}>
+          <Component />
+        </StoreContextProvider>
+      </>
+    );
+    const [div1, div2] = screen.getAllByTestId('div') as [HTMLElement, HTMLElement];
+    expect(div1.textContent).toBe('1');
+    expect(div2.textContent).toBe('1');
+
+    act(() => {
+      div1.click();
+      div2.click();
+      div2.click();
+    });
+
+    expect(div1.textContent).toBe('2');
+    expect(div2.textContent).toBe('3');
   });
 });
