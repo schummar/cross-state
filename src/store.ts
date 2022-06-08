@@ -105,9 +105,10 @@ export class Store<T> {
         this.state = produce(
           this.state,
           (draft) => reaction(value, draft, this.state, oldValue),
-          (patches) => {
+          (patches, inversePatches) => {
             hasChanged = true;
             this.patches.push(...patches);
+            this.inversePatches.push(...inversePatches);
           }
         );
       } catch (e) {
