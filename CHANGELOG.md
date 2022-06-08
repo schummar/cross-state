@@ -1,5 +1,12 @@
 # Changelog
 
+### [0.4.1](https://www.github.com/schummar/schummar-state/compare/v0.4.0...v0.4.1) (2022-06-08)
+
+
+### Bug Fixes
+
+* missing inversePatches ([b9ef5ed](https://www.github.com/schummar/schummar-state/commit/b9ef5ed0381c0921477f67d9f8c312926c6466a9))
+
 ## [0.4.0](https://www.github.com/schummar/schummar-state/compare/v0.3.1...v0.4.0) (2022-05-30)
 
 
