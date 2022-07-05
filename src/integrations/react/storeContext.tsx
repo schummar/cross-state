@@ -1,18 +1,25 @@
 import type { ReactNode } from 'react';
 import { createContext, useContext, useMemo } from 'react';
-import { store } from '../../core/store';
-import type { BaseStore } from '../../core/types';
+import type { Store } from '../../core/types';
 
-export const storeContext = createContext<BaseStore<any> | null>(null);
+export const storeContext = createContext(new Map<Store<any>, Store<any>>());
 
-export function StoreContextProvider<T>({ store: original, children }: { store: BaseStore<T>; children?: ReactNode }) {
-  const copy = useMemo(() => store(original.initialValue), [original]);
+export function StoreContextProvider({ store, children }: { store: Store<any>; children?: ReactNode }) {
+  const instance = useMemo(() => store.clone(), [store]);
+  const context = useContext(storeContext);
 
-  return <storeContext.Provider value={copy}>{children}</storeContext.Provider>;
+  const updatedContext = useMemo(() => {
+    const updatedContext = new Map(context);
+    updatedContext.set(store, instance);
+    return updatedContext;
+  }, [instance, context]);
+
+  return <storeContext.Provider value={updatedContext}>{children}</storeContext.Provider>;
 }
 
-export function useStoreContext<T>(store: BaseStore<T>) {
-  const contextStore = useContext(storeContext) as BaseStore<T> | null;
+export function useStoreContext<S extends Store<any>>(store: S) {
+  const context = useContext(storeContext);
+  const instance = context.get(store) as S | undefined;
 
-  return contextStore ?? store;
+  return instance ?? store;
 }

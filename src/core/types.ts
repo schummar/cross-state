@@ -23,6 +23,7 @@ export interface Store<Value> {
   subscribe(listener: Listener<Value>, options?: SubscribeOptions): Cancel;
   addEffect(effect: Effect, retain?: Time): Cancel;
   isActive(): boolean;
+  clone(): this;
 }
 
 export type Update<Value> = Value | ((value: Value) => Value);

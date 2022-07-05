@@ -18,7 +18,6 @@ describe('useStore', () => {
     c('object with optionals', { a: { b: { c: 1 } } }, { a: undefined }, { a: { b: { c: 1 } } }, (s) => s.a?.b.c),
     c('array', [1, 2, 3], [1, 2, 4], [1, 2, 3, 4], (s) => s[2]),
     c('array.length', [1, 2, 3], [1, 2, 3, 4], [1, 2, 4], (s) => s.length),
-    c('array', [1, 2, 3], [1, 2, 4], [1, 2, 3, 4], (s) => s[2]),
   ])('%s', (_name, before, after1, after2, select) => {
     test('changed', async () => {
       const s = store(before);
@@ -106,7 +105,7 @@ describe('useStore', () => {
 
     const Component = vi.fn<[], any>(function Component() {
       const _s = useStoreContext(s);
-      const v = useStore(_s);
+      const v = useStore(s);
 
       return (
         <div data-testid="div" onClick={() => _s.set((v) => v + 1)}>

@@ -131,6 +131,10 @@ export function store<Value, Actions extends StoreActions = StoreActions>(
     isActive() {
       return listeners.size > 0;
     },
+
+    clone() {
+      return foo(initialValue, actions);
+    },
   };
 
   if (initialValue instanceof Map && !actions) {
@@ -149,3 +153,5 @@ export function store<Value, Actions extends StoreActions = StoreActions>(
 
   return Object.assign(store, boundActions);
 }
+
+const foo = store;
