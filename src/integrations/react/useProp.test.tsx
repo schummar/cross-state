@@ -1,6 +1,7 @@
 import { act, render, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { describe, expect, test, vi } from 'vitest';
-import { store } from '../../core/store';
+import { atomicStore } from '../../core/atomicStore';
 import type { Path, Value } from '../../lib/propAccess';
 import { useProp } from './useProp';
 
@@ -22,14 +23,14 @@ describe('useProp', () => {
     c('array', [1, 2, 3] as [number, number, number], '2', 3, 4),
   ])('%s', (_name, obj, path, oldValue, newValue) => {
     test('useProp', async () => {
-      const s = store(obj);
+      const store = atomicStore(obj);
 
       const Component = vi.fn<[], any>(function Component() {
-        const [v, set] = useProp(s, path);
+        const [v, set] = useProp(store, path);
 
         return (
           <div data-testid="div" onClick={() => set(newValue)}>
-            {v}
+            {v as ReactNode}
           </div>
         );
       });

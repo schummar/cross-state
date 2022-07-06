@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { store } from '../core/store';
+import { atomicStore } from '../core/atomicStore';
 import { persist } from './persist';
 
 beforeEach(() => {
@@ -21,7 +21,7 @@ describe.skip('persist', () => {
         setItem,
       };
 
-      const s = store({ a: 1 });
+      const s = atomicStore({ a: 1 });
       persist(s, storage, { id: 'store' });
       await tick;
       expect(setItem.mock.calls).toEqual([['store', `{"a":1}`]]);
@@ -37,7 +37,7 @@ describe.skip('persist', () => {
         setItem,
       };
 
-      const s = store({ a: 1 });
+      const s = atomicStore({ a: 1 });
       persist(s, storage, { id: 'store' });
       await tick;
       await tick;
@@ -52,7 +52,7 @@ describe.skip('persist', () => {
         setItem,
       };
 
-      const s = store({ a: 1 });
+      const s = atomicStore({ a: 1 });
       persist(s, storage, { id: 'store', throttle: 2 });
       vi.advanceTimersByTime(1);
       await tick;
@@ -76,7 +76,7 @@ describe.skip('persist', () => {
       const getItem = vi.fn(() => `{"a":1}`);
       const storage: any = { getItem, setItem: () => undefined };
 
-      const s = store(undefined);
+      const s = atomicStore(undefined);
       persist(s, storage, { id: 'store' });
       await tick;
       expect(getItem.mock.calls).toEqual([['store']]);
@@ -87,7 +87,7 @@ describe.skip('persist', () => {
       const getItem = vi.fn(() => `undefined`);
       const storage: any = { getItem, setItem: () => undefined };
 
-      const s = store(undefined);
+      const s = atomicStore(undefined);
       persist(s, storage, { id: 'store' });
       await tick;
       expect(getItem.mock.calls).toEqual([['store']]);
@@ -96,7 +96,7 @@ describe.skip('persist', () => {
 
     test('wait for hydrated', async () => {
       const storage: any = { getItem: () => null, setItem: () => undefined };
-      const s = store(undefined);
+      const s = atomicStore(undefined);
       const { hydrated } = persist(s, storage, { id: 'store' });
       const resolve = vi.fn();
       hydrated.then(resolve);
@@ -114,7 +114,7 @@ describe.skip('persist', () => {
       };
       const storage: any = { getItem, setItem: () => undefined };
 
-      const s = store(undefined);
+      const s = atomicStore(undefined);
       persist(s, storage, { id: 'store' });
       await tick;
       await tick;
@@ -130,7 +130,7 @@ describe.skip('persist', () => {
       setItem,
     };
 
-    const s = store({ a: 1 });
+    const s = atomicStore({ a: 1 });
     const { stop } = persist(s, storage, { id: 'store' });
     await tick;
     stop();
@@ -148,7 +148,7 @@ describe.skip('persist', () => {
         setItem,
       };
 
-      const s = store({ a: 1, b: [1, 2, 3], c: { x: 1, y: 2, z: 3 } });
+      const s = atomicStore({ a: 1, b: [1, 2, 3], c: { x: 1, y: 2, z: 3 } });
       persist(s, storage, { id: 'store', paths: ['', 'c.*'] });
       await tick;
 

@@ -1,23 +1,47 @@
-import { store } from './store';
-import type { Store } from './types';
+import { atomicStore } from './atomicStore';
+import type { Duration, Effect, Listener, Store, SubscribeOptions } from './types';
+
+export type Computed<Value> = ComputedImpl<Value>;
 
 const Undefined = Symbol('undefined');
 const Computing = Symbol('computing');
 
-export function computed<Value>(fn: (use: <T>(store: Store<T>) => T) => Value): Store<Value> {
-  let value: Value | typeof Undefined | typeof Computing = Undefined;
-  const base = store({});
+class ComputedImpl<Value> implements Store<Value> {
+  private value: Value | typeof Undefined | typeof Computing = Undefined;
+  private internalStore = atomicStore({});
 
-  const compute = () => {
-    if (value === Computing) {
+  constructor(private readonly fn: (use: <T>(store: Store<T>) => T) => Value) {}
+
+  get() {
+    return this.compute();
+  }
+
+  subscribe(listener: Listener<Value>, options: SubscribeOptions) {
+    return this.internalStore.subscribe(() => listener(this.compute()), options);
+  }
+
+  addEffect(effect: Effect, retain?: Duration | undefined) {
+    return this.internalStore.addEffect(effect, retain);
+  }
+
+  isActive() {
+    return this.internalStore.isActive();
+  }
+
+  recreate(): this {
+    return new ComputedImpl(this.fn) as this;
+  }
+
+  private compute() {
+    if (this.value === Computing) {
       throw Error('[schummar-state:compute] circular reference in computation!');
     }
 
-    if (value === Undefined) {
-      value = Computing;
+    if (this.value === Undefined) {
+      this.value = Computing;
 
       const deps = new Set<Store<any>>();
-      value = fn((store) => {
+      this.value = this.fn((store) => {
         deps.add(store);
         return store.get();
       });
@@ -29,26 +53,18 @@ export function computed<Value>(fn: (use: <T>(store: Store<T>) => T) => Value): 
               handle();
             }
 
-            value = Undefined;
-            base.set({});
+            this.value = Undefined;
+            this.internalStore.set({});
           },
           { runNow: false }
         )
       );
     }
 
-    return value;
-  };
+    return this.value;
+  }
+}
 
-  return {
-    ...base,
-
-    subscribe(listener, options) {
-      return base.subscribe(() => listener(compute()), options);
-    },
-
-    get() {
-      return compute();
-    },
-  };
+export function computed<Value>(fn: (use: <T>(store: Store<T>) => T) => Value): Store<Value> {
+  return new ComputedImpl(fn);
 }

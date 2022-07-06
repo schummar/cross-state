@@ -2,7 +2,7 @@ import { act, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, test, vi } from 'vitest';
 import { asyncStore } from '../../core/asyncStore';
-import { store } from '../../core/store';
+import { atomicStore } from '../../core/atomicStore';
 import { flushPromises } from '../../lib/testHelpers';
 import { useStore } from './useStore';
 
@@ -19,10 +19,10 @@ describe('useStore', () => {
     c('array.length', [1, 2, 3], [1, 2, 3, 4], [1, 2, 4], (s) => s.length),
   ])('%s', (_name, before, after1, after2, select) => {
     test('changed', async () => {
-      const s = store(before);
+      const store = atomicStore(before);
 
       const Component = vi.fn<[], any>(function Component() {
-        const v = useStore(s, select);
+        const v = useStore(store, select);
 
         return <div data-testid="div">{v}</div>;
       });
@@ -31,7 +31,7 @@ describe('useStore', () => {
       const div = screen.getByTestId('div');
 
       act(() => {
-        s.set(after1);
+        store.set(after1);
       });
 
       expect(div.textContent).toBe(String(select(after1) ?? ''));
@@ -39,10 +39,10 @@ describe('useStore', () => {
     });
 
     test('same', async () => {
-      const s = store(before);
+      const store = atomicStore(before);
 
       const Component = vi.fn<[], any>(function Component() {
-        const v = useStore(s, select);
+        const v = useStore(store, select);
 
         return <div data-testid="div">{v}</div>;
       });
@@ -51,7 +51,7 @@ describe('useStore', () => {
       const div = screen.getByTestId('div');
 
       act(() => {
-        s.set(after2);
+        store.set(after2);
       });
 
       expect(div.textContent).toBe(String(select(after2)));
@@ -59,10 +59,10 @@ describe('useStore', () => {
     });
 
     test('same without selector', async () => {
-      const s = store(before);
+      const store = atomicStore(before);
 
       const Component = vi.fn<[], any>(function Component() {
-        const v = useStore(s);
+        const v = useStore(store);
 
         return <div data-testid="div">{select(v)}</div>;
       });
@@ -71,7 +71,7 @@ describe('useStore', () => {
       const div = screen.getByTestId('div');
 
       act(() => {
-        s.set(after2);
+        store.set(after2);
       });
 
       expect(div.textContent).toBe(String(select(after2)));
@@ -80,10 +80,10 @@ describe('useStore', () => {
   });
 
   test('only watch value', async () => {
-    const s = asyncStore(async () => 1)();
+    const store = asyncStore(async () => 1)();
 
     const Component = vi.fn<[], any>(function Component() {
-      const [value] = useStore(s);
+      const [value] = useStore(store);
 
       return <div data-testid="div">{value}</div>;
     });
@@ -92,7 +92,7 @@ describe('useStore', () => {
     const div = screen.getByTestId('div');
 
     await act(() => flushPromises());
-    act(() => s.clear());
+    act(() => store.clear());
     await act(() => flushPromises());
 
     expect(div.textContent).toBe('1');

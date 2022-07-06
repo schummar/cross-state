@@ -1,6 +1,6 @@
-import type { Time } from '../core/types';
+import type { Duration } from '../core/types';
 
-export const calcTime = (t: Time) => {
+export const calcDuration = (t: Duration) => {
   if (typeof t === 'number') return t;
   return (
     (t.milliseconds ?? 0) +

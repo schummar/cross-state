@@ -2,7 +2,7 @@ import { useCallback, useDebugValue, useLayoutEffect, useRef } from 'react';
 import { useSyncExternalStoreWithSelector } from 'use-sync-external-store/shim/with-selector';
 import type { Store, SubscribeOptions } from '../../core/types';
 import { trackingProxy } from '../../lib/trackingProxy';
-import { useStoreContext } from './storeContext';
+import { useStoreScope } from './storeScope';
 
 export type UseStoreOptions = Omit<SubscribeOptions, 'runNow'>;
 
@@ -12,7 +12,7 @@ export function useStore<T, S = T>(
   store: Store<T>,
   ...[selector, options]: [options?: UseStoreOptions] | [selector: (value: T) => S, options?: UseStoreOptions]
 ): S {
-  store = useStoreContext(store);
+  store = useStoreScope(store);
 
   if (!selector || !(selector instanceof Function)) {
     options = selector;

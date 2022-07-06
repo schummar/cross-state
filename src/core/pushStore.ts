@@ -1,29 +1,24 @@
-import { hash } from '../lib/hash';
+import { Cache } from '../lib/cache';
+import { calcDuration } from '../lib/calcDuration';
 import type { MaybePromise } from '../lib/maybePromise';
 import { queue } from '../lib/queue';
 import type { AsyncStoreValue } from './asyncStore';
 import { asyncStoreValueEquals, createState } from './asyncStore';
+import { atomicStore } from './atomicStore';
 import { once } from './once';
-import { store } from './store';
-import type { Cancel, Store, Time } from './types';
+import type { Cancel, Duration, Effect, Listener, Store, SubscribeOptions } from './types';
 
 ///////////////////////////////////////////////////////////
 // Types
 ///////////////////////////////////////////////////////////
 
 export type PushStoreOptions = {
-  retain?: Time;
+  retain?: Duration;
+  clearUnusedAfter?: Duration;
 };
 
-export interface PushStore<Value> extends Store<AsyncStoreValue<Value>> {
-  type: 'pushStore';
-  getPromise(options?: { returnStale?: boolean }): Promise<Value>;
-  set(update: Value | ((value?: Value) => Value)): void;
-  setError(error: unknown): void;
-}
-
 export interface PushCollection<Value, Args extends any[]> {
-  (...args: Args): PushStore<Value>;
+  (...args: Args): PushStoreImpl<Value, Args>;
 }
 
 export interface PushAction<Value, Args extends any[]> {
@@ -39,163 +34,194 @@ export interface PushAction<Value, Args extends any[]> {
   ): void | Cancel;
 }
 
+export type PushStore<Value, Args extends any[]> = PushStoreImpl<Value, Args>;
+
+///////////////////////////////////////////////////////////
+// Global
+///////////////////////////////////////////////////////////
+
+let defaultOptions: PushStoreOptions = {
+  retain: undefined,
+  clearUnusedAfter: { days: 1 },
+};
+
+function setDefaultOptions(options: typeof defaultOptions) {
+  defaultOptions = options;
+}
+
 ///////////////////////////////////////////////////////////
 // Implementation
 ///////////////////////////////////////////////////////////
 
-export function pushStore<Value = unknown, Args extends any[] = []>(
-  fn: PushAction<Value, Args>,
-  options?: PushStoreOptions
-): PushCollection<Value, Args> {
-  const { retain = 1000 } = options ?? {};
-  const collection = new Map<string, PushStore<Value>>();
+class PushStoreImpl<Value, Args extends any[]> implements Store<AsyncStoreValue<Value>> {
+  private readonly args: Args;
+  private internalStore = atomicStore(createState<Value>());
+  private cancel?: Cancel;
 
-  const createPushStore = (...args: Args) => {
-    const s = store(createState<Value>());
-    let cancel: Cancel | undefined;
+  constructor(private readonly fn: PushAction<Value, Args>, private readonly options?: PushStoreOptions, ...args: Args) {
+    this.args = args;
 
-    const connect = () => {
-      cancel?.();
-
-      s.set((s) => createState({ ...s, isPending: true }));
-
-      let isCanceled = false;
-      const q = queue();
-      const deps = new Map<Store<any>, Cancel>();
-
-      const check = (name: string) => {
-        if (isCanceled) {
-          if (process.env.NODE_ENV !== 'production') {
-            console.warn(
-              `[schummar-state:pushStore] process has been canceled. '${name}' should not be called anymore. Having no proper teardown might result in memory leaks.`
-            );
-          }
-        }
-        return isCanceled;
-      };
-
-      const cancelAction = fn.apply(
-        {
-          use(s) {
-            if (!isCanceled && !deps.has(s)) {
-              deps.set(s, s.subscribe(connect, { runNow: false }));
-            }
-
-            return s.get();
-          },
-
-          async update(value) {
-            if (check('update')) return;
-
-            await q(async () => {
-              if (value instanceof Function) {
-                value = value(s.get().value);
-              }
-
-              if (value instanceof Promise) {
-                value = await value;
-              }
-
-              if (!isCanceled) {
-                s.set(createState({ value, status: 'value' }));
-              }
-            });
-          },
-
-          async updateError(error) {
-            if (check('setError')) return;
-
-            return q(async () => {
-              if (!isCanceled) {
-                s.set(createState({ error, status: 'error' }));
-              }
-            });
-          },
-
-          updateIsPending(isPending) {
-            if (check('updateIsPending')) return;
-
-            s.set((s) => createState({ ...s, isPending }));
-          },
-
-          reconnect: connect,
-        },
-        args
-      );
-
-      cancel = () => {
-        s.set((s) => createState({ ...s, isPending: false, isStale: true }));
-        isCanceled = true;
-        cancelAction?.();
-        q.clear();
-        for (const handle of deps.values()) {
-          handle();
-        }
-        cancel = undefined;
-      };
-    };
-
-    s.addEffect(() => {
-      connect();
+    this.internalStore.addEffect(() => {
+      this.connect();
 
       return () => {
-        cancel?.();
+        this.cancel?.();
       };
-    }, retain);
+    }, options?.retain);
 
-    const pushStore: PushStore<Value> = {
-      type: 'pushStore',
-
-      get: s.get,
-
-      subscribe(listener, options) {
-        return s.subscribe(() => listener(pushStore.get()), {
-          ...options,
-          equals: (a, b) => asyncStoreValueEquals(a, b, options?.equals),
-        });
-      },
-
-      async getPromise({ returnStale } = {}) {
-        const state = await once(
-          pushStore,
-          (state): state is AsyncStoreValue<Value> & { status: 'value' | 'error' } =>
-            (returnStale || !state.isStale) && (state.status === 'value' || state.status === 'error')
-        );
-        if (state.status === 'value') {
-          return state.value;
-        }
-        throw state.error;
-      },
-
-      set(value) {
-        if (value instanceof Function) {
-          value = value(pushStore.get().value);
-        }
-        s.set(createState({ value, status: 'value' }));
-      },
-
-      setError(error) {
-        s.set(createState({ error, status: 'error' }));
-      },
-
-      addEffect: s.addEffect,
-      get isActive() {
-        return s.isActive;
-      },
-    };
-
-    return pushStore;
-  };
-
-  function getAsyncStore(...args: Args) {
-    const key = hash(args);
-    let asyncStore = collection.get(key);
-    if (!asyncStore) {
-      asyncStore = createPushStore(...args);
-      collection.set(key, asyncStore);
-    }
-    return asyncStore;
+    this.get = this.get.bind(this);
+    this.subscribe = this.subscribe.bind(this);
+    this.addEffect = this.addEffect.bind(this);
+    this.isActive = this.isActive.bind(this);
+    this.recreate = this.recreate.bind(this);
+    this.getPromise = this.getPromise.bind(this);
+    this.set = this.set.bind(this);
+    this.setError = this.setError.bind(this);
+    this.connect = this.connect.bind(this);
   }
 
-  return Object.assign(getAsyncStore, {});
+  get() {
+    return this.internalStore.get();
+  }
+
+  subscribe(listener: Listener<AsyncStoreValue<Value>>, options?: SubscribeOptions) {
+    return this.internalStore.subscribe(() => listener(this.get()), {
+      ...options,
+      equals: (a, b) => asyncStoreValueEquals(a, b, options?.equals),
+    });
+  }
+
+  addEffect(effect: Effect, retain?: Duration | undefined) {
+    return this.internalStore.addEffect(effect, retain);
+  }
+
+  isActive() {
+    return this.internalStore.isActive();
+  }
+
+  recreate(): this {
+    return new PushStoreImpl(this.fn, this.options, ...this.args) as this;
+  }
+
+  async getPromise({ returnStale }: { returnStale?: boolean } = {}) {
+    const state = await once(
+      this,
+      (state): state is AsyncStoreValue<Value> & { status: 'value' | 'error' } =>
+        (returnStale || !state.isStale) && (state.status === 'value' || state.status === 'error')
+    );
+    if (state.status === 'value') {
+      return state.value;
+    }
+    throw state.error;
+  }
+
+  set(value: Value | ((value?: Value) => Value)) {
+    if (value instanceof Function) {
+      value = value(this.get().value);
+    }
+    this.internalStore.set(createState({ value, status: 'value' }));
+  }
+
+  setError(error: unknown) {
+    this.internalStore.set(createState({ error, status: 'error' }));
+  }
+
+  private connect() {
+    this.cancel?.();
+
+    this.internalStore.set((state) => createState({ ...state, isPending: true }));
+
+    let isCanceled = false;
+    const q = queue();
+    const deps = new Map<Store<any>, Cancel>();
+
+    const check = (name: string) => {
+      if (isCanceled) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn(
+            `[schummar-state:pushStore] process has been canceled. '${name}' should not be called anymore. Having no proper teardown might result in memory leaks.`
+          );
+        }
+      }
+      return isCanceled;
+    };
+
+    const cancelAction = this.fn.apply(
+      {
+        use: (s) => {
+          if (!isCanceled && !deps.has(s)) {
+            deps.set(s, s.subscribe(this.connect, { runNow: false }));
+          }
+
+          return s.get();
+        },
+
+        update: async (value) => {
+          if (check('update')) return;
+
+          await q(async () => {
+            if (value instanceof Function) {
+              value = value(this.internalStore.get().value);
+            }
+
+            if (value instanceof Promise) {
+              value = await value;
+            }
+
+            if (!isCanceled) {
+              this.internalStore.set(createState({ value, status: 'value' }));
+            }
+          });
+        },
+
+        updateError: async (error) => {
+          if (check('setError')) return;
+
+          return q(async () => {
+            if (!isCanceled) {
+              this.internalStore.set(createState({ error, status: 'error' }));
+            }
+          });
+        },
+
+        updateIsPending: (isPending) => {
+          if (check('updateIsPending')) return;
+
+          this.internalStore.set((s) => createState({ ...s, isPending }));
+        },
+
+        reconnect: this.connect,
+      },
+      this.args
+    );
+
+    this.cancel = () => {
+      this.internalStore.set((s) => createState({ ...s, isPending: false, isStale: true }));
+      isCanceled = true;
+      cancelAction?.();
+      q.clear();
+      for (const handle of deps.values()) {
+        handle();
+      }
+      this.cancel = undefined;
+    };
+  }
 }
+
+function getPushStore<Value = unknown, Args extends any[] = []>(
+  fn: PushAction<Value, Args>,
+  options: PushStoreOptions = {}
+): PushCollection<Value, Args> {
+  const cache = new Cache(
+    (...args: Args) => new PushStoreImpl(fn, options, ...args),
+    calcDuration(options.clearUnusedAfter ?? defaultOptions.clearUnusedAfter ?? 0)
+  );
+
+  return (...args: Args) => {
+    return cache.get(...args);
+  };
+}
+
+export const pushStore = Object.assign(getPushStore, {
+  setDefaultOptions,
+});

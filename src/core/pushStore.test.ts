@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { flushPromises, getValues, sleep, testAsyncState } from '../lib/testHelpers';
 import { pushStore } from './pushStore';
-import { store } from './store';
+import { atomicStore } from './atomicStore';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -69,7 +69,7 @@ describe('pushStore', () => {
   });
 
   test('push some messages with dependencies', async () => {
-    const other = store(0);
+    const other = atomicStore(0);
     const s = pushStore<number>(function () {
       const ws = new FakeWebSocket([
         [this.use(other) + 1, 1],

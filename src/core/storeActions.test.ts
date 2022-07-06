@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'vitest';
-import { store } from './store';
+import { atomicStore } from './atomicStore';
 import { recordActions } from './storeActions';
 
 describe('store actions', () => {
   test('map store', () => {
-    const x = store(new Map<number, number>());
+    const x = atomicStore(new Map<number, number>());
     x.with(1, 2);
     x.with(3, 4);
     x.without(1);
@@ -14,7 +14,7 @@ describe('store actions', () => {
   });
 
   test('record store', () => {
-    const x = store({} as Record<number, number>, recordActions);
+    const x = atomicStore({} as Record<number, number>, recordActions);
     x.with(1, 2);
     x.with(3, 4);
     x.without(1);
@@ -24,7 +24,7 @@ describe('store actions', () => {
   });
 
   test('set store', () => {
-    const x = store(new Set<number>());
+    const x = atomicStore(new Set<number>());
     x.add(1);
     x.add(2);
     x.delete(1);
@@ -34,7 +34,7 @@ describe('store actions', () => {
   });
 
   test('array store', () => {
-    const x = store<number[]>([]);
+    const x = atomicStore<number[]>([]);
 
     expect(x.push(1, 2, 3)).toBe(3);
     expect(x.get()).toEqual([1, 2, 3]);

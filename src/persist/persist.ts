@@ -1,10 +1,10 @@
 import { computed } from '../core/computed';
-import type { BaseStore } from '../core/types';
+import type { AtomicStore } from '../core/types';
 import { queue } from '../lib/queue';
 import type { PersistOptions } from './persistOptions';
 import type { PersistStorage } from './persistStorage';
 
-export function persist<T>(s: BaseStore<T>, storage: PersistStorage, options: PersistOptions<T>) {
+export function persist<T>(s: AtomicStore<T>, storage: PersistStorage, options: PersistOptions<T>) {
   const { id, throttle } = options;
   const paths = (Array.isArray(options.paths) ? options.paths : [options.paths ?? '']).map((path) => path.split('.').filter(Boolean));
   paths.sort((a, b) => a.length - b.length);

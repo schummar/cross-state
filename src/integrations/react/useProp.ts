@@ -1,24 +1,24 @@
 import { useCallback, useDebugValue, useLayoutEffect, useRef } from 'react';
 import { useSyncExternalStoreWithSelector } from 'use-sync-external-store/shim/with-selector';
-import type { BaseStore, SubscribeOptions, UpdateFn } from '../../core/types';
+import type { AtomicStoreImpl } from '../../core/atomicStore';
+import type { UpdateFn } from '../../core/types';
 import type { Path, Value } from '../../lib/propAccess';
 import { get, set } from '../../lib/propAccess';
 import { trackingProxy } from '../../lib/trackingProxy';
-import { useStoreContext } from './storeContext';
+import { useStoreScope } from './storeScope';
+import type { UseStoreOptions } from './useStore';
 
-export type UseStoreOptions = Omit<SubscribeOptions, 'runNow'>;
-
-export function useProp<T>(store: BaseStore<T>, options?: UseStoreOptions): [value: T, setValue: UpdateFn<T>];
+export function useProp<T>(store: AtomicStoreImpl<T>, options?: UseStoreOptions): [value: T, setValue: UpdateFn<T>];
 export function useProp<T extends Record<string, unknown>, P extends Path<T>>(
-  store: BaseStore<T>,
+  store: AtomicStoreImpl<T>,
   selector: P,
   options?: UseStoreOptions
 ): [value: Value<T, P>, setValue: UpdateFn<Value<T, P>>];
 export function useProp(
-  store: BaseStore<unknown>,
+  store: AtomicStoreImpl<unknown>,
   ...[arg0, arg1]: [options?: UseStoreOptions] | [selector: string, options?: UseStoreOptions]
 ): [any, UpdateFn<any>] {
-  store = useStoreContext(store);
+  store = useStoreScope(store);
 
   const selector = typeof arg0 === 'string' ? (obj: any) => get(obj, arg0) : (obj: any) => obj;
   const setter = typeof arg0 === 'string' ? (obj: any, value: any) => set(obj, arg0, value) : () => value;

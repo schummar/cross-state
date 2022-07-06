@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { shallowEquals } from '../lib/equals';
 import { flushPromises, getValues, sleep, testAsyncState } from '../lib/testHelpers';
 import { asyncStore } from './asyncStore';
-import { store } from './store';
+import { atomicStore } from './atomicStore';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -20,32 +20,32 @@ describe('asyncStore', () => {
 
   describe('get', () => {
     test('Without parameters', async () => {
-      const testStore = asyncStore(async () => 1)();
-      expect(testStore.get()).toEqual(testAsyncState());
+      const store = asyncStore(async () => 1)();
+      expect(store.get()).toEqual(testAsyncState());
 
-      testStore.subscribe(vi.fn());
-      expect(testStore.get()).toEqual(testAsyncState({ isPending: true }));
+      store.subscribe(vi.fn());
+      expect(store.get()).toEqual(testAsyncState({ isPending: true }));
 
       await flushPromises();
-      expect(testStore.get()).toEqual(testAsyncState({ value: 1 }));
+      expect(store.get()).toEqual(testAsyncState({ value: 1 }));
     });
 
     test('With parameters', async () => {
-      const testStore = asyncStore(async (n: number) => n + 1);
-      testStore(1).subscribe(vi.fn());
-      testStore(2).subscribe(vi.fn());
+      const store = asyncStore(async (n: number) => n + 1);
+      store(1).subscribe(vi.fn());
+      store(2).subscribe(vi.fn());
 
       await flushPromises();
-      expect(testStore(1).get()).toEqual(testAsyncState({ value: 2 }));
-      expect(testStore(2).get()).toEqual(testAsyncState({ value: 3 }));
+      expect(store(1).get()).toEqual(testAsyncState({ value: 2 }));
+      expect(store(2).get()).toEqual(testAsyncState({ value: 3 }));
     });
   });
 
   describe('subscribe', () => {
     test('without parameters', async () => {
-      const testStore = asyncStore(async () => 1)();
+      const store = asyncStore(async () => 1)();
       const listener = vi.fn();
-      testStore.subscribe(listener);
+      store.subscribe(listener);
       expect(listener.mock.calls.length).toBe(1);
 
       await flushPromises();
@@ -57,11 +57,11 @@ describe('asyncStore', () => {
     });
 
     test('with parameters', async () => {
-      const testStore = asyncStore(async (n: number) => n + 1);
+      const store = asyncStore(async (n: number) => n + 1);
       const listener1 = vi.fn();
       const listener2 = vi.fn();
-      testStore(1).subscribe(listener1);
-      testStore(2).subscribe(listener2);
+      store(1).subscribe(listener1);
+      store(2).subscribe(listener2);
 
       await flushPromises();
       expect(getValues(listener1)).toEqual([undefined, 2]);
@@ -69,11 +69,11 @@ describe('asyncStore', () => {
     });
 
     test('when the actions throws an error', async () => {
-      const testStore = asyncStore(async () => {
+      const store = asyncStore(async () => {
         throw Error('error');
       });
       const listener = vi.fn();
-      testStore().subscribe(listener);
+      store().subscribe(listener);
 
       await flushPromises();
       expect(listener.mock.calls).toEqual([
@@ -84,9 +84,9 @@ describe('asyncStore', () => {
     });
 
     test('with runNow=false', async () => {
-      const testStore = asyncStore(async () => 1);
+      const store = asyncStore(async () => 1);
       const listener = vi.fn();
-      testStore().subscribe(listener, { runNow: false });
+      store().subscribe(listener, { runNow: false });
       expect(getValues(listener).length).toBe(0);
 
       await flushPromises();
@@ -94,48 +94,48 @@ describe('asyncStore', () => {
     });
 
     test('with throttle', async () => {
-      const testStore = asyncStore(async () => 1);
+      const store = asyncStore(async () => 1);
       const listener = vi.fn();
-      testStore().subscribe(listener, { throttle: 2 });
-      testStore().set(2);
+      store().subscribe(listener, { throttle: 2 });
+      store().set(2);
       vi.advanceTimersByTime(1);
-      testStore().set(3);
+      store().set(3);
 
       vi.advanceTimersByTime(1);
       expect(getValues(listener)).toEqual([undefined, 3]);
     });
 
     test('with default equals', async () => {
-      const testStore = asyncStore(async () => [1]);
+      const store = asyncStore(async () => [1]);
       const listener = vi.fn();
-      testStore().subscribe(listener);
+      store().subscribe(listener);
       await flushPromises();
-      testStore().set([1]);
+      store().set([1]);
 
       expect(getValues(listener)).toEqual([undefined, [1], [1]]);
     });
 
     test('with shallowEquals', async () => {
-      const testStore = asyncStore(async () => [1]);
+      const store = asyncStore(async () => [1]);
       const listener = vi.fn();
-      testStore().subscribe(listener, { equals: shallowEquals });
+      store().subscribe(listener, { equals: shallowEquals });
       await flushPromises();
-      testStore().set([1]);
+      store().set([1]);
 
       expect(getValues(listener)).toEqual([undefined, [1]]);
     });
 
     test('with dependencies', async () => {
-      const dep1 = store(1);
+      const dep1 = atomicStore(1);
       const dep2 = asyncStore(async () => {
         await sleep(1);
         return 10;
       })();
-      const s = asyncStore(async function () {
+      const store = asyncStore(async function () {
         return this.use(dep1) + (this.use(dep2).value ?? 0) + 100;
       });
       const listener = vi.fn();
-      s().subscribe(listener);
+      store().subscribe(listener);
       vi.advanceTimersByTime(1);
       await flushPromises();
       dep1.set(2);
