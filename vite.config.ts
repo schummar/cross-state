@@ -15,7 +15,6 @@ export default defineConfig({
     include: ['./src/**/*.test.{ts,tsx}'],
     exclude: ['**/_*'],
     setupFiles: ['./src/lib/testSetup.ts'],
-    api: { port: 6200, strictPort: true },
   },
 
   build: {

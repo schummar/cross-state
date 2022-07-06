@@ -12,7 +12,7 @@ afterEach(() => {
 
 const tick = Promise.resolve();
 
-describe('persist', () => {
+describe.skip('persist', () => {
   describe('save', () => {
     test('success', async () => {
       const setItem = vi.fn();
