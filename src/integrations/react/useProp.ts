@@ -1,6 +1,6 @@
 import { useCallback, useDebugValue, useLayoutEffect, useRef } from 'react';
 import { useSyncExternalStoreWithSelector } from 'use-sync-external-store/shim/with-selector';
-import type { AtomicStoreImpl } from '../../core/atomicStore';
+import type { AtomicStore } from '../../core/atomicStore';
 import type { UpdateFn } from '../../core/types';
 import type { Path, Value } from '../../lib/propAccess';
 import { get, set } from '../../lib/propAccess';
@@ -8,14 +8,14 @@ import { trackingProxy } from '../../lib/trackingProxy';
 import { useStoreScope } from './storeScope';
 import type { UseStoreOptions } from './useStore';
 
-export function useProp<T>(store: AtomicStoreImpl<T>, options?: UseStoreOptions): [value: T, setValue: UpdateFn<T>];
+export function useProp<T>(store: AtomicStore<T>, options?: UseStoreOptions): [value: T, setValue: UpdateFn<T>];
 export function useProp<T extends Record<string, unknown>, P extends Path<T>>(
-  store: AtomicStoreImpl<T>,
+  store: AtomicStore<T>,
   selector: P,
   options?: UseStoreOptions
 ): [value: Value<T, P>, setValue: UpdateFn<Value<T, P>>];
 export function useProp(
-  store: AtomicStoreImpl<unknown>,
+  store: AtomicStore<unknown>,
   ...[arg0, arg1]: [options?: UseStoreOptions] | [selector: string, options?: UseStoreOptions]
 ): [any, UpdateFn<any>] {
   store = useStoreScope(store);
