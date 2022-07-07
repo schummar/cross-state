@@ -16,13 +16,39 @@ function c<T extends Record<string | number, unknown> | readonly unknown[], P ex
 }
 
 describe('useProp', () => {
+  test('basic usage', async () => {
+    const store = atomicStore({ x: 1 });
+
+    const Component = vi.fn<[], any>(function Component() {
+      const [v, set] = useProp(store, 'x');
+
+      return (
+        <div data-testid="div" onClick={() => set(2)}>
+          {v as ReactNode}
+        </div>
+      );
+    });
+
+    render(<Component />);
+    const div = screen.getByTestId('div');
+
+    expect(div.textContent).toBe('1');
+
+    act(() => {
+      div.click();
+    });
+
+    expect(div.textContent).toBe('2');
+    expect(Component.mock.calls.length).toBe(2);
+  });
+
   describe.each<readonly [string, any, string, any, any]>([
     //
     c('object', { x: 0, y: 0 }, 'x', 0, 1),
-    c('nested object', { a: { b: { c: 1 } } }, 'a.b.c', 1, 2),
     c('array', [1, 2, 3] as [number, number, number], '2', 3, 4),
-  ])('%s', (_name, obj, path, oldValue, newValue) => {
-    test('useProp', async () => {
+    c('nested', { x: [{ y: 1 }] } as { x: [{ y: number }] }, 'x.0.y', 1, 2),
+  ])('data type %s', (_name, obj, path, oldValue, newValue) => {
+    test('get and set', async () => {
       const store = atomicStore(obj);
 
       const Component = vi.fn<[], any>(function Component() {
