@@ -20,7 +20,7 @@ const noop = () => {
 
 class AtomicStoreImpl<Value> implements Store<Value> {
   private value = this.initialValue;
-  private listeners = new Set<Listener<Value>>();
+  private listeners = new Set<Listener<any>>();
   private effects = new Map<Effect, { handle?: Cancel; retain?: number; timeout?: ReturnType<typeof setTimeout> }>();
   private notifyId = {};
 
@@ -34,13 +34,21 @@ class AtomicStoreImpl<Value> implements Store<Value> {
     this.addEffect = this.addEffect.bind(this);
   }
 
-  subscribe(listener: Listener<Value>, { runNow = true, throttle: throttleOption, equals = defaultEquals }: SubscribeOptions = {}) {
+  subscribe(
+    listener: Listener<Value>,
+    { runNow = true, throttle: throttleOption, equals = defaultEquals, tag }: SubscribeOptions & { tag?: any } = {}
+  ) {
     if (throttleOption) {
       listener = throttle(listener, calcDuration(throttleOption));
     }
 
     let last: { v: Value } | undefined;
-    const innerListener = (value: Value) => {
+    const innerListener = (notifyTag?: any) => {
+      if (tag !== undefined && tag === notifyTag) {
+        return;
+      }
+
+      const value = this.get();
       if (!last || !equals(value, last.v)) {
         last = { v: value };
         listener(value);
@@ -64,13 +72,13 @@ class AtomicStoreImpl<Value> implements Store<Value> {
     return this.value;
   }
 
-  set(newValue: Update<Value>) {
+  set(newValue: Update<Value>, tag?: any) {
     if (newValue instanceof Function) {
       newValue = newValue(this.get());
     }
 
     this.value = newValue;
-    this.notify();
+    this.notify(tag);
   }
 
   addEffect(effect: Effect, retain?: Duration) {
@@ -124,10 +132,10 @@ class AtomicStoreImpl<Value> implements Store<Value> {
     }
   }
 
-  private notify() {
+  private notify(tag?: any) {
     const n = (this.notifyId = {});
     for (const listener of [...this.listeners]) {
-      listener(this.get());
+      listener(tag);
       if (n !== this.notifyId) break;
     }
   }

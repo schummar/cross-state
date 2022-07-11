@@ -1,93 +1,74 @@
+import type { AtomicStore } from '../core/atomicStore';
 import { computed } from '../core/computed';
-import type { AtomicStore } from '../core/types';
+import type { Cancel, Listener, Store } from '../core/types';
+import { simpleDeepEquals } from '../lib/equals';
+import { get, set } from '../lib/propAccess';
+import type { Queue } from '../lib/queue';
 import { queue } from '../lib/queue';
 import type { PersistOptions } from './persistOptions';
 import type { PersistStorage } from './persistStorage';
 
-export function persist<T>(s: AtomicStore<T>, storage: PersistStorage, options: PersistOptions<T>) {
-  const { id, throttle } = options;
-  const paths = (Array.isArray(options.paths) ? options.paths : [options.paths ?? '']).map((path) => path.split('.').filter(Boolean));
+export interface PersistPatch {
+  op: 'replace' | 'remove' | 'add';
+  path: (string | number)[];
+  value?: any;
+}
+
+export interface PersistedStore<T> extends AtomicStore<T> {
+  subscribePatches?: (listener: Listener<PersistPatch[]>) => Cancel;
+}
+
+export function persist<T>(store: AtomicStore<T>, storage: PersistStorage, options: PersistOptions<T>) {
+  // Sort paths, so that shortest path are always processed first => sub paths overwrite their part after the parent path has written its
+  const paths = (Array.isArray(options.paths) ? options.paths : [options.paths ?? '']).filter(validPath);
   paths.sort((a, b) => a.length - b.length);
 
-  let canceled = false;
-  const handles: (() => void)[] = [];
-  const q = queue();
-
-  const init = async () => {
-    const storageKey = await getStorageKeys(storage);
-    let value: any = {};
-    let i = 1;
-
-    for (const path of paths) {
-      const cutPaths = paths
-        .slice(i++)
-        .filter((other) => path.every((p, i) => other[i] === p))
-        .map((other) => other.slice(path.length));
-      console.log({ path, cutPaths });
-
-      const pattern = new RegExp(path.join('_').replace(/\*/g, '[^_]*'));
-      const matches = storageKey.filter(pattern.test);
-
-      for (const key of matches) {
-        try {
-          const serialized = await storage.getItem(key);
-          if (serialized !== null) {
-            const parsed = serialized === 'undefined' ? undefined : JSON.parse(serialized);
-            value = set(value, path, parsed);
-          }
-        } catch (e) {
-          if (options.onError) {
-            options.onError(e, 'save');
-          } else {
-            console.error('Failed to restore store persist:', e);
-          }
-        }
-
-        if (canceled) {
-          return;
-        }
-      }
-
-      const part = computed((use) => {
-        let value = get(use(s), path);
-        for (const cut of cutPaths) {
-          value = set(value, cut, undefined);
-        }
-        return value;
-      });
-      const handle = part.subscribe(
-        async (value) => {
-          try {
-            await q(() => storage.setItem(partId, JSON.stringify(value)));
-          } catch (e) {
-            console.error('Failed to save store persist:', e);
-          }
-        },
-        {
-          throttle,
-          runNow: false,
-        }
-      );
-
-      handles.push(handle);
-    }
-
-    s.set(value);
+  options = {
+    ...options,
+    onError:
+      options.onError ?? ((e, action, key) => console.error(`[schummar-state:persists] failed to ${action}${key && ` (${key})`}:`, e)),
   };
 
-  const hydrated = init();
+  let isStopped = false;
+  const handles: (() => void)[] = [];
+  const saveQueue = queue();
 
-  const stop = () => {
-    canceled = true;
-    for (const handle of handles) {
-      handle?.();
+  const init = async () => {
+    // First, load
+    const restored = await load(storage, paths, options);
+    if (isStopped) {
+      return;
     }
-    q.clear();
+
+    // Apply loaded data to store
+    store.set((state) => {
+      for (const [key, value] of restored) {
+        if (key === '') {
+          state = value;
+        } else {
+          state = set(state as any, key, value);
+        }
+      }
+      return state;
+    });
+
+    // Then start watching for changes
+    save(store, storage, paths, options, handles, restored, saveQueue);
   };
 
   return {
-    hydrated,
-    stop,
+    hydrated: init(),
+
+    allSaved() {
+      return saveQueue.whenDone;
+    },
+
+    stop() {
+      isStopped = true;
+      for (const handle of handles) {
+        handle?.();
+      }
+    },
   };
 }
 
@@ -119,22 +100,125 @@ async function getStorageKeys(storage: PersistStorage) {
   return keys;
 }
 
-function set<T>(obj: T, [first, ...rest]: string[], value: unknown): T {
-  if (!first) {
-    return obj;
+const validPath = (path: string) => !path.match(/\*.|[^.]\*/);
+const sanitizeRegex = (s: string) => s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+
+async function load(storage: PersistStorage, paths: string[], options: PersistOptions<any>) {
+  const result = new Map<string, any>();
+  let storageKeys;
+
+  try {
+    storageKeys = await getStorageKeys(storage);
+  } catch (e) {
+    options.onError?.(e, 'loadKeys');
+    return result;
   }
 
-  if (rest.length > 0) {
-    return { ...obj, [first]: set((obj as any)[first] ?? {}, rest, value) };
-  } else {
-    return { ...obj, [first]: value };
+  for (const path of paths) {
+    const prefix = path ? `${options.id}_` : options.id;
+    const pattern = new RegExp(`^${sanitizeRegex(prefix)}${sanitizeRegex(path).replace('\\*', '[^.]+')}$`);
+    const matches = storageKeys.filter((key) => pattern.test(key));
+
+    for (const key of matches) {
+      try {
+        const serialized = await storage.getItem(key);
+
+        if (serialized !== null) {
+          const parsed = serialized === 'undefined' ? undefined : JSON.parse(serialized);
+
+          result.set(key.slice(prefix.length), parsed);
+        }
+      } catch (e) {
+        options.onError?.(e, 'loadItem', key);
+      }
+    }
+  }
+
+  return result;
+}
+
+function save(
+  store: Store<any>,
+  storage: PersistStorage,
+  paths: string[],
+  options: PersistOptions<any>,
+  handles: (() => void)[],
+  restored: Map<string, any>,
+  q: Queue
+) {
+  let i = 1;
+
+  for (const path of paths) {
+    const prefix = path && `${path}.`;
+    const subPaths = paths
+      .slice(i++)
+      .filter((other) => other.startsWith(prefix))
+      .map((other) => other.slice(prefix.length));
+
+    const isWildcard = path.endsWith('.*');
+    const observedPath = path.replace('.*', '');
+    const computedStore = computed((use) => (observedPath === '' ? use(store) : get(use(store), observedPath)));
+
+    let firstCallback = true;
+    const handle = computedStore.subscribe(
+      (partValue) => {
+        const saveValues: [string, any][] = isWildcard ? Object.entries(partValue) : [['', partValue]];
+
+        for (const [name, value] of saveValues) {
+          q(async () => {
+            const savePath = [observedPath, name].filter(Boolean).join('.');
+            const saveKey = [options.id, savePath].filter(Boolean).join('_');
+            const cutValue = subPaths.reduce((value, subPath) => cut(value, subPath), value);
+
+            if (firstCallback && simpleDeepEquals(restored.get(savePath), cutValue)) {
+              // Still same value as when loaded => no need to save again
+              return;
+            }
+            firstCallback = false;
+
+            const serialized = JSON.stringify(cutValue);
+            try {
+              const result = storage.setItem(saveKey, serialized);
+              if (result instanceof Promise) {
+                await result;
+              }
+            } catch (e) {
+              options.onError?.(e, 'saveItem', saveKey);
+            }
+          });
+        }
+      },
+      {
+        throttle: options.throttle,
+      }
+    );
+    handles.push(handle);
   }
 }
 
-function get<T>(obj: T, [first, ...rest]: string[]): unknown {
-  if (!first) {
-    return obj;
+function cut(obj: Record<string, unknown>, path: string): unknown {
+  const index = path.indexOf('.');
+
+  if (index >= 0) {
+    const key = path.slice(0, index);
+    const rest = path.slice(index + 1);
+    const subObj = obj[key as any];
+
+    if (!subObj) {
+      return obj;
+    }
+
+    return {
+      ...obj,
+      [key]: cut(subObj as Record<string, unknown>, rest),
+    };
   }
 
-  return get((obj as any)?.[first], rest);
+  if (path === '*') {
+    return {};
+  }
+
+  const copy = { ...obj };
+  delete copy[path];
+  return copy;
 }

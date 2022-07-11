@@ -1,13 +1,16 @@
 import type { MaybePromise } from './maybePromise';
 
 type Action<T> = () => T | Promise<T>;
-interface Queue {
+
+export interface Queue {
   <T>(action: Action<T>): MaybePromise<T>;
   clear: () => void;
+  whenDone: Promise<void>;
 }
 
 export function queue(): Queue {
   const q: { action: Action<any>; resolve: (value: any) => void; reject: (error: unknown) => void }[] = [];
+  let promise: Promise<void> | undefined, resolve: (() => void) | undefined;
   let active = false;
 
   const run = async () => {
@@ -28,6 +31,7 @@ export function queue(): Queue {
       }
 
       active = false;
+      resolve?.();
     }
   };
 
@@ -41,6 +45,21 @@ export function queue(): Queue {
     {
       clear() {
         q.length = 0;
+        resolve?.();
+      },
+
+      get whenDone() {
+        if (!promise) {
+          promise = new Promise<void>((r) => {
+            resolve = () => {
+              promise = undefined;
+              resolve = undefined;
+              r();
+            };
+          });
+        }
+
+        return promise;
       },
     }
   );

@@ -58,7 +58,7 @@ export function set<T extends Obj | Arr, P extends Path<T>>(obj: T, path: P, val
     const subObj = obj[key as any];
 
     if (!subObj) {
-      const prefix = rootPath.slice(0, -path.length + 1);
+      const prefix = rootPath.slice(0, -rest.length - 1);
       throw Error(`Cannot set ${rootPath} because ${prefix} is ${subObj}`);
     }
 

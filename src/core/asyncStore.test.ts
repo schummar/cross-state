@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { shallowEquals } from '../lib/equals';
+import { shallowEqual } from 'fast-equals';
 import { flushPromises, getValues, sleep, testAsyncState } from '../lib/testHelpers';
 import { asyncStore } from './asyncStore';
 import { atomicStore } from './atomicStore';
@@ -115,10 +115,10 @@ describe('asyncStore', () => {
       expect(getValues(listener)).toEqual([undefined, [1], [1]]);
     });
 
-    test('with shallowEquals', async () => {
+    test('with shallowEqual', async () => {
       const store = asyncStore(async () => [1]);
       const listener = vi.fn();
-      store().subscribe(listener, { equals: shallowEquals });
+      store().subscribe(listener, { equals: shallowEqual });
       await flushPromises();
       store().set([1]);
 

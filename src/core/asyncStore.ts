@@ -1,6 +1,6 @@
 import { Cache } from '../lib/cache';
 import { calcDuration } from '../lib/calcDuration';
-import { defaultEquals, shallowEquals } from '../lib/equals';
+import { defaultEquals, simpleShallowEquals } from '../lib/equals';
 import { atomicStore } from './atomicStore';
 import { once } from './once';
 import type { Resource, ResourceGroup } from './resourceGroup';
@@ -47,7 +47,7 @@ export const asyncStoreValueEquals = <Value>(
   [vb, ...b]: AsyncStoreValue<Value>,
   equals = defaultEquals
 ) => {
-  return equals(va, vb) && shallowEquals(a, b);
+  return equals(va, vb) && simpleShallowEquals(a, b);
 };
 
 export const createState = <Value>(x: Partial<State<Value>> = {}): AsyncStoreValue<Value> => {
