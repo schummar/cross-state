@@ -1,5 +1,6 @@
 import { calcDuration } from '../lib/calcDuration';
 import { defaultEquals } from '../lib/equals';
+import { forwardError } from '../lib/forwardError';
 import { throttle } from '../lib/throttle';
 import { arrayActions, mapActions, setActions } from './storeActions';
 import type { Cancel, Duration, Effect, Listener, Store, SubscribeOptions, Update } from './types';
@@ -45,17 +46,21 @@ class AtomicStoreImpl<Value> implements Store<Value> {
 
     let last: { v: S } | undefined;
     let innerListener = (notifyTag?: any) => {
-      if (tag !== undefined && tag === notifyTag) {
-        return;
-      }
+      try {
+        if (tag !== undefined && tag === notifyTag) {
+          return;
+        }
 
-      const value = selector(this.get());
+        const value = selector(this.get());
 
-      if (!last || !equals(value, last.v)) {
-        const previousValue = last?.v;
-        last = { v: value };
+        if (!last || !equals(value, last.v)) {
+          const previousValue = last?.v;
+          last = { v: value };
 
-        listener(value, previousValue);
+          listener(value, previousValue);
+        }
+      } catch (e) {
+        forwardError(e);
       }
     };
 

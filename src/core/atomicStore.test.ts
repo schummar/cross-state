@@ -147,5 +147,46 @@ describe('atomicStore', () => {
       store.set({ a: 1 });
       expect(listener.mock.calls).toEqual([[{ a: 1 }, undefined]]);
     });
+
+    test('catch error', async () => {
+      const store = atomicStore(1);
+      const nextListener = vi.fn();
+      store.subscribe(() => {
+        throw Error('error');
+      });
+      store.subscribe(nextListener);
+
+      store.set(2);
+      expect(() => vi.runAllTimers()).toThrow('error');
+      expect(nextListener).toHaveBeenCalledTimes(2);
+    });
+
+    test('selector', async () => {
+      const store = atomicStore({ x: 1 });
+      const listener = vi.fn();
+      store.subscribe(listener, (s) => s.x);
+      store.set({ x: 2 });
+      expect(listener.mock.calls).toEqual([
+        [1, undefined],
+        [2, 1],
+      ]);
+    });
+
+    test('selector with error', async () => {
+      const store = atomicStore({ x: 1 });
+      const nextListener = vi.fn();
+      store.subscribe(
+        () => undefined,
+        (s) => {
+          throw Error('error');
+        }
+      );
+      store.subscribe(nextListener);
+
+      store.set({ x: 2 });
+
+      expect(() => vi.runAllTimers()).toThrow('error');
+      expect(nextListener).toHaveBeenCalledTimes(2);
+    });
   });
 });
