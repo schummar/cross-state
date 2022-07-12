@@ -2,6 +2,7 @@ import type { AtomicStore } from '../core/atomicStore';
 import { computed } from '../core/computed';
 import type { Cancel, Listener, Store } from '../core/types';
 import { simpleDeepEquals } from '../lib/equals';
+import { forwardError } from '../lib/forwardError';
 import { get, set } from '../lib/propAccess';
 import type { Queue } from '../lib/queue';
 import { queue } from '../lib/queue';
@@ -22,12 +23,6 @@ export function persist<T>(store: AtomicStore<T>, storage: PersistStorage, optio
   // Sort paths, so that shortest path are always processed first => sub paths overwrite their part after the parent path has written its
   const paths = (Array.isArray(options.paths) ? options.paths : [options.paths ?? '']).filter(validPath);
   paths.sort((a, b) => a.length - b.length);
-
-  options = {
-    ...options,
-    onError:
-      options.onError ?? ((e, action, key) => console.error(`[schummar-state:persists] failed to ${action}${key && ` (${key})`}:`, e)),
-  };
 
   let isStopped = false;
   const handles: (() => void)[] = [];
@@ -110,7 +105,7 @@ async function load(storage: PersistStorage, paths: string[], options: PersistOp
   try {
     storageKeys = await getStorageKeys(storage);
   } catch (e) {
-    options.onError?.(e, 'loadKeys');
+    forwardError(e);
     return result;
   }
 
@@ -129,7 +124,7 @@ async function load(storage: PersistStorage, paths: string[], options: PersistOp
           result.set(key.slice(prefix.length), parsed);
         }
       } catch (e) {
-        options.onError?.(e, 'loadItem', key);
+        forwardError(e);
       }
     }
   }
@@ -183,7 +178,7 @@ function save(
                 await result;
               }
             } catch (e) {
-              options.onError?.(e, 'saveItem', saveKey);
+              forwardError(e);
             }
           });
         }

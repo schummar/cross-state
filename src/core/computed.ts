@@ -39,8 +39,18 @@ class ComputedImpl<Value> implements Store<Value> {
     return this.compute();
   }
 
-  subscribe(listener: Listener<Value>, options: SubscribeOptions) {
-    return this.internalStore.subscribe((value, previous) => listener(value as Value, previous === Empty ? undefined : previous), options);
+  subscribe<S>(
+    listener: Listener<S>,
+    ...[arg1, arg2]: [options?: SubscribeOptions] | [selector: (value: Value) => S, options?: SubscribeOptions]
+  ) {
+    const selector: (value: Value) => S = arg1 instanceof Function ? arg1 : (value) => value as any;
+    const options = arg1 instanceof Function ? arg2 : arg1;
+
+    return this.internalStore.subscribe<S | undefined>(
+      (value, previous) => listener(value!, previous),
+      (value) => (value === Empty ? undefined : selector(value)),
+      options
+    );
   }
 
   addEffect(effect: Effect, retain?: Duration | undefined) {

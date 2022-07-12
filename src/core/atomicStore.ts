@@ -35,8 +35,6 @@ class AtomicStoreImpl<Value> implements Store<Value> {
     this.addEffect = this.addEffect.bind(this);
   }
 
-  subscribe(listener: Listener<Value>, options?: SubscribeOptions): Cancel;
-  subscribe<S>(listener: Listener<S>, selector: (value: Value) => S, options?: SubscribeOptions): Cancel;
   subscribe<S>(
     listener: Listener<S>,
     ...[arg1, arg2]: [options?: SubscribeOptions] | [selector: (value: Value) => S, options?: SubscribeOptions]
@@ -154,18 +152,19 @@ class AtomicStoreImpl<Value> implements Store<Value> {
   }
 }
 
-export function atomicStore<T extends Map<any, any>>(value: T): AtomicStoreImpl<T> & typeof mapActions;
-export function atomicStore<T extends Set<any>>(value: T): AtomicStoreImpl<T> & typeof setActions;
-export function atomicStore<T extends Array<any>>(value: T): AtomicStoreImpl<T> & typeof arrayActions;
+export function atomicStore<T extends Map<any, any>>(value: T): AtomicStore<T> & typeof mapActions;
+export function atomicStore<T extends Set<any>>(value: T): AtomicStore<T> & typeof setActions;
+export function atomicStore<T extends Array<any>>(value: T): AtomicStore<T> & typeof arrayActions;
+export function atomicStore<Value>(value: Value): AtomicStore<Value>;
 export function atomicStore<Value, Actions extends StoreActions = StoreActions>(
   value: Value,
   actions?: BoundStoreActions<Value, Actions>
-): AtomicStoreImpl<Value> & Omit<BoundStoreActions<Value, Actions>, keyof AtomicStoreImpl<Value>>;
+): AtomicStore<Value> & Omit<BoundStoreActions<Value, Actions>, keyof AtomicStore<Value>>;
 
 export function atomicStore<Value, Actions extends StoreActions = StoreActions>(
   initialValue: Value,
   actions?: BoundStoreActions<Value, Actions>
-): AtomicStoreImpl<Value> & Omit<BoundStoreActions<Value, Actions>, keyof AtomicStoreImpl<Value>> {
+): AtomicStore<Value> & Omit<BoundStoreActions<Value, Actions>, keyof AtomicStore<Value>> {
   const store = new AtomicStoreImpl(initialValue);
 
   if (initialValue instanceof Map && !actions) {

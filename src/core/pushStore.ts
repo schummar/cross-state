@@ -18,7 +18,7 @@ export type PushStoreOptions = {
 };
 
 export interface PushCollection<Value, Args extends any[]> {
-  (...args: Args): PushStoreImpl<Value, Args>;
+  (...args: Args): PushStore<Value, Args>;
 }
 
 export interface PushAction<Value, Args extends any[]> {
@@ -84,8 +84,14 @@ class PushStoreImpl<Value, Args extends any[]> implements Store<AsyncStoreValue<
     return this.internalStore.get();
   }
 
-  subscribe(listener: Listener<AsyncStoreValue<Value>>, options?: SubscribeOptions) {
-    return this.internalStore.subscribe(() => listener(this.get()), {
+  subscribe<S>(
+    listener: Listener<S>,
+    ...[arg1, arg2]: [options?: SubscribeOptions] | [selector: (value: AsyncStoreValue<Value>) => S, options?: SubscribeOptions]
+  ) {
+    const selector: (value: AsyncStoreValue<Value>) => S = arg1 instanceof Function ? arg1 : (value) => value as any;
+    const options = arg1 instanceof Function ? arg2 : arg1;
+
+    return this.internalStore.subscribe(() => listener(selector(this.get())), {
       ...options,
       equals: (a, b) => asyncStoreValueEquals(a, b, options?.equals),
     });
