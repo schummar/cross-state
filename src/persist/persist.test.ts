@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { atomicStore } from '../core/atomicStore';
+import { immerActions } from '../integrations/immer';
 import { persist } from './persist';
 import type { PersistStorage } from './persistStorage';
 
@@ -47,7 +48,7 @@ describe('persist', () => {
       expect(consoleErrorSpy).toBeCalledWith('[schummar-state:persists] failed to saveItem (store):', Error('error'));
     });
 
-    test('throttled', async () => {
+    test.only('throttled', async () => {
       const setItem = vi.fn();
       const storage = mockStorage({ setItem });
       const store = atomicStore({ a: 1 });
@@ -68,6 +69,30 @@ describe('persist', () => {
         //
         ['store', `{"a":1}`],
         ['store', `{"a":3}`],
+      ]);
+    });
+
+    test('throttled with path', async () => {
+      const setItem = vi.fn();
+      const storage = mockStorage({ setItem });
+      const store = atomicStore({ a: 1 });
+      const { hydrated, allSaved } = persist(store, storage, { id: 'store', throttle: 3, paths: ['a'] });
+
+      await hydrated;
+
+      vi.advanceTimersByTime(1);
+      store.set({ a: 2 });
+
+      vi.advanceTimersByTime(1);
+      store.set({ a: 3 });
+
+      vi.advanceTimersByTime(1);
+      await allSaved();
+
+      expect(setItem.mock.calls).toEqual([
+        //
+        ['store_a', `1`],
+        ['store_a', `3`],
       ]);
     });
   });
@@ -166,21 +191,20 @@ describe('persist', () => {
         removeItem: () => undefined,
       });
 
-      const store = atomicStore({ a: 1, b: [1, 2, 3], b1: 1, c: { x: 1, y: 2, z: 3 } });
+      const store = atomicStore({ a: 1, b: [1, 2, 3], b1: 1, c: { x: 1, y: 2, z: 3 }, z: undefined as number | undefined }, immerActions);
       const { hydrated, allSaved } = persist(store, storage, { id: 'store', paths: ['', 'b', 'c.*'] });
       await hydrated;
 
       expect(store.get()).toEqual({ a: 2, b: [1, 2, 4], b1: 2, c: { x: 2, y: 3 } });
 
-      store.set((state) => ({
-        ...state,
-        new: 1,
-      }));
+      store.update((state) => {
+        state.z = 1;
+      });
       await allSaved();
 
       expect(setItem.mock.calls).toEqual([
         //
-        ['store', JSON.stringify({ a: 2, b1: 2, c: {}, new: 1 })],
+        ['store', JSON.stringify({ a: 2, b1: 2, c: {}, z: 1 })],
       ]);
     });
   });

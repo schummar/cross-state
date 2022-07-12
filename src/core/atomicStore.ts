@@ -34,26 +34,34 @@ class AtomicStoreImpl<Value> implements Store<Value> {
     this.addEffect = this.addEffect.bind(this);
   }
 
-  subscribe(
-    listener: Listener<Value>,
-    { runNow = true, throttle: throttleOption, equals = defaultEquals, tag }: SubscribeOptions & { tag?: any } = {}
+  subscribe(listener: Listener<Value>, options?: SubscribeOptions): Cancel;
+  subscribe<S>(listener: Listener<S>, selector: (value: Value) => S, options?: SubscribeOptions): Cancel;
+  subscribe<S>(
+    listener: Listener<S>,
+    ...[arg1, arg2]: [options?: SubscribeOptions] | [selector: (value: Value) => S, options?: SubscribeOptions]
   ) {
-    if (throttleOption) {
-      listener = throttle(listener, calcDuration(throttleOption));
-    }
+    const selector: (value: Value) => S = arg1 instanceof Function ? arg1 : (value) => value as any;
+    const { runNow = true, throttle: throttleOption, equals = defaultEquals, tag } = (arg1 instanceof Function ? arg2 : arg1) ?? {};
 
-    let last: { v: Value } | undefined;
-    const innerListener = (notifyTag?: any) => {
+    let last: { v: S } | undefined;
+    let innerListener = (notifyTag?: any) => {
       if (tag !== undefined && tag === notifyTag) {
         return;
       }
 
-      const value = this.get();
+      const value = selector(this.get());
+
       if (!last || !equals(value, last.v)) {
+        const previousValue = last?.v;
         last = { v: value };
-        listener(value);
+
+        listener(value, previousValue);
       }
     };
+
+    if (throttleOption) {
+      innerListener = throttle(innerListener, calcDuration(throttleOption));
+    }
 
     this.onSubscribe();
     this.listeners.add(innerListener);

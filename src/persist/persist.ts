@@ -157,10 +157,10 @@ function save(
 
     const isWildcard = path.endsWith('.*');
     const observedPath = path.replace('.*', '');
-    const computedStore = computed((use) => (observedPath === '' ? use(store) : get(use(store), observedPath)));
+    const observedStore = observedPath === '' ? store : computed((use) => get(use(store), observedPath));
 
     let firstCallback = true;
-    const handle = computedStore.subscribe(
+    const handle = observedStore.subscribe(
       (partValue) => {
         const saveValues: [string, any][] = isWildcard ? Object.entries(partValue) : [['', partValue]];
 

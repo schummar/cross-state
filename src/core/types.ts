@@ -1,5 +1,5 @@
 export interface Listener<T> {
-  (value: T): void;
+  (value: T, previousValue?: T): void;
 }
 
 export interface Effect {
@@ -20,6 +20,7 @@ export interface SubscribeOptions {
   /** Provide a custom equality function. By default a strict equals (===) will be used.
    */
   equals?: (a: any, b: any) => boolean;
+  tag?: any;
 }
 
 export interface Cancel {

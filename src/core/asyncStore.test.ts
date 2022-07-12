@@ -51,8 +51,8 @@ describe('asyncStore', () => {
       await flushPromises();
       expect(listener.mock.calls).toEqual([
         //
-        [testAsyncState({ isPending: true })],
-        [testAsyncState({ value: 1 })],
+        [testAsyncState({ isPending: true }), undefined],
+        [testAsyncState({ value: 1 }), testAsyncState({ isPending: true })],
       ]);
     });
 
@@ -78,8 +78,8 @@ describe('asyncStore', () => {
       await flushPromises();
       expect(listener.mock.calls).toEqual([
         //
-        [testAsyncState({ isPending: true })],
-        [testAsyncState({ error: Error('error') })],
+        [testAsyncState({ isPending: true }), undefined],
+        [testAsyncState({ error: Error('error') }), testAsyncState({ isPending: true })],
       ]);
     });
 

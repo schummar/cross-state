@@ -1,23 +1,46 @@
+import { trackingProxy } from '../lib/trackingProxy';
 import { atomicStore } from './atomicStore';
-import type { Duration, Effect, Listener, Store, SubscribeOptions } from './types';
+import type { Cancel, Duration, Effect, Listener, Store, SubscribeOptions } from './types';
 
 export type Computed<Value> = ComputedImpl<Value>;
 
-const Undefined = Symbol('undefined');
-const Computing = Symbol('computing');
+export interface ComputedUse {
+  <T>(store: Store<T>): T;
+  <T, S>(store: Store<T>, selector: (value: T) => S): S;
+}
+
+export interface ComputedOptions {
+  disableProxy?: boolean;
+}
+
+const Empty = Symbol('empty');
 
 class ComputedImpl<Value> implements Store<Value> {
-  private value: Value | typeof Undefined | typeof Computing = Undefined;
-  private internalStore = atomicStore({});
+  private isComputing = false;
+  private depChecks = new Array<() => boolean>();
+  private depHandles = new Array<Cancel>();
+  private internalStore = atomicStore<Value | typeof Empty>(Empty);
 
-  constructor(private readonly fn: (use: <T>(store: Store<T>) => T) => Value) {}
+  constructor(private readonly fn: (use: ComputedUse) => Value, private readonly options: ComputedOptions = {}) {
+    this.addEffect(() => {
+      // On becoming active, refresh cache. It will be kept up-to-date while active.
+      this.compute(true);
+
+      // On becoming inactive, stop updating
+      return () => {
+        for (const handle of this.depHandles) {
+          handle();
+        }
+      };
+    });
+  }
 
   get() {
     return this.compute();
   }
 
   subscribe(listener: Listener<Value>, options: SubscribeOptions) {
-    return this.internalStore.subscribe(() => listener(this.compute()), options);
+    return this.internalStore.subscribe((value, previous) => listener(value as Value, previous === Empty ? undefined : previous), options);
   }
 
   addEffect(effect: Effect, retain?: Duration | undefined) {
@@ -29,42 +52,56 @@ class ComputedImpl<Value> implements Store<Value> {
   }
 
   recreate(): this {
-    return new ComputedImpl(this.fn) as this;
+    return new ComputedImpl(this.fn, this.options) as this;
   }
 
-  private compute() {
-    if (this.value === Computing) {
+  private compute(watch?: boolean) {
+    if (this.isComputing) {
       throw Error('[schummar-state:compute] circular reference in computation!');
     }
 
-    if (this.value === Undefined) {
-      this.value = Computing;
+    let value = this.internalStore.get();
 
-      const deps = new Set<Store<any>>();
-      this.value = this.fn((store) => {
-        deps.add(store);
-        return store.get();
-      });
-
-      const handles = [...deps].map((store) =>
-        store.subscribe(
-          () => {
-            for (const handle of handles) {
-              handle();
-            }
-
-            this.value = Undefined;
-            this.internalStore.set({});
-          },
-          { runNow: false }
-        )
-      );
+    if (value !== Empty && this.depChecks.every((check) => check())) {
+      return value;
     }
 
-    return this.value;
+    for (const handle of this.depHandles) {
+      handle();
+    }
+
+    this.isComputing = true;
+    this.depChecks = [];
+    this.depHandles = [];
+
+    const deps = new Set<Store<any>>();
+
+    value = this.fn(<T, S>(store: Store<T>, selector: (value: T) => S = (value) => value as any) => {
+      let value = selector(store.get());
+      let equals = (newValue: S) => newValue === value;
+
+      if (!this.options.disableProxy) {
+        [value, equals] = trackingProxy(value);
+      }
+
+      deps.add(store);
+      this.depChecks.push(() => {
+        return equals(selector(store.get()));
+      });
+
+      return value;
+    });
+
+    if (watch) {
+      this.depHandles = [...deps].map((store) => store.subscribe(() => this.compute(true), { runNow: false }));
+    }
+
+    this.isComputing = false;
+    this.internalStore.set(value);
+    return value;
   }
 }
 
-export function computed<Value>(fn: (use: <T>(store: Store<T>) => T) => Value): Store<Value> {
-  return new ComputedImpl(fn);
+export function computed<Value>(fn: (use: ComputedUse) => Value, options?: ComputedOptions): Store<Value> {
+  return new ComputedImpl(fn, options);
 }

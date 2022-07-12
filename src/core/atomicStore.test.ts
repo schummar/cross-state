@@ -50,7 +50,7 @@ describe('atomicStore', () => {
       expect(effect.mock.calls.length).toBe(0);
       store.subscribe(vi.fn());
       store.subscribe(vi.fn());
-      expect(effect.mock.calls).toEqual([[]]);
+      expect(effect).toHaveBeenCalledWith();
     });
 
     test('store.addEffect resubscribed', () => {
@@ -99,7 +99,10 @@ describe('atomicStore', () => {
       const listener = vi.fn();
       store.subscribe(listener);
       store.set(2);
-      expect(listener.mock.calls).toEqual([[1], [2]]);
+      expect(listener.mock.calls).toEqual([
+        [1, undefined],
+        [2, 1],
+      ]);
     });
 
     test('store.subscribe runNow=false', () => {
@@ -107,7 +110,7 @@ describe('atomicStore', () => {
       const listener = vi.fn();
       store.subscribe(listener, { runNow: false });
       store.set(2);
-      expect(listener.mock.calls).toEqual([[2]]);
+      expect(listener.mock.calls).toEqual([[2, undefined]]);
     });
 
     test('store.subscribe throttle', async () => {
@@ -117,10 +120,13 @@ describe('atomicStore', () => {
       store.set(2);
       vi.advanceTimersByTime(1);
       store.set(3);
-      expect(listener.mock.calls).toEqual([[1]]);
+      expect(listener.mock.calls).toEqual([[1, undefined]]);
 
       vi.advanceTimersByTime(1);
-      expect(listener.mock.calls).toEqual([[1], [3]]);
+      expect(listener.mock.calls).toEqual([
+        [1, undefined],
+        [3, 1],
+      ]);
     });
 
     test('store.subscribe default equals', async () => {
@@ -128,7 +134,10 @@ describe('atomicStore', () => {
       const listener = vi.fn();
       store.subscribe(listener);
       store.set({ a: 1 });
-      expect(listener.mock.calls).toEqual([[{ a: 1 }], [{ a: 1 }]]);
+      expect(listener.mock.calls).toEqual([
+        [{ a: 1 }, undefined],
+        [{ a: 1 }, { a: 1 }],
+      ]);
     });
 
     test('store.subscribe shallowEqual', async () => {
@@ -136,7 +145,7 @@ describe('atomicStore', () => {
       const listener = vi.fn();
       store.subscribe(listener, { equals: shallowEqual });
       store.set({ a: 1 });
-      expect(listener.mock.calls).toEqual([[{ a: 1 }]]);
+      expect(listener.mock.calls).toEqual([[{ a: 1 }, undefined]]);
     });
   });
 });
