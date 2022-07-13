@@ -13,7 +13,3 @@ export { arrayActions, mapActions, recordActions, setActions } from './core/stor
 export type { Cancel, Duration, Effect, Listener, Store, SubscribeOptions } from './core/types';
 export { Cache } from './lib/cache';
 export { calcDuration } from './lib/calcDuration';
-export { persist } from './persist/persist';
-export type { PersistOptions } from './persist/persistOptions';
-export type { PersistPath } from './persist/persistPath';
-export type { PersistStorage } from './persist/persistStorage';

@@ -78,6 +78,7 @@
     "react-dom": "^18.2.0",
     "rimraf": "^3.0.2",
     "typescript": "^4.7.4",
+    "unbuild": "^0.7.4",
     "use-sync-external-store": "^1.2.0",
     "vite": "^3.0.0",
     "vitest": "^0.18.0"
@@ -105,6 +106,6 @@
     "react.d.ts"
   ],
   "volta": {
-    "node": "18.4.0"
+    "node": "18.5.0"
   }
 }
