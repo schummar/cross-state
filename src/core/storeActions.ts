@@ -1,4 +1,4 @@
-import type { AtomicStore } from './types';
+import type { AtomicStore } from './atomicStore';
 
 export const mapActions = {
   with<K, V>(this: AtomicStore<Map<K, V>>, key: K, value: V) {

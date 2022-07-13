@@ -39,6 +39,8 @@ class ComputedImpl<Value> implements Store<Value> {
     return this.compute();
   }
 
+  subscribe(listener: Listener<Value>, options?: SubscribeOptions): Cancel;
+  subscribe<S>(listener: Listener<S>, selector: (value: Value) => S, options?: SubscribeOptions): Cancel;
   subscribe<S>(
     listener: Listener<S>,
     ...[arg1, arg2]: [options?: SubscribeOptions] | [selector: (value: Value) => S, options?: SubscribeOptions]

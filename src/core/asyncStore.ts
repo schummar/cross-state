@@ -29,7 +29,7 @@ export type AsyncStoreOptions<Value> = {
 };
 
 export interface AsyncCollection<Value, Args extends any[]> extends Resource {
-  (...args: Args): AsyncStoreImpl<Value, Args>;
+  (...args: Args): AsyncStore<Value, Args>;
 }
 
 export interface AsyncAction<Value, Args extends any[]> {
@@ -112,6 +112,8 @@ class AsyncStoreImpl<Value, Args extends any[]> implements Store<AsyncStoreValue
     return this.internalStore.get();
   }
 
+  subscribe(listener: Listener<AsyncStoreValue<Value>>, options?: SubscribeOptions): Cancel;
+  subscribe<S>(listener: Listener<S>, selector: (value: AsyncStoreValue<Value>) => S, options?: SubscribeOptions): Cancel;
   subscribe<S>(
     listener: Listener<S>,
     ...[arg1, arg2]: [options?: SubscribeOptions] | [selector: (value: AsyncStoreValue<Value>) => S, options?: SubscribeOptions]

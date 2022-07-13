@@ -35,6 +35,8 @@ class AtomicStoreImpl<Value> implements Store<Value> {
     this.addEffect = this.addEffect.bind(this);
   }
 
+  subscribe(listener: Listener<Value>, options?: SubscribeOptions): Cancel;
+  subscribe<S>(listener: Listener<S>, selector: (value: Value) => S, options?: SubscribeOptions): Cancel;
   subscribe<S>(
     listener: Listener<S>,
     ...[arg1, arg2]: [options?: SubscribeOptions] | [selector: (value: Value) => S, options?: SubscribeOptions]

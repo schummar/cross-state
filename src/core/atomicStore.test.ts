@@ -177,7 +177,7 @@ describe('atomicStore', () => {
       const nextListener = vi.fn();
       store.subscribe(
         () => undefined,
-        (s) => {
+        () => {
           throw Error('error');
         }
       );
