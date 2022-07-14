@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { hash } from './hash';
+import { hash } from '../../src/lib/hash';
 
 describe('hash', () => {
   test('Set', () => {

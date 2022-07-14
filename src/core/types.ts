@@ -42,7 +42,7 @@ export interface Store<Value> {
   get(): Value;
   /** Subscribe to updates. Every time the store's state changes, the callback will be executed with the new value. */
   subscribe(listener: Listener<Value>, options?: SubscribeOptions): Cancel;
-  subscribe<S>(listener: Listener<S>, selector: (value: Value) => S, options?: SubscribeOptions): Cancel;
+  subscribe<S>(selector: (value: Value) => S, listener: Listener<S>, options?: SubscribeOptions): Cancel;
   /** Add an effect that will be executed when the store becomes active, which means when it has at least one subscriber.
    * @param effect
    * If there is already a subscriber, the effect will be executed immediately.

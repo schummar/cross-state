@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { flushPromises, getValues, sleep, testAsyncState } from '../lib/testHelpers';
-import { pushStore } from './pushStore';
-import { atomicStore } from './atomicStore';
+import { pushStore, atomicStore } from '../../src';
+import { flushPromises, testAsyncState, sleep, getValues } from '../testHelpers';
 
 beforeEach(() => {
   vi.useFakeTimers();

@@ -1,6 +1,6 @@
 import { shallowEqual } from 'fast-equals';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { atomicStore } from '..';
+import { atomicStore } from '../../src';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -164,7 +164,7 @@ describe('atomicStore', () => {
     test('selector', async () => {
       const store = atomicStore({ x: 1 });
       const listener = vi.fn();
-      store.subscribe(listener, (s) => s.x);
+      store.subscribe((s) => s.x, listener);
       store.set({ x: 2 });
       expect(listener.mock.calls).toEqual([
         [1, undefined],

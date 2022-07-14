@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import type { Path, Value } from './propAccess';
-import { get, set } from './propAccess';
+import type { Path, Value } from '../../src/lib/propAccess';
+import { get, set } from '../../src/lib/propAccess';
 
 function g<T extends Record<string | number, unknown> | readonly unknown[], P extends Path<T>>(
   name: string,

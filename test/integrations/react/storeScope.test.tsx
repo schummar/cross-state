@@ -1,8 +1,7 @@
 import { act, render, screen } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
-import { atomicStore } from '../../core/atomicStore';
-import { StoreScope, useStoreScope } from './storeScope';
-import { useStore } from './useStore';
+import { atomicStore } from '../../../src';
+import { useStoreScope, useStore, StoreScope } from '../../../src/integrations/react';
 
 describe('storeContext', () => {
   test('scope context', async () => {

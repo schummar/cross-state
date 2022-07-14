@@ -1,9 +1,9 @@
 import { act, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, test, vi } from 'vitest';
-import { atomicStore } from '../../core/atomicStore';
-import type { Path, Value } from '../../lib/propAccess';
-import { useProp } from './useProp';
+import { atomicStore } from '../../../src';
+import { useProp } from '../../../src/integrations/react';
+import type { Path, Value } from '../../../src/lib/propAccess';
 
 function c<T extends Record<string | number, unknown> | readonly unknown[], P extends Path<T>>(
   name: string,

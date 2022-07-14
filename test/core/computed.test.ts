@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { atomicStore, computed } from '..';
-import type { ComputedUse } from './computed';
+import type { ComputedUse } from '../../src';
+import { atomicStore, computed } from '../../src';
 
 beforeEach(() => {
   vi.useFakeTimers();

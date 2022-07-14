@@ -1,5 +1,4 @@
 import type { AtomicStore } from '../core/atomicStore';
-import { computed } from '../core/computed';
 import type { Cancel, Listener, Store } from '../core/types';
 import { simpleDeepEquals } from '../lib/equals';
 import { forwardError } from '../lib/forwardError';
@@ -152,10 +151,10 @@ function save(
 
     const isWildcard = path.endsWith('.*');
     const observedPath = path.replace('.*', '');
-    const observedStore = observedPath === '' ? store : computed((use) => get(use(store), observedPath));
 
     let firstCallback = true;
-    const handle = observedStore.subscribe(
+    const handle = store.subscribe(
+      (state) => (observedPath === '' ? state : get(state, observedPath)),
       (partValue) => {
         const saveValues: [string, any][] = isWildcard ? Object.entries(partValue) : [['', partValue]];
 

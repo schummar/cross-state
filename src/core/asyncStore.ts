@@ -113,15 +113,17 @@ class AsyncStoreImpl<Value, Args extends any[]> implements Store<AsyncStoreValue
   }
 
   subscribe(listener: Listener<AsyncStoreValue<Value>>, options?: SubscribeOptions): Cancel;
-  subscribe<S>(listener: Listener<S>, selector: (value: AsyncStoreValue<Value>) => S, options?: SubscribeOptions): Cancel;
+  subscribe<S>(selector: (value: AsyncStoreValue<Value>) => S, listener: Listener<S>, options?: SubscribeOptions): Cancel;
   subscribe<S>(
-    listener: Listener<S>,
-    ...[arg1, arg2]: [options?: SubscribeOptions] | [selector: (value: AsyncStoreValue<Value>) => S, options?: SubscribeOptions]
+    ...[arg0, arg1, arg2]:
+      | [listener: Listener<S>, options?: SubscribeOptions]
+      | [selector: (value: AsyncStoreValue<Value>) => S, listener: Listener<S>, options?: SubscribeOptions]
   ) {
-    const selector: (value: AsyncStoreValue<Value>) => S = arg1 instanceof Function ? arg1 : (value) => value as any;
+    const selector = (arg1 instanceof Function ? arg0 : (value) => value as any) as (value: AsyncStoreValue<Value>) => S;
+    const listener = (arg1 instanceof Function ? arg1 : arg0) as Listener<S>;
     const options = arg1 instanceof Function ? arg2 : arg1;
 
-    return this.internalStore.subscribe(listener, selector, {
+    return this.internalStore.subscribe(selector, listener, {
       ...options,
       equals: (a, b) => asyncStoreValueEquals(a, b, options?.equals),
     });

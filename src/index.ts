@@ -3,7 +3,7 @@ export type { AsyncAction, AsyncCollection, AsyncStore, AsyncStoreOptions, Async
 export { atomicStore } from './core/atomicStore';
 export type { AtomicStore, BoundStoreActions, StoreActions } from './core/atomicStore';
 export { computed } from './core/computed';
-export type { Computed } from './core/computed';
+export type { Computed, ComputedOptions, ComputedUse } from './core/computed';
 export { once } from './core/once';
 export { pushStore } from './core/pushStore';
 export type { PushAction, PushCollection, PushStore, PushStoreOptions } from './core/pushStore';

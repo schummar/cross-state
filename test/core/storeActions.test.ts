@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { atomicStore } from './atomicStore';
-import { recordActions } from './storeActions';
+import { atomicStore, recordActions } from '../../src';
 
 describe('store actions', () => {
   test('map store', () => {

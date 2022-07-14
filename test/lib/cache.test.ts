@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { Cache } from './cache';
+import { Cache } from '../../src/lib/cache';
 
 const weakRefMockHandles: (() => void)[] = [];
 

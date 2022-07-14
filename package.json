@@ -1,26 +1,32 @@
 {
   "name": "schummar-state",
+  "type": "module",
   "repository": "schummar/schummar-state",
-  "version": "0.2.1-experimental-20",
+  "version": "0.2.1-experimental-21",
   "description": "(React) state library",
   "sideEffects": false,
   "main": "dist/cjs/index.js",
-  "module": "dist/es/index.js",
+  "module": "dist/es/index.mjs",
   "exports": {
     ".": {
-      "import": "./dist/es/index.js",
+      "import": "./dist/es/index.mjs",
       "require": "./dist/cjs/index.js",
-      "default": "./dist/es/index.js"
+      "default": "./dist/es/index.mjs"
     },
     "./react": {
-      "import": "./dist/es/react.js",
-      "require": "./dist/cjs/react.js",
-      "default": "./dist/es/react.js"
+      "import": "./dist/es/integrations/react/index.mjs",
+      "require": "./dist/cjs/integrations/react/index.js",
+      "default": "./dist/es/integrations/react/index.mjs"
     },
     "./immer": {
-      "import": "./dist/es/immer.js",
-      "require": "./dist/cjs/immer.js",
-      "default": "./dist/es/immer.js"
+      "import": "./dist/es/integrations/immer/index.mjs",
+      "require": "./dist/cjs/integrations/immer/index.js",
+      "default": "./dist/es/integrations/immer/index.mjs"
+    },
+    "./persist": {
+      "import": "./dist/es/persist/index.mjs",
+      "require": "./dist/cjs/persist/index.js",
+      "default": "./dist/es/persist/index.mjs"
     }
   },
   "types": "dist/types/index.d.ts",
@@ -44,11 +50,9 @@
   "license": "ISC",
   "scripts": {
     "start": "tsc --watch",
-    "build": "npm-run-all -s build:clean -p build:compile:* -s build:cjsPackage",
+    "build": "npm-run-all -s build:clean -p build:compile:*",
     "build:clean": "rimraf \"dist/**/*\"",
-    "build:compile:js": "vite build",
-    "build:compile:types": "tsc",
-    "build:cjsPackage": "echo '{\"type\":\"commonjs\"}' > dist/cjs/package.json",
+    "build:compile:js": "unbuild",
     "lint": "run-p lint:*",
     "lint:eslint": "eslint src",
     "lint:tsc": "tsc --noEmit --emitDeclarationOnly false",
@@ -97,6 +101,9 @@
       "optional": true
     },
     "react": {
+      "optional": true
+    },
+    "use-sync-external-store": {
       "optional": true
     }
   },

@@ -40,17 +40,19 @@ class ComputedImpl<Value> implements Store<Value> {
   }
 
   subscribe(listener: Listener<Value>, options?: SubscribeOptions): Cancel;
-  subscribe<S>(listener: Listener<S>, selector: (value: Value) => S, options?: SubscribeOptions): Cancel;
+  subscribe<S>(selector: (value: Value) => S, listener: Listener<S>, options?: SubscribeOptions): Cancel;
   subscribe<S>(
-    listener: Listener<S>,
-    ...[arg1, arg2]: [options?: SubscribeOptions] | [selector: (value: Value) => S, options?: SubscribeOptions]
+    ...[arg0, arg1, arg2]:
+      | [listener: Listener<S>, options?: SubscribeOptions]
+      | [selector: (value: Value) => S, listener: Listener<S>, options?: SubscribeOptions]
   ) {
-    const selector: (value: Value) => S = arg1 instanceof Function ? arg1 : (value) => value as any;
+    const selector = (arg1 instanceof Function ? arg0 : (value) => value as any) as (value: Value) => S;
+    const listener = (arg1 instanceof Function ? arg1 : arg0) as Listener<S>;
     const options = arg1 instanceof Function ? arg2 : arg1;
 
     return this.internalStore.subscribe<S | undefined>(
-      (value, previous) => listener(value!, previous),
       (value) => (value === Empty ? undefined : selector(value)),
+      (value, previous) => listener(value!, previous),
       options
     );
   }
