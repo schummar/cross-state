@@ -1,5 +1,12 @@
 # Changelog
 
+### [0.4.2](https://www.github.com/schummar/schummar-state/compare/v0.4.1...v0.4.2) (2022-07-20)
+
+
+### Bug Fixes
+
+* load root in store persist ([5a06377](https://www.github.com/schummar/schummar-state/commit/5a063775e0aa6ab1379f3e4a20e2eeff6ff03055))
+
 ### [0.4.1](https://www.github.com/schummar/schummar-state/compare/v0.4.0...v0.4.1) (2022-06-08)
 
 
