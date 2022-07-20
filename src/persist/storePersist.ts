@@ -54,7 +54,7 @@ export class StorePersist<T> {
       const value = await storage.getItem(key);
       if (value) {
         patches.push({
-          path: key.split('.'),
+          path: key === '' ? [] : key.split('.'),
           op: 'replace',
           value: value === 'undefined' ? undefined : JSON.parse(value),
           persist: this,
