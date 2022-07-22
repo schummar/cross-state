@@ -9,7 +9,5 @@ export { pushStore } from './core/pushStore';
 export type { PushAction, PushCollection, PushStore, PushStoreOptions } from './core/pushStore';
 export { allResources, ResourceGroup } from './core/resourceGroup';
 export type { Resource } from './core/resourceGroup';
-export { arrayActions, mapActions, recordActions, setActions } from './core/storeActions';
+export { arrayActions, mapActions, recordActions, setActions } from './lib/storeActions';
 export type { Cancel, Duration, Effect, Listener, Store, SubscribeOptions } from './core/types';
-export { Cache } from './lib/cache';
-export { calcDuration } from './lib/calcDuration';

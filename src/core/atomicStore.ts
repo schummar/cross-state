@@ -1,8 +1,10 @@
 import { calcDuration } from '../lib/calcDuration';
 import { defaultEquals } from '../lib/equals';
 import { forwardError } from '../lib/forwardError';
+import type { Path, Value } from '../lib/propAccess';
+import { get, set } from '../lib/propAccess';
 import { throttle } from '../lib/throttle';
-import { arrayActions, mapActions, setActions } from './storeActions';
+import { arrayActions, mapActions, setActions } from '../lib/storeActions';
 import type { Cancel, Duration, Effect, Listener, Store, SubscribeOptions, Update } from './types';
 
 export type StoreActions = Record<string, (...args: any[]) => any>;
@@ -19,13 +21,13 @@ const noop = () => {
 // Implementation
 ///////////////////////////////////////////////////////////
 
-class AtomicStoreImpl<Value> implements Store<Value> {
+export class AtomicStoreImpl<V> implements Store<V> {
   private value = this.initialValue;
-  private listeners = new Set<Listener<any>>();
+  private listeners = new Set<Listener<void>>();
   private effects = new Map<Effect, { handle?: Cancel; retain?: number; timeout?: ReturnType<typeof setTimeout> }>();
   private notifyId = {};
 
-  constructor(public readonly initialValue: Value) {
+  constructor(public readonly initialValue: V) {
     this.subscribe = this.subscribe.bind(this);
     this.get = this.get.bind(this);
     this.set = this.set.bind(this);
@@ -35,24 +37,20 @@ class AtomicStoreImpl<Value> implements Store<Value> {
     this.addEffect = this.addEffect.bind(this);
   }
 
-  subscribe(listener: Listener<Value>, options?: SubscribeOptions): Cancel;
-  subscribe<S>(selector: (value: Value) => S, listener: Listener<S>, options?: SubscribeOptions): Cancel;
+  subscribe(listener: Listener<V>, options?: SubscribeOptions): Cancel;
+  subscribe<S>(selector: (value: V) => S, listener: Listener<S>, options?: SubscribeOptions): Cancel;
   subscribe<S>(
     ...[arg0, arg1, arg2]:
       | [listener: Listener<S>, options?: SubscribeOptions]
-      | [selector: (value: Value) => S, listener: Listener<S>, options?: SubscribeOptions]
+      | [selector: (value: V) => S, listener: Listener<S>, options?: SubscribeOptions]
   ) {
-    const selector = (arg1 instanceof Function ? arg0 : (value) => value as any) as (value: Value) => S;
+    const selector = (arg1 instanceof Function ? arg0 : (value) => value as any) as (value: V) => S;
     const listener = (arg1 instanceof Function ? arg1 : arg0) as Listener<S>;
     const { runNow = true, throttle: throttleOption, equals = defaultEquals, tag } = (arg1 instanceof Function ? arg2 : arg1) ?? {};
 
     let last: { v: S } | undefined;
-    let innerListener = (notifyTag?: any) => {
+    let innerListener = () => {
       try {
-        if (tag !== undefined && tag === notifyTag) {
-          return;
-        }
-
         const value = selector(this.get());
 
         if (!last || !equals(value, last.v)) {
@@ -74,7 +72,7 @@ class AtomicStoreImpl<Value> implements Store<Value> {
     this.listeners.add(innerListener);
 
     if (runNow) {
-      innerListener(this.value);
+      innerListener();
     }
 
     return () => {
@@ -87,13 +85,20 @@ class AtomicStoreImpl<Value> implements Store<Value> {
     return this.value;
   }
 
-  set(newValue: Update<Value>, tag?: any) {
-    if (newValue instanceof Function) {
-      newValue = newValue(this.get());
+  set(update: Update<V>): this;
+  set<K extends Path<V>>(path: K, update: Update<Value<V, K>>): this;
+  set(...args: any[]) {
+    const path: string = args.length === 2 ? args[0] : '';
+    let update: Update<any> = args.length === 2 ? args[1] : args[0];
+
+    if (update instanceof Function) {
+      const before = get(this.value, path as any);
+      update = update(before);
     }
 
-    this.value = newValue;
-    this.notify(tag);
+    this.value = set(this.value, path as any, update);
+    this.notify();
+    return this;
   }
 
   addEffect(effect: Effect, retain?: Duration) {
@@ -115,7 +120,7 @@ class AtomicStoreImpl<Value> implements Store<Value> {
   }
 
   recreate = () => {
-    return new AtomicStoreImpl<Value>(this.initialValue) as this;
+    return new AtomicStoreImpl<V>(this.initialValue) as this;
   };
 
   private onSubscribe() {
@@ -147,10 +152,10 @@ class AtomicStoreImpl<Value> implements Store<Value> {
     }
   }
 
-  private notify(tag?: any) {
+  private notify() {
     const n = (this.notifyId = {});
     for (const listener of [...this.listeners]) {
-      listener(tag);
+      listener();
       if (n !== this.notifyId) break;
     }
   }

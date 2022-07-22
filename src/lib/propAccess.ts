@@ -1,8 +1,8 @@
 type FilterKey<T> = T extends string | number ? T : never;
 type FilterString<T> = T extends string ? T : never;
 
-type Obj = Record<string | number, unknown>;
-type Arr = readonly unknown[];
+export type Obj = Record<string | number, unknown>;
+export type Arr = readonly unknown[];
 
 type GetKeys<T> = T extends readonly unknown[]
   ? T extends readonly [] // special case empty tuple => no keys
@@ -12,17 +12,19 @@ type GetKeys<T> = T extends readonly unknown[]
     : number // other array
   : keyof T; // not an array
 
-export type Path<T extends Obj | Arr> = 0 extends 1 & T
+export type Path<T> = 0 extends 1 & T
   ? string
   : T extends never
   ? never
-  : FilterString<
+  : T extends Obj | Arr
+  ? FilterString<
       keyof {
         [K in FilterKey<GetKeys<T>> as `${K}` | (T[K] extends Obj | Arr | undefined | null ? `${K}.${Path<NonNullable<T[K]>>}` : never)]: 0;
       }
-    >;
+    >
+  : never;
 
-export type Value<T extends Obj | Arr, P extends string> = P extends `${infer K}.${infer Rest}`
+export type Value<T, P extends string> = P extends `${infer K}.${infer Rest}`
   ? T[K & keyof T] extends Obj | Arr
     ? Value<T[K & keyof T], Rest>
     : T[K & keyof T] extends Obj | Arr | undefined | null
@@ -30,32 +32,48 @@ export type Value<T extends Obj | Arr, P extends string> = P extends `${infer K}
     : never
   : T[P & keyof T];
 
-export function get<T extends Obj | Arr, P extends Path<T>>(obj: T, path: P): Value<T, P> {
+export function get<T, P extends Path<T>>(obj: T, path: P): Value<T, P> {
+  if (path === '') {
+    return obj as any;
+  }
+
+  if (!(obj instanceof Object)) {
+    throw new Error(`Could not get ${path} of ${obj}`);
+  }
+
   const index = path.indexOf('.');
 
   if (index >= 0) {
     const key = path.slice(0, index);
     const rest = path.slice(index + 1);
-    const subObj = obj[key as any];
+    const subObj = (obj as Obj | Arr)[key as any];
 
     if (!subObj) {
       return undefined as any;
     }
 
-    return get(subObj as Record<string, unknown>, rest) as Value<T, P>;
+    return get(subObj as Record<string, unknown>, rest) as any;
   }
 
-  return obj[path as any] as Value<T, P>;
+  return (obj as Obj | Arr)[path as any] as any;
 }
 
-export function set<T extends Obj | Arr, P extends Path<T>>(obj: T, path: P, value: Value<T, P>, rootPath = path): T {
+export function set<T, P extends Path<T>>(obj: T, path: P, value: Value<T, P>, rootPath = path): T {
+  if (path === '') {
+    return value as any;
+  }
+
+  if (!(obj instanceof Object)) {
+    throw new Error(`Could not set ${path} of ${obj}`);
+  }
+
   const index = path.indexOf('.');
   let key, update;
 
   if (index >= 0) {
     key = path.slice(0, index);
     const rest = path.slice(index + 1);
-    const subObj = obj[key as any];
+    const subObj = (obj as Obj | Arr)[key as any];
 
     if (!subObj) {
       const prefix = rootPath.slice(0, -rest.length - 1);

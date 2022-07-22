@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { calcDuration } from '../../src';
+import { calcDuration } from '../../src/lib';
 
 describe('calcDuration', () => {
   test('numeric', async () => {
