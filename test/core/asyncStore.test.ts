@@ -137,7 +137,7 @@ describe('asyncStore', () => {
       store().subscribe(listener);
       vi.advanceTimersByTime(1);
       await flushPromises();
-      dep1.set(2);
+      dep1.update(2);
       await flushPromises();
       dep2.set(20);
       await flushPromises();

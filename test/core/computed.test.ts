@@ -41,10 +41,10 @@ describe('computed', () => {
     store.subscribe(callback);
     expect(callback).toHaveBeenCalledWith(6, undefined);
 
-    dep1.set(4);
+    dep1.update(4);
     expect(callback).toHaveBeenCalledWith(9, 6);
 
-    dep2.set(5);
+    dep2.update(5);
     expect(callback).toHaveBeenCalledWith(12, 9);
     expect(callback).toHaveBeenCalledTimes(3);
   });
@@ -65,11 +65,11 @@ describe('computed', () => {
 
       expect(calc).toHaveBeenCalledTimes(1);
 
-      dep.set({ x: 1, y: 3 });
+      dep.update({ x: 1, y: 3 });
 
       expect(calc).toHaveBeenCalledTimes(1);
 
-      dep.set({ x: 2, y: 3 });
+      dep.update({ x: 2, y: 3 });
 
       expect(calc).toHaveBeenCalledTimes(2);
     });
@@ -91,11 +91,11 @@ describe('computed', () => {
 
       expect(calc).toHaveBeenCalledTimes(1);
 
-      dep.set({ x: 1, y: 3 });
+      dep.update({ x: 1, y: 3 });
 
       expect(calc).toHaveBeenCalledTimes(1);
 
-      dep.set({ x: 2, y: 3 });
+      dep.update({ x: 2, y: 3 });
 
       expect(calc).toHaveBeenCalledTimes(2);
     });
@@ -105,7 +105,7 @@ describe('computed', () => {
       const calc = vi.fn((use: ComputedUse) => use(dep).x + 2);
       const store = computed(calc, { disableProxy: true });
       store.subscribe(() => undefined);
-      dep.set({ x: 1, y: 3 });
+      dep.update({ x: 1, y: 3 });
 
       expect(calc).toHaveBeenCalledTimes(2);
     });
@@ -124,7 +124,7 @@ describe('computed', () => {
 
       expect(calc).toHaveBeenCalledTimes(1);
 
-      dep.set(2);
+      dep.update(2);
 
       store.get();
       store.get();
@@ -145,7 +145,7 @@ describe('computed', () => {
 
       expect(calc).toHaveBeenCalledTimes(1);
 
-      dep.set(2);
+      dep.update(2);
 
       store.get();
       store.get();

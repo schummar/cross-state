@@ -30,7 +30,7 @@ describe('useStore', () => {
       const div = screen.getByTestId('div');
 
       act(() => {
-        store.set(after1);
+        store.update(after1);
       });
 
       expect(div.textContent).toBe(String(select(after1) ?? ''));
@@ -50,7 +50,7 @@ describe('useStore', () => {
       const div = screen.getByTestId('div');
 
       act(() => {
-        store.set(after2);
+        store.update(after2);
       });
 
       expect(div.textContent).toBe(String(select(after2)));
@@ -70,7 +70,7 @@ describe('useStore', () => {
       const div = screen.getByTestId('div');
 
       act(() => {
-        store.set(after2);
+        store.update(after2);
       });
 
       expect(div.textContent).toBe(String(select(after2)));

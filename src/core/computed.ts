@@ -111,7 +111,7 @@ class ComputedImpl<Value> implements Store<Value> {
     }
 
     this.isComputing = false;
-    this.internalStore.set(value);
+    this.internalStore.update(value);
     return value;
   }
 }

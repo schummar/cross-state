@@ -4,9 +4,9 @@ import { atomicStore, recordActions } from '../../src';
 describe('store actions', () => {
   test('map store', () => {
     const x = atomicStore(new Map<number, number>());
-    x.with(1, 2);
-    x.with(3, 4);
-    x.without(1);
+    x.set(1, 2);
+    x.set(3, 4);
+    x.delete(1);
     expect(x.get()).toEqual(new Map([[3, 4]]));
     x.clear();
     expect(x.get()).toEqual(new Map());
@@ -14,9 +14,9 @@ describe('store actions', () => {
 
   test('record store', () => {
     const x = atomicStore({} as Record<number, number>, recordActions);
-    x.with(1, 2);
-    x.with(3, 4);
-    x.without(1);
+    x.set(1, 2);
+    x.set(3, 4);
+    x.delete(1);
     expect(x.get()).toEqual({ 3: 4 });
     x.clear();
     expect(x.get()).toEqual({});

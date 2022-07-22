@@ -158,19 +158,19 @@ class AsyncStoreImpl<Value, Args extends any[]> implements Store<AsyncStoreValue
       value = value(this.get().value);
     }
     this.cancelRun?.();
-    this.internalStore.set(createState({ value, status: 'value' }));
+    this.internalStore.update(createState({ value, status: 'value' }));
     this.setTimers();
   }
 
   setError(error: unknown) {
     this.cancelRun?.();
-    this.internalStore.set(createState({ error, status: 'error' }));
+    this.internalStore.update(createState({ error, status: 'error' }));
     this.setTimers();
   }
 
   invalidate() {
     this.cancelRun?.();
-    this.internalStore.set((s) => createState({ ...s, isPending: this.internalStore.isActive(), isStale: s.status !== 'empty' }));
+    this.internalStore.update((s) => createState({ ...s, isPending: this.internalStore.isActive(), isStale: s.status !== 'empty' }));
     if (this.internalStore.isActive()) {
       this.run();
     }
@@ -178,7 +178,7 @@ class AsyncStoreImpl<Value, Args extends any[]> implements Store<AsyncStoreValue
 
   clear() {
     this.cancelRun?.();
-    this.internalStore.set(createState({ isPending: this.internalStore.isActive() }));
+    this.internalStore.update(createState({ isPending: this.internalStore.isActive() }));
     if (this.internalStore.isActive()) {
       this.run();
     }
@@ -211,16 +211,16 @@ class AsyncStoreImpl<Value, Args extends any[]> implements Store<AsyncStoreValue
         this.args
       );
 
-      this.internalStore.set((s) => createState({ ...s, isPending: true }));
+      this.internalStore.update((s) => createState({ ...s, isPending: true }));
       const value = await job;
 
       if (!isCanceled) {
-        this.internalStore.set(createState({ value, status: 'value' }));
+        this.internalStore.update(createState({ value, status: 'value' }));
         this.setTimers();
       }
     } catch (error) {
       if (!isCanceled) {
-        this.internalStore.set(createState({ error, status: 'error' }));
+        this.internalStore.update(createState({ error, status: 'error' }));
       }
     }
   }

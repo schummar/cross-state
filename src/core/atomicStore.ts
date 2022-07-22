@@ -3,8 +3,8 @@ import { defaultEquals } from '../lib/equals';
 import { forwardError } from '../lib/forwardError';
 import type { Path, Value } from '../lib/propAccess';
 import { get, set } from '../lib/propAccess';
+import { arrayActions, mapActions, recordActions, setActions } from '../lib/storeActions';
 import { throttle } from '../lib/throttle';
-import { arrayActions, mapActions, setActions } from '../lib/storeActions';
 import type { Cancel, Duration, Effect, Listener, Store, SubscribeOptions, Update } from './types';
 
 export type StoreActions = Record<string, (...args: any[]) => any>;
@@ -30,7 +30,7 @@ export class AtomicStoreImpl<V> implements Store<V> {
   constructor(public readonly initialValue: V) {
     this.subscribe = this.subscribe.bind(this);
     this.get = this.get.bind(this);
-    this.set = this.set.bind(this);
+    this.update = this.update.bind(this);
     this.addEffect = this.addEffect.bind(this);
     this.isActive = this.isActive.bind(this);
     this.recreate = this.recreate.bind(this);
@@ -46,7 +46,7 @@ export class AtomicStoreImpl<V> implements Store<V> {
   ) {
     const selector = (arg1 instanceof Function ? arg0 : (value) => value as any) as (value: V) => S;
     const listener = (arg1 instanceof Function ? arg1 : arg0) as Listener<S>;
-    const { runNow = true, throttle: throttleOption, equals = defaultEquals, tag } = (arg1 instanceof Function ? arg2 : arg1) ?? {};
+    const { runNow = true, throttle: throttleOption, equals = defaultEquals } = (arg1 instanceof Function ? arg2 : arg1) ?? {};
 
     let last: { v: S } | undefined;
     let innerListener = () => {
@@ -85,9 +85,9 @@ export class AtomicStoreImpl<V> implements Store<V> {
     return this.value;
   }
 
-  set(update: Update<V>): this;
-  set<K extends Path<V>>(path: K, update: Update<Value<V, K>>): this;
-  set(...args: any[]) {
+  update(update: Update<V>): this;
+  update<K extends Path<V>>(path: K, update: Update<Value<V, K>>): this;
+  update(...args: any[]) {
     const path: string = args.length === 2 ? args[0] : '';
     let update: Update<any> = args.length === 2 ? args[1] : args[0];
 
@@ -164,6 +164,7 @@ export class AtomicStoreImpl<V> implements Store<V> {
 export function atomicStore<T extends Map<any, any>>(value: T): AtomicStore<T> & typeof mapActions;
 export function atomicStore<T extends Set<any>>(value: T): AtomicStore<T> & typeof setActions;
 export function atomicStore<T extends Array<any>>(value: T): AtomicStore<T> & typeof arrayActions;
+export function atomicStore<T extends Record<any, any>>(value: T): AtomicStore<T> & typeof recordActions;
 export function atomicStore<Value>(value: Value): AtomicStore<Value>;
 export function atomicStore<Value, Actions extends StoreActions = StoreActions>(
   value: Value,
@@ -176,12 +177,14 @@ export function atomicStore<Value, Actions extends StoreActions = StoreActions>(
 ): AtomicStore<Value> & Omit<BoundStoreActions<Value, Actions>, keyof AtomicStore<Value>> {
   const store = new AtomicStoreImpl(initialValue);
 
-  if (initialValue instanceof Map && !actions) {
-    actions = mapActions as any;
-  } else if (initialValue instanceof Set && !actions) {
-    actions = setActions as any;
-  } else if (Array.isArray(initialValue) && !actions) {
-    actions = arrayActions as any;
+  if (initialValue instanceof Map) {
+    actions ??= mapActions as any;
+  } else if (initialValue instanceof Set) {
+    actions ??= setActions as any;
+  } else if (Array.isArray(initialValue)) {
+    actions ??= arrayActions as any;
+  } else if (initialValue instanceof Object) {
+    actions ??= recordActions;
   }
 
   const boundActions = Object.fromEntries(

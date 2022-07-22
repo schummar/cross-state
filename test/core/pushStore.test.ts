@@ -83,7 +83,7 @@ describe('pushStore', () => {
     s.subscribe(listener);
     vi.advanceTimersByTime(1);
     await flushPromises();
-    other.set(10);
+    other.update(10);
     vi.advanceTimersByTime(2);
     await flushPromises();
 

@@ -1,48 +1,38 @@
-import { atomicStore } from '../core/atomicStore';
-import type { Update } from '../core/types';
+import type { Update, UpdateFrom } from '../core/types';
 import type { Path, Value } from './propAccess';
 import { set } from './propAccess';
 
 type Fn = (...args: any) => any;
-type ArrMethodKeys = keyof { [K in keyof Array<any> as Array<any>[K] extends Fn ? K : never]: 1 };
 
 const arrMod =
-  <P extends ArrMethodKeys>(prop: P) =>
-  <V>(...args: Array<V>[P] extends (...args: any) => any ? Parameters<Array<V>[P]> : []): Update<Array<V>> =>
+  <P extends keyof Array<any>>(prop: P) =>
+  <V>(...args: Array<V>[P] extends Fn ? Parameters<Array<V>[P]> : never): UpdateFrom<Array<V>, readonly V[]> =>
   (arr) => {
     const newArr = arr.slice();
     (newArr[prop] as Fn)(...(args as any));
     return newArr;
   };
 
-type FnKey<T> = keyof { [K in keyof T as T[K] extends Fn ? K : never]: 1 } & keyof T;
+export const i = {
+  splice: arrMod('splice'),
+  push: arrMod('push'),
+  pop: arrMod('pop'),
+  shift: arrMod('shift'),
+  unshift: arrMod('unshift'),
+  reverse: arrMod('reverse'),
+  sort: arrMod('sort'),
 
-class I {
-  mod<T, K extends FnKey<T>>(fn: K, ...args: T[K] extends Fn ? Parameters<T[K]> : []): Update<T> {
-    return (x) => {
-      const y: any = x instanceof Map ? new Map(x) : x instanceof Set ? new Set(x) : Array.isArray(x) ? Array.from(x) : { ...x };
-      y[fn](...(args as any));
-      return y;
-    };
-  }
-
-  splice = arrMod('splice');
-  push = arrMod('push');
-  pop = arrMod('pop');
-  shift = arrMod('shift');
-  unshift = arrMod('unshift');
-
-  add<V>(value: V): Update<Set<V>> {
-    return (set) => {
+  add<T extends Set<any>>(value: T extends Set<infer V> ? V : never): Update<T> {
+    return (set): any => {
       const newSet = new Set(set);
       newSet.add(value);
       return newSet;
     };
-  }
+  },
 
-  set<T, K extends T extends Map<infer K, any> ? K : Path<T>, V extends T extends Map<any, infer V> ? V : Value<T, K & string>>(
+  set<T extends Record<any, any> | Map<any, any>, K extends T extends Map<infer K, any> ? K : Path<T>>(
     key: K,
-    value: V
+    value: T extends Map<any, infer V> ? V : Value<T, K & string>
   ): Update<T> {
     return (x): any => {
       if (x instanceof Map) {
@@ -51,11 +41,13 @@ class I {
         return newMap;
       }
 
-      return set(x, key, value);
+      return set(x, key as any, value as any);
     };
-  }
+  },
 
-  delete<T, K extends T extends Map<infer K, any> ? K : T extends Set<infer K> ? K : keyof T>(key: K): Update<T> {
+  delete<T extends Record<any, any> | Map<any, any> | Set<any>>(
+    key: T extends Map<infer K, any> ? K : T extends Set<infer K> ? K : keyof { [K in keyof T as undefined extends T[K] ? K : never]: 1 }
+  ): Update<T> {
     return (x): any => {
       if (x instanceof Map) {
         const newMap = new Map(x);
@@ -73,20 +65,31 @@ class I {
       delete newObj[key];
       return newObj;
     };
-  }
-}
-export const i = new I();
+  },
+};
 
-const s = atomicStore({ foo: { bar: 'baz' }, bar: new Map([[1, true]]), arr: [1, 2, 3] });
-s.set('foo', i.set('bar', 'buzz'));
-s.set('bar', i.set(1, true));
+// const store = atomicStore({
+//   obj: { foo: 'bar', baz: 1 as 1 | undefined },
+//   arr: [{ foo: 'bar' }],
+//   rarr: [1, 2, 3] as readonly number[],
+//   set: new Set([{ foo: 'bar' }]),
+//   map: new Map([[1, { foo: 'bar' }]]),
+// });
 
-s.set('foo', i.delete('bar'));
-s.set('bar', i.delete(1));
+// store.set('arr', i.splice(1, 10));
+// store.set('arr', i.push({ foo: '' }));
+// store.set('arr', i.pop());
+// store.set('arr', i.shift());
+// store.set('arr', i.unshift({ foo: '' }));
+// store.set('arr', i.reverse());
+// store.set('arr', i.sort());
+// store.set('rarr', i.sort());
 
-s.set('arr', i.splice(1, 10));
-s.set('arr', i.splice(1, 10));
+// store.set('set', i.add({ foo: '' }));
 
-s.set('arr', i.mod('splice', 1, 10));
-s.set('bar', i.mod('set', 1, true));
-s.set('arr', i.mod('splice', 1, 10));
+// store.set('obj', i.set('foo', 'baz'));
+// store.set('map', i.set(1, { foo: 'baz' }));
+
+// store.set('obj', i.delete('baz'));
+// store.set('set', i.delete({ foo: '' }));
+// store.set('map', i.delete(1));

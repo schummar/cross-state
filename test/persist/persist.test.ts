@@ -57,10 +57,10 @@ describe('persist', () => {
       await hydrated;
 
       vi.advanceTimersByTime(1);
-      store.set({ a: 2 });
+      store.update({ a: 2 });
 
       vi.advanceTimersByTime(1);
-      store.set({ a: 3 });
+      store.update({ a: 3 });
 
       vi.advanceTimersByTime(1);
       await allSaved();
@@ -81,10 +81,10 @@ describe('persist', () => {
       await hydrated;
 
       vi.advanceTimersByTime(1);
-      store.set({ a: 2 });
+      store.update({ a: 2 });
 
       vi.advanceTimersByTime(1);
-      store.set({ a: 3 });
+      store.update({ a: 3 });
 
       vi.advanceTimersByTime(1);
       await allSaved();
@@ -166,7 +166,7 @@ describe('persist', () => {
 
     await hydrated;
     stop();
-    store.set({ a: 2 });
+    store.update({ a: 2 });
     await allSaved();
 
     expect(setItem.mock.calls).toEqual([['store', `{"a":1}`]]);

@@ -35,7 +35,7 @@ export function persist<T>(store: AtomicStore<T>, storage: PersistStorage, optio
     }
 
     // Apply loaded data to store
-    store.set((state) => {
+    store.update((state) => {
       for (const [key, value] of restored) {
         if (key === '') {
           state = value;

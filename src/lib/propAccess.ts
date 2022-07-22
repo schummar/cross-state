@@ -4,11 +4,11 @@ type FilterString<T> = T extends string ? T : never;
 export type Obj = Record<string | number, unknown>;
 export type Arr = readonly unknown[];
 
-type GetKeys<T> = T extends readonly unknown[]
+type GetKeys<T> = T extends Arr
   ? T extends readonly [] // special case empty tuple => no keys
     ? never
     : '0' extends keyof T // any tuple with at least one element
-    ? Exclude<keyof T, keyof []>
+    ? keyof T & `${number}`
     : number // other array
   : keyof T; // not an array
 

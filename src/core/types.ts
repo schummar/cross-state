@@ -61,6 +61,7 @@ export interface Store<Value> {
 }
 
 export type Update<Value> = Value | ((value: Value) => Value);
+export type UpdateFrom<Value, From> = Value | ((value: From) => Value);
 
 export interface UpdateFn<Value> {
   (update: Update<Value>): void;

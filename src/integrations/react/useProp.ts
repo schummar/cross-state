@@ -25,7 +25,7 @@ export function useProp(
   const value = useStore(store, selector, options);
 
   function setValue(value: any) {
-    store.set((obj: any) => setter(obj, value));
+    store.update((obj: any) => setter(obj, value));
   }
 
   return [value, setValue];

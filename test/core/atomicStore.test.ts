@@ -23,13 +23,13 @@ describe('atomicStore', () => {
 
   test('store.set', () => {
     const store = atomicStore(1);
-    store.set(2);
+    store.update(2);
     expect(store.get()).toBe(2);
   });
 
   test('store.set as function', () => {
     const x = atomicStore(1);
-    x.set((a) => a + 1);
+    x.update((a) => a + 1);
     expect(x.get()).toBe(2);
   });
 
@@ -98,7 +98,7 @@ describe('atomicStore', () => {
       const store = atomicStore(1);
       const listener = vi.fn();
       store.subscribe(listener);
-      store.set(2);
+      store.update(2);
       expect(listener.mock.calls).toEqual([
         [1, undefined],
         [2, 1],
@@ -109,7 +109,7 @@ describe('atomicStore', () => {
       const store = atomicStore(1);
       const listener = vi.fn();
       store.subscribe(listener, { runNow: false });
-      store.set(2);
+      store.update(2);
       expect(listener.mock.calls).toEqual([[2, undefined]]);
     });
 
@@ -117,9 +117,9 @@ describe('atomicStore', () => {
       const store = atomicStore(1);
       const listener = vi.fn();
       store.subscribe(listener, { throttle: 2 });
-      store.set(2);
+      store.update(2);
       vi.advanceTimersByTime(1);
-      store.set(3);
+      store.update(3);
       expect(listener.mock.calls).toEqual([[1, undefined]]);
 
       vi.advanceTimersByTime(1);
@@ -133,7 +133,7 @@ describe('atomicStore', () => {
       const store = atomicStore({ a: 1 });
       const listener = vi.fn();
       store.subscribe(listener);
-      store.set({ a: 1 });
+      store.update({ a: 1 });
       expect(listener.mock.calls).toEqual([
         [{ a: 1 }, undefined],
         [{ a: 1 }, { a: 1 }],
@@ -144,7 +144,7 @@ describe('atomicStore', () => {
       const store = atomicStore({ a: 1 });
       const listener = vi.fn();
       store.subscribe(listener, { equals: shallowEqual });
-      store.set({ a: 1 });
+      store.update({ a: 1 });
       expect(listener.mock.calls).toEqual([[{ a: 1 }, undefined]]);
     });
 
@@ -156,7 +156,7 @@ describe('atomicStore', () => {
       });
       store.subscribe(nextListener);
 
-      store.set(2);
+      store.update(2);
       expect(() => vi.runAllTimers()).toThrow('error');
       expect(nextListener).toHaveBeenCalledTimes(2);
     });
@@ -165,7 +165,7 @@ describe('atomicStore', () => {
       const store = atomicStore({ x: 1 });
       const listener = vi.fn();
       store.subscribe((s) => s.x, listener);
-      store.set({ x: 2 });
+      store.update({ x: 2 });
       expect(listener.mock.calls).toEqual([
         [1, undefined],
         [2, 1],
@@ -183,7 +183,7 @@ describe('atomicStore', () => {
       );
       store.subscribe(nextListener);
 
-      store.set({ x: 2 });
+      store.update({ x: 2 });
 
       expect(() => vi.runAllTimers()).toThrow('error');
       expect(nextListener).toHaveBeenCalledTimes(2);

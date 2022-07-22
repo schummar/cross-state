@@ -129,17 +129,17 @@ class PushStoreImpl<Value, Args extends any[]> implements Store<AsyncStoreValue<
     if (value instanceof Function) {
       value = value(this.get().value);
     }
-    this.internalStore.set(createState({ value, status: 'value' }));
+    this.internalStore.update(createState({ value, status: 'value' }));
   }
 
   setError(error: unknown) {
-    this.internalStore.set(createState({ error, status: 'error' }));
+    this.internalStore.update(createState({ error, status: 'error' }));
   }
 
   private connect() {
     this.cancel?.();
 
-    this.internalStore.set((state) => createState({ ...state, isPending: true }));
+    this.internalStore.update((state) => createState({ ...state, isPending: true }));
 
     let isCanceled = false;
     const q = queue();
@@ -179,7 +179,7 @@ class PushStoreImpl<Value, Args extends any[]> implements Store<AsyncStoreValue<
             }
 
             if (!isCanceled) {
-              this.internalStore.set(createState({ value, status: 'value' }));
+              this.internalStore.update(createState({ value, status: 'value' }));
             }
           });
         },
@@ -189,7 +189,7 @@ class PushStoreImpl<Value, Args extends any[]> implements Store<AsyncStoreValue<
 
           return q(async () => {
             if (!isCanceled) {
-              this.internalStore.set(createState({ error, status: 'error' }));
+              this.internalStore.update(createState({ error, status: 'error' }));
             }
           });
         },
@@ -197,7 +197,7 @@ class PushStoreImpl<Value, Args extends any[]> implements Store<AsyncStoreValue<
         updateIsPending: (isPending) => {
           if (check('updateIsPending')) return;
 
-          this.internalStore.set((s) => createState({ ...s, isPending }));
+          this.internalStore.update((s) => createState({ ...s, isPending }));
         },
 
         reconnect: this.connect,
@@ -206,7 +206,7 @@ class PushStoreImpl<Value, Args extends any[]> implements Store<AsyncStoreValue<
     );
 
     this.cancel = () => {
-      this.internalStore.set((s) => createState({ ...s, isPending: false, isStale: true }));
+      this.internalStore.update((s) => createState({ ...s, isPending: false, isStale: true }));
       isCanceled = true;
       cancelAction?.();
       q.clear();

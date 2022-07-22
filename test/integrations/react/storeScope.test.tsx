@@ -13,7 +13,7 @@ describe('storeContext', () => {
       const explicit = useStore(scopedStore);
 
       return (
-        <div data-testid="div" onClick={() => scopedStore.set((v) => v + 1)}>
+        <div data-testid="div" onClick={() => scopedStore.update((v) => v + 1)}>
           {implicit}-{explicit}
         </div>
       );
