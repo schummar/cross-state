@@ -188,5 +188,16 @@ describe('atomicStore', () => {
       expect(() => vi.runAllTimers()).toThrow('error');
       expect(nextListener).toHaveBeenCalledTimes(2);
     });
+
+    test('text selector', async () => {
+      const store = atomicStore({ x: 1 });
+      const listener = vi.fn();
+      store.subscribe('x', listener);
+      store.update({ x: 2 });
+      expect(listener.mock.calls).toEqual([
+        [1, undefined],
+        [2, 1],
+      ]);
+    });
   });
 });

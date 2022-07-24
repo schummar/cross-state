@@ -1,6 +1,8 @@
 import { useCallback, useDebugValue, useLayoutEffect, useRef } from 'react';
 import { useSyncExternalStoreWithSelector } from 'use-sync-external-store/shim/with-selector';
 import type { Store, SubscribeOptions } from '../../core/types';
+import { makeSelector } from '../../lib/makeSelector';
+import type { Path, Value } from '../../lib/propAccess';
 import { trackingProxy } from '../../lib/trackingProxy';
 import { useStoreScope } from './storeScope';
 
@@ -8,16 +10,14 @@ export type UseStoreOptions = Omit<SubscribeOptions, 'runNow'>;
 
 export function useStore<T>(store: Store<T>, options?: UseStoreOptions): T;
 export function useStore<T, S>(store: Store<T>, selector: (value: T) => S, options?: UseStoreOptions): S;
+export function useStore<T, P extends Path<T>>(store: Store<T>, selector: P, options?: UseStoreOptions): Value<T, P>;
 export function useStore<T, S = T>(
   store: Store<T>,
-  ...[selector, options]: [options?: UseStoreOptions] | [selector: (value: T) => S, options?: UseStoreOptions]
+  ...[arg1, arg2]: [options?: UseStoreOptions] | [selector: (value: T) => S, options?: UseStoreOptions]
 ): S {
   store = useStoreScope(store);
-
-  if (!selector || !(selector instanceof Function)) {
-    options = selector;
-    selector = (x) => x as any;
-  }
+  const selector = makeSelector<T, S>(arg1 instanceof Function || typeof arg1 === 'string' ? arg1 : undefined);
+  const options = arg1 instanceof Function || typeof arg1 === 'string' ? arg2 : arg1;
 
   const lastEqualsRef = useRef<(newValue: S) => boolean>();
 

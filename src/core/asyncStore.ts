@@ -1,6 +1,8 @@
 import { Cache } from '../lib/cache';
 import { calcDuration } from '../lib/calcDuration';
 import { defaultEquals, simpleShallowEquals } from '../lib/equals';
+import { makeSelector } from '../lib/makeSelector';
+import type { Path, Value } from '../lib/propAccess';
 import { atomicStore } from './atomicStore';
 import { once } from './once';
 import type { Resource, ResourceGroup } from './resourceGroup';
@@ -80,14 +82,14 @@ function setDefaultOptions(options: typeof defaultOptions) {
 // Implementation
 ///////////////////////////////////////////////////////////
 
-class AsyncStoreImpl<Value, Args extends any[]> implements Store<AsyncStoreValue<Value>> {
+class AsyncStoreImpl<V, Args extends any[]> implements Store<AsyncStoreValue<V>> {
   private args: Args;
   private invalidateTimer?: ReturnType<typeof setTimeout>;
   private clearTimer?: ReturnType<typeof setTimeout>;
   private cancelRun?: Cancel;
-  private internalStore = atomicStore(createState<Value>());
+  private internalStore = atomicStore(createState<V>());
 
-  constructor(private readonly fn: AsyncAction<Value, Args>, private readonly options: AsyncStoreOptions<Value>, ...args: Args) {
+  constructor(private readonly fn: AsyncAction<V, Args>, private readonly options: AsyncStoreOptions<V>, ...args: Args) {
     this.args = args;
 
     this.internalStore.addEffect(() => {
@@ -112,14 +114,19 @@ class AsyncStoreImpl<Value, Args extends any[]> implements Store<AsyncStoreValue
     return this.internalStore.get();
   }
 
-  subscribe(listener: Listener<AsyncStoreValue<Value>>, options?: SubscribeOptions): Cancel;
-  subscribe<S>(selector: (value: AsyncStoreValue<Value>) => S, listener: Listener<S>, options?: SubscribeOptions): Cancel;
+  subscribe(listener: Listener<AsyncStoreValue<V>>, options?: SubscribeOptions): Cancel;
+  subscribe<S>(selector: (value: AsyncStoreValue<V>) => S, listener: Listener<S>, options?: SubscribeOptions): Cancel;
+  subscribe<P extends Path<AsyncStoreValue<V>>>(
+    selector: P,
+    listener: Listener<Value<AsyncStoreValue<V>, P>>,
+    options?: SubscribeOptions
+  ): Cancel;
   subscribe<S>(
     ...[arg0, arg1, arg2]:
       | [listener: Listener<S>, options?: SubscribeOptions]
-      | [selector: (value: AsyncStoreValue<Value>) => S, listener: Listener<S>, options?: SubscribeOptions]
+      | [selector: ((value: AsyncStoreValue<V>) => S) | string, listener: Listener<S>, options?: SubscribeOptions]
   ) {
-    const selector = (arg1 instanceof Function ? arg0 : (value) => value as any) as (value: AsyncStoreValue<Value>) => S;
+    const selector = makeSelector<AsyncStoreValue<V>, S>(arg1 instanceof Function ? arg0 : undefined);
     const listener = (arg1 instanceof Function ? arg1 : arg0) as Listener<S>;
     const options = arg1 instanceof Function ? arg2 : arg1;
 
@@ -144,7 +151,7 @@ class AsyncStoreImpl<Value, Args extends any[]> implements Store<AsyncStoreValue
   async getPromise({ returnStale }: { returnStale?: boolean } = {}) {
     const state = await once(
       this,
-      (state): state is AsyncStoreValue<Value> & { status: 'value' | 'error' } =>
+      (state): state is AsyncStoreValue<V> & { status: 'value' | 'error' } =>
         (returnStale || !state.isStale) && (state.status === 'value' || state.status === 'error')
     );
     if (state.status === 'value') {
@@ -153,7 +160,7 @@ class AsyncStoreImpl<Value, Args extends any[]> implements Store<AsyncStoreValue
     throw state.error;
   }
 
-  set(value: Value | ((value?: Value) => Value)) {
+  set(value: V | ((value?: V) => V)) {
     if (value instanceof Function) {
       value = value(this.get().value);
     }

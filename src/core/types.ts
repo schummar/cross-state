@@ -1,3 +1,5 @@
+import type { Path, Value } from '../lib/propAccess';
+
 export interface Listener<T> {
   (value: T, previousValue?: T): void;
 }
@@ -37,12 +39,13 @@ export type Duration =
       days?: number;
     };
 
-export interface Store<Value> {
+export interface Store<V> {
   /** Get the current value. */
-  get(): Value;
+  get(): V;
   /** Subscribe to updates. Every time the store's state changes, the callback will be executed with the new value. */
-  subscribe(listener: Listener<Value>, options?: SubscribeOptions): Cancel;
-  subscribe<S>(selector: (value: Value) => S, listener: Listener<S>, options?: SubscribeOptions): Cancel;
+  subscribe(listener: Listener<V>, options?: SubscribeOptions): Cancel;
+  subscribe<S>(selector: (value: V) => S, listener: Listener<S>, options?: SubscribeOptions): Cancel;
+  subscribe<P extends Path<V>>(selector: P, listener: Listener<Value<V, P>>, options?: SubscribeOptions): Cancel;
   /** Add an effect that will be executed when the store becomes active, which means when it has at least one subscriber.
    * @param effect
    * If there is already a subscriber, the effect will be executed immediately.

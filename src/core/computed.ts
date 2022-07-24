@@ -1,3 +1,5 @@
+import { makeSelector } from '../lib/makeSelector';
+import type { Path, Value } from '../lib/propAccess';
 import { trackingProxy } from '../lib/trackingProxy';
 import { atomicStore } from './atomicStore';
 import type { Cancel, Duration, Effect, Listener, Store, SubscribeOptions } from './types';
@@ -15,13 +17,13 @@ export interface ComputedOptions {
 
 const Empty = Symbol('empty');
 
-class ComputedImpl<Value> implements Store<Value> {
+class ComputedImpl<V> implements Store<V> {
   private isComputing = false;
   private depChecks = new Array<() => boolean>();
   private depHandles = new Array<Cancel>();
-  private internalStore = atomicStore<Value | typeof Empty>(Empty);
+  private internalStore = atomicStore<V | typeof Empty>(Empty);
 
-  constructor(private readonly fn: (use: ComputedUse) => Value, private readonly options: ComputedOptions = {}) {
+  constructor(private readonly fn: (use: ComputedUse) => V, private readonly options: ComputedOptions = {}) {
     this.addEffect(() => {
       // On becoming active, refresh cache. It will be kept up-to-date while active.
       this.compute(true);
@@ -39,14 +41,15 @@ class ComputedImpl<Value> implements Store<Value> {
     return this.compute();
   }
 
-  subscribe(listener: Listener<Value>, options?: SubscribeOptions): Cancel;
-  subscribe<S>(selector: (value: Value) => S, listener: Listener<S>, options?: SubscribeOptions): Cancel;
+  subscribe(listener: Listener<V>, options?: SubscribeOptions): Cancel;
+  subscribe<S>(selector: (value: V) => S, listener: Listener<S>, options?: SubscribeOptions): Cancel;
+  subscribe<P extends Path<V>>(selector: P, listener: Listener<Value<V, P>>, options?: SubscribeOptions): Cancel;
   subscribe<S>(
     ...[arg0, arg1, arg2]:
       | [listener: Listener<S>, options?: SubscribeOptions]
-      | [selector: (value: Value) => S, listener: Listener<S>, options?: SubscribeOptions]
+      | [selector: ((value: V) => S) | string, listener: Listener<S>, options?: SubscribeOptions]
   ) {
-    const selector = (arg1 instanceof Function ? arg0 : (value) => value as any) as (value: Value) => S;
+    const selector = makeSelector<V, S>(arg1 instanceof Function ? arg0 : undefined);
     const listener = (arg1 instanceof Function ? arg1 : arg0) as Listener<S>;
     const options = arg1 instanceof Function ? arg2 : arg1;
 

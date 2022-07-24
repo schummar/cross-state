@@ -3,7 +3,7 @@ import { produce } from 'immer';
 import type { AtomicStore } from '../../core/atomicStore';
 
 export const immerActions = {
-  update<T>(
+  immerUpdate<T>(
     this: AtomicStore<T>,
     recipe: (draft: Draft<T>) => void | Draft<T> | (Draft<T> extends undefined ? typeof nothing : never) | undefined
   ) {

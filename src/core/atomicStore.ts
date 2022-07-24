@@ -1,6 +1,7 @@
 import { calcDuration } from '../lib/calcDuration';
 import { defaultEquals } from '../lib/equals';
 import { forwardError } from '../lib/forwardError';
+import { makeSelector } from '../lib/makeSelector';
 import type { Path, Value } from '../lib/propAccess';
 import { get, set } from '../lib/propAccess';
 import { arrayActions, mapActions, recordActions, setActions } from '../lib/storeActions';
@@ -27,7 +28,7 @@ export class AtomicStoreImpl<V> implements Store<V> {
   private effects = new Map<Effect, { handle?: Cancel; retain?: number; timeout?: ReturnType<typeof setTimeout> }>();
   private notifyId = {};
 
-  constructor(public readonly initialValue: V) {
+  constructor(public readonly initialValue: V, private readonly actions?: StoreActions) {
     this.subscribe = this.subscribe.bind(this);
     this.get = this.get.bind(this);
     this.update = this.update.bind(this);
@@ -39,12 +40,13 @@ export class AtomicStoreImpl<V> implements Store<V> {
 
   subscribe(listener: Listener<V>, options?: SubscribeOptions): Cancel;
   subscribe<S>(selector: (value: V) => S, listener: Listener<S>, options?: SubscribeOptions): Cancel;
+  subscribe<P extends Path<V>>(selector: P, listener: Listener<Value<V, P>>, options?: SubscribeOptions): Cancel;
   subscribe<S>(
     ...[arg0, arg1, arg2]:
       | [listener: Listener<S>, options?: SubscribeOptions]
-      | [selector: (value: V) => S, listener: Listener<S>, options?: SubscribeOptions]
+      | [selector: ((value: V) => S) | string, listener: Listener<S>, options?: SubscribeOptions]
   ) {
-    const selector = (arg1 instanceof Function ? arg0 : (value) => value as any) as (value: V) => S;
+    const selector = makeSelector<V, S>(arg1 instanceof Function ? arg0 : undefined);
     const listener = (arg1 instanceof Function ? arg1 : arg0) as Listener<S>;
     const { runNow = true, throttle: throttleOption, equals = defaultEquals } = (arg1 instanceof Function ? arg2 : arg1) ?? {};
 
@@ -120,7 +122,7 @@ export class AtomicStoreImpl<V> implements Store<V> {
   }
 
   recreate = () => {
-    return new AtomicStoreImpl<V>(this.initialValue) as this;
+    return atomicStore(this.initialValue, this.actions) as unknown as this;
   };
 
   private onSubscribe() {
@@ -175,8 +177,6 @@ export function atomicStore<Value, Actions extends StoreActions = StoreActions>(
   initialValue: Value,
   actions?: BoundStoreActions<Value, Actions>
 ): AtomicStore<Value> & Omit<BoundStoreActions<Value, Actions>, keyof AtomicStore<Value>> {
-  const store = new AtomicStoreImpl(initialValue);
-
   if (initialValue instanceof Map) {
     actions ??= mapActions as any;
   } else if (initialValue instanceof Set) {
@@ -184,8 +184,10 @@ export function atomicStore<Value, Actions extends StoreActions = StoreActions>(
   } else if (Array.isArray(initialValue)) {
     actions ??= arrayActions as any;
   } else if (initialValue instanceof Object) {
-    actions ??= recordActions;
+    actions ??= recordActions as any;
   }
+
+  const store = new AtomicStoreImpl(initialValue, actions);
 
   const boundActions = Object.fromEntries(
     Object.entries(actions ?? ({} as BoundStoreActions<Value, Actions>))
