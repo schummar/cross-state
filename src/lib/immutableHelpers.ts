@@ -2,6 +2,7 @@ import type { Update, UpdateFrom } from '../core/types';
 import type { Path, Value } from './propAccess';
 import { set } from './propAccess';
 
+type FnUpdate<T> = (value: T) => T;
 type Fn = (...args: any) => any;
 
 const arrMod =
@@ -22,7 +23,33 @@ export const i = {
   reverse: arrMod('reverse'),
   sort: arrMod('sort'),
 
-  add<T extends Set<any>>(value: T extends Set<infer V> ? V : never): Update<T> {
+  remove<T>(predicate: (value: T) => boolean): FnUpdate<Array<T>> {
+    return (arr) => arr.filter((x) => !predicate(x));
+  },
+
+  update<T>(
+    predicate: (value: T) => boolean,
+    ...[value, upsert]: [value: Update<T>] | [value: UpdateFrom<T, T | undefined>, upsert: true]
+  ): FnUpdate<Array<T>> {
+    return (arr) => {
+      let found = false;
+      const newArr = arr.map((x) => {
+        if (predicate(x)) {
+          found = true;
+          return value instanceof Function ? value(x) : value;
+        }
+        return x;
+      });
+
+      if (!found && upsert) {
+        newArr.push(value instanceof Function ? value(undefined!) : value);
+      }
+
+      return newArr;
+    };
+  },
+
+  add<T extends Set<any>>(value: T extends Set<infer V> ? V : never): FnUpdate<T> {
     return (set): any => {
       const newSet = new Set(set);
       newSet.add(value);
@@ -32,8 +59,8 @@ export const i = {
 
   set<T extends Record<any, any> | Map<any, any>, K extends T extends Map<infer K, any> ? K : Path<T>>(
     key: K,
-    value: T extends Map<any, infer V> ? V : Value<T, K & string>
-  ): Update<T> {
+    value: Update<T extends Map<any, infer V> ? V : Value<T, K & string>>
+  ): FnUpdate<T> {
     return (x): any => {
       if (x instanceof Map) {
         const newMap = new Map(x);
@@ -47,7 +74,7 @@ export const i = {
 
   delete<T extends Record<any, any> | Map<any, any> | Set<any>>(
     key: T extends Map<infer K, any> ? K : T extends Set<infer K> ? K : keyof { [K in keyof T as undefined extends T[K] ? K : never]: 1 }
-  ): Update<T> {
+  ): FnUpdate<T> {
     return (x): any => {
       if (x instanceof Map) {
         const newMap = new Map(x);
@@ -67,29 +94,3 @@ export const i = {
     };
   },
 };
-
-// const store = atomicStore({
-//   obj: { foo: 'bar', baz: 1 as 1 | undefined },
-//   arr: [{ foo: 'bar' }],
-//   rarr: [1, 2, 3] as readonly number[],
-//   set: new Set([{ foo: 'bar' }]),
-//   map: new Map([[1, { foo: 'bar' }]]),
-// });
-
-// store.set('arr', i.splice(1, 10));
-// store.set('arr', i.push({ foo: '' }));
-// store.set('arr', i.pop());
-// store.set('arr', i.shift());
-// store.set('arr', i.unshift({ foo: '' }));
-// store.set('arr', i.reverse());
-// store.set('arr', i.sort());
-// store.set('rarr', i.sort());
-
-// store.set('set', i.add({ foo: '' }));
-
-// store.set('obj', i.set('foo', 'baz'));
-// store.set('map', i.set(1, { foo: 'baz' }));
-
-// store.set('obj', i.delete('baz'));
-// store.set('set', i.delete({ foo: '' }));
-// store.set('map', i.delete(1));

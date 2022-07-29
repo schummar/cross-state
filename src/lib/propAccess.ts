@@ -1,3 +1,5 @@
+import type { Update } from '../core/types';
+
 type FilterKey<T> = T extends string | number ? T : never;
 type FilterString<T> = T extends string ? T : never;
 
@@ -58,7 +60,7 @@ export function get<T, P extends Path<T>>(obj: T, path: P): Value<T, P> {
   return (obj as Obj | Arr)[path as any] as any;
 }
 
-export function set<T, P extends Path<T>>(obj: T, path: P, value: Value<T, P>, rootPath = path): T {
+export function set<T, P extends Path<T>>(obj: T, path: P, value: Update<Value<T, P>>, rootPath = path): T {
   if (path === '') {
     return value as any;
   }
@@ -83,7 +85,7 @@ export function set<T, P extends Path<T>>(obj: T, path: P, value: Value<T, P>, r
     update = set(subObj as Record<string, unknown>, rest, value, rootPath);
   } else {
     key = path;
-    update = value;
+    update = value instanceof Function ? value((obj as any)[key]) : value;
   }
 
   if (Array.isArray(obj)) {
