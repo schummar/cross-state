@@ -1,4 +1,4 @@
-import eq from 'fast-deep-equal/es6/react';
+import { circularDeepEqual } from 'fast-equals';
 import { applyPatches, Draft, enableMapSet, enablePatches, freeze, Patch, produce } from 'immer';
 import { Cancel } from './helpers/misc';
 import { throttle as throttleFn } from './helpers/throttle';
@@ -72,7 +72,7 @@ export class Store<T> {
       try {
         const oldValue = value;
         value = selector(state);
-        if (!init && eq(value, oldValue)) return;
+        if (!init && circularDeepEqual(value, oldValue)) return;
         (init ? listener : throttledListener)(value, oldValue, this.state);
       } catch (e) {
         this.options.log('Failed to execute listener:', e);
@@ -100,7 +100,7 @@ export class Store<T> {
         this.lock = 'reaction';
         const oldValue = value;
         value = selector(this.state);
-        if (!init && eq(value, oldValue)) return;
+        if (!init && circularDeepEqual(value, oldValue)) return;
 
         this.state = produce(
           this.state,

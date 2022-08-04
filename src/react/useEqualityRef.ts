@@ -1,9 +1,9 @@
-import eq from 'fast-deep-equal/es6/react';
+import { circularDeepEqual } from 'fast-equals';
 import { useRef } from 'react';
 
 export default function useEqualityRef<T>(x: T): T {
   const ref = useRef(x);
-  if (!eq(x, ref.current)) {
+  if (!circularDeepEqual(x, ref.current)) {
     ref.current = x;
   }
 
