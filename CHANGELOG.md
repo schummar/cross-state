@@ -1,5 +1,12 @@
 # Changelog
 
+### [0.4.3](https://www.github.com/schummar/schummar-state/compare/v0.4.2...v0.4.3) (2022-08-04)
+
+
+### Bug Fixes
+
+* Try fast-equals ([7aafa58](https://www.github.com/schummar/schummar-state/commit/7aafa587055e41e8d0621bebc14fb3e7653c1eb3))
+
 ### [0.4.2](https://www.github.com/schummar/schummar-state/compare/v0.4.1...v0.4.2) (2022-07-20)
 
 
