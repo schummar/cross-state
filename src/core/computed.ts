@@ -109,7 +109,7 @@ class ComputedImpl<V> implements Store<V> {
       return value;
     };
 
-    value = this.fn.bind({ use })(use);
+    value = this.fn.apply({ use }, [use]);
 
     if (watch) {
       this.depHandles = [...deps].map((store) => store.subscribe(() => this.compute(true), { runNow: false }));

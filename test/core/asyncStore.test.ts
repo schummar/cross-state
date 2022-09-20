@@ -142,7 +142,26 @@ describe('asyncStore', () => {
       dep2.set(20);
       await flushPromises();
 
-      expect(getValues(listener)).toEqual([undefined, 101, undefined, 111, undefined, 112, undefined, 122]);
+      expect(getValues(listener)).toEqual([undefined, 101, 101, 111, 111, 112, 112, 122]);
+    });
+
+    test('cancel depdendencies', async () => {
+      const dep1 = atomicStore(1);
+      const dep2 = asyncStore(async () => {
+        await sleep(1);
+        return 10;
+      })();
+      const store = asyncStore(async function () {
+        return this.use(dep1) + (this.use(dep2).value ?? 0) + 100;
+      });
+
+      const cancel = store().subscribe(vi.fn());
+      expect(dep1.isActive()).toBe(true);
+      expect(dep2.isActive()).toBe(true);
+
+      cancel();
+      expect(dep1.isActive()).toBe(false);
+      expect(dep2.isActive()).toBe(false);
     });
   });
 });

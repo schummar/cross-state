@@ -96,6 +96,10 @@ class AsyncStoreImpl<V, Args extends any[]> implements Store<AsyncStoreValue<V>>
       if ((this.internalStore.get().status === 'empty' || this.internalStore.get().isStale) && !this.internalStore.get().isPending) {
         this.run();
       }
+
+      return () => {
+        this.cancelRun?.();
+      };
     });
 
     this.get = this.get.bind(this);
@@ -210,7 +214,7 @@ class AsyncStoreImpl<V, Args extends any[]> implements Store<AsyncStoreValue<V>>
         {
           use: (store) => {
             if (!deps.has(store)) {
-              deps.set(store, store.subscribe(this.clear, { runNow: false }));
+              deps.set(store, store.subscribe(this.invalidate, { runNow: false }));
             }
             return store.get();
           },
