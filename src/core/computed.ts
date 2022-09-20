@@ -93,7 +93,7 @@ class ComputedImpl<V> implements Store<V> {
 
     const deps = new Set<Store<any>>();
 
-    value = this.fn(<T, S>(store: Store<T>, selector: (value: T) => S = (value) => value as any) => {
+    const use = <T, S>(store: Store<T>, selector: (value: T) => S = (value) => value as any) => {
       let value = selector(store.get());
       let equals = (newValue: S) => newValue === value;
 
@@ -107,7 +107,9 @@ class ComputedImpl<V> implements Store<V> {
       });
 
       return value;
-    });
+    };
+
+    value = this.fn.bind({ use })(use);
 
     if (watch) {
       this.depHandles = [...deps].map((store) => store.subscribe(() => this.compute(true), { runNow: false }));
@@ -119,6 +121,6 @@ class ComputedImpl<V> implements Store<V> {
   }
 }
 
-export function computed<Value>(fn: (use: ComputedUse) => Value, options?: ComputedOptions): Store<Value> {
+export function computed<Value>(fn: (this: { use: ComputedUse }, use: ComputedUse) => Value, options?: ComputedOptions): Store<Value> {
   return new ComputedImpl(fn, options);
 }

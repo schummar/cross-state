@@ -24,6 +24,15 @@ describe('computed', () => {
     expect(store.get()).toBe(3);
   });
 
+  test('with depdendency via this', () => {
+    const dep = atomicStore(1);
+    const store = computed(function () {
+      return this.use(dep) + 2;
+    });
+
+    expect(store.get()).toBe(3);
+  });
+
   test('with multiple depdendencies', () => {
     const dep1 = atomicStore(1);
     const dep2 = atomicStore(2);
