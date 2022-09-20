@@ -154,7 +154,7 @@ class PushStoreImpl<V, Args extends any[]> implements Store<AsyncStoreValue<V>> 
 
     const check = (name: string) => {
       if (isCanceled) {
-        if (process.env.NODE_ENV !== 'production') {
+        if (!import.meta.env.PROD) {
           console.warn(
             `[schummar-state:pushStore] process has been canceled. '${name}' should not be called anymore. Having no proper teardown might result in memory leaks.`
           );
