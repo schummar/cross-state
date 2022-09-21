@@ -2,7 +2,7 @@ import { makeSelector } from '../lib/makeSelector';
 import type { Path, Value } from '../lib/propAccess';
 import { trackingProxy } from '../lib/trackingProxy';
 import { atomicStore } from './atomicStore';
-import type { Cancel, Duration, Effect, Listener, Store, SubscribeOptions } from './types';
+import type { Cancel, Duration, Effect, Listener, Store, SubscribeOptions } from './commonTypes';
 
 export type Computed<Value> = ComputedImpl<Value>;
 

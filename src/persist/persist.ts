@@ -1,5 +1,5 @@
 import type { AtomicStore } from '../core/atomicStore';
-import type { Cancel, Listener, Store } from '../core/types';
+import type { Cancel, Listener, Store } from '../core/commonTypes';
 import { simpleDeepEquals } from '../lib/equals';
 import { forwardError } from '../lib/forwardError';
 import { get, set } from '../lib/propAccess';

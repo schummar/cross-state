@@ -1,4 +1,4 @@
-import type { Duration } from '../core/types';
+import type { Duration } from '../core/commonTypes';
 
 export const calcDuration = (t: Duration) => {
   if (typeof t === 'number') return t;

@@ -1,5 +1,5 @@
 import type { AtomicStore } from '../../core/atomicStore';
-import type { UpdateFn } from '../../core/types';
+import type { UpdateFn } from '../../core/commonTypes';
 import { makeSelector } from '../../lib/makeSelector';
 import type { Path, Value } from '../../lib/propAccess';
 import { set } from '../../lib/propAccess';

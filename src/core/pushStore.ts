@@ -8,7 +8,7 @@ import type { AsyncStoreValue } from './asyncStore';
 import { asyncStoreValueEquals, createState } from './asyncStore';
 import { atomicStore } from './atomicStore';
 import { once } from './once';
-import type { Cancel, Duration, Effect, Listener, Store, SubscribeOptions } from './types';
+import type { Cancel, Duration, Effect, Listener, Store, SubscribeOptions } from './commonTypes';
 
 ///////////////////////////////////////////////////////////
 // Types

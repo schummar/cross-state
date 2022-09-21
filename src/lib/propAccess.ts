@@ -1,4 +1,4 @@
-import type { Update } from '../core/types';
+import type { Update } from '../core/commonTypes';
 
 type FilterKey<T> = T extends string | number ? T : never;
 type FilterString<T> = T extends string ? T : never;

@@ -1,6 +1,6 @@
 import { useCallback, useDebugValue, useLayoutEffect, useRef } from 'react';
 import { useSyncExternalStoreWithSelector } from 'use-sync-external-store/shim/with-selector';
-import type { Store, SubscribeOptions } from '../../core/types';
+import type { Store, SubscribeOptions } from '../../core/commonTypes';
 import { makeSelector } from '../../lib/makeSelector';
 import type { Path, Value } from '../../lib/propAccess';
 import { trackingProxy } from '../../lib/trackingProxy';

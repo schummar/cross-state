@@ -1,4 +1,4 @@
-import type { Update, UpdateFrom } from '../core/types';
+import type { Update, UpdateFrom } from '../core/commonTypes';
 import type { Path, Value } from './propAccess';
 import { set } from './propAccess';
 

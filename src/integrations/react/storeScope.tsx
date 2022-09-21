@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { createContext, useContext, useMemo } from 'react';
-import type { Store } from '../../core/types';
+import type { Store } from '../../core/commonTypes';
 
 export const storeScopeContext = createContext(new Map<Store<any>, Store<any>>());
 

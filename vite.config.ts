@@ -11,7 +11,7 @@ export default defineConfig({
 
   test: {
     environment: 'happy-dom',
-    include: ['./test/**/*.test.{ts,tsx}'],
+    include: ['./test/**/{asyncStore,atomicStore}.test.{ts,tsx}'],
     exclude: ['**/_*'],
     setupFiles: ['./test/testSetup.ts'],
   },

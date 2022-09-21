@@ -7,7 +7,7 @@ import { atomicStore } from './atomicStore';
 import { once } from './once';
 import type { Resource, ResourceGroup } from './resourceGroup';
 import { allResources } from './resourceGroup';
-import type { Cancel, Duration, Effect, Listener, Store, SubscribeOptions } from './types';
+import type { Cancel, Duration, Effect, Listener, Store, SubscribeOptions } from './commonTypes';
 
 ///////////////////////////////////////////////////////////
 // Types
