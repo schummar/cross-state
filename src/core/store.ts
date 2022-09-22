@@ -1,35 +1,55 @@
 import { calcDuration } from '../lib';
-import { defaultEquals } from '../lib/equals';
+import { defaultEquals, simpleShallowEquals } from '../lib/equals';
 import { forwardError } from '../lib/forwardError';
 import { makeSelector } from '../lib/makeSelector';
+import type { MaybePromise } from '../lib/maybePromise';
 import type { Path, Value } from '../lib/propAccess';
 import { get, set } from '../lib/propAccess';
-import type { promiseActions } from '../lib/storeActions';
 import { arrayActions, mapActions, recordActions, setActions } from '../lib/storeActions';
 import { throttle } from '../lib/throttle';
+import type { UnwrapPromise } from '../lib/unwrapPromise';
 import type { Cancel, Duration, Effect, Listener, SubscribeOptions, Update, UpdateFrom } from './commonTypes';
 import type { ResourceGroup } from './resourceGroup';
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Values
+type Common<T> = { isUpdating: boolean; isStale: boolean; update?: Promise<T> };
+type WithValue<T> = { status: 'value'; value: T; error?: undefined } & Common<T>;
+type WithError<T> = { status: 'error'; value?: undefined; error: unknown } & Common<T>;
+type Pending<T> = { status: 'pending'; value?: undefined; error?: undefined } & Common<T>;
+
+export type StoreValue<T> = T extends Promise<infer S> ? T | S : T;
+
+export type StoreSubValue<T, G> = T extends Promise<infer S>
+  ? S | undefined
+  : G extends (...args: any[]) => MaybePromise<infer S>
+  ? S | undefined
+  : T;
+
+export type StoreSelectorSubValue<S, G> = G extends (...args: any[]) => any ? S | undefined : S;
+
+export type StoreSubDetails<T, G> = T extends Promise<any>
+  ? WithValue<UnwrapPromise<T>> | WithError<UnwrapPromise<T>> | Pending<UnwrapPromise<T>>
+  : G extends (...args: any[]) => any
+  ? WithValue<UnwrapPromise<T>> | WithError<UnwrapPromise<T>>
+  : WithValue<T>;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Actions
 export type StoreActions = Record<string, (...args: any[]) => any>;
 
-export type BoundStoreActions<Value, Actions extends StoreActions> = Actions & ThisType<Store<Value> & Actions>;
+export type BoundStoreActions<T, Actions extends StoreActions> = Actions & ThisType<Store<T> & Actions>;
 
-export type StorePromise<T> = Promise<T> & StorePromiseState<T>;
-export type StorePromiseState<T> =
-  | { state: 'pending'; value?: undefined; error?: undefined }
-  | { state: 'resolved'; value: T; error?: undefined }
-  | { state: 'rejected'; value?: undefined; error: unknown };
-
-export type StoreValue<T> = T extends Promise<infer S> ? StorePromise<S> : T;
-
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Options
 export interface StoreOptions<T> {
   invalidateAfter?: Duration | ((state: StoreValue<T>) => Duration);
   clearAfter?: Duration | ((state: StoreValue<T>) => Duration);
   resourceGroup?: ResourceGroup | ResourceGroup[];
 }
 
-export interface StoreOptionsWithActions<T, Actions extends StoreActions> extends StoreOptions<T> {
-  methods?: Actions & ThisType<StoreImpl<T> & Actions>;
+export interface StoreOptionsWithActions<T, G extends GetState<T>, Actions extends StoreActions> extends StoreOptions<T> {
+  methods?: Actions & ThisType<StoreImpl<T, G> & Actions>;
 }
 
 export type UseFn = <T>(store: Store<T>) => StoreValue<T>;
@@ -41,111 +61,289 @@ export interface HelperFns {
   connect: ConnectFn;
 }
 
-export type Store<T> = StoreImpl<T>;
+type GetState<T> = T | ((this: HelperFns, fn: HelperFns) => T);
 
-export type StoreCache<T> = { value: StoreValue<T>; deps?: Set<Cancel>; checks?: (() => boolean)[] };
+export type Store<T, G extends GetState<T> = T> = StoreImpl<T, G>;
 
-const noop = () => {
-  // noop
-};
+export type StoreCache<T> = WithValue<UnwrapPromise<T>> | WithError<UnwrapPromise<T>> | Pending<UnwrapPromise<T>>;
 
-export class StoreImpl<T> {
-  private cache?: StoreCache<T>;
+const noop = () => undefined;
+const safe = (x: any) => (x instanceof Promise ? x.catch(() => undefined) : undefined);
+
+export class StoreImpl<T, G extends GetState<T>> {
+  private cache: StoreCache<T> = { status: 'pending', isUpdating: false, isStale: true };
+  private cancel?: Cancel;
+  private check?: () => boolean;
   private invalidateTimer?: ReturnType<typeof setTimeout>;
   private clearTimer?: ReturnType<typeof setTimeout>;
-  private listeners = new Set<Listener<void>>();
+  private listeners = new Set<Listener>();
   private effects = new Map<Effect, { handle?: Cancel; retain?: number; timeout?: ReturnType<typeof setTimeout> }>();
   private notifyId = {};
 
-  constructor(private getState: T | ((this: HelperFns, fn: HelperFns) => T), private readonly options: StoreOptions<T> = {}) {
+  constructor(private getState: GetState<T>, private readonly options: StoreOptions<T> = {}) {
     this.get = this.get.bind(this);
-    this.invalidate = this.invalidate.bind(this);
+    this.update = this.update.bind(this);
     this.subscribe = this.subscribe.bind(this);
+    this.addEffect = this.addEffect.bind(this);
+    this.invalidate = this.invalidate.bind(this);
+    this.onSubscribe = this.onSubscribe.bind(this);
+    this.onUnsubscribe = this.onUnsubscribe.bind(this);
+    this.notify = this.notify.bind(this);
+
+    this.addEffect(() => {
+      safe(this.get());
+
+      return () => {
+        this.cancel?.();
+      };
+    });
   }
 
   /** Get the current value. */
-  get() {
-    if (this.cache) {
-      return this.cache.value;
+  get(): StoreValue<T> {
+    if (this.check?.() === false) {
+      this.cache.isStale = true;
     }
 
-    const cache = { value: undefined } as StoreCache<T>;
+    if (!this.cache.isStale) {
+      if (this.cache.update) {
+        return this.cache.update as StoreValue<T>;
+      }
 
-    this.cache = cache;
-    this.notify();
+      if (this.cache.status === 'value') {
+        return this.cache.value as StoreValue<T>;
+      }
 
-    if (cache.value instanceof Promise) {
-      cache.value
-        .then((value) => {
-          if (this.cache === cache) {
-            cache.value = Object.assign(Promise.resolve(value), {
-              state: 'resolved',
-              value,
-            }) as StoreValue<T>;
-
-            this.notify();
-          }
-        })
-        .catch((error) => {
-          if (this.cache === cache) {
-            cache.value = Object.assign(Promise.reject(error), {
-              state: 'rejected',
-              error,
-            }) as StoreValue<T>;
-
-            this.notify();
-          }
-        });
+      if (this.cache.status === 'error') {
+        throw this.cache.error;
+      }
     }
 
-    return cache.value;
+    this.cancel?.();
+
+    if (this.getState instanceof Function) {
+      this.getFromFunction(this.getState);
+    } else {
+      this.setValue(this.getState);
+    }
+
+    if (this.cache.update) {
+      return this.cache.update as StoreValue<T>;
+    }
+
+    if (this.cache.status === 'value') {
+      return this.cache.value as StoreValue<T>;
+    }
+
+    throw this.cache.error;
   }
 
-  update(update: UpdateFrom<T, StoreValue<T>>): this;
-  update<K extends Path<T>>(path: K, update: UpdateFrom<Value<T, K>, Value<StoreValue<T>, K>>): this;
-  update(...args: any[]) {
-    const path: string = args.length === 2 ? args[0] : '';
-    let update: Update<any> = args.length === 2 ? args[1] : args[0];
+  private getFromFunction(getState: (this: HelperFns, fn: HelperFns) => T) {
+    let stopped = false;
+    const handles = new Array<Cancel>();
+    const checks = new Array<() => boolean>();
 
-    if (update instanceof Function) {
-      const before = get(this.get(), path as any);
-      update = update(before);
+    const use: UseFn = (store) => {
+      if (!stopped) {
+        const cancel = store.subscribe(() => store.get(), this.invalidate, { runNow: false });
+        handles.push(cancel);
+      }
+
+      const value = store.get();
+      checks.push(() => store.get() === value);
+      return value;
+    };
+
+    const connect: ConnectFn = () => {
+      // TODO implement
+    };
+
+    this.cancel = () => {
+      stopped = true;
+      for (const handle of handles) {
+        handle();
+      }
+      handles.length = 0;
+      delete this.cancel;
+    };
+
+    this.check = () => {
+      return checks.every((check) => check());
+    };
+
+    try {
+      const value = getState.apply({ use, connect }, [{ use, connect }]);
+      this.setValue(value);
+    } catch (error) {
+      this.setError(error);
+    }
+  }
+
+  setValue(value: T | UnwrapPromise<T>) {
+    if (value instanceof Promise) {
+      this.cache.isUpdating = true;
+      this.cache.update = value;
+
+      this.watchPromise(value);
+    } else {
+      this.cache.isUpdating = false;
+      this.cache.isStale = false;
+      delete this.cache.update;
+      this.cache.status = 'value';
+      this.cache.value = value as UnwrapPromise<T>;
+      delete this.cache.error;
     }
 
-    const value = set(this.get(), path as any, update);
-    this.cache = { value };
+    this.notify();
+  }
+
+  setError(error: unknown) {
+    this.cache.isUpdating = false;
+    this.cache.isStale = false;
+    delete this.cache.update;
+    this.cache.status = 'error';
+    delete this.cache.value;
+    this.cache.error = error;
+
+    this.notify();
+  }
+
+  clear() {
+    this.cache.isUpdating = false;
+    this.cache.isStale = true;
+    delete this.cache.update;
+    this.cache.status = 'pending';
+    delete this.cache.value;
+    delete this.cache.error;
+
+    this.notify();
+  }
+
+  invalidate() {
+    this.cache.isUpdating = false;
+    this.cache.isStale = true;
+    delete this.cache.update;
+
+    if (this.isActive) {
+      safe(this.get());
+    } else {
+      this.notify();
+    }
+  }
+
+  private async watchPromise(promise: Promise<UnwrapPromise<T>>) {
+    const isActive = () => promise === this.cache.update;
+
+    try {
+      const value = await promise;
+      if (isActive()) {
+        // this.setValue(value as T);
+      }
+    } catch (error) {
+      if (isActive()) {
+        this.setError(error);
+      }
+    }
+  }
+
+  update(update: UpdateFrom<T | UnwrapPromise<T>, [StoreSubValue<T, G>, StoreSubDetails<T, G>]>): this;
+  update<K extends Path<UnwrapPromise<T>>>(path: K, update: Update<Value<UnwrapPromise<T>, K>>): this;
+  update(...args: any[]) {
+    if (args.length === 1) {
+      let update = args[0] as UpdateFrom<T | UnwrapPromise<T>, [StoreSubValue<T, G>, StoreSubDetails<T, G>]>;
+
+      if (update instanceof Function) {
+        safe(this.get());
+        update = update(this.cache.value as StoreSubValue<T, G>, this.cache as StoreSubDetails<T, G>);
+      }
+
+      this.setValue(update);
+    } else {
+      if (this.cache.status !== 'value') {
+        return;
+      }
+
+      const path = args[0] as string;
+      let update = args[1] as Update<any>;
+      let value: any = get(this.cache.value, path as any);
+
+      if (update instanceof Function) {
+        update = update(value);
+      }
+
+      value = set(value, path, update);
+      this.setValue(value);
+    }
+
     this.notify();
     return this;
   }
 
   /** Subscribe to updates. Every time the store's state changes, the callback will be executed with the new value. */
-  subscribe(listener: Listener<StoreValue<T>>, options?: SubscribeOptions): Cancel;
-  subscribe<S>(selector: (value: StoreValue<T>) => S, listener: Listener<S>, options?: SubscribeOptions): Cancel;
-  subscribe<P extends Path<StoreValue<T>>>(selector: P, listener: Listener<Value<StoreValue<T>, P>>, options?: SubscribeOptions): Cancel;
+  subscribe(
+    listener: Listener<[value: StoreSubValue<T, G>, previousValue: StoreSubValue<T, G> | undefined, state: StoreSubDetails<T, G>]>,
+    options?: SubscribeOptions
+  ): Cancel;
   subscribe<S>(
+    selector: (value: UnwrapPromise<T>, state: StoreSubDetails<T, G>) => S,
+    listener: Listener<[value: StoreSelectorSubValue<S, G>, previouseValue?: StoreSelectorSubValue<S, G>]>,
+    options?: SubscribeOptions
+  ): Cancel;
+  subscribe<P extends Path<UnwrapPromise<T>>>(
+    selector: P,
+    listener: Listener<
+      [value: StoreSelectorSubValue<Value<UnwrapPromise<T>, P>, G>, previousValue?: StoreSelectorSubValue<Value<UnwrapPromise<T>, P>, G>]
+    >,
+    options?: SubscribeOptions
+  ): Cancel;
+  subscribe(
     ...[arg0, arg1, arg2]:
-      | [listener: Listener<S>, options?: SubscribeOptions]
-      | [selector: ((value: StoreValue<T>) => S) | string, listener: Listener<S>, options?: SubscribeOptions]
+      | [listener: Listener<[StoreSubValue<any, any>, StoreSubValue<any, any>, StoreSubDetails<T, G>]>, options?: SubscribeOptions]
+      | [
+          selector: ((value: UnwrapPromise<T>, state: StoreSubDetails<T, G>) => any) | string,
+          listener: Listener<[StoreSubValue<any, G>]>,
+          options?: SubscribeOptions
+        ]
   ) {
-    const selector = makeSelector<StoreValue<T>, S>(arg1 instanceof Function ? arg0 : undefined);
-    const listener = (arg1 instanceof Function ? arg1 : arg0) as Listener<S>;
+    const selector =
+      arg1 instanceof Function
+        ? makeSelector<UnwrapPromise<T>, any>(arg0 as ((value: StoreValue<T>, state: StoreSubDetails<T, G>) => any) | string)
+        : undefined;
+    const listener = (arg1 instanceof Function ? arg1 : arg0) as Listener<any>;
     const { runNow = true, throttle: throttleOption, equals = defaultEquals } = (arg1 instanceof Function ? arg2 : arg1) ?? {};
 
-    let lastValue = selector(this.get());
-    let lastSentValue: S | undefined;
-    let innerListener = (force?: boolean | void) => {
+    let getValue: () => any, getDetails: () => any;
+
+    if (selector) {
+      getValue = () => (this.cache.status === 'value' ? selector(this.cache.value, this.cache) : undefined);
+      getDetails = () => undefined;
+    } else {
+      getValue = () => this.cache.value;
+      getDetails = () => ({ ...this.cache });
+    }
+
+    let previous = {
+      value: getValue(),
+      details: getDetails(),
+    };
+
+    let innerListener = (force?: boolean) => {
+      const value = getValue();
+      const details = getDetails();
+
+      const a = { ...previous.details, value: undefined };
+      const b = { ...details, value: undefined };
+
+      console.log('update', value, force, !force && equals(previous.value, value) && simpleShallowEquals(a, b));
+      if (!force && equals(previous.value, value) && simpleShallowEquals(a, b)) {
+        return;
+      }
+
       try {
-        const value = selector(this.get());
-
-        if (force || !equals(value, lastValue)) {
-          const previousValue = lastSentValue;
-          lastValue = value;
-          lastSentValue = value;
-
-          listener(value, previousValue);
-        }
-      } catch (e) {
-        forwardError(e);
+        listener(...(details ? [value, previous.value, details] : [value, previous.value]));
+        previous = { value, details };
+      } catch (error) {
+        forwardError(error);
       }
     };
 
@@ -188,10 +386,6 @@ export class StoreImpl<T> {
       timeout !== undefined && clearTimeout(timeout);
       this.effects.delete(effect);
     };
-  }
-
-  invalidate() {
-    delete this.cache;
   }
 
   /** Return whether the store is currently active, which means whether it has at least one subscriber. */
@@ -237,17 +431,33 @@ export class StoreImpl<T> {
   }
 }
 
-export function store<T, Actions extends StoreActions>(
-  getState: ConstructorParameters<typeof StoreImpl<T>>[0],
-  options: StoreOptionsWithActions<T, Actions> = {}
-): Store<T> &
+type StoreWithActions<T, G extends GetState<T>, Actions extends StoreActions> = Store<T, G> &
   (Record<string, never> extends Actions
     ? T extends Map<any, any>
       ? typeof mapActions
-      : T extends Promise<any>
-      ? typeof promiseActions
+      : T extends Set<any>
+      ? typeof setActions
+      : T extends Array<any>
+      ? typeof arrayActions
+      : T extends Record<any, any>
+      ? typeof recordActions
       : Record<string, never>
-    : Omit<BoundStoreActions<T, Actions>, keyof Store<T>>) {
+    : Omit<BoundStoreActions<T, Actions>, keyof Store<T, G>>);
+
+export function store<G extends (this: HelperFns, fn: HelperFns) => any, Actions extends StoreActions = Record<string, never>>(
+  getState: G,
+  options?: StoreOptionsWithActions<G extends (this: HelperFns, fn: HelperFns) => infer T ? T : never, G, Actions>
+): StoreWithActions<G extends (this: HelperFns, fn: HelperFns) => infer T ? T : never, G, Actions>;
+
+export function store<T, Actions extends StoreActions = Record<string, never>>(
+  initialState: T,
+  options?: StoreOptionsWithActions<T, T, Actions>
+): StoreWithActions<T, T, Actions>;
+
+export function store<T, G extends GetState<T>, Actions extends StoreActions>(
+  getState: ConstructorParameters<typeof StoreImpl<T, G>>[0],
+  options: StoreOptionsWithActions<T, G, Actions> = {}
+): StoreWithActions<T, G, Actions> {
   let methods = options.methods;
 
   if (getState instanceof Map) {

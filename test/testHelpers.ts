@@ -12,7 +12,7 @@ export async function sleep(ms: number) {
   });
 }
 
-export const getValues = (fn: any) => fn.mock.calls.map((x: any) => x[0].error ?? x[0].value);
+export const getValues = (fn: any) => fn.mock.calls.map((x: any) => x[2].error ?? x[2].value);
 
 export const testAsyncState = (x: any = {}) => {
   const state = {

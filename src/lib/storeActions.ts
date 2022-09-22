@@ -1,5 +1,4 @@
-import type { UpdateFrom } from '../core/commonTypes';
-import type { Store, StoreValue } from '../core/store';
+import type { Store } from '../core/store';
 
 type Fn = (...args: any) => any;
 
@@ -76,15 +75,5 @@ export const setActions = {
 
   clear<T>(this: Store<Set<T>>) {
     this.update(new Set());
-  },
-};
-
-export const promiseActions = {
-  update<T>(this: Store<Promise<T>>, value: UpdateFrom<T, StoreValue<Promise<T>>>) {
-    if (value instanceof Function) {
-      value = value(this.get());
-    }
-
-    this.update(Promise.resolve(value));
   },
 };
