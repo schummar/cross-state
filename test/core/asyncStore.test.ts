@@ -52,8 +52,8 @@ describe('store', () => {
       await flushPromises();
 
       expect(listener.mock.calls).toEqual([
-        [undefined, undefined, { isUpdating: true, isStale: true, status: 'pending', update: Promise.resolve() }],
-        [1, undefined, { isUpdating: false, isStale: false, status: 'value', value: 1 }],
+        [undefined, undefined, { isUpdating: true, isStale: true, status: 'pending', update: Promise.resolve(), ref: {} }],
+        [1, undefined, { isUpdating: false, isStale: false, status: 'value', value: 1, ref: {} }],
       ]);
     });
 
@@ -119,14 +119,20 @@ describe('store', () => {
     test('with shallowEqual', async () => {
       const state = store(async () => [1]);
       const listener = vi.fn();
-      state.subscribe(listener, { equals: shallowEqual });
+      state.subscribe((x) => x, listener, {
+        // TODO sub change on cache change?
+        equals: (a, b) => {
+          console.log('eq', a, b, shallowEqual(a, b));
+          return shallowEqual(a, b);
+        },
+      });
       await flushPromises();
       state.update([1]);
 
       expect(getValues(listener)).toEqual([undefined, [1]]);
     });
 
-    test.only('with dependencies', async () => {
+    test('with dependencies', async () => {
       const dep1 = store(1);
       const dep2 = store(async () => {
         await sleep(1);
@@ -137,23 +143,23 @@ describe('store', () => {
       });
       const listener = vi.fn();
       state.subscribe(listener);
+
       vi.advanceTimersByTime(1);
+
       await flushPromises();
-      // dep1.update(2);
-      // await flushPromises();
-      // dep2.update(20);
-      // await flushPromises();
+      dep1.update(2);
+      await flushPromises();
+      dep2.update(20);
+      await flushPromises();
 
-      console.log(listener.mock.calls);
-
-      // expect(listener.mock.calls).toMatchObject([
-      //   [undefined, undefined, { status: 'pending', isUpdating: true, isStale: true }],
-      //   [111, undefined, { status: 'value', isUpdating: false, isStale: false }],
-      //   [111, 111, { status: 'value', isUpdating: true, isStale: true }],
-      //   [112, 111, { status: 'value', isUpdating: false, isStale: false }],
-      //   [112, 112, { status: 'value', isUpdating: true, isStale: true }],
-      //   [122, 112, { status: 'value', isUpdating: false, isStale: false }],
-      // ]);
+      expect(listener.mock.calls).toMatchObject([
+        [undefined, undefined, { status: 'pending', isUpdating: true, isStale: true }],
+        [111, undefined, { status: 'value', isUpdating: false, isStale: false }],
+        [111, 111, { status: 'value', isUpdating: true, isStale: true }],
+        [112, 111, { status: 'value', isUpdating: false, isStale: false }],
+        [112, 112, { status: 'value', isUpdating: true, isStale: true }],
+        [122, 112, { status: 'value', isUpdating: false, isStale: false }],
+      ]);
     });
 
     test('cancel depdendencies', async () => {

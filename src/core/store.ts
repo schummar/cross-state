@@ -13,7 +13,7 @@ import type { ResourceGroup } from './resourceGroup';
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Values
-type Common<T> = { isUpdating: boolean; isStale: boolean; update?: Promise<T> };
+type Common<T> = { isUpdating: boolean; isStale: boolean; update?: Promise<T>; ref: any };
 type WithValue<T> = { status: 'value'; value: T; error?: undefined } & Common<T>;
 type WithError<T> = { status: 'error'; value?: undefined; error: unknown } & Common<T>;
 type Pending<T> = { status: 'pending'; value?: undefined; error?: undefined } & Common<T>;
@@ -71,7 +71,7 @@ const noop = () => undefined;
 const safe = (x: any) => (x instanceof Promise ? x.catch(() => undefined) : undefined);
 
 export class StoreImpl<T, G extends GetState<T>> {
-  private cache: StoreCache<T> = { status: 'pending', isUpdating: false, isStale: true };
+  private cache: StoreCache<T> = { status: 'pending', isUpdating: false, isStale: true, ref: {} };
   private cancel?: Cancel;
   private check?: () => boolean;
   private invalidateTimer?: ReturnType<typeof setTimeout>;
@@ -105,7 +105,8 @@ export class StoreImpl<T, G extends GetState<T>> {
       this.cache.isStale = true;
     }
 
-    if (!this.cache.isStale) {
+    if (!this.cache.isStale || this.cache.update) {
+      // TODO check
       if (this.cache.update) {
         return this.cache.update as StoreValue<T>;
       }
@@ -144,13 +145,15 @@ export class StoreImpl<T, G extends GetState<T>> {
     const checks = new Array<() => boolean>();
 
     const use: UseFn = (store) => {
+      const value = store.get();
+      const ref = store.cache.ref;
+      checks.push(() => store.cache.ref === ref);
+
       if (!stopped) {
-        const cancel = store.subscribe(() => store.get(), this.invalidate, { runNow: false });
+        const cancel = store.subscribe((_v, state) => state.ref, this.invalidate, { runNow: false });
         handles.push(cancel);
       }
 
-      const value = store.get();
-      checks.push(() => store.get() === value);
       return value;
     };
 
@@ -160,9 +163,11 @@ export class StoreImpl<T, G extends GetState<T>> {
 
     this.cancel = () => {
       stopped = true;
+
       for (const handle of handles) {
         handle();
       }
+
       handles.length = 0;
       delete this.cancel;
     };
@@ -180,9 +185,14 @@ export class StoreImpl<T, G extends GetState<T>> {
   }
 
   setValue(value: T | UnwrapPromise<T>) {
+    this._setValue(value);
+  }
+
+  _setValue(value: T | UnwrapPromise<T>, ref = {}) {
     if (value instanceof Promise) {
       this.cache.isUpdating = true;
       this.cache.update = value;
+      this.cache.ref = ref;
 
       this.watchPromise(value);
     } else {
@@ -192,18 +202,24 @@ export class StoreImpl<T, G extends GetState<T>> {
       this.cache.status = 'value';
       this.cache.value = value as UnwrapPromise<T>;
       delete this.cache.error;
+      this.cache.ref = ref;
     }
 
     this.notify();
   }
 
   setError(error: unknown) {
+    this._setError(error);
+  }
+
+  _setError(error: unknown, ref = {}) {
     this.cache.isUpdating = false;
     this.cache.isStale = false;
     delete this.cache.update;
     this.cache.status = 'error';
     delete this.cache.value;
     this.cache.error = error;
+    this.cache.ref = ref;
 
     this.notify();
   }
@@ -215,6 +231,7 @@ export class StoreImpl<T, G extends GetState<T>> {
     this.cache.status = 'pending';
     delete this.cache.value;
     delete this.cache.error;
+    this.cache.ref = {};
 
     this.notify();
   }
@@ -223,6 +240,7 @@ export class StoreImpl<T, G extends GetState<T>> {
     this.cache.isUpdating = false;
     this.cache.isStale = true;
     delete this.cache.update;
+    this.cache.ref = {};
 
     if (this.isActive) {
       safe(this.get());
@@ -237,11 +255,11 @@ export class StoreImpl<T, G extends GetState<T>> {
     try {
       const value = await promise;
       if (isActive()) {
-        // this.setValue(value as T);
+        this._setValue(value as T, this.cache.ref);
       }
     } catch (error) {
       if (isActive()) {
-        this.setError(error);
+        this._setError(error, this.cache.ref);
       }
     }
   }
@@ -285,7 +303,7 @@ export class StoreImpl<T, G extends GetState<T>> {
     options?: SubscribeOptions
   ): Cancel;
   subscribe<S>(
-    selector: (value: UnwrapPromise<T>, state: StoreSubDetails<T, G>) => S,
+    selector: (value: StoreSubValue<T, G>, state: StoreSubDetails<T, G>) => S,
     listener: Listener<[value: StoreSelectorSubValue<S, G>, previouseValue?: StoreSelectorSubValue<S, G>]>,
     options?: SubscribeOptions
   ): Cancel;
@@ -298,16 +316,19 @@ export class StoreImpl<T, G extends GetState<T>> {
   ): Cancel;
   subscribe(
     ...[arg0, arg1, arg2]:
-      | [listener: Listener<[StoreSubValue<any, any>, StoreSubValue<any, any>, StoreSubDetails<T, G>]>, options?: SubscribeOptions]
       | [
-          selector: ((value: UnwrapPromise<T>, state: StoreSubDetails<T, G>) => any) | string,
-          listener: Listener<[StoreSubValue<any, G>]>,
+          listener: Listener<[StoreSubValue<any, any>, StoreSubValue<any, any> | undefined, StoreSubDetails<T, G>]>,
+          options?: SubscribeOptions
+        ]
+      | [
+          selector: ((value: StoreSubValue<T, G>, state: StoreSubDetails<T, G>) => any) | string,
+          listener: Listener<[StoreSelectorSubValue<any, G>]>,
           options?: SubscribeOptions
         ]
   ) {
     const selector =
       arg1 instanceof Function
-        ? makeSelector<UnwrapPromise<T>, any>(arg0 as ((value: StoreValue<T>, state: StoreSubDetails<T, G>) => any) | string)
+        ? makeSelector(arg0 as ((value: StoreSubValue<T, G>, state: StoreSubDetails<T, G>) => any) | string)
         : undefined;
     const listener = (arg1 instanceof Function ? arg1 : arg0) as Listener<any>;
     const { runNow = true, throttle: throttleOption, equals = defaultEquals } = (arg1 instanceof Function ? arg2 : arg1) ?? {};
@@ -315,7 +336,7 @@ export class StoreImpl<T, G extends GetState<T>> {
     let getValue: () => any, getDetails: () => any;
 
     if (selector) {
-      getValue = () => (this.cache.status === 'value' ? selector(this.cache.value, this.cache) : undefined);
+      getValue = () => selector(this.cache.value as StoreSubValue<T, G>, this.cache as StoreSubDetails<T, G>);
       getDetails = () => undefined;
     } else {
       getValue = () => this.cache.value;
@@ -334,7 +355,6 @@ export class StoreImpl<T, G extends GetState<T>> {
       const a = { ...previous.details, value: undefined };
       const b = { ...details, value: undefined };
 
-      console.log('update', value, force, !force && equals(previous.value, value) && simpleShallowEquals(a, b));
       if (!force && equals(previous.value, value) && simpleShallowEquals(a, b)) {
         return;
       }
@@ -455,7 +475,7 @@ export function store<T, Actions extends StoreActions = Record<string, never>>(
 ): StoreWithActions<T, T, Actions>;
 
 export function store<T, G extends GetState<T>, Actions extends StoreActions>(
-  getState: ConstructorParameters<typeof StoreImpl<T, G>>[0],
+  getState: G,
   options: StoreOptionsWithActions<T, G, Actions> = {}
 ): StoreWithActions<T, G, Actions> {
   let methods = options.methods;

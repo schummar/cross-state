@@ -1,6 +1,9 @@
+import { StoreSubDetails, StoreSubValue } from '../core/store';
 import { get } from './propAccess';
 
-export function makeSelector<V, S>(selector?: ((...args: any[]) => any) | string): (value: V) => S {
+export function makeSelector<T, G, S>(
+  selector?: ((value: StoreSubValue<T, G>, state: StoreSubDetails<T, G>) => any) | string
+): (value: StoreSubValue<T, G>, state: StoreSubDetails<T, G>) => S {
   if (!selector) {
     return (x) => x as any;
   }
