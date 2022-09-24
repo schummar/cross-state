@@ -106,7 +106,6 @@ export class StoreImpl<T, G extends GetState<T>> {
     }
 
     if (!this.cache.isStale || this.cache.update) {
-      // TODO check
       if (this.cache.update) {
         return this.cache.update as StoreValue<T>;
       }
@@ -150,7 +149,7 @@ export class StoreImpl<T, G extends GetState<T>> {
       checks.push(() => store.cache.ref === ref);
 
       if (!stopped) {
-        const cancel = store.subscribe((_v, state) => state.ref, this.invalidate, { runNow: false });
+        const cancel = store.subscribeStatus((state) => state.ref, this.invalidate, { runNow: false });
         handles.push(cancel);
       }
 
@@ -298,70 +297,64 @@ export class StoreImpl<T, G extends GetState<T>> {
   }
 
   /** Subscribe to updates. Every time the store's state changes, the callback will be executed with the new value. */
-  subscribe(
-    listener: Listener<[value: StoreSubValue<T, G>, previousValue: StoreSubValue<T, G> | undefined, state: StoreSubDetails<T, G>]>,
-    options?: SubscribeOptions
-  ): Cancel;
-  subscribe<S>(
-    selector: (value: StoreSubValue<T, G>, state: StoreSubDetails<T, G>) => S,
-    listener: Listener<[value: StoreSelectorSubValue<S, G>, previouseValue?: StoreSelectorSubValue<S, G>]>,
-    options?: SubscribeOptions
-  ): Cancel;
+  subscribe(listener: Listener<StoreSubValue<T, G>>, options?: SubscribeOptions): Cancel;
+  subscribe<S>(selector: (value: StoreSubValue<T, G>) => S, listener: Listener<S>, options?: SubscribeOptions): Cancel;
   subscribe<P extends Path<UnwrapPromise<T>>>(
     selector: P,
-    listener: Listener<
-      [value: StoreSelectorSubValue<Value<UnwrapPromise<T>, P>, G>, previousValue?: StoreSelectorSubValue<Value<UnwrapPromise<T>, P>, G>]
-    >,
+    listener: Listener<Value<UnwrapPromise<T>, P>>,
     options?: SubscribeOptions
   ): Cancel;
   subscribe(
     ...[arg0, arg1, arg2]:
-      | [
-          listener: Listener<[StoreSubValue<any, any>, StoreSubValue<any, any> | undefined, StoreSubDetails<T, G>]>,
-          options?: SubscribeOptions
-        ]
-      | [
-          selector: ((value: StoreSubValue<T, G>, state: StoreSubDetails<T, G>) => any) | string,
-          listener: Listener<[StoreSelectorSubValue<any, G>]>,
-          options?: SubscribeOptions
-        ]
+      | [listener: Listener<StoreSubValue<T, G>>, options?: SubscribeOptions]
+      | [selector: ((value: StoreSubValue<T, G>) => any) | string, listener: Listener<any>, options?: SubscribeOptions]
   ) {
-    const selector =
-      arg1 instanceof Function
-        ? makeSelector(arg0 as ((value: StoreSubValue<T, G>, state: StoreSubDetails<T, G>) => any) | string)
-        : undefined;
+    const selector = makeSelector(arg1 instanceof Function ? arg0 : undefined);
+    const listener = (arg1 instanceof Function ? arg1 : arg0) as Listener<any>;
+    const options = arg1 instanceof Function ? arg2 : arg1;
+
+    return this.subscribeStatus(
+      (state) => (state.status === 'value' ? selector(state.value as StoreSubValue<T, G>) : undefined),
+      listener,
+      options
+    );
+  }
+
+  /** Subscribe to updates. Every time the store's state changes, the callback will be executed with the new value. */
+  subscribeStatus(listener: Listener<StoreSubDetails<T, G>>, options?: SubscribeOptions): Cancel;
+  subscribeStatus<S>(selector: (value: StoreSubDetails<T, G>) => S, listener: Listener<S>, options?: SubscribeOptions): Cancel;
+  subscribeStatus<P extends Path<StoreSubDetails<T, G>>>(
+    selector: P,
+    listener: Listener<Value<StoreSubDetails<T, G>, P>>,
+    options?: SubscribeOptions
+  ): Cancel;
+  subscribeStatus(
+    ...[arg0, arg1, arg2]:
+      | [listener: Listener<StoreSubDetails<T, G>>, options?: SubscribeOptions]
+      | [selector: ((value: StoreSubDetails<T, G>) => any) | string, listener: Listener<any>, options?: SubscribeOptions]
+  ) {
+    const selector = arg1 instanceof Function ? makeSelector(arg0) : undefined;
     const listener = (arg1 instanceof Function ? arg1 : arg0) as Listener<any>;
     const { runNow = true, throttle: throttleOption, equals = defaultEquals } = (arg1 instanceof Function ? arg2 : arg1) ?? {};
 
-    let getValue: () => any, getDetails: () => any;
+    const getValue = selector ? () => selector({ ...this.cache } as StoreSubDetails<T, G>) : () => ({ ...this.cache });
+    const compare = selector
+      ? equals
+      : ({ value: value1, ...rest1 }: any, { value2, ...rest2 }: any) => simpleShallowEquals(rest1, rest2) && equals(value1, value2);
 
-    if (selector) {
-      getValue = () => selector(this.cache.value as StoreSubValue<T, G>, this.cache as StoreSubDetails<T, G>);
-      getDetails = () => undefined;
-    } else {
-      getValue = () => this.cache.value;
-      getDetails = () => ({ ...this.cache });
-    }
+    let previousValue = getValue();
 
-    let previous = {
-      value: getValue(),
-      details: getDetails(),
-    };
-
-    let innerListener = (force?: boolean) => {
+    let innerListener = (force?: boolean | void) => {
       const value = getValue();
-      const details = getDetails();
 
-      const a = { ...previous.details, value: undefined };
-      const b = { ...details, value: undefined };
-
-      if (!force && equals(previous.value, value) && simpleShallowEquals(a, b)) {
+      if (!force && compare(value, previousValue)) {
         return;
       }
 
       try {
-        listener(...(details ? [value, previous.value, details] : [value, previous.value]));
-        previous = { value, details };
+        const _previousValue = previousValue;
+        previousValue = value;
+        listener(value, _previousValue);
       } catch (error) {
         forwardError(error);
       }

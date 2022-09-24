@@ -44,7 +44,7 @@ describe('store', () => {
 
   describe('subscribe', () => {
     test('without parameters', async () => {
-      const state = storeSet(async () => 1)();
+      const state = store(async () => 1);
       const listener = vi.fn();
       state.subscribe(listener);
       expect(listener.mock.calls.length).toBe(1);
@@ -52,8 +52,8 @@ describe('store', () => {
       await flushPromises();
 
       expect(listener.mock.calls).toEqual([
-        [undefined, undefined, { isUpdating: true, isStale: true, status: 'pending', update: Promise.resolve(), ref: {} }],
-        [1, undefined, { isUpdating: false, isStale: false, status: 'value', value: 1, ref: {} }],
+        [undefined, undefined],
+        [1, undefined],
       ]);
     });
 
@@ -120,11 +120,7 @@ describe('store', () => {
       const state = store(async () => [1]);
       const listener = vi.fn();
       state.subscribe((x) => x, listener, {
-        // TODO sub change on cache change?
-        equals: (a, b) => {
-          console.log('eq', a, b, shallowEqual(a, b));
-          return shallowEqual(a, b);
-        },
+        equals: shallowEqual,
       });
       await flushPromises();
       state.update([1]);
@@ -142,7 +138,7 @@ describe('store', () => {
         return this.use(dep1) + (await this.use(dep2)) + 100;
       });
       const listener = vi.fn();
-      state.subscribe(listener);
+      state.subscribeStatus(listener);
 
       vi.advanceTimersByTime(1);
 
@@ -152,13 +148,13 @@ describe('store', () => {
       dep2.update(20);
       await flushPromises();
 
-      expect(listener.mock.calls).toMatchObject([
-        [undefined, undefined, { status: 'pending', isUpdating: true, isStale: true }],
-        [111, undefined, { status: 'value', isUpdating: false, isStale: false }],
-        [111, 111, { status: 'value', isUpdating: true, isStale: true }],
-        [112, 111, { status: 'value', isUpdating: false, isStale: false }],
-        [112, 112, { status: 'value', isUpdating: true, isStale: true }],
-        [122, 112, { status: 'value', isUpdating: false, isStale: false }],
+      expect(listener.mock.calls.map((x) => x[0])).toMatchObject([
+        { status: 'pending', isUpdating: true, isStale: true },
+        { status: 'value', value: 111, isUpdating: false, isStale: false },
+        { status: 'value', value: 111, isUpdating: true, isStale: true },
+        { status: 'value', value: 112, isUpdating: false, isStale: false },
+        { status: 'value', value: 112, isUpdating: true, isStale: true },
+        { status: 'value', value: 122, isUpdating: false, isStale: false },
       ]);
     });
 

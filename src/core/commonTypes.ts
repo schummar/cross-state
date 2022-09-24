@@ -1,5 +1,5 @@
-export interface Listener<T extends any[] = []> {
-  (...args: T): void;
+export interface Listener<T = void> {
+  (value: T, previouseValue?: T): void;
 }
 
 export interface Effect {
