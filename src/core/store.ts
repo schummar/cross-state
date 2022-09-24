@@ -7,8 +7,9 @@ import type { Path, Value } from '../lib/propAccess';
 import { get, set } from '../lib/propAccess';
 import { arrayActions, mapActions, recordActions, setActions } from '../lib/storeActions';
 import { throttle } from '../lib/throttle';
+import { trackingProxy } from '../lib/trackingProxy';
 import type { UnwrapPromise } from '../lib/unwrapPromise';
-import type { Cancel, Duration, Effect, Listener, SubscribeOptions, Update, UpdateFrom } from './commonTypes';
+import type { Cancel, Duration, Effect, Listener, Selector, SubscribeOptions, Update, UpdateFrom } from './commonTypes';
 import type { ResourceGroup } from './resourceGroup';
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -52,7 +53,14 @@ export interface StoreOptionsWithActions<T, G extends GetState<T>, Actions exten
   methods?: Actions & ThisType<StoreImpl<T, G> & Actions>;
 }
 
-export type UseFn = <T>(store: Store<T>) => StoreValue<T>;
+export interface UseOptions {
+  disableProxy?: boolean;
+}
+
+export interface UseFn {
+  <T>(store: Store<T>, options?: UseOptions): StoreValue<T>;
+  <T, S>(store: Store<T>, selector: Selector<UnwrapPromise<T>, S>, options?: UseOptions): T extends Promise<any> ? Promise<S> : S;
+}
 
 export type ConnectFn = (cb: () => void | Cancel) => void;
 
@@ -143,13 +151,29 @@ export class StoreImpl<T, G extends GetState<T>> {
     const handles = new Array<Cancel>();
     const checks = new Array<() => boolean>();
 
-    const use: UseFn = (store) => {
-      const value = store.get();
+    const use: UseFn = <T, S>(store: Store<T>, arg1?: UseOptions | Selector<UnwrapPromise<T>, S>, arg2?: UseOptions) => {
+      const selector = arg1 instanceof Function ? arg1 : (x: any) => x;
+      const { disableProxy } = (arg1 instanceof Function ? arg2 : arg1) ?? {};
+      let getValue = () => {
+        const value = store.get();
+        if (value instanceof Promise) {
+          return value.then((x) => selector(x));
+        }
+        return selector(value as UnwrapPromise<T>);
+      };
+
+      let value = getValue();
+      let equals = (newValue: any) => newValue === value;
+
+      if (!disableProxy) {
+        [value, equals] = trackingProxy(getValue());
+      }
+
       const ref = store.cache.ref;
-      checks.push(() => store.cache.ref === ref);
+      checks.push(() => store.cache.ref === ref || equals(getValue()));
 
       if (!stopped) {
-        const cancel = store.subscribeStatus((state) => state.ref, this.invalidate, { runNow: false });
+        const cancel = store.subscribeStatus((state) => [state.ref], this.get, { runNow: false });
         handles.push(cancel);
       }
 
@@ -298,7 +322,7 @@ export class StoreImpl<T, G extends GetState<T>> {
 
   /** Subscribe to updates. Every time the store's state changes, the callback will be executed with the new value. */
   subscribe(listener: Listener<StoreSubValue<T, G>>, options?: SubscribeOptions): Cancel;
-  subscribe<S>(selector: (value: StoreSubValue<T, G>) => S, listener: Listener<S>, options?: SubscribeOptions): Cancel;
+  subscribe<S>(selector: Selector<StoreSubValue<T, G>, S>, listener: Listener<S>, options?: SubscribeOptions): Cancel;
   subscribe<P extends Path<UnwrapPromise<T>>>(
     selector: P,
     listener: Listener<Value<UnwrapPromise<T>, P>>,
@@ -322,7 +346,7 @@ export class StoreImpl<T, G extends GetState<T>> {
 
   /** Subscribe to updates. Every time the store's state changes, the callback will be executed with the new value. */
   subscribeStatus(listener: Listener<StoreSubDetails<T, G>>, options?: SubscribeOptions): Cancel;
-  subscribeStatus<S>(selector: (value: StoreSubDetails<T, G>) => S, listener: Listener<S>, options?: SubscribeOptions): Cancel;
+  subscribeStatus<S>(selector: Selector<StoreSubDetails<T, G>, S>, listener: Listener<S>, options?: SubscribeOptions): Cancel;
   subscribeStatus<P extends Path<StoreSubDetails<T, G>>>(
     selector: P,
     listener: Listener<Value<StoreSubDetails<T, G>, P>>,

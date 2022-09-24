@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import type { ComputedUse } from '../../src';
-import { atomicStore, computed } from '../../src';
+import { store } from '../../src';
+import { HelperFns } from '../../src/core/store';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -12,42 +12,42 @@ afterEach(() => {
 
 describe('computed', () => {
   test('create store', () => {
-    const store = computed(() => 1);
+    const state = store(() => 1);
 
-    expect(store).toBeTruthy();
+    expect(state).toBeTruthy();
   });
 
   test('with one depdendency', () => {
-    const dep = atomicStore(1);
-    const store = computed((use) => use(dep) + 2);
+    const dep = store(1);
+    const state = store(({ use }) => use(dep) + 2);
 
-    expect(store.get()).toBe(3);
+    expect(state.get()).toBe(3);
   });
 
   test('with depdendency via this', () => {
-    const dep = atomicStore(1);
-    const store = computed(function () {
+    const dep = store(1);
+    const state = store(function () {
       return this.use(dep) + 2;
     });
 
-    expect(store.get()).toBe(3);
+    expect(state.get()).toBe(3);
   });
 
   test('with multiple depdendencies', () => {
-    const dep1 = atomicStore(1);
-    const dep2 = atomicStore(2);
-    const store = computed((use) => use(dep1) + use(dep2) + 3);
+    const dep1 = store(1);
+    const dep2 = store(2);
+    const state = store(({ use }) => use(dep1) + use(dep2) + 3);
 
-    expect(store.get()).toBe(6);
+    expect(state.get()).toBe(6);
   });
 
   test('update on depdendency update', () => {
-    const dep1 = atomicStore(1);
-    const dep2 = atomicStore(2);
-    const store = computed((use) => use(dep1) + use(dep2) + 3);
+    const dep1 = store(1);
+    const dep2 = store(2);
+    const state = store(({ use }) => use(dep1) + use(dep2) + 3);
 
     const callback = vi.fn();
-    store.subscribe(callback);
+    state.subscribe(callback);
     expect(callback).toHaveBeenCalledWith(6, undefined);
 
     dep1.update(4);
@@ -60,17 +60,17 @@ describe('computed', () => {
 
   describe('selector', () => {
     test('calculate value', async () => {
-      const dep = atomicStore({ x: 1 });
-      const store = computed((use) => use(dep, (s) => s.x) + 2);
+      const dep = store({ x: 1 });
+      const state = store(({ use }) => use(dep, (s) => s.x) + 2);
 
-      expect(store.get()).toBe(3);
+      expect(state.get()).toBe(3);
     });
 
     test('update only when selected part changes', async () => {
-      const dep = atomicStore({ x: 1, y: 2 });
-      const calc = vi.fn((use: ComputedUse) => use(dep, (s) => s.x) + 2);
-      const store = computed(calc);
-      store.subscribe(() => undefined);
+      const dep = store({ x: 1, y: 2 });
+      const calc = vi.fn(({ use }: HelperFns) => use(dep, (s) => s.x) + 2);
+      const state = store(calc);
+      state.subscribe(() => undefined);
 
       expect(calc).toHaveBeenCalledTimes(1);
 
@@ -86,17 +86,17 @@ describe('computed', () => {
 
   describe('trackingProxy', () => {
     test('calculate value', async () => {
-      const dep = atomicStore({ x: 1 });
-      const store = computed((use) => use(dep).x + 2);
+      const dep = store({ x: 1 });
+      const state = store(({ use }) => use(dep).x + 2);
 
-      expect(store.get()).toBe(3);
+      expect(state.get()).toBe(3);
     });
 
     test('update only when selected part changes', async () => {
-      const dep = atomicStore({ x: 1, y: 2 });
-      const calc = vi.fn((use: ComputedUse) => use(dep).x + 2);
-      const store = computed(calc);
-      store.subscribe(() => undefined);
+      const dep = store({ x: 1, y: 2 });
+      const calc = vi.fn(({ use }: HelperFns) => use(dep).x + 2);
+      const state = store(calc);
+      state.subscribe(() => undefined);
 
       expect(calc).toHaveBeenCalledTimes(1);
 
@@ -110,10 +110,10 @@ describe('computed', () => {
     });
 
     test('disable', async () => {
-      const dep = atomicStore({ x: 1, y: 2 });
-      const calc = vi.fn((use: ComputedUse) => use(dep).x + 2);
-      const store = computed(calc, { disableProxy: true });
-      store.subscribe(() => undefined);
+      const dep = store({ x: 1, y: 2 });
+      const calc = vi.fn(({ use }: HelperFns) => use(dep, { disableProxy: true }).x + 2);
+      const state = store(calc);
+      state.subscribe(() => undefined);
       dep.update({ x: 1, y: 3 });
 
       expect(calc).toHaveBeenCalledTimes(2);
@@ -122,42 +122,42 @@ describe('computed', () => {
 
   describe('lazy computation', () => {
     test('with get', async () => {
-      const dep = atomicStore(1);
-      const calc = vi.fn((use: ComputedUse) => use(dep) + 1);
-      const store = computed(calc);
+      const dep = store(1);
+      const calc = vi.fn(({ use }: HelperFns) => use(dep) + 1);
+      const state = store(calc);
 
       expect(calc).toBeCalledTimes(0);
 
-      store.get();
-      store.get();
+      state.get();
+      state.get();
 
       expect(calc).toHaveBeenCalledTimes(1);
 
       dep.update(2);
 
-      store.get();
-      store.get();
+      state.get();
+      state.get();
 
       expect(calc).toHaveBeenCalledTimes(2);
     });
 
     test('with subscribe', async () => {
-      const dep = atomicStore(1);
-      const calc = vi.fn((use: ComputedUse) => use(dep) + 1);
-      const store = computed(calc);
-      store.subscribe(() => undefined);
+      const dep = store(1);
+      const calc = vi.fn(({ use }: HelperFns) => use(dep) + 1);
+      const state = store(calc);
+      state.subscribe(() => undefined);
 
       expect(calc).toBeCalledTimes(1);
 
-      store.get();
-      store.get();
+      state.get();
+      state.get();
 
       expect(calc).toHaveBeenCalledTimes(1);
 
       dep.update(2);
 
-      store.get();
-      store.get();
+      state.get();
+      state.get();
 
       expect(calc).toHaveBeenCalledTimes(2);
     });

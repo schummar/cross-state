@@ -2,6 +2,10 @@ export interface Listener<T = void> {
   (value: T, previouseValue?: T): void;
 }
 
+export interface Selector<T, S> {
+  (value: T): S;
+}
+
 export interface Effect {
   (): void | Cancel;
 }
