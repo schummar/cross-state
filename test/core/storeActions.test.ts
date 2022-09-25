@@ -1,53 +1,53 @@
 import { describe, expect, test } from 'vitest';
-import { atomicStore, recordActions } from '../../src';
+import { store, recordActions } from '../../src';
 
 describe('store actions', () => {
   test('map store', () => {
-    const x = atomicStore(new Map<number, number>());
-    x.set(1, 2);
-    x.set(3, 4);
-    x.delete(1);
-    expect(x.get()).toEqual(new Map([[3, 4]]));
-    x.clear();
-    expect(x.get()).toEqual(new Map());
+    const state = store(new Map<number, number>());
+    state.set(1, 2);
+    state.set(3, 4);
+    state.delete(1);
+    expect(state.get()).toEqual(new Map([[3, 4]]));
+    state.clear();
+    expect(state.get()).toEqual(new Map());
   });
 
   test('record store', () => {
-    const x = atomicStore({} as Record<number, number>, recordActions);
-    x.set(1, 2);
-    x.set(3, 4);
-    x.delete(1);
-    expect(x.get()).toEqual({ 3: 4 });
-    x.clear();
-    expect(x.get()).toEqual({});
+    const state = store({} as Record<number, number>);
+    state.set(1, 2);
+    state.set(3, 4);
+    state.delete(1);
+    expect(state.get()).toEqual({ 3: 4 });
+    state.clear();
+    expect(state.get()).toEqual({});
   });
 
   test('set store', () => {
-    const x = atomicStore(new Set<number>());
-    x.add(1);
-    x.add(2);
-    x.delete(1);
-    expect(x.get()).toEqual(new Set([2]));
-    x.clear();
-    expect(x.get()).toEqual(new Set());
+    const state = store(new Set<number>());
+    state.add(1);
+    state.add(2);
+    state.delete(1);
+    expect(state.get()).toEqual(new Set([2]));
+    state.clear();
+    expect(state.get()).toEqual(new Set());
   });
 
   test('array store', () => {
-    const x = atomicStore<number[]>([]);
+    const state = store<number[]>([]);
 
-    expect(x.push(1, 2, 3)).toBe(3);
-    expect(x.get()).toEqual([1, 2, 3]);
+    expect(state.push(1, 2, 3)).toBe(3);
+    expect(state.get()).toEqual([1, 2, 3]);
 
-    expect(x.splice(1, 1)).toEqual([2]);
-    expect(x.get()).toEqual([1, 3]);
+    expect(state.splice(1, 1)).toEqual([2]);
+    expect(state.get()).toEqual([1, 3]);
 
-    expect(x.pop()).toBe(3);
-    expect(x.get()).toEqual([1]);
+    expect(state.pop()).toBe(3);
+    expect(state.get()).toEqual([1]);
 
-    expect(x.unshift(4)).toBe(2);
-    expect(x.get()).toEqual([4, 1]);
+    expect(state.unshift(4)).toBe(2);
+    expect(state.get()).toEqual([4, 1]);
 
-    expect(x.shift()).toBe(4);
-    expect(x.get()).toEqual([1]);
+    expect(state.shift()).toBe(4);
+    expect(state.get()).toEqual([1]);
   });
 });

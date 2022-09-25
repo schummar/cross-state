@@ -1,4 +1,4 @@
-import { StoreSubDetails, StoreSubValue } from '../core/store';
+import { SubscribeDetails, SubscribeValue } from '../core/store';
 import { get } from './propAccess';
 
 export function makeSelector<T, S>(selector?: ((value: T) => S) | string): (value: T) => S {

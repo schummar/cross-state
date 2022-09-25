@@ -5,6 +5,7 @@ import { makeSelector } from '../lib/makeSelector';
 import type { MaybePromise } from '../lib/maybePromise';
 import type { Path, Value } from '../lib/propAccess';
 import { get, set } from '../lib/propAccess';
+import { queue } from '../lib/queue';
 import { arrayActions, mapActions, recordActions, setActions } from '../lib/storeActions';
 import { throttle } from '../lib/throttle';
 import { trackingProxy } from '../lib/trackingProxy';
@@ -19,19 +20,15 @@ type WithValue<T> = { status: 'value'; value: T; error?: undefined } & Common<T>
 type WithError<T> = { status: 'error'; value?: undefined; error: unknown } & Common<T>;
 type Pending<T> = { status: 'pending'; value?: undefined; error?: undefined } & Common<T>;
 
-export type StoreValue<T> = T extends Promise<infer S> ? T | S : T;
+export type GetValue<T> = T extends Promise<infer S> ? T | S : T;
 
-export type StoreSubValue<T, G> = T extends Promise<infer S>
-  ? S | undefined
-  : G extends (...args: any[]) => MaybePromise<infer S>
-  ? S | undefined
-  : T;
+export type SubscribeValue<T, F> = T extends Promise<infer S> ? S | undefined : F extends true ? T | undefined : T;
 
-export type StoreSelectorSubValue<S, G> = G extends (...args: any[]) => any ? S | undefined : S;
+export type SelectorInputValue<S, F> = F extends true ? S | undefined : S;
 
-export type StoreSubDetails<T, G> = T extends Promise<any>
+export type SubscribeDetails<T, F> = T extends Promise<any>
   ? WithValue<UnwrapPromise<T>> | WithError<UnwrapPromise<T>> | Pending<UnwrapPromise<T>>
-  : G extends (...args: any[]) => any
+  : F extends true
   ? WithValue<UnwrapPromise<T>> | WithError<UnwrapPromise<T>>
   : WithValue<T>;
 
@@ -39,18 +36,18 @@ export type StoreSubDetails<T, G> = T extends Promise<any>
 // Actions
 export type StoreActions = Record<string, (...args: any[]) => any>;
 
-export type BoundStoreActions<T, Actions extends StoreActions> = Actions & ThisType<Store<T> & Actions>;
+export type BoundStoreActions<T, F extends boolean, Actions extends StoreActions> = Actions & ThisType<Store<T, F> & Actions>;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Options
 export interface StoreOptions<T> {
-  invalidateAfter?: Duration | ((state: StoreValue<T>) => Duration);
-  clearAfter?: Duration | ((state: StoreValue<T>) => Duration);
+  invalidateAfter?: Duration | ((state: GetValue<T>) => Duration);
+  clearAfter?: Duration | ((state: GetValue<T>) => Duration);
   resourceGroup?: ResourceGroup | ResourceGroup[];
 }
 
-export interface StoreOptionsWithActions<T, G extends GetState<T>, Actions extends StoreActions> extends StoreOptions<T> {
-  methods?: Actions & ThisType<StoreImpl<T, G> & Actions>;
+export interface StoreOptionsWithActions<T, F extends boolean, Actions extends StoreActions> extends StoreOptions<T> {
+  methods?: Actions & ThisType<Store<T, F> & Actions>;
 }
 
 export interface UseOptions {
@@ -58,27 +55,31 @@ export interface UseOptions {
 }
 
 export interface UseFn {
-  <T>(store: Store<T>, options?: UseOptions): StoreValue<T>;
-  <T, S>(store: Store<T>, selector: Selector<UnwrapPromise<T>, S>, options?: UseOptions): T extends Promise<any> ? Promise<S> : S;
+  <T>(store: Store<T, any>, options?: UseOptions): GetValue<T>;
+  <T, S>(store: Store<T, any>, selector: Selector<UnwrapPromise<T>, S>, options?: UseOptions): T extends Promise<any> ? Promise<S> : S;
 }
 
-export type ConnectFn = (cb: () => void | Cancel) => void;
+export type PushFn<T> = (value: MaybePromise<T>) => void;
 
-export interface HelperFns {
+export interface ProviderHelpers<T = unknown> {
   use: UseFn;
-  connect: ConnectFn;
+  update: PushFn<T>;
+  updateError: PushFn<unknown>;
 }
 
-type GetState<T> = T | ((this: HelperFns, fn: HelperFns) => T);
+type GetStateFn<T> = (this: ProviderHelpers<unknown>, fn: ProviderHelpers<unknown>) => T;
+type ConnectStateFn<T> = (this: ProviderHelpers<T>, fn: ProviderHelpers<T>) => Cancel;
 
-export type Store<T, G extends GetState<T> = T> = StoreImpl<T, G>;
+type Provider<T> = T | GetStateFn<T> | ConnectStateFn<T>;
+
+export type Store<T, F extends boolean> = StoreImpl<T, F>;
 
 export type StoreCache<T> = WithValue<UnwrapPromise<T>> | WithError<UnwrapPromise<T>> | Pending<UnwrapPromise<T>>;
 
 const noop = () => undefined;
 const safe = (x: any) => (x instanceof Promise ? x.catch(() => undefined) : undefined);
 
-export class StoreImpl<T, G extends GetState<T>> {
+export class StoreImpl<T, F extends boolean> {
   private cache: StoreCache<T> = { status: 'pending', isUpdating: false, isStale: true, ref: {} };
   private cancel?: Cancel;
   private check?: () => boolean;
@@ -88,7 +89,7 @@ export class StoreImpl<T, G extends GetState<T>> {
   private effects = new Map<Effect, { handle?: Cancel; retain?: number; timeout?: ReturnType<typeof setTimeout> }>();
   private notifyId = {};
 
-  constructor(private getState: GetState<T>, private readonly options: StoreOptions<T> = {}) {
+  constructor(private provider: Provider<T>, private readonly options: StoreOptions<T> = {}) {
     this.get = this.get.bind(this);
     this.update = this.update.bind(this);
     this.subscribe = this.subscribe.bind(this);
@@ -108,18 +109,18 @@ export class StoreImpl<T, G extends GetState<T>> {
   }
 
   /** Get the current value. */
-  get(): StoreValue<T> {
+  get(): GetValue<T> {
     if (this.check?.() === false) {
       this.cache.isStale = true;
     }
 
     if (!this.cache.isStale || this.cache.update) {
       if (this.cache.update) {
-        return this.cache.update as StoreValue<T>;
+        return this.cache.update as GetValue<T>;
       }
 
       if (this.cache.status === 'value') {
-        return this.cache.value as StoreValue<T>;
+        return this.cache.value as GetValue<T>;
       }
 
       if (this.cache.status === 'error') {
@@ -129,29 +130,33 @@ export class StoreImpl<T, G extends GetState<T>> {
 
     this.cancel?.();
 
-    if (this.getState instanceof Function) {
-      this.getFromFunction(this.getState);
+    if (this.provider instanceof Function) {
+      this.getFromFunction(this.provider);
     } else {
-      this.setValue(this.getState);
+      this.setValue(this.provider);
     }
 
     if (this.cache.update) {
-      return this.cache.update as StoreValue<T>;
+      return this.cache.update as GetValue<T>;
     }
 
     if (this.cache.status === 'value') {
-      return this.cache.value as StoreValue<T>;
+      return this.cache.value as GetValue<T>;
     }
 
-    throw this.cache.error;
+    if (this.cache.status === 'error') {
+      throw this.cache.error;
+    }
+
+    return undefined;
   }
 
-  private getFromFunction(getState: (this: HelperFns, fn: HelperFns) => T) {
+  private getFromFunction(provider: GetStateFn<T> | ConnectStateFn<T>) {
     let stopped = false;
     const handles = new Array<Cancel>();
     const checks = new Array<() => boolean>();
 
-    const use: UseFn = <T, S>(store: Store<T>, arg1?: UseOptions | Selector<UnwrapPromise<T>, S>, arg2?: UseOptions) => {
+    const use: UseFn = <T, S>(store: Store<T, F>, arg1?: UseOptions | Selector<UnwrapPromise<T>, S>, arg2?: UseOptions) => {
       const selector = arg1 instanceof Function ? arg1 : (x: any) => x;
       const { disableProxy } = (arg1 instanceof Function ? arg2 : arg1) ?? {};
       let getValue = () => {
@@ -173,16 +178,50 @@ export class StoreImpl<T, G extends GetState<T>> {
       checks.push(() => store.cache.ref === ref || equals(getValue()));
 
       if (!stopped) {
-        const cancel = store.subscribeStatus((state) => [state.ref], this.get, { runNow: false });
+        const cancel = store.subscribeStatus(
+          (state) => [state.ref],
+          () => {
+            if (!this.check?.()) {
+              this.invalidate();
+            }
+          },
+          { runNow: false }
+        );
         handles.push(cancel);
       }
 
       return value;
     };
 
-    const connect: ConnectFn = () => {
-      // TODO implement
-    };
+    const q = queue();
+    const ref = {};
+
+    const update: PushFn<T> = (value) =>
+      q(async () => {
+        if (value instanceof Promise) {
+          try {
+            value = await value;
+          } catch (error) {
+            this._setError(error, ref);
+            return;
+          }
+        }
+
+        if (stopped) {
+          return;
+        }
+
+        this._setValue(value, ref);
+      });
+
+    const updateError: PushFn<unknown> = (error) =>
+      q(() => {
+        if (stopped) {
+          return;
+        }
+
+        this._setError(error, ref);
+      });
 
     this.cancel = () => {
       stopped = true;
@@ -200,8 +239,17 @@ export class StoreImpl<T, G extends GetState<T>> {
     };
 
     try {
-      const value = getState.apply({ use, connect }, [{ use, connect }]);
-      this.setValue(value);
+      const value = (provider as any).apply({ use, update, updateError }, [{ use, update, updateError }]);
+
+      if (value instanceof Function) {
+        handles.push(value);
+
+        this.cache.isUpdating = true;
+        delete this.cache.update;
+        this.cache.ref = ref;
+      } else {
+        this.setValue(value);
+      }
     } catch (error) {
       this.setError(error);
     }
@@ -256,6 +304,10 @@ export class StoreImpl<T, G extends GetState<T>> {
     delete this.cache.error;
     this.cache.ref = {};
 
+    if (this.isActive) {
+      safe(this.get());
+    }
+
     this.notify();
   }
 
@@ -263,13 +315,12 @@ export class StoreImpl<T, G extends GetState<T>> {
     this.cache.isUpdating = false;
     this.cache.isStale = true;
     delete this.cache.update;
-    this.cache.ref = {};
 
     if (this.isActive) {
       safe(this.get());
-    } else {
-      this.notify();
     }
+
+    this.notify();
   }
 
   private async watchPromise(promise: Promise<UnwrapPromise<T>>) {
@@ -287,15 +338,15 @@ export class StoreImpl<T, G extends GetState<T>> {
     }
   }
 
-  update(update: UpdateFrom<T | UnwrapPromise<T>, [StoreSubValue<T, G>, StoreSubDetails<T, G>]>): this;
+  update(update: UpdateFrom<T | UnwrapPromise<T>, [SubscribeValue<T, F>, SubscribeDetails<T, F>]>): this;
   update<K extends Path<UnwrapPromise<T>>>(path: K, update: Update<Value<UnwrapPromise<T>, K>>): this;
   update(...args: any[]) {
     if (args.length === 1) {
-      let update = args[0] as UpdateFrom<T | UnwrapPromise<T>, [StoreSubValue<T, G>, StoreSubDetails<T, G>]>;
+      let update = args[0] as UpdateFrom<T | UnwrapPromise<T>, [SubscribeValue<T, F>, SubscribeDetails<T, F>]>;
 
       if (update instanceof Function) {
         safe(this.get());
-        update = update(this.cache.value as StoreSubValue<T, G>, this.cache as StoreSubDetails<T, G>);
+        update = update(this.cache.value as SubscribeValue<T, F>, this.cache as SubscribeDetails<T, F>);
       }
 
       this.setValue(update);
@@ -321,8 +372,8 @@ export class StoreImpl<T, G extends GetState<T>> {
   }
 
   /** Subscribe to updates. Every time the store's state changes, the callback will be executed with the new value. */
-  subscribe(listener: Listener<StoreSubValue<T, G>>, options?: SubscribeOptions): Cancel;
-  subscribe<S>(selector: Selector<StoreSubValue<T, G>, S>, listener: Listener<S>, options?: SubscribeOptions): Cancel;
+  subscribe(listener: Listener<SubscribeValue<T, F>>, options?: SubscribeOptions): Cancel;
+  subscribe<S>(selector: Selector<SubscribeValue<T, F>, S>, listener: Listener<S>, options?: SubscribeOptions): Cancel;
   subscribe<P extends Path<UnwrapPromise<T>>>(
     selector: P,
     listener: Listener<Value<UnwrapPromise<T>, P>>,
@@ -330,38 +381,38 @@ export class StoreImpl<T, G extends GetState<T>> {
   ): Cancel;
   subscribe(
     ...[arg0, arg1, arg2]:
-      | [listener: Listener<StoreSubValue<T, G>>, options?: SubscribeOptions]
-      | [selector: ((value: StoreSubValue<T, G>) => any) | string, listener: Listener<any>, options?: SubscribeOptions]
+      | [listener: Listener<SubscribeValue<T, F>>, options?: SubscribeOptions]
+      | [selector: ((value: SubscribeValue<T, F>) => any) | string, listener: Listener<any>, options?: SubscribeOptions]
   ) {
     const selector = makeSelector(arg1 instanceof Function ? arg0 : undefined);
     const listener = (arg1 instanceof Function ? arg1 : arg0) as Listener<any>;
     const options = arg1 instanceof Function ? arg2 : arg1;
 
     return this.subscribeStatus(
-      (state) => (state.status === 'value' ? selector(state.value as StoreSubValue<T, G>) : undefined),
+      (state) => (state.status === 'value' ? selector(state.value as SubscribeValue<T, F>) : undefined),
       listener,
       options
     );
   }
 
   /** Subscribe to updates. Every time the store's state changes, the callback will be executed with the new value. */
-  subscribeStatus(listener: Listener<StoreSubDetails<T, G>>, options?: SubscribeOptions): Cancel;
-  subscribeStatus<S>(selector: Selector<StoreSubDetails<T, G>, S>, listener: Listener<S>, options?: SubscribeOptions): Cancel;
-  subscribeStatus<P extends Path<StoreSubDetails<T, G>>>(
+  subscribeStatus(listener: Listener<SubscribeDetails<T, F>>, options?: SubscribeOptions): Cancel;
+  subscribeStatus<S>(selector: Selector<SubscribeDetails<T, F>, S>, listener: Listener<S>, options?: SubscribeOptions): Cancel;
+  subscribeStatus<P extends Path<SubscribeDetails<T, F>>>(
     selector: P,
-    listener: Listener<Value<StoreSubDetails<T, G>, P>>,
+    listener: Listener<Value<SubscribeDetails<T, F>, P>>,
     options?: SubscribeOptions
   ): Cancel;
   subscribeStatus(
     ...[arg0, arg1, arg2]:
-      | [listener: Listener<StoreSubDetails<T, G>>, options?: SubscribeOptions]
-      | [selector: ((value: StoreSubDetails<T, G>) => any) | string, listener: Listener<any>, options?: SubscribeOptions]
+      | [listener: Listener<SubscribeDetails<T, F>>, options?: SubscribeOptions]
+      | [selector: ((value: SubscribeDetails<T, F>) => any) | string, listener: Listener<any>, options?: SubscribeOptions]
   ) {
     const selector = arg1 instanceof Function ? makeSelector(arg0) : undefined;
     const listener = (arg1 instanceof Function ? arg1 : arg0) as Listener<any>;
     const { runNow = true, throttle: throttleOption, equals = defaultEquals } = (arg1 instanceof Function ? arg2 : arg1) ?? {};
 
-    const getValue = selector ? () => selector({ ...this.cache } as StoreSubDetails<T, G>) : () => ({ ...this.cache });
+    const getValue = selector ? () => selector({ ...this.cache } as SubscribeDetails<T, F>) : () => ({ ...this.cache });
     const compare = selector
       ? equals
       : ({ value: value1, ...rest1 }: any, { value2, ...rest2 }: any) => simpleShallowEquals(rest1, rest2) && equals(value1, value2);
@@ -468,7 +519,7 @@ export class StoreImpl<T, G extends GetState<T>> {
   }
 }
 
-type StoreWithActions<T, G extends GetState<T>, Actions extends StoreActions> = Store<T, G> &
+type StoreWithActions<T, F extends boolean, Actions extends StoreActions> = Store<T, F> &
   (Record<string, never> extends Actions
     ? T extends Map<any, any>
       ? typeof mapActions
@@ -479,22 +530,27 @@ type StoreWithActions<T, G extends GetState<T>, Actions extends StoreActions> = 
       : T extends Record<any, any>
       ? typeof recordActions
       : Record<string, never>
-    : Omit<BoundStoreActions<T, Actions>, keyof Store<T, G>>);
+    : Omit<BoundStoreActions<T, F, Actions>, keyof Store<T, F>>);
 
-export function store<G extends (this: HelperFns, fn: HelperFns) => any, Actions extends StoreActions = Record<string, never>>(
-  getState: G,
-  options?: StoreOptionsWithActions<G extends (this: HelperFns, fn: HelperFns) => infer T ? T : never, G, Actions>
-): StoreWithActions<G extends (this: HelperFns, fn: HelperFns) => infer T ? T : never, G, Actions>;
+export function store<T, Actions extends StoreActions = Record<string, never>>(
+  connect: ConnectStateFn<T>,
+  options?: StoreOptionsWithActions<T, true, Actions>
+): StoreWithActions<T, true, Actions>;
+
+export function store<T, Actions extends StoreActions = Record<string, never>>(
+  getState: GetStateFn<T>,
+  options?: StoreOptionsWithActions<T, true, Actions>
+): StoreWithActions<T, true, Actions>;
 
 export function store<T, Actions extends StoreActions = Record<string, never>>(
   initialState: T,
-  options?: StoreOptionsWithActions<T, T, Actions>
-): StoreWithActions<T, T, Actions>;
+  options?: StoreOptionsWithActions<T, false, Actions>
+): StoreWithActions<T, false, Actions>;
 
-export function store<T, G extends GetState<T>, Actions extends StoreActions>(
-  getState: G,
-  options: StoreOptionsWithActions<T, G, Actions> = {}
-): StoreWithActions<T, G, Actions> {
+export function store<T, Actions extends StoreActions>(
+  getState: Provider<T>,
+  options: StoreOptionsWithActions<T, any, Actions> = {}
+): StoreWithActions<T, any, Actions> {
   let methods = options.methods;
 
   if (getState instanceof Map) {
@@ -510,10 +566,10 @@ export function store<T, G extends GetState<T>, Actions extends StoreActions>(
   const store = new StoreImpl(getState, options);
 
   const boundActions = Object.fromEntries(
-    Object.entries(methods ?? ({} as BoundStoreActions<T, any>))
+    Object.entries(methods ?? ({} as BoundStoreActions<T, any, any>))
       .filter(([name]) => !(name in store))
       .map(([name, fn]) => [name, (fn as any).bind(store)])
-  ) as BoundStoreActions<T, any>;
+  ) as BoundStoreActions<T, any, any>;
 
   return Object.assign(store, boundActions);
 }

@@ -10,7 +10,7 @@ export {
   StoreOptions,
   StoreOptionsWithActions,
   StorePromise,
-  StoreValue,
+  GetValue as StoreValue,
 } from './core/store';
 export { storeSet, StoreSetOptions } from './core/storeSet';
 export { arrayActions, mapActions, recordActions, setActions } from './lib/storeActions';

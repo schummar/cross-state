@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { store } from '../../src';
-import { HelperFns } from '../../src/core/store';
+import { ProviderHelpers } from '../../src/core/store';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -68,7 +68,7 @@ describe('computed', () => {
 
     test('update only when selected part changes', async () => {
       const dep = store({ x: 1, y: 2 });
-      const calc = vi.fn(({ use }: HelperFns) => use(dep, (s) => s.x) + 2);
+      const calc = vi.fn(({ use }: ProviderHelpers) => use(dep, (s) => s.x) + 2);
       const state = store(calc);
       state.subscribe(() => undefined);
 
@@ -94,7 +94,7 @@ describe('computed', () => {
 
     test('update only when selected part changes', async () => {
       const dep = store({ x: 1, y: 2 });
-      const calc = vi.fn(({ use }: HelperFns) => use(dep).x + 2);
+      const calc = vi.fn(({ use }: ProviderHelpers) => use(dep).x + 2);
       const state = store(calc);
       state.subscribe(() => undefined);
 
@@ -111,7 +111,7 @@ describe('computed', () => {
 
     test('disable', async () => {
       const dep = store({ x: 1, y: 2 });
-      const calc = vi.fn(({ use }: HelperFns) => use(dep, { disableProxy: true }).x + 2);
+      const calc = vi.fn(({ use }: ProviderHelpers) => use(dep, { disableProxy: true }).x + 2);
       const state = store(calc);
       state.subscribe(() => undefined);
       dep.update({ x: 1, y: 3 });
@@ -123,7 +123,7 @@ describe('computed', () => {
   describe('lazy computation', () => {
     test('with get', async () => {
       const dep = store(1);
-      const calc = vi.fn(({ use }: HelperFns) => use(dep) + 1);
+      const calc = vi.fn(({ use }: ProviderHelpers) => use(dep) + 1);
       const state = store(calc);
 
       expect(calc).toBeCalledTimes(0);
@@ -143,7 +143,7 @@ describe('computed', () => {
 
     test('with subscribe', async () => {
       const dep = store(1);
-      const calc = vi.fn(({ use }: HelperFns) => use(dep) + 1);
+      const calc = vi.fn(({ use }: ProviderHelpers) => use(dep) + 1);
       const state = store(calc);
       state.subscribe(() => undefined);
 
