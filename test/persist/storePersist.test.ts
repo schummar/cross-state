@@ -254,3 +254,23 @@ test('undefined', async (t) => {
 
   t.is(newStore.getState().foo, undefined);
 });
+
+test('serialized map/set/date', async (t) => {
+  const store = new Store<any>({});
+  const storage = new MockStorage();
+  const persist = new StorePersist(store, storage);
+  await persist.initialization;
+
+  store.set({ a: new Map([['a', 1]]), b: new Set('b'), c: new Date(0) });
+  await Promise.resolve();
+
+  t.deepEqual(storage.items, { '': '{"a":{"__map":[["a",1]]},"b":{"__set":["b"]},"c":{"__date":"1970-01-01T00:00:00.000Z"}}' });
+
+  const newStore = new Store<any>({});
+  const newPersist = new StorePersist(newStore, storage);
+  await newPersist.initialization;
+
+  t.assert(newStore.getState().a instanceof Map);
+  t.assert(newStore.getState().b instanceof Set);
+  t.assert(newStore.getState().c instanceof Date);
+});

@@ -56,7 +56,7 @@ export class StorePersist<T> {
         patches.push({
           path: key === '' ? [] : key.split('.'),
           op: 'replace',
-          value: value === 'undefined' ? undefined : JSON.parse(value),
+          value: value === 'undefined' ? undefined : parse(value),
           persist: this,
         });
       }
@@ -127,10 +127,10 @@ export class StorePersist<T> {
       subValues.push(...result[1].map((s) => ({ path: [...path, ...s.path], value: s.value })));
     }
 
-    const result = storage.setItem(path.join('.'), JSON.stringify(value) ?? 'undefined');
+    const result = storage.setItem(path.join('.'), stringify(value) ?? 'undefined');
     if (result instanceof Promise) await result;
     for (const { path, value } of subValues) {
-      const result = storage.setItem(path.join('.'), JSON.stringify(value) ?? 'undefined');
+      const result = storage.setItem(path.join('.'), stringify(value) ?? 'undefined');
       if (result instanceof Promise) await result;
     }
   }
@@ -139,4 +139,50 @@ export class StorePersist<T> {
     this.isStopped = true;
     this.sub?.();
   }
+}
+
+function stringify(value: any) {
+  function prepare(value: any): any {
+    if (value instanceof Date) {
+      return { __date: value.toJSON() };
+    }
+
+    if (value instanceof Set) {
+      return { __set: Array.from(value).map(prepare) };
+    }
+
+    if (value instanceof Map) {
+      return { __map: Array.from(value.entries()).map((entry) => entry.map(prepare)) };
+    }
+
+    if (value instanceof Array) {
+      return value.map(prepare);
+    }
+
+    if (value instanceof Object) {
+      return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, prepare(v)]));
+    }
+
+    return value;
+  }
+
+  return JSON.stringify(prepare(value));
+}
+
+function parse(value: string) {
+  return JSON.parse(value, (_key, value) => {
+    if (value instanceof Object && '__date' in value) {
+      return new Date(value.__date);
+    }
+
+    if (value instanceof Object && '__set' in value) {
+      return new Set(value.__set);
+    }
+
+    if (value instanceof Object && '__map' in value) {
+      return new Map(value.__map);
+    }
+
+    return value;
+  });
 }
