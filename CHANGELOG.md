@@ -1,5 +1,12 @@
 # Changelog
 
+### [0.4.4](https://www.github.com/schummar/schummar-state/compare/v0.4.3...v0.4.4) (2022-09-26)
+
+
+### Bug Fixes
+
+* persists map/set/date ([2f9d309](https://www.github.com/schummar/schummar-state/commit/2f9d309199fd53818fabb8ea1da0f52d48369ad2))
+
 ### [0.4.3](https://www.github.com/schummar/schummar-state/compare/v0.4.2...v0.4.3) (2022-08-04)
 
 
