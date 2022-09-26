@@ -10,7 +10,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe.skip('atomicStore', () => {
+describe('atomicStore', () => {
   test('create store', () => {
     const state = store(1);
     expect(state).toBeTruthy();
@@ -97,11 +97,11 @@ describe.skip('atomicStore', () => {
     test('store.subscribe', () => {
       const state = store(1);
       const listener = vi.fn();
-      state.subscribe(listener);
+      state.subscribeStatus(listener);
       state.update(2);
-      expect(listener.mock.calls).toEqual([
-        [1, undefined, { isUpdating: false, isStale: false, status: 'value', value: 1 }],
-        [2, 1, { isUpdating: false, isStale: false, status: 'value', value: 2 }],
+      expect(listener.mock.calls.map((x) => x[0])).toEqual([
+        { isUpdating: false, isStale: false, status: 'value', value: 1, ref: {} },
+        { isUpdating: false, isStale: false, status: 'value', value: 2, ref: {} },
       ]);
     });
 
@@ -111,7 +111,7 @@ describe.skip('atomicStore', () => {
       state.subscribe(listener, { runNow: false });
 
       state.update(2);
-      expect(listener.mock.calls).toMatchObject([[2, undefined, {}]]);
+      expect(listener.mock.calls).toMatchObject([[2, undefined]]);
     });
 
     test('store.subscribe throttle', async () => {
@@ -121,12 +121,12 @@ describe.skip('atomicStore', () => {
       state.update(2);
       vi.advanceTimersByTime(1);
       state.update(3);
-      expect(listener.mock.calls).toMatchObject([[1, undefined, {}]]);
+      expect(listener.mock.calls).toMatchObject([[1, undefined]]);
 
       vi.advanceTimersByTime(1);
       expect(listener.mock.calls).toMatchObject([
-        [1, undefined, {}],
-        [3, 1, {}],
+        [1, undefined],
+        [3, 1],
       ]);
     });
 
@@ -136,8 +136,8 @@ describe.skip('atomicStore', () => {
       state.subscribe(listener);
       state.update({ a: 1 });
       expect(listener.mock.calls).toMatchObject([
-        [{ a: 1 }, undefined, {}],
-        [{ a: 1 }, { a: 1 }, {}],
+        [{ a: 1 }, undefined],
+        [{ a: 1 }, { a: 1 }],
       ]);
     });
 
@@ -146,7 +146,7 @@ describe.skip('atomicStore', () => {
       const listener = vi.fn();
       state.subscribe(listener, { equals: shallowEqual });
       state.update({ a: 1 });
-      expect(listener.mock.calls).toMatchObject([[{ a: 1 }, undefined, {}]]);
+      expect(listener.mock.calls).toMatchObject([[{ a: 1 }, undefined]]);
     });
 
     test('catch error', async () => {

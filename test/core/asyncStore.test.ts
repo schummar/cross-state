@@ -1,6 +1,7 @@
 import { shallowEqual } from 'fast-equals';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { store, storeSet } from '../../src';
+import { simpleShallowEquals } from '../../src/lib/equals';
 import { flushPromises, getValues, sleep, testAsyncState } from '../testHelpers';
 
 beforeEach(() => {
@@ -69,18 +70,18 @@ describe('store', () => {
       expect(getValues(listener2)).toEqual([undefined, 3]);
     });
 
-    test.skip('when the actions throws an error', async () => {
+    test('when the actions throws an error', async () => {
       const state = store(async () => {
         throw Error('error');
       });
       const listener = vi.fn();
-      state.subscribe(listener);
+      state.subscribeStatus(listener);
 
       await flushPromises();
-      expect(listener.mock.calls).toEqual([
+      expect(getValues(listener)).toEqual([
         //
-        [testAsyncState({ isPending: true }), undefined],
-        [testAsyncState({ error: Error('error') }), testAsyncState({ isPending: true })],
+        undefined,
+        Error('error'),
       ]);
     });
 

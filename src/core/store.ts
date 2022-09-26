@@ -159,7 +159,7 @@ export class StoreImpl<T, F extends boolean> {
     const use: UseFn = <T, S>(store: Store<T, F>, arg1?: UseOptions | Selector<UnwrapPromise<T>, S>, arg2?: UseOptions) => {
       const selector = arg1 instanceof Function ? arg1 : (x: any) => x;
       const { disableProxy } = (arg1 instanceof Function ? arg2 : arg1) ?? {};
-      let getValue = () => {
+      const getValue = () => {
         const value = store.get();
         if (value instanceof Promise) {
           return value.then((x) => selector(x));
@@ -179,7 +179,7 @@ export class StoreImpl<T, F extends boolean> {
 
       if (!stopped) {
         const cancel = store.subscribeStatus(
-          (state) => [state.ref],
+          (state) => state.ref,
           () => {
             if (!this.check?.()) {
               this.invalidate();
@@ -415,7 +415,7 @@ export class StoreImpl<T, F extends boolean> {
     const getValue = selector ? () => selector({ ...this.cache } as SubscribeDetails<T, F>) : () => ({ ...this.cache });
     const compare = selector
       ? equals
-      : ({ value: value1, ...rest1 }: any, { value2, ...rest2 }: any) => simpleShallowEquals(rest1, rest2) && equals(value1, value2);
+      : ({ value: value1, ...rest1 }: any, { value: value2, ...rest2 }: any) => simpleShallowEquals(rest1, rest2) && equals(value1, value2);
 
     let previousValue = getValue();
 

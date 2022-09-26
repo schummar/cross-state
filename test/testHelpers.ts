@@ -13,14 +13,3 @@ export async function sleep(ms: number) {
 }
 
 export const getValues = (fn: any) => fn.mock.calls.map(([x]: any) => (x instanceof Object && 'status' in x ? x?.error ?? x?.value : x));
-
-export const testAsyncState = (x: any = {}) => {
-  const state = {
-    value: x.value,
-    error: x.error,
-    isPending: x.isPending ?? false,
-    isStale: x.isStale ?? false,
-    status: 'value' in x ? 'value' : 'error' in x ? 'error' : 'empty',
-  };
-  return Object.assign(Object.values(state), state);
-};
