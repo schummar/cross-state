@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { store } from '../../src';
-import { flushPromises, testAsyncState, sleep, getValues } from '../testHelpers';
+import { flushPromises, getValues, sleep } from '../testHelpers';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -10,7 +10,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-class FakeWebSocket<T> {
+export class FakeWebSocket<T> {
   timers: ReturnType<typeof setTimeout>[] = [];
 
   constructor(plan: [T | Error, number][]) {
@@ -209,7 +209,7 @@ describe('pushStore', () => {
   });
 
   describe('unsubscribe', () => {
-    test.todo('with no retention', async () => {
+    test('with no retention', async () => {
       const state = store<number>(
         function () {
           const ws = new FakeWebSocket([
@@ -234,7 +234,7 @@ describe('pushStore', () => {
       expect(getValues(listener)).toEqual([undefined, 1]);
     });
 
-    test.todo('with retention', async () => {
+    test('with retention', async () => {
       const state = store<number>(
         function () {
           const ws = new FakeWebSocket([
@@ -258,33 +258,7 @@ describe('pushStore', () => {
       await flushPromises();
 
       expect(getValues(listener)).toEqual([undefined, 1]);
-      expect(state.get().value).toBe(2);
-    });
-
-    test.todo('getPromise', async () => {
-      const state = store<number>(function () {
-        const ws = new FakeWebSocket([[1, 1]]);
-        ws.onmessage = this.update;
-        return () => undefined;
-      });
-
-      const promise = state.getPromise();
-      vi.advanceTimersByTime(1);
-      const value = await promise;
-      expect(value).toBe(1);
-    });
-
-    test.todo('getPromise with error', async () => {
-      const state = store<number>(function () {
-        const ws = new FakeWebSocket([[Error('error'), 1]]);
-        ws.onerror = this.updateError;
-        return () => undefined;
-      });
-
-      const promise = state.getPromise();
-      vi.advanceTimersByTime(1);
-
-      expect(promise).rejects.toThrow(Error('error'));
+      expect(state.get()).toBe(2);
     });
 
     test('update', async () => {

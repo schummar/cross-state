@@ -20,34 +20,40 @@ type WithValue<T> = { status: 'value'; value: T; error?: undefined } & Common<T>
 type WithError<T> = { status: 'error'; value?: undefined; error: unknown } & Common<T>;
 type Pending<T> = { status: 'pending'; value?: undefined; error?: undefined } & Common<T>;
 
-export type GetValue<T> = T extends Promise<infer S> ? T | S : T;
+export type StoreType = 'static' | 'dynamic' | 'subscription';
 
-export type SubscribeValue<T, F> = T extends Promise<infer S> ? S | undefined : F extends true ? T | undefined : T;
+export type GetValue<T, Type extends StoreType> =
+  | (T extends Promise<infer S> ? T | S : T)
+  | (Type extends 'subscription' ? undefined : never);
 
-export type SelectorInputValue<S, F> = F extends true ? S | undefined : S;
+export type SubscribeValue<T, Type extends StoreType> =
+  | (T extends Promise<infer S> ? S | undefined : T)
+  | (Type extends 'dynamic' | 'subscription' ? undefined : never);
 
-export type SubscribeDetails<T, F> = T extends Promise<any>
-  ? WithValue<UnwrapPromise<T>> | WithError<UnwrapPromise<T>> | Pending<UnwrapPromise<T>>
-  : F extends true
-  ? WithValue<UnwrapPromise<T>> | WithError<UnwrapPromise<T>>
-  : WithValue<T>;
+export type SelectorInputValue<S, Type extends StoreType> = Type extends 'dynamic' | 'subscription' ? S | undefined : S;
+
+export type SubscribeDetails<T, Type extends StoreType> =
+  | WithValue<UnwrapPromise<T>>
+  | (T extends Promise<infer S> ? Pending<S> | WithError<S> : never)
+  | (Type extends 'dynamic' | 'subscription' ? WithError<UnwrapPromise<T>> : never);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Actions
 export type StoreActions = Record<string, (...args: any[]) => any>;
 
-export type BoundStoreActions<T, F extends boolean, Actions extends StoreActions> = Actions & ThisType<Store<T, F> & Actions>;
+export type BoundStoreActions<T, Type extends StoreType, Actions extends StoreActions> = Actions & ThisType<Store<T, Type> & Actions>;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Options
-export interface StoreOptions<T> {
-  invalidateAfter?: Duration | ((state: GetValue<T>) => Duration);
-  clearAfter?: Duration | ((state: GetValue<T>) => Duration);
+export interface StoreOptions<T, Type extends StoreType> {
+  invalidateAfter?: Duration | ((state: GetValue<T, Type>) => Duration);
+  clearAfter?: Duration | ((state: GetValue<T, Type>) => Duration);
   resourceGroup?: ResourceGroup | ResourceGroup[];
+  retain?: number;
 }
 
-export interface StoreOptionsWithActions<T, F extends boolean, Actions extends StoreActions> extends StoreOptions<T> {
-  methods?: Actions & ThisType<Store<T, F> & Actions>;
+export interface StoreOptionsWithActions<T, Type extends StoreType, Actions extends StoreActions> extends StoreOptions<T, Type> {
+  methods?: Actions & ThisType<Store<T, Type> & Actions>;
 }
 
 export interface UseOptions {
@@ -55,7 +61,7 @@ export interface UseOptions {
 }
 
 export interface UseFn {
-  <T>(store: Store<T, any>, options?: UseOptions): GetValue<T>;
+  <T, Type extends StoreType>(store: Store<T, Type>, options?: UseOptions): GetValue<T, Type>;
   <T, S>(store: Store<T, any>, selector: Selector<UnwrapPromise<T>, S>, options?: UseOptions): T extends Promise<any> ? Promise<S> : S;
 }
 
@@ -72,14 +78,16 @@ type ConnectStateFn<T> = (this: ProviderHelpers<T>, fn: ProviderHelpers<T>) => C
 
 type Provider<T> = T | GetStateFn<T> | ConnectStateFn<T>;
 
-export type Store<T, F extends boolean> = StoreImpl<T, F>;
+export type Store<T, Type extends StoreType = 'static' | 'dynamic' | 'subscription'> = StoreImpl<T, Type>;
 
 export type StoreCache<T> = WithValue<UnwrapPromise<T>> | WithError<UnwrapPromise<T>> | Pending<UnwrapPromise<T>>;
 
 const noop = () => undefined;
 const safe = (x: any) => (x instanceof Promise ? x.catch(() => undefined) : undefined);
 
-export class StoreImpl<T, F extends boolean> {
+const defaultOptions: StoreOptions<unknown, 'static' | 'dynamic' | 'subscription'> = {};
+
+export class StoreImpl<T, Type extends StoreType> {
   private cache: StoreCache<T> = { status: 'pending', isUpdating: false, isStale: true, ref: {} };
   private cancel?: Cancel;
   private check?: () => boolean;
@@ -89,7 +97,7 @@ export class StoreImpl<T, F extends boolean> {
   private effects = new Map<Effect, { handle?: Cancel; retain?: number; timeout?: ReturnType<typeof setTimeout> }>();
   private notifyId = {};
 
-  constructor(private provider: Provider<T>, private readonly options: StoreOptions<T> = {}) {
+  constructor(private provider: Provider<T>, private readonly options: StoreOptions<T, Type> = {}) {
     this.get = this.get.bind(this);
     this.update = this.update.bind(this);
     this.subscribe = this.subscribe.bind(this);
@@ -105,22 +113,22 @@ export class StoreImpl<T, F extends boolean> {
       return () => {
         this.cancel?.();
       };
-    });
+    }, options.retain ?? { milliseconds: 100 });
   }
 
   /** Get the current value. */
-  get(): GetValue<T> {
+  get(): GetValue<T, Type> {
     if (this.check?.() === false) {
       this.cache.isStale = true;
     }
 
     if (!this.cache.isStale || this.cache.update) {
       if (this.cache.update) {
-        return this.cache.update as GetValue<T>;
+        return this.cache.update as GetValue<T, Type>;
       }
 
       if (this.cache.status === 'value') {
-        return this.cache.value as GetValue<T>;
+        return this.cache.value as GetValue<T, Type>;
       }
 
       if (this.cache.status === 'error') {
@@ -137,18 +145,18 @@ export class StoreImpl<T, F extends boolean> {
     }
 
     if (this.cache.update) {
-      return this.cache.update as GetValue<T>;
+      return this.cache.update as GetValue<T, Type>;
     }
 
     if (this.cache.status === 'value') {
-      return this.cache.value as GetValue<T>;
+      return this.cache.value as GetValue<T, Type>;
     }
 
     if (this.cache.status === 'error') {
       throw this.cache.error;
     }
 
-    return undefined;
+    return undefined as GetValue<T, Type>;
   }
 
   private getFromFunction(provider: GetStateFn<T> | ConnectStateFn<T>) {
@@ -156,7 +164,11 @@ export class StoreImpl<T, F extends boolean> {
     const handles = new Array<Cancel>();
     const checks = new Array<() => boolean>();
 
-    const use: UseFn = <T, S>(store: Store<T, F>, arg1?: UseOptions | Selector<UnwrapPromise<T>, S>, arg2?: UseOptions) => {
+    const use: UseFn = <T, Type extends StoreType, S>(
+      store: Store<T, Type>,
+      arg1?: UseOptions | Selector<UnwrapPromise<T>, S>,
+      arg2?: UseOptions
+    ) => {
       const selector = arg1 instanceof Function ? arg1 : (x: any) => x;
       const { disableProxy } = (arg1 instanceof Function ? arg2 : arg1) ?? {};
       const getValue = () => {
@@ -338,15 +350,15 @@ export class StoreImpl<T, F extends boolean> {
     }
   }
 
-  update(update: UpdateFrom<T | UnwrapPromise<T>, [SubscribeValue<T, F>, SubscribeDetails<T, F>]>): this;
+  update(update: UpdateFrom<T | UnwrapPromise<T>, [SubscribeValue<T, Type>, SubscribeDetails<T, Type>]>): this;
   update<K extends Path<UnwrapPromise<T>>>(path: K, update: Update<Value<UnwrapPromise<T>, K>>): this;
   update(...args: any[]) {
     if (args.length === 1) {
-      let update = args[0] as UpdateFrom<T | UnwrapPromise<T>, [SubscribeValue<T, F>, SubscribeDetails<T, F>]>;
+      let update = args[0] as UpdateFrom<T | UnwrapPromise<T>, [SubscribeValue<T, Type>, SubscribeDetails<T, Type>]>;
 
       if (update instanceof Function) {
         safe(this.get());
-        update = update(this.cache.value as SubscribeValue<T, F>, this.cache as SubscribeDetails<T, F>);
+        update = update(this.cache.value as SubscribeValue<T, Type>, this.cache as SubscribeDetails<T, Type>);
       }
 
       this.setValue(update);
@@ -372,8 +384,8 @@ export class StoreImpl<T, F extends boolean> {
   }
 
   /** Subscribe to updates. Every time the store's state changes, the callback will be executed with the new value. */
-  subscribe(listener: Listener<SubscribeValue<T, F>>, options?: SubscribeOptions): Cancel;
-  subscribe<S>(selector: Selector<SubscribeValue<T, F>, S>, listener: Listener<S>, options?: SubscribeOptions): Cancel;
+  subscribe(listener: Listener<SubscribeValue<T, Type>>, options?: SubscribeOptions): Cancel;
+  subscribe<S>(selector: Selector<SubscribeValue<T, Type>, S>, listener: Listener<S>, options?: SubscribeOptions): Cancel;
   subscribe<P extends Path<UnwrapPromise<T>>>(
     selector: P,
     listener: Listener<Value<UnwrapPromise<T>, P>>,
@@ -381,38 +393,38 @@ export class StoreImpl<T, F extends boolean> {
   ): Cancel;
   subscribe(
     ...[arg0, arg1, arg2]:
-      | [listener: Listener<SubscribeValue<T, F>>, options?: SubscribeOptions]
-      | [selector: ((value: SubscribeValue<T, F>) => any) | string, listener: Listener<any>, options?: SubscribeOptions]
+      | [listener: Listener<SubscribeValue<T, Type>>, options?: SubscribeOptions]
+      | [selector: ((value: SubscribeValue<T, Type>) => any) | string, listener: Listener<any>, options?: SubscribeOptions]
   ) {
     const selector = makeSelector(arg1 instanceof Function ? arg0 : undefined);
     const listener = (arg1 instanceof Function ? arg1 : arg0) as Listener<any>;
     const options = arg1 instanceof Function ? arg2 : arg1;
 
     return this.subscribeStatus(
-      (state) => (state.status === 'value' ? selector(state.value as SubscribeValue<T, F>) : undefined),
+      (state) => (state.status === 'value' ? selector(state.value as SubscribeValue<T, Type>) : undefined),
       listener,
       options
     );
   }
 
   /** Subscribe to updates. Every time the store's state changes, the callback will be executed with the new value. */
-  subscribeStatus(listener: Listener<SubscribeDetails<T, F>>, options?: SubscribeOptions): Cancel;
-  subscribeStatus<S>(selector: Selector<SubscribeDetails<T, F>, S>, listener: Listener<S>, options?: SubscribeOptions): Cancel;
-  subscribeStatus<P extends Path<SubscribeDetails<T, F>>>(
+  subscribeStatus(listener: Listener<SubscribeDetails<T, Type>>, options?: SubscribeOptions): Cancel;
+  subscribeStatus<S>(selector: Selector<SubscribeDetails<T, Type>, S>, listener: Listener<S>, options?: SubscribeOptions): Cancel;
+  subscribeStatus<P extends Path<SubscribeDetails<T, Type>>>(
     selector: P,
-    listener: Listener<Value<SubscribeDetails<T, F>, P>>,
+    listener: Listener<Value<SubscribeDetails<T, Type>, P>>,
     options?: SubscribeOptions
   ): Cancel;
   subscribeStatus(
     ...[arg0, arg1, arg2]:
-      | [listener: Listener<SubscribeDetails<T, F>>, options?: SubscribeOptions]
-      | [selector: ((value: SubscribeDetails<T, F>) => any) | string, listener: Listener<any>, options?: SubscribeOptions]
+      | [listener: Listener<SubscribeDetails<T, Type>>, options?: SubscribeOptions]
+      | [selector: ((value: SubscribeDetails<T, Type>) => any) | string, listener: Listener<any>, options?: SubscribeOptions]
   ) {
     const selector = arg1 instanceof Function ? makeSelector(arg0) : undefined;
     const listener = (arg1 instanceof Function ? arg1 : arg0) as Listener<any>;
     const { runNow = true, throttle: throttleOption, equals = defaultEquals } = (arg1 instanceof Function ? arg2 : arg1) ?? {};
 
-    const getValue = selector ? () => selector({ ...this.cache } as SubscribeDetails<T, F>) : () => ({ ...this.cache });
+    const getValue = selector ? () => selector({ ...this.cache } as SubscribeDetails<T, Type>) : () => ({ ...this.cache });
     const compare = selector
       ? equals
       : ({ value: value1, ...rest1 }: any, { value: value2, ...rest2 }: any) => simpleShallowEquals(rest1, rest2) && equals(value1, value2);
@@ -519,7 +531,7 @@ export class StoreImpl<T, F extends boolean> {
   }
 }
 
-type StoreWithActions<T, F extends boolean, Actions extends StoreActions> = Store<T, F> &
+type StoreWithActions<T, Type extends StoreType, Actions extends StoreActions> = Store<T, Type> &
   (Record<string, never> extends Actions
     ? T extends Map<any, any>
       ? typeof mapActions
@@ -530,24 +542,24 @@ type StoreWithActions<T, F extends boolean, Actions extends StoreActions> = Stor
       : T extends Record<any, any>
       ? typeof recordActions
       : Record<string, never>
-    : Omit<BoundStoreActions<T, F, Actions>, keyof Store<T, F>>);
+    : Omit<BoundStoreActions<T, Type, Actions>, keyof Store<T, Type>>);
 
-export function store<T, Actions extends StoreActions = Record<string, never>>(
+function _store<T, Actions extends StoreActions = Record<string, never>>(
   connect: ConnectStateFn<T>,
-  options?: StoreOptionsWithActions<T, true, Actions>
-): StoreWithActions<T, true, Actions>;
+  options?: StoreOptionsWithActions<T, 'subscription', Actions>
+): StoreWithActions<T, 'subscription', Actions>;
 
-export function store<T, Actions extends StoreActions = Record<string, never>>(
+function _store<T, Actions extends StoreActions = Record<string, never>>(
   getState: GetStateFn<T>,
-  options?: StoreOptionsWithActions<T, true, Actions>
-): StoreWithActions<T, true, Actions>;
+  options?: StoreOptionsWithActions<T, 'dynamic', Actions>
+): StoreWithActions<T, 'dynamic', Actions>;
 
-export function store<T, Actions extends StoreActions = Record<string, never>>(
+function _store<T, Actions extends StoreActions = Record<string, never>>(
   initialState: T,
-  options?: StoreOptionsWithActions<T, false, Actions>
-): StoreWithActions<T, false, Actions>;
+  options?: StoreOptionsWithActions<T, 'static', Actions>
+): StoreWithActions<T, 'static', Actions>;
 
-export function store<T, Actions extends StoreActions>(
+function _store<T, Actions extends StoreActions>(
   getState: Provider<T>,
   options: StoreOptionsWithActions<T, any, Actions> = {}
 ): StoreWithActions<T, any, Actions> {
@@ -573,3 +585,5 @@ export function store<T, Actions extends StoreActions>(
 
   return Object.assign(store, boundActions);
 }
+
+export const store = Object.assign(_store, { defaultOptions });

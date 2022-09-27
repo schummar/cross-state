@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { store } from '../../src';
-import { ProviderHelpers } from '../../src/core/store';
+import type { ProviderHelpers } from '../../src/core/store';
 
 beforeEach(() => {
   vi.useFakeTimers();

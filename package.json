@@ -63,13 +63,13 @@
     "test:export": "vitest run --coverage --reporter=verbose --reporter=junit --outputFile=test/testResults.xml"
   },
   "devDependencies": {
-    "@schummar/runp": "1.6.3",
+    "@schummar/runp": "1.7.1",
     "@testing-library/react": "13.4.0",
     "@types/react": "18.0.21",
     "@types/react-dom": "18.0.6",
     "@types/use-sync-external-store": "0.0.3",
-    "@typescript-eslint/eslint-plugin": "5.38.0",
-    "@typescript-eslint/parser": "5.38.0",
+    "@typescript-eslint/eslint-plugin": "5.38.1",
+    "@typescript-eslint/parser": "5.38.1",
     "@vitejs/plugin-react": "2.1.0",
     "@vitest/coverage-c8": "^0.23.4",
     "eslint": "8.24.0",

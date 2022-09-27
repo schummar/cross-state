@@ -1,6 +1,4 @@
 import produce from 'immer';
-import { i } from './immutableHelpers';
-import { set } from './propAccess';
 
 export interface Patch {
   op: 'replace' | 'remove' | 'add';

@@ -1,10 +1,14 @@
-import type { Store } from './commonTypes';
+import type { Cancel, Listener } from './commonTypes';
 
-export function once<T, S extends T>(store: Store<T>, condition: (value: T) => value is S): Promise<S>;
-export function once<T>(store: Store<T>, condition?: (value: T) => boolean): Promise<T>;
-export function once<T>(store: Store<T>, condition?: (value: T) => boolean) {
+interface Subscribe<T> {
+  (listener: Listener<T>, options: { runNow?: boolean }): Cancel;
+}
+
+export function once<T, S extends T>(subscribe: Subscribe<T>, condition: (value: T) => value is S): Promise<S>;
+export function once<T>(subscribe: Subscribe<T>, condition?: (value: T) => boolean): Promise<T>;
+export function once<T>(subscribe: Subscribe<T>, condition?: (value: T) => boolean) {
   return new Promise<T>((resolve) => {
-    const cancel = store.subscribe(
+    const cancel = subscribe(
       (value) => {
         if (condition && !condition(value)) {
           return;

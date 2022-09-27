@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { store, recordActions } from '../../src';
+import { store } from '../../src';
 
 describe('store actions', () => {
   test('map store', () => {

@@ -173,6 +173,7 @@ describe('store', () => {
       expect(dep2.isActive).toBe(true);
 
       cancel();
+      vi.advanceTimersByTime(100);
       expect(dep1.isActive).toBe(false);
       expect(dep2.isActive).toBe(false);
     });
