@@ -46,6 +46,7 @@ export type BoundStoreActions<T, Type extends StoreType, Actions extends StoreAc
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Options
 export interface StoreOptions<T, Type extends StoreType> {
+  type?: Type;
   invalidateAfter?: Duration | ((state: GetValue<T, Type>) => Duration);
   clearAfter?: Duration | ((state: GetValue<T, Type>) => Duration);
   resourceGroup?: ResourceGroup | ResourceGroup[];
@@ -74,18 +75,18 @@ export interface ProviderHelpers<T = unknown> {
 }
 
 type GetStateFn<T> = (this: ProviderHelpers<unknown>, fn: ProviderHelpers<unknown>) => T;
-type ConnectStateFn<T> = (this: ProviderHelpers<T>, fn: ProviderHelpers<T>) => Cancel;
+type SubscribeStateFn<T> = (this: ProviderHelpers<T>, fn: ProviderHelpers<T>) => Cancel;
 
-type Provider<T> = T | GetStateFn<T> | ConnectStateFn<T>;
+type Provider<T, Type extends StoreType> = Type extends 'static' ? T : Type extends 'dynamic' ? GetStateFn<T> : SubscribeStateFn<T>;
 
-export type Store<T, Type extends StoreType = 'static' | 'dynamic' | 'subscription'> = StoreImpl<T, Type>;
+export type Store<T, Type extends StoreType = StoreType> = StoreImpl<T, Type>;
 
 export type StoreCache<T> = WithValue<UnwrapPromise<T>> | WithError<UnwrapPromise<T>> | Pending<UnwrapPromise<T>>;
 
 const noop = () => undefined;
 const safe = (x: any) => (x instanceof Promise ? x.catch(() => undefined) : undefined);
 
-const defaultOptions: StoreOptions<unknown, 'static' | 'dynamic' | 'subscription'> = {};
+const defaultOptions: StoreOptions<unknown, StoreType> = {};
 
 export class StoreImpl<T, Type extends StoreType> {
   private cache: StoreCache<T> = { status: 'pending', isUpdating: false, isStale: true, ref: {} };
@@ -97,7 +98,7 @@ export class StoreImpl<T, Type extends StoreType> {
   private effects = new Map<Effect, { handle?: Cancel; retain?: number; timeout?: ReturnType<typeof setTimeout> }>();
   private notifyId = {};
 
-  constructor(private provider: Provider<T>, private readonly options: StoreOptions<T, Type> = {}) {
+  constructor(private provider: Provider<T, Type>, private readonly options: StoreOptions<T, Type> = {}) {
     this.get = this.get.bind(this);
     this.update = this.update.bind(this);
     this.subscribe = this.subscribe.bind(this);
@@ -138,10 +139,15 @@ export class StoreImpl<T, Type extends StoreType> {
 
     this.cancel?.();
 
-    if (this.provider instanceof Function) {
-      this.getFromFunction(this.provider);
+    const isFunction =
+      this.options.type === 'dynamic' ||
+      this.options.type === 'subscription' ||
+      (this.options.type === undefined && this.provider instanceof Function);
+
+    if (isFunction) {
+      this.getFromFunction(this.provider as Provider<T, 'dynamic' | 'subscription'>);
     } else {
-      this.setValue(this.provider);
+      this.setValue(this.provider as Provider<T, 'static'>);
     }
 
     if (this.cache.update) {
@@ -159,7 +165,7 @@ export class StoreImpl<T, Type extends StoreType> {
     return undefined as GetValue<T, Type>;
   }
 
-  private getFromFunction(provider: GetStateFn<T> | ConnectStateFn<T>) {
+  private getFromFunction(provider: Provider<T, 'dynamic' | 'subscription'>) {
     let stopped = false;
     const handles = new Array<Cancel>();
     const checks = new Array<() => boolean>();
@@ -251,16 +257,18 @@ export class StoreImpl<T, Type extends StoreType> {
     };
 
     try {
-      const value = (provider as any).apply({ use, update, updateError }, [{ use, update, updateError }]);
+      const value: T | Cancel = (provider as any).apply({ use, update, updateError }, [{ use, update, updateError }]);
 
-      if (value instanceof Function) {
-        handles.push(value);
+      const isSubscription = this.options.type === 'subscription' || (this.options.type === undefined && value instanceof Function);
+
+      if (isSubscription) {
+        handles.push(value as Cancel);
 
         this.cache.isUpdating = true;
         delete this.cache.update;
         this.cache.ref = ref;
       } else {
-        this.setValue(value);
+        this.setValue(value as T);
       }
     } catch (error) {
       this.setError(error);
@@ -545,7 +553,7 @@ type StoreWithActions<T, Type extends StoreType, Actions extends StoreActions> =
     : Omit<BoundStoreActions<T, Type, Actions>, keyof Store<T, Type>>);
 
 function _store<T, Actions extends StoreActions = Record<string, never>>(
-  connect: ConnectStateFn<T>,
+  subscribe: SubscribeStateFn<T>,
   options?: StoreOptionsWithActions<T, 'subscription', Actions>
 ): StoreWithActions<T, 'subscription', Actions>;
 
@@ -560,7 +568,7 @@ function _store<T, Actions extends StoreActions = Record<string, never>>(
 ): StoreWithActions<T, 'static', Actions>;
 
 function _store<T, Actions extends StoreActions>(
-  getState: Provider<T>,
+  getState: Provider<T, any>,
   options: StoreOptionsWithActions<T, any, Actions> = {}
 ): StoreWithActions<T, any, Actions> {
   let methods = options.methods;

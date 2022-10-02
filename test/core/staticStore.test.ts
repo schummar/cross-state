@@ -10,7 +10,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('atomicStore', () => {
+describe('static store', () => {
   test('create store', () => {
     const state = store(1);
     expect(state).toBeTruthy();
@@ -199,6 +199,14 @@ describe('atomicStore', () => {
         [1, undefined],
         [2, 1],
       ]);
+    });
+  });
+
+  describe('force type', () => {
+    test('function as value', () => {
+      const state = store(() => 1, { type: 'static' });
+
+      expect(state.get()).toBeInstanceOf(Function);
     });
   });
 });

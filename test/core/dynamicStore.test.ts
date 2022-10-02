@@ -1,6 +1,6 @@
 import { shallowEqual } from 'fast-equals';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { store, storeSet } from '../../src';
+import { store } from '../../src';
 import { flushPromises, getValues, sleep } from '../testHelpers';
 
 beforeEach(() => {
@@ -11,39 +11,22 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('store', () => {
+describe('dynamic store', () => {
   test('create', () => {
     const state = store(async () => 1);
     expect(state).toBeTruthy();
   });
 
-  test('create set', () => {
-    const state = storeSet(async () => 1);
-    expect(state).toBeInstanceOf(Function);
-  });
+  test('get', async () => {
+    const state = store(async () => 1);
+    expect(state.get()).toBeInstanceOf(Promise);
 
-  describe('get', () => {
-    test('Without parameters', async () => {
-      const state = store(async () => 1);
-      expect(state.get()).toBeInstanceOf(Promise);
-
-      await flushPromises();
-      expect(state.get()).toBe(1);
-    });
-
-    test('With parameters', async () => {
-      const state = storeSet(async (n: number) => n + 1);
-      state(1).subscribe(vi.fn());
-      state(2).subscribe(vi.fn());
-
-      await flushPromises();
-      expect(state(1).get()).toBe(2);
-      expect(state(2).get()).toBe(3);
-    });
+    await flushPromises();
+    expect(state.get()).toBe(1);
   });
 
   describe('subscribe', () => {
-    test('without parameters', async () => {
+    test('simple', async () => {
       const state = store(async () => 1);
       const listener = vi.fn();
       state.subscribe(listener);
@@ -55,18 +38,6 @@ describe('store', () => {
         [undefined, undefined],
         [1, undefined],
       ]);
-    });
-
-    test('with parameters', async () => {
-      const state = storeSet(async (n: number) => n + 1);
-      const listener1 = vi.fn();
-      const listener2 = vi.fn();
-      state(1).subscribe(listener1);
-      state(2).subscribe(listener2);
-
-      await flushPromises();
-      expect(getValues(listener1)).toEqual([undefined, 2]);
-      expect(getValues(listener2)).toEqual([undefined, 3]);
     });
 
     test('when the actions throws an error', async () => {

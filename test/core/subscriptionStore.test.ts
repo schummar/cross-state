@@ -35,7 +35,7 @@ export class FakeWebSocket<T> {
   };
 }
 
-describe('pushStore', () => {
+describe('subscription store', () => {
   test('create', async () => {
     const s = store<number>(function () {
       this.update(0);

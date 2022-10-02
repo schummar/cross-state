@@ -2,32 +2,32 @@ import type { Cancel } from '..';
 import { Cache, calcDuration } from '../lib';
 import type { Duration } from './commonTypes';
 import { allResources } from './resourceGroup';
-import type { ProviderHelpers, Store, StoreOptions } from './store';
+import type { ProviderHelpers, Store, StoreOptions, StoreType } from './store';
 import { store } from './store';
 
-export interface StoreSetOptions<T> extends StoreOptions<T> {
+export interface StoreSetOptions<T, Type extends StoreType> extends StoreOptions<T, Type> {
   clearUnusedAfter?: Duration;
 }
 
-const defaultOptions: StoreSetOptions<unknown> = {};
+const defaultOptions: StoreSetOptions<unknown, StoreType> = {};
 
 function createStoreSet<T, Args extends any[] = []>(
-  connect: (this: ProviderHelpers<T>, ...args: Args) => Cancel,
-  options?: StoreSetOptions<T>
-): (...args: Args) => Store<T, true>;
+  subscribe: (this: ProviderHelpers<T>, ...args: Args) => Cancel,
+  options?: StoreSetOptions<T, 'subscription'>
+): (...args: Args) => Store<T, 'subscription'>;
 
 function createStoreSet<T, Args extends any[] = []>(
   getState: (this: ProviderHelpers<unknown>, ...args: Args) => T,
-  options?: StoreSetOptions<T>
-): (...args: Args) => Store<T, true>;
+  options?: StoreSetOptions<T, 'dynamic'>
+): (...args: Args) => Store<T, 'dynamic'>;
 
 function createStoreSet<T, Args extends any[]>(
   getState: (this: any, ...args: Args) => any,
-  options: StoreSetOptions<T> = {}
-): (...args: Args) => Store<T, true> {
+  options: StoreSetOptions<T, 'dynamic' | 'subscription'> = {}
+): (...args: Args) => Store<T, 'dynamic' | 'subscription'> {
   const cache = new Cache(
     (...args: Args) =>
-      store((x) => {
+      (store as any)((x: any) => {
         return getState.apply(x, args);
       }, options),
     calcDuration(options.clearUnusedAfter ?? defaultOptions.clearUnusedAfter ?? 0)
