@@ -10,7 +10,8 @@ import { arrayActions, mapActions, recordActions, setActions } from '../lib/stor
 import { throttle } from '../lib/throttle';
 import { trackingProxy } from '../lib/trackingProxy';
 import type { UnwrapPromise } from '../lib/unwrapPromise';
-import type { Cancel, Duration, Effect, Listener, Selector, SubscribeOptions, Update, UpdateFrom } from './commonTypes';
+import type { Cancel, Duration, Effect, Listener, Selector, SubscribeOptions, UpdateFrom } from './commonTypes';
+import { once } from './once';
 import type { ResourceGroup } from './resourceGroup';
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -23,19 +24,19 @@ type Pending<T> = { status: 'pending'; value?: undefined; error?: undefined } & 
 export type StoreType = 'static' | 'dynamic' | 'subscription';
 
 export type GetValue<T, Type extends StoreType> =
-  | (T extends Promise<infer S> ? T | S : T)
-  | (Type extends 'subscription' ? undefined : never);
+  | T
+  | (T extends Promise<any> ? UnwrapPromise<T> : never)
+  | (Type extends 'subscription' ? Promise<T> : never);
 
-export type SubscribeValue<T, Type extends StoreType> =
-  | (T extends Promise<infer S> ? S | undefined : T)
-  | (Type extends 'dynamic' | 'subscription' ? undefined : never);
-
-export type SelectorInputValue<S, Type extends StoreType> = Type extends 'dynamic' | 'subscription' ? S | undefined : S;
-
-export type SubscribeDetails<T, Type extends StoreType> =
+export type CacheState<T, Type extends StoreType> =
   | WithValue<UnwrapPromise<T>>
-  | (T extends Promise<infer S> ? Pending<S> | WithError<S> : never)
+  | (T extends Promise<any> ? Pending<UnwrapPromise<T>> | WithError<UnwrapPromise<T>> : never)
   | (Type extends 'dynamic' | 'subscription' ? WithError<UnwrapPromise<T>> : never);
+
+export type MappedValue<T, Type extends StoreType, S> =
+  | S
+  | (T extends Promise<any> ? Promise<S> : never)
+  | (Type extends 'subscription' ? Promise<S> : never);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Actions
@@ -51,6 +52,7 @@ export interface StoreOptions<T, Type extends StoreType> {
   clearAfter?: Duration | ((state: GetValue<T, Type>) => Duration);
   resourceGroup?: ResourceGroup | ResourceGroup[];
   retain?: number;
+  parentStore?: { store: Store<any>; selectors: (Selector<any, any> | string)[] };
 }
 
 export interface StoreOptionsWithActions<T, Type extends StoreType, Actions extends StoreActions> extends StoreOptions<T, Type> {
@@ -63,7 +65,6 @@ export interface UseOptions {
 
 export interface UseFn {
   <T, Type extends StoreType>(store: Store<T, Type>, options?: UseOptions): GetValue<T, Type>;
-  <T, S>(store: Store<T, any>, selector: Selector<UnwrapPromise<T>, S>, options?: UseOptions): T extends Promise<any> ? Promise<S> : S;
 }
 
 export type PushFn<T> = (value: MaybePromise<T>) => void;
@@ -81,15 +82,18 @@ type Provider<T, Type extends StoreType> = Type extends 'static' ? T : Type exte
 
 export type Store<T, Type extends StoreType = StoreType> = StoreImpl<T, Type>;
 
-export type StoreCache<T> = WithValue<UnwrapPromise<T>> | WithError<UnwrapPromise<T>> | Pending<UnwrapPromise<T>>;
-
 const noop = () => undefined;
-const safe = (x: any) => (x instanceof Promise ? x.catch(() => undefined) : undefined);
 
 const defaultOptions: StoreOptions<unknown, StoreType> = {};
 
 export class StoreImpl<T, Type extends StoreType> {
-  private cache: StoreCache<T> = { status: 'pending', isUpdating: false, isStale: true, ref: {} };
+  private cache: CacheState<T, Type> = {
+    status: 'pending',
+    isUpdating: false,
+    isStale: true,
+    ref: {},
+  } as CacheState<T, Type>;
+
   private cancel?: Cancel;
   private check?: () => boolean;
   private invalidateTimer?: ReturnType<typeof setTimeout>;
@@ -100,21 +104,40 @@ export class StoreImpl<T, Type extends StoreType> {
 
   constructor(private provider: Provider<T, Type>, private readonly options: StoreOptions<T, Type> = {}) {
     this.get = this.get.bind(this);
+    this.getCache = this.getCache.bind(this);
     this.update = this.update.bind(this);
+    this.map = this.map.bind(this);
     this.subscribe = this.subscribe.bind(this);
+    this.subscribeStatus = this.subscribeStatus.bind(this);
     this.addEffect = this.addEffect.bind(this);
     this.invalidate = this.invalidate.bind(this);
     this.onSubscribe = this.onSubscribe.bind(this);
     this.onUnsubscribe = this.onUnsubscribe.bind(this);
     this.notify = this.notify.bind(this);
 
+    if (this.isStatic()) {
+      this.setValue(this.provider);
+    }
+
     this.addEffect(() => {
-      safe(this.get());
+      this.fetch();
 
       return () => {
         this.cancel?.();
       };
     }, options.retain ?? { milliseconds: 100 });
+  }
+
+  private isStatic(): this is Store<T, 'static'> {
+    return this.options.type === 'static' || (this.options.type === undefined && !(this.provider instanceof Function));
+  }
+
+  private isDynamicOrSubscription(): this is Store<T, 'dynamic' | 'subscription'> {
+    return (
+      this.options.type === 'dynamic' ||
+      this.options.type === 'subscription' ||
+      (this.options.type === undefined && this.provider instanceof Function)
+    );
   }
 
   /** Get the current value. */
@@ -123,31 +146,8 @@ export class StoreImpl<T, Type extends StoreType> {
       this.cache.isStale = true;
     }
 
-    if (!this.cache.isStale || this.cache.update) {
-      if (this.cache.update) {
-        return this.cache.update as GetValue<T, Type>;
-      }
-
-      if (this.cache.status === 'value') {
-        return this.cache.value as GetValue<T, Type>;
-      }
-
-      if (this.cache.status === 'error') {
-        throw this.cache.error;
-      }
-    }
-
-    this.cancel?.();
-
-    const isFunction =
-      this.options.type === 'dynamic' ||
-      this.options.type === 'subscription' ||
-      (this.options.type === undefined && this.provider instanceof Function);
-
-    if (isFunction) {
-      this.getFromFunction(this.provider as Provider<T, 'dynamic' | 'subscription'>);
-    } else {
-      this.setValue(this.provider as Provider<T, 'static'>);
+    if (this.cache.isStale && !this.cache.update) {
+      this.fetch();
     }
 
     if (this.cache.update) {
@@ -162,42 +162,39 @@ export class StoreImpl<T, Type extends StoreType> {
       throw this.cache.error;
     }
 
-    return undefined as GetValue<T, Type>;
+    return once(this.subscribeStatus, (state): state is WithValue<UnwrapPromise<T>> => {
+      return state.status === 'value';
+    }).then((state) => state.value) as GetValue<T, Type>;
   }
 
-  private getFromFunction(provider: Provider<T, 'dynamic' | 'subscription'>) {
+  getCache() {
+    return { ...this.cache };
+  }
+
+  private fetch() {
+    if (!this.isDynamicOrSubscription()) {
+      return;
+    }
+
+    this.cancel?.();
+
     let stopped = false;
     const handles = new Array<Cancel>();
     const checks = new Array<() => boolean>();
 
-    const use: UseFn = <T, Type extends StoreType, S>(
-      store: Store<T, Type>,
-      arg1?: UseOptions | Selector<UnwrapPromise<T>, S>,
-      arg2?: UseOptions
-    ) => {
-      const selector = arg1 instanceof Function ? arg1 : (x: any) => x;
-      const { disableProxy } = (arg1 instanceof Function ? arg2 : arg1) ?? {};
-      const getValue = () => {
-        const value = store.get();
-        if (value instanceof Promise) {
-          return value.then((x) => selector(x));
-        }
-        return selector(value as UnwrapPromise<T>);
-      };
-
-      let value = getValue();
+    const use: UseFn = (store, { disableProxy } = {}) => {
+      let value = store.get();
       let equals = (newValue: any) => newValue === value;
 
       if (!disableProxy) {
-        [value, equals] = trackingProxy(getValue());
+        [value, equals] = trackingProxy(value);
       }
 
       const ref = store.cache.ref;
-      checks.push(() => store.cache.ref === ref || equals(getValue()));
+      checks.push(() => store.cache.ref === ref || equals(store.get()));
 
       if (!stopped) {
         const cancel = store.subscribeStatus(
-          (state) => state.ref,
           () => {
             if (!this.check?.()) {
               this.invalidate();
@@ -220,7 +217,7 @@ export class StoreImpl<T, Type extends StoreType> {
           try {
             value = await value;
           } catch (error) {
-            this._setError(error, ref);
+            this.setErrorWithRef(error, ref);
             return;
           }
         }
@@ -229,7 +226,7 @@ export class StoreImpl<T, Type extends StoreType> {
           return;
         }
 
-        this._setValue(value, ref);
+        this.setValueWithRef(value, ref);
       });
 
     const updateError: PushFn<unknown> = (error) =>
@@ -238,7 +235,7 @@ export class StoreImpl<T, Type extends StoreType> {
           return;
         }
 
-        this._setError(error, ref);
+        this.setErrorWithRef(error, ref);
       });
 
     this.cancel = () => {
@@ -257,7 +254,7 @@ export class StoreImpl<T, Type extends StoreType> {
     };
 
     try {
-      const value: T | Cancel = (provider as any).apply({ use, update, updateError }, [{ use, update, updateError }]);
+      const value: T | Cancel = (this.provider as any).apply({ use, update, updateError }, [{ use, update, updateError }]);
 
       const isSubscription = this.options.type === 'subscription' || (this.options.type === undefined && value instanceof Function);
 
@@ -276,10 +273,10 @@ export class StoreImpl<T, Type extends StoreType> {
   }
 
   setValue(value: T | UnwrapPromise<T>) {
-    this._setValue(value);
+    this.setValueWithRef(value);
   }
 
-  _setValue(value: T | UnwrapPromise<T>, ref = {}) {
+  setValueWithRef(value: T | UnwrapPromise<T>, ref = {}) {
     if (value instanceof Promise) {
       this.cache.isUpdating = true;
       this.cache.update = value;
@@ -300,10 +297,10 @@ export class StoreImpl<T, Type extends StoreType> {
   }
 
   setError(error: unknown) {
-    this._setError(error);
+    this.setErrorWithRef(error);
   }
 
-  _setError(error: unknown, ref = {}) {
+  setErrorWithRef(error: unknown, ref = {}) {
     this.cache.isUpdating = false;
     this.cache.isStale = false;
     delete this.cache.update;
@@ -325,7 +322,7 @@ export class StoreImpl<T, Type extends StoreType> {
     this.cache.ref = {};
 
     if (this.isActive) {
-      safe(this.get());
+      this.fetch();
     }
 
     this.notify();
@@ -337,7 +334,7 @@ export class StoreImpl<T, Type extends StoreType> {
     delete this.cache.update;
 
     if (this.isActive) {
-      safe(this.get());
+      this.fetch();
     }
 
     this.notify();
@@ -349,107 +346,95 @@ export class StoreImpl<T, Type extends StoreType> {
     try {
       const value = await promise;
       if (isActive()) {
-        this._setValue(value as T, this.cache.ref);
+        this.setValueWithRef(value as T, this.cache.ref);
       }
     } catch (error) {
       if (isActive()) {
-        this._setError(error, this.cache.ref);
+        this.setErrorWithRef(error, this.cache.ref);
       }
     }
   }
 
-  update(update: UpdateFrom<T | UnwrapPromise<T>, [SubscribeValue<T, Type>, SubscribeDetails<T, Type>]>): this;
-  update<K extends Path<UnwrapPromise<T>>>(path: K, update: Update<Value<UnwrapPromise<T>, K>>): this;
-  update(...args: any[]) {
-    if (args.length === 1) {
-      let update = args[0] as UpdateFrom<T | UnwrapPromise<T>, [SubscribeValue<T, Type>, SubscribeDetails<T, Type>]>;
+  update(update: UpdateFrom<T | UnwrapPromise<T>, [CacheState<T, Type>['value']]>): this {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    let updatingStore: this | Store<any> = this;
+    let path = '';
 
-      if (update instanceof Function) {
-        safe(this.get());
-        update = update(this.cache.value as SubscribeValue<T, Type>, this.cache as SubscribeDetails<T, Type>);
-      }
-
-      this.setValue(update);
-    } else {
-      if (this.cache.status !== 'value') {
-        return;
-      }
-
-      const path = args[0] as string;
-      let update = args[1] as Update<any>;
-      let value: any = get(this.cache.value, path as any);
-
-      if (update instanceof Function) {
-        update = update(value);
-      }
-
-      value = set(value, path, update);
-      this.setValue(value);
+    if (this.options.parentStore && this.options.parentStore.selectors.every((selector) => typeof selector === 'string')) {
+      updatingStore = this.options.parentStore.store;
+      path = this.options.parentStore.selectors.join('.');
     }
+
+    if (update instanceof Function) {
+      const oldValue = get(updatingStore.getCache().value, path);
+      update = update(oldValue);
+    }
+
+    const newValue = set(updatingStore.getCache().value, path, update);
+    updatingStore.setValue(newValue);
 
     this.notify();
     return this;
   }
 
-  /** Subscribe to updates. Every time the store's state changes, the callback will be executed with the new value. */
-  subscribe(listener: Listener<SubscribeValue<T, Type>>, options?: SubscribeOptions): Cancel;
-  subscribe<S>(selector: Selector<SubscribeValue<T, Type>, S>, listener: Listener<S>, options?: SubscribeOptions): Cancel;
-  subscribe<P extends Path<UnwrapPromise<T>>>(
-    selector: P,
-    listener: Listener<Value<UnwrapPromise<T>, P>>,
-    options?: SubscribeOptions
-  ): Cancel;
-  subscribe(
-    ...[arg0, arg1, arg2]:
-      | [listener: Listener<SubscribeValue<T, Type>>, options?: SubscribeOptions]
-      | [selector: ((value: SubscribeValue<T, Type>) => any) | string, listener: Listener<any>, options?: SubscribeOptions]
-  ) {
-    const selector = makeSelector(arg1 instanceof Function ? arg0 : undefined);
-    const listener = (arg1 instanceof Function ? arg1 : arg0) as Listener<any>;
-    const options = arg1 instanceof Function ? arg2 : arg1;
+  map<S>(selector: Selector<UnwrapPromise<T>, S>): Store<S, 'dynamic'>;
+  map<P extends Path<UnwrapPromise<T>>>(selector: P): Store<Value<UnwrapPromise<T>, P>, 'dynamic'>;
+  map(_selector: Selector<UnwrapPromise<T>, any> | string): Store<any, any> {
+    const selector = makeSelector(_selector);
 
-    return this.subscribeStatus(
-      (state) => (state.status === 'value' ? selector(state.value as SubscribeValue<T, Type>) : undefined),
-      listener,
-      options
+    const parentStore = {
+      store: this.options.parentStore?.store ?? (this as Store<any, any>),
+      selectors: this.options.parentStore?.selectors.slice() ?? [],
+    };
+    parentStore.selectors.push(_selector);
+
+    return store(
+      ({ use }) => {
+        const value = use(this);
+
+        if (value instanceof Promise) {
+          return value.then((value) => selector(value as UnwrapPromise<T>));
+        }
+
+        return selector(value as UnwrapPromise<T>);
+      },
+      {
+        parentStore,
+      }
     );
   }
 
   /** Subscribe to updates. Every time the store's state changes, the callback will be executed with the new value. */
-  subscribeStatus(listener: Listener<SubscribeDetails<T, Type>>, options?: SubscribeOptions): Cancel;
-  subscribeStatus<S>(selector: Selector<SubscribeDetails<T, Type>, S>, listener: Listener<S>, options?: SubscribeOptions): Cancel;
-  subscribeStatus<P extends Path<SubscribeDetails<T, Type>>>(
-    selector: P,
-    listener: Listener<Value<SubscribeDetails<T, Type>, P>>,
-    options?: SubscribeOptions
-  ): Cancel;
-  subscribeStatus(
-    ...[arg0, arg1, arg2]:
-      | [listener: Listener<SubscribeDetails<T, Type>>, options?: SubscribeOptions]
-      | [selector: ((value: SubscribeDetails<T, Type>) => any) | string, listener: Listener<any>, options?: SubscribeOptions]
-  ) {
-    const selector = arg1 instanceof Function ? makeSelector(arg0) : undefined;
-    const listener = (arg1 instanceof Function ? arg1 : arg0) as Listener<any>;
-    const { runNow = true, throttle: throttleOption, equals = defaultEquals } = (arg1 instanceof Function ? arg2 : arg1) ?? {};
+  subscribe(listener: Listener<CacheState<T, Type>['value']>, options?: SubscribeOptions): Cancel {
+    return this.subscribeInternal((state) => state.value as any, listener, options);
+  }
 
-    const getValue = selector ? () => selector({ ...this.cache } as SubscribeDetails<T, Type>) : () => ({ ...this.cache });
-    const compare = selector
-      ? equals
-      : ({ value: value1, ...rest1 }: any, { value: value2, ...rest2 }: any) => simpleShallowEquals(rest1, rest2) && equals(value1, value2);
+  /** Subscribe to updates. Every time the store's state changes, the callback will be executed with the new value. */
+  subscribeStatus(listener: Listener<CacheState<T, Type>>, options?: SubscribeOptions): Cancel {
+    return this.subscribeInternal((state) => state, listener, {
+      ...options,
+      equals: ({ value: value1, ...rest1 }: any, { value: value2, ...rest2 }: any) =>
+        simpleShallowEquals(rest1, rest2) && (options?.equals ?? defaultEquals)(value1, value2),
+    });
+  }
 
-    let previousValue = getValue();
+  subscribeInternal<S>(selector: Selector<CacheState<T, Type>, S>, listener: Listener<S>, options?: SubscribeOptions): Cancel {
+    const { runNow = true, throttle: throttleOption, equals = defaultEquals } = options ?? {};
+    const getValue = () => selector({ ...this.cache });
+
+    let previousValue: [S] | undefined;
 
     let innerListener = (force?: boolean | void) => {
       const value = getValue();
 
-      if (!force && compare(value, previousValue)) {
+      if (!force && previousValue && equals(value, previousValue[0])) {
         return;
       }
 
       try {
         const _previousValue = previousValue;
-        previousValue = value;
-        listener(value, _previousValue);
+        previousValue = [value];
+        listener(value, _previousValue?.[0]);
       } catch (error) {
         forwardError(error);
       }

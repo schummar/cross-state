@@ -161,45 +161,6 @@ describe('static store', () => {
       expect(() => vi.runAllTimers()).toThrow('error');
       expect(nextListener).toHaveBeenCalledTimes(2);
     });
-
-    test('selector', async () => {
-      const state = store({ x: 1 });
-      const listener = vi.fn();
-      state.subscribe((s) => s.x, listener);
-      state.update({ x: 2 });
-      expect(listener.mock.calls).toEqual([
-        [1, undefined],
-        [2, 1],
-      ]);
-    });
-
-    test('selector with error', async () => {
-      const state = store({ x: 1 });
-      const nextListener = vi.fn();
-      state.subscribe(
-        () => undefined,
-        () => {
-          throw Error('error');
-        }
-      );
-      state.subscribe(nextListener);
-
-      state.update({ x: 2 });
-
-      expect(() => vi.runAllTimers()).toThrow('error');
-      expect(nextListener).toHaveBeenCalledTimes(2);
-    });
-
-    test('text selector', async () => {
-      const state = store({ x: 1 });
-      const listener = vi.fn();
-      state.subscribe('x', listener);
-      state.update({ x: 2 });
-      expect(listener.mock.calls).toEqual([
-        [1, undefined],
-        [2, 1],
-      ]);
-    });
   });
 
   describe('force type', () => {

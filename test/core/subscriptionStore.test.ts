@@ -46,6 +46,22 @@ describe('subscription store', () => {
     expect(s).toBeInstanceOf(Object);
   });
 
+  test('get waits for value', async () => {
+    const state = store<number>(function () {
+      const ws = new FakeWebSocket([[1, 1]]);
+
+      ws.onmessage = this.update;
+      return ws.close;
+    });
+
+    const value = state.get();
+    expect(value).toBeInstanceOf(Promise);
+
+    vi.advanceTimersByTime(1);
+
+    expect(await value).toBe(1);
+  });
+
   test('push some messages', async () => {
     const state = store<number>(function () {
       const ws = new FakeWebSocket([
@@ -64,10 +80,7 @@ describe('subscription store', () => {
 
     expect(listener.mock.calls).toEqual([
       //
-      [
-        { status: 'pending', isStale: true, isUpdating: true, ref: {} },
-        { status: 'pending', isStale: true, isUpdating: false, ref: {} },
-      ],
+      [{ status: 'pending', isStale: true, isUpdating: true, ref: {} }, undefined],
       [
         { status: 'value', value: 1, isStale: false, isUpdating: false, ref: {} },
         { status: 'pending', isStale: true, isUpdating: true, ref: {} },

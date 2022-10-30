@@ -61,14 +61,14 @@ describe('computed', () => {
   describe('selector', () => {
     test('calculate value', async () => {
       const dep = store({ x: 1 });
-      const state = store(({ use }) => use(dep, (s) => s.x) + 2);
+      const state = store(({ use }) => use(dep.map((s) => s.x)) + 2);
 
       expect(state.get()).toBe(3);
     });
 
     test('update only when selected part changes', async () => {
       const dep = store({ x: 1, y: 2 });
-      const calc = vi.fn(({ use }: ProviderHelpers) => use(dep, (s) => s.x) + 2);
+      const calc = vi.fn(({ use }: ProviderHelpers) => use(dep.map((s) => s.x)) + 2);
       const state = store(calc);
       state.subscribe(() => undefined);
 

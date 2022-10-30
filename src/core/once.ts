@@ -5,7 +5,7 @@ interface Subscribe<T> {
 }
 
 export function once<T, S extends T>(subscribe: Subscribe<T>, condition: (value: T) => value is S): Promise<S>;
-export function once<T>(subscribe: Subscribe<T>, condition?: (value: T) => boolean): Promise<T>;
+// export function once<T>(subscribe: Subscribe<T>, condition?: (value: T) => boolean): Promise<T>;
 export function once<T>(subscribe: Subscribe<T>, condition?: (value: T) => boolean) {
   return new Promise<T>((resolve) => {
     const cancel = subscribe(

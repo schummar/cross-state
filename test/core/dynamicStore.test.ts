@@ -90,7 +90,7 @@ describe('dynamic store', () => {
     test('with shallowEqual', async () => {
       const state = store(async () => [1]);
       const listener = vi.fn();
-      state.subscribe((x) => x, listener, {
+      state.subscribe(listener, {
         equals: shallowEqual,
       });
       await flushPromises();
