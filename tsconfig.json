@@ -18,7 +18,8 @@
     "noUncheckedIndexedAccess": true,
     "jsx": "react-jsx",
     "types": ["vite/client"],
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "useDefineForClassFields": false
   },
   "include": ["src"]
 }
