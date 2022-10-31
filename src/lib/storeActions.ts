@@ -1,4 +1,4 @@
-import type { Store } from '../core/store';
+import type { Store } from '../core/_store';
 
 type Fn = (...args: any) => any;
 

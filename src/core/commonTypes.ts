@@ -1,3 +1,5 @@
+import type { Store } from './store';
+
 export interface Listener<T = void> {
   (value: T, previouseValue?: T): void;
 }
@@ -46,4 +48,12 @@ export type Update<Value> = UpdateFrom<Value, [Value]>;
 
 export interface UpdateFn<Value> {
   (update: Update<Value>): void;
+}
+
+export interface UseOptions {
+  disableProxy?: boolean;
+}
+
+export interface Use {
+  <T>(store: Store<T>, options?: UseOptions): T;
 }

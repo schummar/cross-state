@@ -11,6 +11,6 @@ export {
   StoreOptionsWithActions,
   StorePromise,
   GetValue as StoreValue,
-} from './core/store';
+} from './core/_store';
 export { storeSet, StoreSetOptions } from './core/storeSet';
 export { arrayActions, mapActions, recordActions, setActions } from './lib/storeActions';

@@ -1,23 +1,20 @@
 import { hash } from './hash';
 
 export class Cache<Args extends any[], T extends object> {
-  private cache = new Map<string, { value: T; t: number }>();
-  private weakRefs = new Map<string, WeakRef<T>>();
-  private handle = this.cacheTime ? setInterval(() => this.cleanup(), this.cacheTime / 10) : undefined;
+  private cache = new Map<string, { t: number; ref?: T; weakRef?: WeakRef<T> }>();
+  private interval = this.cacheTime ? setInterval(() => this.cleanup(), this.cacheTime / 10) : undefined;
 
   constructor(private factory: (...args: Args) => T, private cacheTime?: number) {}
 
   cleanup() {
     const cutoff = Date.now() - (this.cacheTime ?? 0);
 
-    for (const [key, ref] of [...this.weakRefs.entries()]) {
-      if (ref.deref() === undefined) {
-        this.weakRefs.delete(key);
+    for (const [key, entry] of [...this.cache.entries()]) {
+      if (!entry.ref && entry.t <= cutoff) {
+        delete entry.ref;
       }
-    }
 
-    for (const [key, { t }] of [...this.cache.entries()]) {
-      if (t <= cutoff && !this.weakRefs.has(key)) {
+      if (!entry.weakRef?.deref()) {
         this.cache.delete(key);
       }
     }
@@ -26,33 +23,32 @@ export class Cache<Args extends any[], T extends object> {
   get(...args: Args) {
     const key = hash(args);
     let entry = this.cache.get(key);
+    let value = entry?.ref ?? entry?.weakRef?.deref();
 
-    if (!entry) {
-      const value = this.factory(...args);
+    if (!entry || !value) {
+      value = this.factory(...args);
       entry = {
-        value,
         t: Date.now(),
+        ref: value,
+        weakRef: typeof WeakRef !== 'undefined' ? new WeakRef(value) : undefined,
       };
 
       this.cache.set(key, entry);
-
-      if (typeof WeakRef !== 'undefined') {
-        this.weakRefs.set(key, new WeakRef(value));
-      }
     } else {
       entry.t = Date.now();
+      entry.ref ?? value;
     }
 
-    return entry.value;
+    return value;
   }
 
   values() {
-    return [...this.cache.values()].map((entry) => entry.value);
+    return [...this.cache.values()].map((entry) => entry.ref ?? entry.weakRef?.deref()).filter((value): value is T => !!value);
   }
 
   stop() {
-    if (this.handle) {
-      clearInterval(this.handle);
+    if (this.interval) {
+      clearInterval(this.interval);
     }
   }
 }

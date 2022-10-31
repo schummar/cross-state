@@ -2,8 +2,8 @@ import type { Cancel } from '..';
 import { Cache, calcDuration } from '../lib';
 import type { Duration } from './commonTypes';
 import { allResources } from './resourceGroup';
-import type { ProviderHelpers, Store, StoreOptions, StoreType } from './store';
-import { store } from './store';
+import type { ProviderHelpers, Store, StoreOptions, StoreType } from './_store';
+import { store } from './_store';
 
 export interface StoreSetOptions<T, Type extends StoreType> extends StoreOptions<T, Type> {
   clearUnusedAfter?: Duration;
