@@ -10,7 +10,7 @@ export class Cache<Args extends any[], T extends object> {
     const cutoff = Date.now() - (this.cacheTime ?? 0);
 
     for (const [key, entry] of [...this.cache.entries()]) {
-      if (!entry.ref && entry.t <= cutoff) {
+      if (entry.ref && entry.t <= cutoff) {
         delete entry.ref;
       }
 
