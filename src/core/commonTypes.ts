@@ -1,3 +1,4 @@
+import type { FetchStore } from './fetchStore';
 import type { Store } from './store';
 
 export interface Listener<T = void> {
@@ -56,4 +57,8 @@ export interface UseOptions {
 
 export interface Use {
   <T>(store: Store<T>, options?: UseOptions): T;
+}
+
+export interface UseFetch {
+  <T>(fetchStore: FetchStore<T>): Promise<T>;
 }

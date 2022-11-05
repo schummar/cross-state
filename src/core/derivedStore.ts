@@ -1,15 +1,15 @@
-import { Cancel, Use } from './commonTypes';
+import type { Cancel, Use } from './commonTypes';
 import { Store } from './store';
 
 export class DerivedStore<T> extends Store<T> {
   protected valid = false;
-  protected check?:()=>void
-  protected cancel?:Cancel
+  protected check?: () => void;
+  protected cancel?: Cancel;
 
-  constructor(protected calculate: (fns: { use: Use }) => T) {
+  constructor(protected calculate: (this: { use: Use }, fns: { use: Use }) => T) {
     super(undefined as T);
 
-    this.addEffect()
+    this.addEffect();
   }
 
   get(): T {
@@ -18,12 +18,6 @@ export class DerivedStore<T> extends Store<T> {
       this.valid = true;
     }
 
-    return this.value
+    return this.value;
   }
-
-protected  calculationHelper(fn:(fns:{use:Use})=>){
-
-}
-
-
 }

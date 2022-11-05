@@ -2,7 +2,7 @@ import { describe, expect, test, vi } from 'vitest';
 import { once, store } from '../../src';
 import { FakeWebSocket } from '../core/subscriptionStore.test';
 
-describe('once', () => {
+describe.skip('once', () => {
   test('once has value', async () => {
     const state = store<number>(function () {
       const ws = new FakeWebSocket([[1, 1]]);

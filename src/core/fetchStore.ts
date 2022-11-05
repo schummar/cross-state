@@ -1,11 +1,15 @@
+import { CalculationHelper } from '@lib/calculationHelper';
+import { defaultEquals, simpleShallowEquals } from '@lib/equals';
+import { makeSelector } from '@lib/makeSelector';
+import type { Path, Value } from '@lib/propAccess';
 import { Cache, calcDuration } from '../lib';
-import { trackingProxy } from '../lib/trackingProxy';
-import type { Duration, Use } from './commonTypes';
+import type { Cancel, Duration, Listener, Selector, SubscribeOptions, Update, Use, UseFetch } from './commonTypes';
+import { DerivedStore } from './derivedStore';
 import type { ResourceGroup } from './resourceGroup';
 import { allResources } from './resourceGroup';
 import { Store } from './store';
 
-type Common<T> = { promise?: Promise<T>; isStale: boolean };
+type Common<T> = { updating?: Promise<T>; isStale: boolean };
 type WithValue<T> = { status: 'value'; value: T; error?: undefined } & Common<T>;
 type WithError<T> = { status: 'error'; value?: undefined; error: unknown } & Common<T>;
 type Pending<T> = { status: 'pending'; value?: undefined; error?: undefined } & Common<T>;
@@ -16,7 +20,7 @@ export interface FetchOptions {
 }
 
 export interface FetchFn<T, Args extends any[] = []> {
-  (this: { use: Use }, ...args: Args): Promise<T>;
+  (this: { use: Use; useFetch: UseFetch }, ...args: Args): Promise<T>;
 }
 
 export interface FetchStoreOptions<T> {
@@ -28,51 +32,70 @@ export interface FetchStoreOptions<T> {
   //   parentStore?: { store: Store<any>; selectors: (Selector<any, any> | string)[] };
 }
 
-class FetchStore<T> extends Store<FetchStoreState<T>> {
-  checkValidity?: () => void;
-  cleanupExecute?: () => void;
+const fetchStoreStateEquals =
+  (equals = defaultEquals) =>
+  (a: FetchStoreState<any>, b: FetchStoreState<any>) => {
+    const { value: av, ...ar } = a;
+    const { value: bv, ...br } = b;
+    return simpleShallowEquals(ar, br) && (ar.status !== 'value' || equals(av, bv));
+  };
 
-  constructor(protected fetchFn: FetchFn<T>) {
+export class FetchStore<T> extends Store<FetchStoreState<T>> {
+  calculationHelper = new CalculationHelper({
+    calculate: ({ use, useFetch }) => {
+      const promise = this.fetchFn.apply({ use, useFetch });
+      this.setPromise(promise);
+    },
+
+    addEffect: this.addEffect,
+    getValue: () => this.value.value,
+    setValue: this.setValue,
+    setError: this.setError,
+    onInvalidate: this.invalidate,
+  });
+
+  constructor(protected fetchFn: FetchFn<T>, protected options: FetchStoreOptions<T> = {}) {
     super({
       status: 'pending',
       isStale: true,
     });
 
     this.addEffect(() => {
-      this.fetch().catch(() => undefined);
-
-      return () => {
-        this.cleanupExecute?.();
-      };
+      this.calculationHelper.execute();
     });
   }
 
-  fetch(options?: FetchOptions): Promise<T> {
-    this.checkValidity?.();
+  update(value: Update<FetchStoreState<T>>): void {
+    this.calculationHelper.stop();
+    super.update(value);
+  }
+
+  async fetch(options?: FetchOptions): Promise<T> {
+    this.calculationHelper.check();
 
     const { cache = 'updateWhenStale' } = options ?? {};
-    const { promise, isStale } = this.get();
+    const { status, value, error, updating, isStale } = this.value;
 
-    if (!promise || isStale || cache === 'forceUpdate') {
-      const newPromise = this.execute();
+    if (status === 'pending' || (isStale && !updating) || cache === 'forceUpdate') {
+      this.calculationHelper.execute();
 
-      if (!promise || cache !== 'backgroundUpdate') {
-        return newPromise;
+      if (status === 'pending' || cache !== 'backgroundUpdate') {
+        return this.value.updating!;
       }
     }
 
-    return promise;
+    if (status === 'value') {
+      return value;
+    }
+
+    throw error;
   }
 
   setValue(value: T | Promise<T>): void {
     if (value instanceof Promise) {
-      this.set({
-        ...this.get(),
-        promise: value,
-        isStale: false,
-      });
+      this.setPromise(value);
     } else {
-      this.set({
+      this.update({
         status: 'value',
         value,
         isStale: false,
@@ -80,8 +103,27 @@ class FetchStore<T> extends Store<FetchStoreState<T>> {
     }
   }
 
+  private setPromise(promise: Promise<T>) {
+    this.update({
+      ...this.value,
+      updating: promise,
+    });
+
+    promise
+      .then((value) => {
+        if (promise === this.value.updating) {
+          this.setValue(value);
+        }
+      })
+      .catch((error) => {
+        if (promise === this.value.updating) {
+          this.setError(error);
+        }
+      });
+  }
+
   setError(error: unknown): void {
-    this.set({
+    this.update({
       status: 'error',
       error,
       isStale: false,
@@ -89,97 +131,76 @@ class FetchStore<T> extends Store<FetchStoreState<T>> {
   }
 
   invalidate(): void {
-    this.set({
-      ...this.get(),
-      promise: undefined,
+    this.update({
+      ...this.value,
+      updating: undefined,
       isStale: true,
     });
 
-    if (this.isActive) {
-      this.execute().catch(() => undefined);
+    if (this.isActive()) {
+      this.calculationHelper.execute();
     }
   }
 
   clear(): void {
-    this.set({
+    this.update({
       status: 'pending',
       isStale: true,
     });
 
-    if (this.isActive) {
-      this.execute().catch(() => undefined);
+    if (this.isActive()) {
+      this.calculationHelper.execute();
     }
   }
 
-  private async execute() {
-    this.cleanupExecute?.();
+  sub(listener: Listener<FetchStoreState<T>>, options?: SubscribeOptions | undefined): Cancel {
+    return super.sub(listener, {
+      ...options,
+      equals: fetchStoreStateEquals(options?.equals),
+    });
+  }
 
-    const checks = new Array<() => boolean>();
-    const deps = new Set<Store<any>>();
-    const subs = new Array<() => void>();
-    let promise: Promise<T> | undefined;
+  mapValue<S>(selector: Selector<T, S>): FetchStore<S>;
+  mapValue<P extends Path<T>>(selector: P): FetchStore<Value<T, P>>;
+  mapValue<S>(_selector: Selector<T, S> | string): FetchStore<S> {
+    const selector = makeSelector(_selector);
+    const that = this;
 
-    const cancelEffect = this.addEffect(() => {
-      for (const store of deps) {
-        const sub = store.sub(checkValidity, { runNow: false });
-        subs.push(sub);
-      }
-
-      return () => {
-        subs.forEach((handle) => handle());
-        subs.length = 0;
-      };
+    return new FetchStore(async function () {
+      const value: T = await this.useFetch(that);
+      return selector(value);
     });
 
-    const checkValidity = () => {
-      if (!checks.every((check) => check())) {
-        this.invalidate();
-      }
-    };
+    // const parentStore = {
+    //   store: this.options.parentStore?.store ?? (this as Store<any, any>),
+    //   selectors: this.options.parentStore?.selectors.slice() ?? [],
+    // };
+    // parentStore.selectors.push(_selector);
 
-    const cleanupExecute = () => {
-      cancelEffect();
-      delete this.checkValidity;
-      delete this.cleanupExecute;
-      subs.forEach((handle) => handle());
-    };
+    // return store(
+    //   ({ use }) => {
+    //     const value = use(this);
 
-    try {
-      promise = this.fetchFn.apply({
-        use: (store, { disableProxy } = {}) => {
-          let value = store.get();
-          let equals = (newValue: any) => newValue === value;
+    //     if (value instanceof Promise) {
+    //       return value.then((value) => selector(value as UnwrapPromise<T>));
+    //     }
 
-          if (!disableProxy) {
-            [value, equals] = trackingProxy(value);
-          }
-
-          checks.push(() => equals(store.get()));
-          deps.add(store);
-
-          if (this.isActive && (!promise || promise === this.get().promise)) {
-            const sub = store.sub(checkValidity, { runNow: false });
-            subs.push(sub);
-          }
-
-          return value;
-        },
-      });
-    } catch (error) {
-      promise = Promise.reject(error);
-    }
-
-    this.setValue(promise);
-    this.checkValidity = checkValidity;
-    this.cleanupExecute = cleanupExecute;
-
-    return promise;
+    //     return selector(value as UnwrapPromise<T>);
+    //   },
+    //   {
+    //     parentStore,
+    //   }
+    // );
   }
 }
 
 const defaultOptions: FetchStoreOptions<unknown> = {};
 
-function _fetchStore<T, Args extends any[]>(
+function create<T>(fetch: FetchFn<T>, options?: FetchStoreOptions<T>): FetchStore<T> {
+  return new FetchStore(fetch, options);
+}
+
+function withArgs<T, Args extends any[]>(
   fetch: FetchFn<T, Args>,
   options?: FetchStoreOptions<T>
 ): {
@@ -193,7 +214,7 @@ function _fetchStore<T, Args extends any[]>(
     (...args: Args) =>
       new FetchStore(function () {
         return fetch.apply(this, args);
-      }),
+      }, options),
     calcDuration(clearUnusedAfter)
   );
 
@@ -219,9 +240,12 @@ function _fetchStore<T, Args extends any[]>(
     group.add(resource);
   }
 
-  return Object.assign(get, resource);
+  const withoutArgs = (fetch.length === 0 ? (get as () => FetchStore<T>)() : {}) as Args extends [] ? FetchStore<T> : Record<string, never>;
+
+  return Object.assign(get, withoutArgs, resource);
 }
 
-export const fetchStore = Object.assign(_fetchStore, {
+export const fetchStore = Object.assign(create, {
+  withArgs,
   defaultOptions,
 });

@@ -1,9 +1,9 @@
 import type { MaybePromise } from './maybePromise';
 
-type Action<T> = () => T | Promise<T>;
+type Action<T> = () => MaybePromise<T>;
 
 export interface Queue {
-  <T>(action: Action<T>): MaybePromise<T>;
+  <T>(action: Action<T>): Promise<T>;
   clear: () => void;
   whenDone: Promise<void>;
 }

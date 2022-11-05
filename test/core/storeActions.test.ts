@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { store } from '../../src';
 
-describe('store actions', () => {
+describe.skip('store actions', () => {
   test('map store', () => {
     const state = store(new Map<number, number>());
     state.set(1, 2);

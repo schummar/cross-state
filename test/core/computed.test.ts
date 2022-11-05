@@ -10,7 +10,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('computed', () => {
+describe.skip('computed', () => {
   test('create store', () => {
     const state = store(() => 1);
 

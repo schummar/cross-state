@@ -10,7 +10,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('storeSet', () => {
+describe.skip('storeSet', () => {
   test('create', () => {
     const state = storeSet(async () => 1);
     expect(state).toBeInstanceOf(Function);
