@@ -4,7 +4,7 @@ import type { Cancel, Effect, Listener, Selector, SubscribeOptions } from './com
 export class Store<T> {
   protected value = this.initialValue;
   protected listeners = new Set<Listener<T>>();
-  protected isActive = false;
+  protected _isActive = false;
 
   constructor(protected initialValue: T) {
     bind(this);
@@ -32,5 +32,9 @@ export class Store<T> {
 
   addEffect(effect: Effect): Cancel {
     return () => {};
+  }
+
+  get isActive() {
+    return this._isActive;
   }
 }
