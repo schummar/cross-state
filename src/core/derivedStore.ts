@@ -1,15 +1,15 @@
 import { CalculationHelper } from '@lib/calculationHelper';
 import { makeSelector } from '@lib/makeSelector';
 import type { Path, Value } from '@lib/propAccess';
-import { set, get } from '@lib/propAccess';
+import { get, set } from '@lib/propAccess';
 import type { Cancel, Selector, Update, Use } from './commonTypes';
 import { Store } from './store';
 
 export class DerivedStore<T> extends Store<T> {
   calculationHelper = new CalculationHelper({
     calculate: ({ use }) => {
-      this.value = this.calculate.apply({ use }, [{ use }]);
-      this.notify();
+      const value = this.calculate.apply({ use }, [{ use }]);
+      super.update(value);
     },
 
     addEffect: this.addEffect,
@@ -34,7 +34,7 @@ export class DerivedStore<T> extends Store<T> {
       this.valid = true;
     }
 
-    return this.value;
+    return super.get();
   }
 
   update(update: Update<T>): void {
