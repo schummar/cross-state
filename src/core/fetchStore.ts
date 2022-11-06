@@ -76,7 +76,7 @@ export class FetchStore<T> extends Store<FetchStoreState<T>> {
     const { cache = 'updateWhenStale' } = options ?? {};
     const { status, value, error, updating, isStale } = this.value;
 
-    if (status === 'pending' || (isStale && !updating) || cache === 'forceUpdate') {
+    if ((isStale && !updating) || cache === 'forceUpdate') {
       this.calculationHelper.execute();
 
       if (status === 'pending' || cache !== 'backgroundUpdate') {

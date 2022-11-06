@@ -111,7 +111,10 @@ export class CalculationHelper<T> {
       }
 
       const value = store.fetch();
-      const equals = (newValue: any) => newValue === value;
+
+      const equals = (newValue: any) => {
+        return newValue === value;
+      };
 
       let sub: Cancel | undefined;
 
@@ -130,7 +133,7 @@ export class CalculationHelper<T> {
         dep.on();
       }
 
-      checks.push(() => equals(store.get()));
+      checks.push(() => equals(store.fetch()));
       deps.set(store, dep);
 
       return value;
