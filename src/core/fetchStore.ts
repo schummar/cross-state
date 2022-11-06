@@ -4,15 +4,14 @@ import { makeSelector } from '@lib/makeSelector';
 import type { Path, Value } from '@lib/propAccess';
 import { Cache, calcDuration } from '../lib';
 import type { Cancel, Duration, Listener, Selector, SubscribeOptions, Update, Use, UseFetch } from './commonTypes';
-import { DerivedStore } from './derivedStore';
 import type { ResourceGroup } from './resourceGroup';
 import { allResources } from './resourceGroup';
 import { Store } from './store';
 
-type Common<T> = { updating?: Promise<T>; isStale: boolean };
-type WithValue<T> = { status: 'value'; value: T; error?: undefined } & Common<T>;
-type WithError<T> = { status: 'error'; value?: undefined; error: unknown } & Common<T>;
-type Pending<T> = { status: 'pending'; value?: undefined; error?: undefined } & Common<T>;
+type Common<T> = { isUpdating: false; update?: undefined; ref: unknown } | { isUpdating: true; update: Promise<T>; ref: unknown };
+type WithValue<T> = { status: 'value'; value: T; error?: undefined; isStale: boolean } & Common<T>;
+type WithError<T> = { status: 'error'; value?: undefined; error: unknown; isStale: boolean } & Common<T>;
+type Pending<T> = { status: 'pending'; value?: undefined; error?: undefined; isStale: true } & Common<T>;
 export type FetchStoreState<T> = WithValue<T> | WithError<T> | Pending<T>;
 
 export interface FetchOptions {
@@ -40,6 +39,8 @@ const fetchStoreStateEquals =
     return simpleShallowEquals(ar, br) && (ar.status !== 'value' || equals(av, bv));
   };
 
+const createRef = () => Math.random().toString(36).slice(2);
+
 export class FetchStore<T> extends Store<FetchStoreState<T>> {
   calculationHelper = new CalculationHelper({
     calculate: ({ use, useFetch }) => {
@@ -58,10 +59,8 @@ export class FetchStore<T> extends Store<FetchStoreState<T>> {
     super({
       status: 'pending',
       isStale: true,
-    });
-
-    this.addEffect(() => {
-      this.calculationHelper.execute();
+      isUpdating: false,
+      ref: createRef(),
     });
   }
 
@@ -74,13 +73,13 @@ export class FetchStore<T> extends Store<FetchStoreState<T>> {
     this.calculationHelper.check();
 
     const { cache = 'updateWhenStale' } = options ?? {};
-    const { status, value, error, updating, isStale } = this.value;
+    const { status, value, error, update, isStale } = this.value;
 
-    if ((isStale && !updating) || cache === 'forceUpdate') {
+    if (((status === 'pending' || isStale) && !update) || cache === 'forceUpdate') {
       this.calculationHelper.execute();
 
       if (status === 'pending' || cache !== 'backgroundUpdate') {
-        return this.value.updating!;
+        return this.value.update!;
       }
     }
 
@@ -88,36 +87,59 @@ export class FetchStore<T> extends Store<FetchStoreState<T>> {
       return value;
     }
 
-    throw error;
+    if (status === 'error') {
+      throw error;
+    }
+
+    return update;
   }
 
   setValue(value: T | Promise<T>): void {
     if (value instanceof Promise) {
+      this.calculationHelper.stop();
       this.setPromise(value);
     } else {
       this.update({
         status: 'value',
         value,
         isStale: false,
+        isUpdating: false,
+        ref: createRef(),
       });
     }
   }
 
-  private setPromise(promise: Promise<T>) {
-    this.update({
+  protected setPromise(promise: Promise<T>) {
+    const ref = createRef();
+
+    super.update({
       ...this.value,
-      updating: promise,
+      isUpdating: true,
+      update: promise,
+      ref,
     });
 
     promise
       .then((value) => {
-        if (promise === this.value.updating) {
-          this.setValue(value);
+        if (promise === this.value.update) {
+          super.update({
+            status: 'value',
+            value,
+            isStale: false,
+            isUpdating: false,
+            ref,
+          });
         }
       })
       .catch((error) => {
-        if (promise === this.value.updating) {
-          this.setError(error);
+        if (promise === this.value.update) {
+          super.update({
+            status: 'error',
+            error,
+            isStale: false,
+            isUpdating: false,
+            ref,
+          });
         }
       });
   }
@@ -127,17 +149,20 @@ export class FetchStore<T> extends Store<FetchStoreState<T>> {
       status: 'error',
       error,
       isStale: false,
+      isUpdating: false,
+      ref: createRef(),
     });
   }
 
   invalidate(): void {
     this.update({
       ...this.value,
-      updating: undefined,
       isStale: true,
+      isUpdating: false,
+      update: undefined,
     });
 
-    if (this.isActive()) {
+    if (this.isActive) {
       this.calculationHelper.execute();
     }
   }
@@ -146,18 +171,24 @@ export class FetchStore<T> extends Store<FetchStoreState<T>> {
     this.update({
       status: 'pending',
       isStale: true,
+      isUpdating: false,
+      ref: createRef(),
     });
 
-    if (this.isActive()) {
+    if (this.isActive) {
       this.calculationHelper.execute();
     }
   }
 
-  sub(listener: Listener<FetchStoreState<T>>, options?: SubscribeOptions | undefined): Cancel {
+  sub(listener: Listener<FetchStoreState<T>>, options?: SubscribeOptions): Cancel {
     return super.sub(listener, {
       ...options,
       equals: fetchStoreStateEquals(options?.equals),
     });
+  }
+
+  subValue(listener: Listener<T | undefined>, options?: SubscribeOptions): Cancel {
+    return this.map((state) => state.value).sub(listener, options);
   }
 
   mapValue<S>(selector: Selector<T, S>): FetchStore<S>;

@@ -82,7 +82,7 @@ describe('dynamic store', () => {
     test('with runNow=false', async () => {
       const state = fetchStore(async () => 1);
       const listener = vi.fn();
-      state.sub(listener, { runNow: false });
+      state.subValue(listener, { runNow: false });
       expect(getValues(listener).length).toBe(0);
 
       await flushPromises();
@@ -92,7 +92,7 @@ describe('dynamic store', () => {
     test('with throttle', async () => {
       const state = fetchStore(async () => 1);
       const listener = vi.fn();
-      state.sub(listener, { throttle: 2 });
+      state.subValue(listener, { throttle: 2 });
       state.setValue(2);
       vi.advanceTimersByTime(1);
       state.setValue(3);
@@ -104,7 +104,7 @@ describe('dynamic store', () => {
     test('with default equals', async () => {
       const state = fetchStore(async () => [1]);
       const listener = vi.fn();
-      state.sub(listener);
+      state.subValue(listener);
       await flushPromises();
       state.setValue([1]);
 
@@ -114,7 +114,7 @@ describe('dynamic store', () => {
     test('with shallowEqual', async () => {
       const state = fetchStore(async () => [1]);
       const listener = vi.fn();
-      state.sub(listener, {
+      state.subValue(listener, {
         equals: shallowEqual,
       });
       await flushPromises();
@@ -123,15 +123,13 @@ describe('dynamic store', () => {
       expect(getValues(listener)).toEqual([undefined, [1]]);
     });
 
-    test.only('with dependencies', async () => {
+    test('with dependencies', async () => {
       const dep1 = store(1);
       const dep2 = fetchStore(async () => {
         await sleep(1);
         return 10;
       });
       const state = fetchStore(async function () {
-        console.log('calc');
-
         return this.use(dep1) + (await this.useFetch(dep2)) + 100;
       });
       const listener = vi.fn();
@@ -140,19 +138,22 @@ describe('dynamic store', () => {
       vi.advanceTimersByTime(1);
       await flushPromises();
 
-      // dep1.update(2);
-      // await flushPromises();
-      // dep2.setValue(20);
-      // await flushPromises();
+      dep1.update(2);
+      await flushPromises();
 
-      expect(listener.mock.calls.map((x) => x[0])).toEqual([
-        { status: 'pending', isStale: true },
-        { status: 'pending', updating: Promise.resolve(), isStale: true },
-        // { status: 'value', value: 111, isUpdating: false, isStale: false },
-        // { status: 'value', value: 111, isUpdating: true, isStale: true },
-        // { status: 'value', value: 112, isUpdating: false, isStale: false },
-        // { status: 'value', value: 112, isUpdating: true, isStale: true },
-        // { status: 'value', value: 122, isUpdating: false, isStale: false },
+      dep2.setValue(20);
+      await flushPromises();
+
+      expect(listener.mock.calls.map((x) => x[0])).toMatchObject([
+        { status: 'pending', isStale: true, isUpdating: false },
+        { status: 'pending', isStale: true, isUpdating: true, update: Promise.resolve() },
+        { status: 'value', value: 111, isStale: false, isUpdating: false },
+        { status: 'value', value: 111, isStale: true, isUpdating: false },
+        { status: 'value', value: 111, isStale: true, isUpdating: true },
+        { status: 'value', value: 112, isStale: false, isUpdating: false },
+        { status: 'value', value: 112, isStale: true, isUpdating: false },
+        { status: 'value', value: 112, isStale: true, isUpdating: true },
+        { status: 'value', value: 122, isStale: false, isUpdating: false },
       ]);
     });
 
@@ -167,13 +168,13 @@ describe('dynamic store', () => {
       });
 
       const cancel = state.sub(vi.fn());
-      expect(dep1.isActive()).toBe(true);
-      expect(dep2.isActive()).toBe(true);
+      expect(dep1.isActive).toBe(true);
+      expect(dep2.isActive).toBe(true);
 
       cancel();
       vi.advanceTimersByTime(100);
-      expect(dep1.isActive()).toBe(false);
-      expect(dep2.isActive()).toBe(false);
+      expect(dep1.isActive).toBe(false);
+      expect(dep2.isActive).toBe(false);
     });
   });
 });

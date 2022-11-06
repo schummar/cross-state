@@ -26,7 +26,11 @@ export class CalculationHelper<T> {
     }
   ) {
     options.addEffect(() => {
-      this.execute();
+      if (this.current) {
+        this.current.check();
+      } else {
+        this.execute();
+      }
     });
   }
 
@@ -76,7 +80,9 @@ export class CalculationHelper<T> {
       }
 
       let value = store.get();
-      let equals = (newValue: any) => newValue === value;
+      let equals = (newValue: any) => {
+        return newValue === value;
+      };
 
       if (!disableProxy) {
         [value, equals] = trackingProxy(value);
@@ -87,6 +93,7 @@ export class CalculationHelper<T> {
       const dep = {
         on() {
           this.off();
+
           sub = store.sub(check, { runNow: false });
         },
         off() {
@@ -111,10 +118,7 @@ export class CalculationHelper<T> {
       }
 
       const value = store.fetch();
-
-      const equals = (newValue: any) => {
-        return newValue === value;
-      };
+      const ref = store.get().ref;
 
       let sub: Cancel | undefined;
 
@@ -133,7 +137,9 @@ export class CalculationHelper<T> {
         dep.on();
       }
 
-      checks.push(() => equals(store.fetch()));
+      checks.push(() => {
+        return store.get().ref === ref;
+      });
       deps.set(store, dep);
 
       return value;

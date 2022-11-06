@@ -101,9 +101,9 @@ export class Store<T> {
     };
   }
 
-  map<S>(selector: Selector<T, S>): Store<S>;
-  map<P extends Path<T>>(selector: P): Store<Value<T, P>>;
-  map(_selector: Selector<T, any> | string): Store<any> {
+  map<S>(selector: Selector<T, S>): DerivedStore<S>;
+  map<P extends Path<T>>(selector: P): DerivedStore<Value<T, P>>;
+  map(_selector: Selector<T, any> | string): DerivedStore<any> {
     const selector = makeSelector(_selector);
     const derivedFrom = { store: this, selectors: [_selector] };
 

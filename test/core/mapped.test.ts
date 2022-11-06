@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { store } from '../../src';
-import { flushPromises } from '../testHelpers';
 
 beforeEach(() => {
   vi.useFakeTimers();

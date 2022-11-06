@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from 'vitest';
 import { once, store } from '../../src';
-import { FakeWebSocket } from '../core/subscriptionStore.test';
+import { FakeWebSocket } from '../core/_subscriptionStore.test';
 
 describe.skip('once', () => {
   test('once has value', async () => {

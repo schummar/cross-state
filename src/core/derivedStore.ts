@@ -9,6 +9,7 @@ export class DerivedStore<T> extends Store<T> {
   calculationHelper = new CalculationHelper({
     calculate: ({ use }) => {
       const value = this.calculate.apply({ use }, [{ use }]);
+      this.valid = true;
       super.update(value);
     },
 
@@ -31,7 +32,6 @@ export class DerivedStore<T> extends Store<T> {
   get(): T {
     if (!this.valid) {
       this.calculationHelper.execute();
-      this.valid = true;
     }
 
     return super.get();
@@ -53,17 +53,17 @@ export class DerivedStore<T> extends Store<T> {
     }
   }
 
-  map<S>(selector: Selector<T, S>): Store<S>;
-  map<P extends Path<T>>(selector: P): Store<Value<T, P>>;
-  map(_selector: string | Selector<T, any>): Store<any> {
+  map<S>(selector: Selector<T, S>): DerivedStore<S>;
+  map<P extends Path<T>>(selector: P): DerivedStore<Value<T, P>>;
+  map(_selector: string | Selector<T, any>): DerivedStore<any> {
     const selector = makeSelector(_selector);
 
     const derivedFrom = this.derivedFrom ?? { store: this, selectors: [] };
-    derivedFrom.selectors.push(_selector);
+    const newDerivedFrom = { ...derivedFrom, selectors: derivedFrom.selectors.concat(_selector) };
 
     return new DerivedStore(({ use }) => {
       return selector(use(this));
-    }, derivedFrom);
+    }, newDerivedFrom);
   }
 
   protected invalidate() {
