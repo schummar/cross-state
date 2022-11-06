@@ -51,7 +51,7 @@ export class Store<T> {
 
   update(update: Update<T>): void {
     if (update instanceof Function) {
-      update = update(this.value);
+      update = update(this.get());
     }
 
     this.value = update;
@@ -61,11 +61,11 @@ export class Store<T> {
   sub(listener: Listener<T>, options?: SubscribeOptions): Cancel {
     const { runNow = true, throttle: throttleOption, equals = defaultEquals } = options ?? {};
 
-    let compareToValue = this.value;
+    let compareToValue = this.get();
     let previousValue: T | undefined;
 
     let innerListener = (force?: boolean | void) => {
-      const value = this.value;
+      const value = this.get();
 
       if (!force && equals(value, compareToValue)) {
         return;
@@ -152,7 +152,7 @@ export class Store<T> {
   }
 
   /** Return whether the store is currently active, which means whether it has at least one subscriber. */
-  isActive() {
+  get isActive() {
     return this.listeners.size > 0;
   }
 

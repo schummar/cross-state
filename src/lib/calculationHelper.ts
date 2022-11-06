@@ -18,13 +18,17 @@ export class CalculationHelper<T> {
         updateValue: (update: UpdateFrom<MaybePromise<T>, [T | undefined]>) => void;
         updateError: (error: unknown) => void;
       }) => Cancel | void;
-      addEffect: (effect: () => Cancel) => Cancel;
+      addEffect: (effect: () => Cancel | void) => Cancel;
       getValue: () => T | undefined;
-      setValue: (value: T) => void;
+      setValue?: (value: T) => void;
       setError?: (error: unknown) => void;
       onInvalidate?: () => void;
     }
-  ) {}
+  ) {
+    options.addEffect(() => {
+      this.execute();
+    });
+  }
 
   execute() {
     this.stop();
@@ -159,7 +163,7 @@ export class CalculationHelper<T> {
         }
 
         if (!isCancled) {
-          setValue(update);
+          setValue?.(update);
         }
       });
 

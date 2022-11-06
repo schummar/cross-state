@@ -62,3 +62,8 @@ export interface Use {
 export interface UseFetch {
   <T>(fetchStore: FetchStore<T>): Promise<T>;
 }
+
+export interface ChildStore<T, S> {
+  parentStore: Store<T>;
+  selector: Selector<T, S>;
+}
