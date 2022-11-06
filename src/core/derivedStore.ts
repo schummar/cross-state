@@ -1,11 +1,15 @@
 import { CalculationHelper } from '@lib/calculationHelper';
-import type { Cancel, Update, Use } from './commonTypes';
+import { makeSelector } from '@lib/makeSelector';
+import type { Path, Value } from '@lib/propAccess';
+import { set, get } from '@lib/propAccess';
+import type { Cancel, Selector, Update, Use } from './commonTypes';
 import { Store } from './store';
 
 export class DerivedStore<T> extends Store<T> {
   calculationHelper = new CalculationHelper({
     calculate: ({ use }) => {
       this.value = this.calculate.apply({ use }, [{ use }]);
+      this.notify();
     },
 
     addEffect: this.addEffect,
@@ -17,7 +21,10 @@ export class DerivedStore<T> extends Store<T> {
   protected check?: () => void;
   protected cancel?: Cancel;
 
-  constructor(protected calculate: (this: { use: Use }, fns: { use: Use }) => T) {
+  constructor(
+    protected calculate: (this: { use: Use }, fns: { use: Use }) => T,
+    protected derivedFrom?: { store: Store<any>; selectors: (Selector<any, any> | string)[] }
+  ) {
     super(undefined as T);
   }
 
@@ -31,8 +38,32 @@ export class DerivedStore<T> extends Store<T> {
   }
 
   update(update: Update<T>): void {
-    this.valid = true;
-    super.update(update);
+    if (this.derivedFrom && this.derivedFrom.selectors.every((selector) => typeof selector === 'string')) {
+      const path = this.derivedFrom.selectors.join('.');
+
+      if (update instanceof Function) {
+        const before = get<any, any>(this.derivedFrom.store, path) as T;
+        update = update(before);
+      }
+
+      this.derivedFrom.store.update((before: any) => set<any, any>(before, path, update));
+    } else {
+      this.valid = true;
+      super.update(update);
+    }
+  }
+
+  map<S>(selector: Selector<T, S>): Store<S>;
+  map<P extends Path<T>>(selector: P): Store<Value<T, P>>;
+  map(_selector: string | Selector<T, any>): Store<any> {
+    const selector = makeSelector(_selector);
+
+    const derivedFrom = this.derivedFrom ?? { store: this, selectors: [] };
+    derivedFrom.selectors.push(_selector);
+
+    return new DerivedStore(({ use }) => {
+      return selector(use(this));
+    }, derivedFrom);
   }
 
   protected invalidate() {

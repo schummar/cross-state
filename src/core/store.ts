@@ -7,6 +7,7 @@ import { arrayActions, mapActions, recordActions, setActions } from '@lib/storeA
 import { throttle } from '@lib/throttle';
 import { bind } from '../lib/bind';
 import type { Cancel, Duration, Effect, Listener, Selector, SubscribeOptions, Update } from './commonTypes';
+import { DerivedStore } from './derivedStore';
 
 export type StoreActions = Record<string, (...args: any[]) => any>;
 
@@ -104,27 +105,11 @@ export class Store<T> {
   map<P extends Path<T>>(selector: P): Store<Value<T, P>>;
   map(_selector: Selector<T, any> | string): Store<any> {
     const selector = makeSelector(_selector);
+    const derivedFrom = { store: this, selectors: [_selector] };
 
-    // const parentStore = {
-    //   store: this.options.parentStore?.store ?? (this as Store<any, any>),
-    //   selectors: this.options.parentStore?.selectors.slice() ?? [],
-    // };
-    // parentStore.selectors.push(_selector);
-
-    // return store(
-    //   ({ use }) => {
-    //     const value = use(this);
-
-    //     if (value instanceof Promise) {
-    //       return value.then((value) => selector(value as UnwrapPromise<T>));
-    //     }
-
-    //     return selector(value as UnwrapPromise<T>);
-    //   },
-    //   {
-    //     parentStore,
-    //   }
-    // );
+    return new DerivedStore(({ use }) => {
+      return selector(use(this));
+    }, derivedFrom);
   }
 
   /** Add an effect that will be executed when the store becomes active, which means when it has at least one subscriber.
@@ -156,7 +141,7 @@ export class Store<T> {
     return this.listeners.size > 0;
   }
 
-  private onSubscribe() {
+  protected onSubscribe() {
     if (this.listeners.size > 1) return;
 
     for (const [effect, { handle, retain, timeout }] of this.effects.entries()) {
@@ -170,7 +155,7 @@ export class Store<T> {
     }
   }
 
-  private onUnsubscribe() {
+  protected onUnsubscribe() {
     if (this.listeners.size > 0) return;
 
     for (const [effect, { handle, retain, timeout }] of this.effects.entries()) {
@@ -185,7 +170,7 @@ export class Store<T> {
     }
   }
 
-  private notify() {
+  protected notify() {
     const n = (this.notifyId = {});
     for (const listener of [...this.listeners]) {
       listener();
