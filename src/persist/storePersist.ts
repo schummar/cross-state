@@ -8,7 +8,7 @@ export class StorePersist<T> {
   initialization = this.load();
   private isStopped = false;
   private sub?: () => void;
-  private saveQueue = new Array<{ path: Path; t: number }>();
+  private saveQueue = new Array<{ path: Path; t: number; cleanOnly?: boolean }>();
   private isSaving = false;
   private saveTimeout?: NodeJS.Timeout;
   private paths: { path: Path; throttleMs?: number }[];
@@ -33,7 +33,7 @@ export class StorePersist<T> {
     this.paths.sort((a, b) => b.path.length - a.path.length);
   }
 
-  private async load() {
+  private async getKeys() {
     const storage = this.storage;
 
     let keys;
@@ -47,6 +47,14 @@ export class StorePersist<T> {
         if (key !== null) keys.push(key);
       }
     }
+
+    return keys;
+  }
+
+  private async load() {
+    const storage = this.storage;
+
+    const keys = await this.getKeys();
     keys.sort((a, b) => a.length - b.length);
 
     const patches = new Array<Patch & { persist: StorePersist<T> }>();
@@ -80,16 +88,21 @@ export class StorePersist<T> {
   }
 
   private addToSaveQueue(path: Path) {
-    const match = this.paths.find((p) => isAncestor(p.path, path));
-    if (!match) return;
+    const ancestor = this.paths.find((p) => isAncestor(p.path, path));
+    const hasDescendants = this.paths.some((p) => isAncestor(path, p.path));
 
-    path = path.slice(0, match.path.length);
-    const t = Date.now() + (match.throttleMs ?? 0);
+    if (ancestor) {
+      path = path.slice(0, ancestor.path.length);
+      const t = Date.now() + (ancestor.throttleMs ?? 0);
 
-    if (this.saveQueue.some((i) => i.t <= t && isAncestor(i.path, path))) return;
-    this.saveQueue.push({ path, t });
-    this.saveQueue.sort((a, b) => a.t - b.t);
-    this.run();
+      if (this.saveQueue.some((i) => i.t <= t && isAncestor(i.path, path))) return;
+      this.saveQueue.push({ path, t });
+      this.saveQueue.sort((a, b) => a.t - b.t);
+      this.run();
+    } else if (hasDescendants) {
+      this.saveQueue.unshift({ path, t: 0, cleanOnly: true });
+      this.run();
+    }
   }
 
   private async run() {
@@ -105,16 +118,29 @@ export class StorePersist<T> {
     try {
       this.isSaving = true;
       this.saveQueue.shift();
-      await this.save(next.path);
+      await this.save(next.path, next.cleanOnly);
     } finally {
       this.isSaving = false;
       this.run();
     }
   }
 
-  private async save(path: Path) {
+  private async save(path: Path, cleanOnly?: boolean) {
     const { store, storage } = this;
     let value = get(store.getState(), path);
+
+    const obsoletePaths = (await this.getKeys()).filter((key) => {
+      const p = key.split('.');
+      return p.length > path.length && isAncestor(path, key.split('.'));
+    });
+    for (const p of obsoletePaths) {
+      const result = storage.removeItem(p);
+      if (result instanceof Promise) await result;
+    }
+
+    if (cleanOnly) {
+      return;
+    }
 
     const subPaths = this.paths
       .filter((p) => isAncestor(path, p.path) && p.path.length > path.length)
@@ -127,10 +153,10 @@ export class StorePersist<T> {
       subValues.push(...result[1].map((s) => ({ path: [...path, ...s.path], value: s.value })));
     }
 
-    const result = storage.setItem(path.join('.'), stringify(value) ?? 'undefined');
+    const result = value !== undefined ? storage.setItem(path.join('.'), stringify(value)) : storage.removeItem(path.join('.'));
     if (result instanceof Promise) await result;
     for (const { path, value } of subValues) {
-      const result = storage.setItem(path.join('.'), stringify(value) ?? 'undefined');
+      const result = value !== undefined ? storage.setItem(path.join('.'), stringify(value)) : storage.removeItem(path.join('.'));
       if (result instanceof Promise) await result;
     }
   }

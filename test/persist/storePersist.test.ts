@@ -3,6 +3,7 @@ import localforage from 'localforage';
 import nodePersist from 'node-persist';
 import { Store, StorePersist } from '../../src';
 import { sleep } from '../../src/helpers/misc';
+import { flushPromises } from '../_helpers';
 
 type State = {
   wellKnownObject: { wellKnownProp: string };
@@ -273,4 +274,55 @@ test('serialized map/set/date', async (t) => {
   t.assert(newStore.getState().a instanceof Map);
   t.assert(newStore.getState().b instanceof Set);
   t.assert(newStore.getState().c instanceof Date);
+});
+
+test('delete wildcard item', async (t) => {
+  const store = new Store({
+    items: {} as Record<string, string>,
+  });
+  const storage = new MockStorage();
+  const persist = new StorePersist(store, storage, { paths: ['items.*'] });
+  await persist.initialization;
+
+  store.update((state) => {
+    state.items.a = 'a';
+    state.items.b = 'b';
+  });
+  await Promise.resolve();
+
+  store.update((state) => {
+    delete state.items.a;
+  });
+  await Promise.resolve();
+
+  t.deepEqual(storage.items, {
+    'items.b': '"b"',
+  });
+});
+
+test.only('change wildcard parent', async (t) => {
+  const store = new Store({
+    items: {} as Record<string, string>,
+  });
+  const storage = new MockStorage();
+  const persist = new StorePersist(store, storage, { paths: ['items.*'] });
+  await persist.initialization;
+
+  store.update((state) => {
+    state.items.a = 'a';
+    state.items.b = 'b';
+  });
+  await flushPromises();
+
+  t.deepEqual(storage.items, {
+    'items.a': '"a"',
+    'items.b': '"b"',
+  });
+
+  store.update((state) => {
+    state.items = {};
+  });
+  await flushPromises();
+
+  t.deepEqual(storage.items, {});
 });
