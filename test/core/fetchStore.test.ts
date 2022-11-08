@@ -1,3 +1,4 @@
+import { FetchStore } from '@core/fetchStore';
 import { shallowEqual } from 'fast-equals';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { fetchStore, store } from '../../src';
@@ -14,19 +15,28 @@ afterEach(() => {
 describe('dynamic store', () => {
   test('create', () => {
     const state = fetchStore(async () => 1);
-    expect(state).toBeInstanceOf(Function);
+    expect(state).toBeInstanceOf(FetchStore);
   });
 
   describe('get', () => {
     test('get pending', async () => {
       const state = fetchStore(async () => 1);
-      expect(state.get()).toEqual({ status: 'pending', isStale: true });
+      expect(state.get()).toMatchObject({
+        status: 'pending',
+        isStale: true,
+        isUpdating: false,
+      });
     });
 
     test('get updating', async () => {
       const state = fetchStore(async () => 1);
       state.fetch();
-      expect(state.get()).toEqual({ status: 'pending', isStale: true });
+      expect(state.get()).toMatchObject({
+        status: 'pending',
+        isStale: true,
+        isUpdating: true,
+        update: Promise.resolve(),
+      });
     });
   });
 
@@ -36,7 +46,7 @@ describe('dynamic store', () => {
       expect(state.fetch()).toBeInstanceOf(Promise);
 
       await flushPromises();
-      expect(state.get()).toBe(1);
+      await expect(state.fetch()).resolves.toBe(1);
     });
 
     test('fetch with error', async () => {
@@ -45,7 +55,7 @@ describe('dynamic store', () => {
       });
 
       await flushPromises();
-      expect(state.get()).rejects.toThrow('error');
+      await expect(state.fetch()).rejects.toThrow('error');
     });
   });
 
@@ -58,9 +68,30 @@ describe('dynamic store', () => {
 
       await flushPromises();
 
-      expect(listener.mock.calls).toEqual([
-        [undefined, undefined],
-        [1, undefined],
+      expect(listener.mock.calls).toMatchObject([
+        [
+          {
+            isStale: true,
+            isUpdating: true,
+            status: 'pending',
+            update: Promise.resolve(),
+          },
+          undefined,
+        ],
+        [
+          {
+            isStale: false,
+            isUpdating: false,
+            status: 'value',
+            value: 1,
+          },
+          {
+            isStale: true,
+            isUpdating: true,
+            status: 'pending',
+            update: Promise.resolve(),
+          },
+        ],
       ]);
     });
 
@@ -104,7 +135,7 @@ describe('dynamic store', () => {
     test('with default equals', async () => {
       const state = fetchStore(async () => [1]);
       const listener = vi.fn();
-      state.subValue(listener);
+      state.subValue(listener, { disableProxy: true });
       await flushPromises();
       state.setValue([1]);
 
@@ -115,6 +146,7 @@ describe('dynamic store', () => {
       const state = fetchStore(async () => [1]);
       const listener = vi.fn();
       state.subValue(listener, {
+        disableProxy: true,
         equals: shallowEqual,
       });
       await flushPromises();
@@ -145,7 +177,6 @@ describe('dynamic store', () => {
       await flushPromises();
 
       expect(listener.mock.calls.map((x) => x[0])).toMatchObject([
-        { status: 'pending', isStale: true, isUpdating: false },
         { status: 'pending', isStale: true, isUpdating: true, update: Promise.resolve() },
         { status: 'value', value: 111, isStale: false, isUpdating: false },
         { status: 'value', value: 111, isStale: true, isUpdating: false },

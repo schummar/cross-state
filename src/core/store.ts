@@ -1,13 +1,13 @@
 import { calcDuration } from '@lib';
+import { bind } from '@lib/bind';
+import { CalculationHelper } from '@lib/calculationHelper';
 import { defaultEquals } from '@lib/equals';
 import { forwardError } from '@lib/forwardError';
 import { makeSelector } from '@lib/makeSelector';
-import type { Path, Value } from '@lib/propAccess';
+import { get, Path, set, Value } from '@lib/propAccess';
 import { arrayActions, mapActions, recordActions, setActions } from '@lib/storeActions';
 import { throttle } from '@lib/throttle';
-import { bind } from '../lib/bind';
-import type { Cancel, Duration, Effect, Listener, Selector, SubscribeOptions, Update } from './commonTypes';
-import { DerivedStore } from './derivedStore';
+import type { Cancel, Duration, Effect, Listener, Selector, SubscribeOptions, Update, Use, UseOptions } from './commonTypes';
 
 export type StoreActions = Record<string, (...args: any[]) => any>;
 
@@ -64,6 +64,7 @@ export class Store<T> {
 
     let compareToValue = this.get();
     let previousValue: T | undefined;
+    let hasRun = false;
 
     let innerListener = (force?: boolean | void) => {
       const value = this.get();
@@ -75,6 +76,7 @@ export class Store<T> {
       compareToValue = value;
       const _previousValue = previousValue;
       previousValue = value;
+      hasRun = true;
 
       try {
         listener(value, _previousValue);
@@ -88,12 +90,11 @@ export class Store<T> {
     }
 
     this.listeners.add(innerListener);
+    this.onSubscribe();
 
-    if (runNow) {
+    if (runNow && !hasRun) {
       innerListener(true);
     }
-
-    this.onSubscribe();
 
     return () => {
       this.listeners.delete(innerListener);
@@ -101,14 +102,14 @@ export class Store<T> {
     };
   }
 
-  map<S>(selector: Selector<T, S>): DerivedStore<S>;
-  map<P extends Path<T>>(selector: P): DerivedStore<Value<T, P>>;
-  map(_selector: Selector<T, any> | string): DerivedStore<any> {
+  map<S>(selector: Selector<T, S>, options?: UseOptions): DerivedStore<S>;
+  map<P extends Path<T>>(selector: P, options?: UseOptions): DerivedStore<Value<T, P>>;
+  map(_selector: Selector<T, any> | string, options?: UseOptions): DerivedStore<any> {
     const selector = makeSelector(_selector);
     const derivedFrom = { store: this, selectors: [_selector] };
 
     return new DerivedStore(({ use }) => {
-      return selector(use(this));
+      return selector(use(this, options));
     }, derivedFrom);
   }
 
@@ -209,3 +210,79 @@ function _store<T, Actions extends StoreActions = Record<string, never>>(
 }
 
 export const store = Object.assign(_store, { defaultOptions });
+
+export class DerivedStore<T> extends Store<T> {
+  calculationHelper = new CalculationHelper({
+    calculate: ({ use }) => {
+      const value = this.calculate.apply({ use }, [{ use }]);
+      this.valid = true;
+      super.update(value);
+    },
+
+    addEffect: this.addEffect,
+    getValue: () => this.value,
+    onInvalidate: this.invalidate,
+  });
+
+  protected valid = false;
+  protected check?: () => void;
+  protected cancel?: Cancel;
+
+  constructor(
+    protected calculate: (this: { use: Use }, fns: { use: Use }) => T,
+    protected derivedFrom?: { store: Store<any>; selectors: (Selector<any, any> | string)[] }
+  ) {
+    super(undefined as T);
+  }
+
+  get(): T {
+    if (!this.valid) {
+      this.calculationHelper.execute();
+    }
+
+    return super.get();
+  }
+
+  update(update: Update<T>): void {
+    if (this.derivedFrom && this.derivedFrom.selectors.every((selector) => typeof selector === 'string')) {
+      const path = this.derivedFrom.selectors.join('.');
+
+      if (update instanceof Function) {
+        const before = get<any, any>(this.derivedFrom.store, path) as T;
+        update = update(before);
+      }
+
+      this.derivedFrom.store.update((before: any) => set<any, any>(before, path, update));
+    } else {
+      this.valid = true;
+      super.update(update);
+    }
+  }
+
+  map<S>(selector: Selector<T, S>): DerivedStore<S>;
+  map<P extends Path<T>>(selector: P): DerivedStore<Value<T, P>>;
+  map(_selector: string | Selector<T, any>): DerivedStore<any> {
+    const selector = makeSelector(_selector);
+
+    const derivedFrom = this.derivedFrom ?? { store: this, selectors: [] };
+    const newDerivedFrom = { ...derivedFrom, selectors: derivedFrom.selectors.concat(_selector) };
+
+    return new DerivedStore(({ use }) => {
+      return selector(use(this));
+    }, newDerivedFrom);
+  }
+
+  protected invalidate() {
+    this.valid = false;
+
+    if (this.isActive) {
+      this.calculationHelper.execute();
+    }
+  }
+}
+
+function _derivedStore<T>(calculate: (this: { use: Use }, fns: { use: Use }) => T) {
+  return new DerivedStore(calculate);
+}
+
+export const derivedStore = Object.assign(_derivedStore, {});

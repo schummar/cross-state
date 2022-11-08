@@ -1,9 +1,9 @@
+import { Cache, calcDuration } from '@lib';
 import { CalculationHelper } from '@lib/calculationHelper';
 import { defaultEquals, simpleShallowEquals } from '@lib/equals';
 import { makeSelector } from '@lib/makeSelector';
 import type { Path, Value } from '@lib/propAccess';
-import { Cache, calcDuration } from '../lib';
-import type { Cancel, Duration, Listener, Selector, SubscribeOptions, Update, Use, UseFetch } from './commonTypes';
+import type { Cancel, Duration, Listener, Selector, SubscribeOptions, Update, Use, UseFetch, UseOptions } from './commonTypes';
 import type { ResourceGroup } from './resourceGroup';
 import { allResources } from './resourceGroup';
 import { Store } from './store';
@@ -187,8 +187,9 @@ export class FetchStore<T> extends Store<FetchStoreState<T>> {
     });
   }
 
-  subValue(listener: Listener<T | undefined>, options?: SubscribeOptions): Cancel {
-    return this.map((state) => state.value).sub(listener, options);
+  subValue(listener: Listener<T | undefined>, options?: UseOptions & SubscribeOptions): Cancel {
+    const { disableProxy, ...subOptions } = options ?? {};
+    return this.map((state) => state.value, { disableProxy }).sub(listener, subOptions);
   }
 
   mapValue<S>(selector: Selector<T, S>): FetchStore<S>;
@@ -201,34 +202,13 @@ export class FetchStore<T> extends Store<FetchStoreState<T>> {
       const value: T = await this.useFetch(that);
       return selector(value);
     });
-
-    // const parentStore = {
-    //   store: this.options.parentStore?.store ?? (this as Store<any, any>),
-    //   selectors: this.options.parentStore?.selectors.slice() ?? [],
-    // };
-    // parentStore.selectors.push(_selector);
-
-    // return store(
-    //   ({ use }) => {
-    //     const value = use(this);
-
-    //     if (value instanceof Promise) {
-    //       return value.then((value) => selector(value as UnwrapPromise<T>));
-    //     }
-
-    //     return selector(value as UnwrapPromise<T>);
-    //   },
-    //   {
-    //     parentStore,
-    //   }
-    // );
   }
 }
 
 const defaultOptions: FetchStoreOptions<unknown> = {};
 
 function create<T>(fetch: FetchFn<T>, options?: FetchStoreOptions<T>): FetchStore<T> {
-  return new FetchStore(fetch, options);
+  return withArgs(fetch, options)();
 }
 
 function withArgs<T, Args extends any[]>(
@@ -271,9 +251,7 @@ function withArgs<T, Args extends any[]>(
     group.add(resource);
   }
 
-  const withoutArgs = (fetch.length === 0 ? (get as () => FetchStore<T>)() : {}) as Args extends [] ? FetchStore<T> : Record<string, never>;
-
-  return Object.assign(get, withoutArgs, resource);
+  return Object.assign(get, resource);
 }
 
 export const fetchStore = Object.assign(create, {
