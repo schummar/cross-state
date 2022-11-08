@@ -1,5 +1,12 @@
 # Changelog
 
+### [0.4.6](https://www.github.com/schummar/schummar-state/compare/v0.4.5...v0.4.6) (2022-11-08)
+
+
+### Bug Fixes
+
+* change wildcard parent with children ([8248a1e](https://www.github.com/schummar/schummar-state/commit/8248a1e58eb7926c3140761c146e3b1b140e08c4))
+
 ### [0.4.5](https://www.github.com/schummar/schummar-state/compare/v0.4.4...v0.4.5) (2022-11-08)
 
 
