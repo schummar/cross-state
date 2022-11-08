@@ -8,7 +8,7 @@ export class StorePersist<T> {
   initialization = this.load();
   private isStopped = false;
   private sub?: () => void;
-  private saveQueue = new Array<{ path: Path; t: number; cleanOnly?: boolean }>();
+  private saveQueue = new Array<{ path: Path; t: number; descendantsOnly?: boolean }>();
   private isSaving = false;
   private saveTimeout?: NodeJS.Timeout;
   private paths: { path: Path; throttleMs?: number }[];
@@ -100,7 +100,7 @@ export class StorePersist<T> {
       this.saveQueue.sort((a, b) => a.t - b.t);
       this.run();
     } else if (hasDescendants) {
-      this.saveQueue.unshift({ path, t: 0, cleanOnly: true });
+      this.saveQueue.unshift({ path, t: 0, descendantsOnly: true });
       this.run();
     }
   }
@@ -118,14 +118,14 @@ export class StorePersist<T> {
     try {
       this.isSaving = true;
       this.saveQueue.shift();
-      await this.save(next.path, next.cleanOnly);
+      await this.save(next.path, next.descendantsOnly);
     } finally {
       this.isSaving = false;
       this.run();
     }
   }
 
-  private async save(path: Path, cleanOnly?: boolean) {
+  private async save(path: Path, descendantsOnly?: boolean) {
     const { store, storage } = this;
     let value = get(store.getState(), path);
 
@@ -136,10 +136,6 @@ export class StorePersist<T> {
     for (const p of obsoletePaths) {
       const result = storage.removeItem(p);
       if (result instanceof Promise) await result;
-    }
-
-    if (cleanOnly) {
-      return;
     }
 
     const subPaths = this.paths
@@ -153,8 +149,11 @@ export class StorePersist<T> {
       subValues.push(...result[1].map((s) => ({ path: [...path, ...s.path], value: s.value })));
     }
 
-    const result = value !== undefined ? storage.setItem(path.join('.'), stringify(value)) : storage.removeItem(path.join('.'));
-    if (result instanceof Promise) await result;
+    if (!descendantsOnly) {
+      const result = value !== undefined ? storage.setItem(path.join('.'), stringify(value)) : storage.removeItem(path.join('.'));
+      if (result instanceof Promise) await result;
+    }
+
     for (const { path, value } of subValues) {
       const result = value !== undefined ? storage.setItem(path.join('.'), stringify(value)) : storage.removeItem(path.join('.'));
       if (result instanceof Promise) await result;

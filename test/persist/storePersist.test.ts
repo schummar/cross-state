@@ -90,7 +90,7 @@ test('save', async (t) => {
     state.notPersisted.notPersitedProps = 'value6';
   });
 
-  await Promise.resolve();
+  await flushPromises();
 
   t.deepEqual(storage.items, {
     wellKnownObject: '{"wellKnownProp":"b"}',
@@ -118,7 +118,7 @@ test('save throttled', async (t) => {
     state.complexDict.id2 = { complexDictProps: 'value2' };
   });
 
-  await Promise.resolve();
+  await flushPromises();
 
   t.deepEqual(storage.items, {
     wellKnownObject: '{"wellKnownProp":"b"}',
@@ -217,7 +217,7 @@ test('stop', async (t) => {
     state.wellKnownObject.wellKnownProp = 'b';
   });
 
-  await Promise.resolve();
+  await flushPromises();
 
   t.deepEqual(storage.items, {
     wellKnownObject: '{"wellKnownProp":"b"}',
@@ -229,7 +229,7 @@ test('stop', async (t) => {
     state.wellKnownObject.wellKnownProp = 'c';
   });
 
-  await Promise.resolve();
+  await flushPromises();
 
   t.deepEqual(storage.items, {
     wellKnownObject: '{"wellKnownProp":"b"}',
@@ -247,7 +247,7 @@ test('undefined', async (t) => {
     state.foo = undefined;
   });
 
-  await Promise.resolve();
+  await flushPromises();
 
   const newStore = new Store<{ foo?: string }>({});
   const newPersist = new StorePersist(newStore, storage, { paths: ['foo'] });
@@ -263,7 +263,7 @@ test('serialized map/set/date', async (t) => {
   await persist.initialization;
 
   store.set({ a: new Map([['a', 1]]), b: new Set('b'), c: new Date(0) });
-  await Promise.resolve();
+  await flushPromises();
 
   t.deepEqual(storage.items, { '': '{"a":{"__map":[["a",1]]},"b":{"__set":["b"]},"c":{"__date":"1970-01-01T00:00:00.000Z"}}' });
 
@@ -288,19 +288,19 @@ test('delete wildcard item', async (t) => {
     state.items.a = 'a';
     state.items.b = 'b';
   });
-  await Promise.resolve();
+  await flushPromises();
 
   store.update((state) => {
     delete state.items.a;
   });
-  await Promise.resolve();
+  await flushPromises();
 
   t.deepEqual(storage.items, {
     'items.b': '"b"',
   });
 });
 
-test.only('change wildcard parent', async (t) => {
+test('change wildcard parent', async (t) => {
   const store = new Store({
     items: {} as Record<string, string>,
   });
@@ -325,4 +325,34 @@ test.only('change wildcard parent', async (t) => {
   await flushPromises();
 
   t.deepEqual(storage.items, {});
+});
+
+test('change wildcard parent with children', async (t) => {
+  const store = new Store({
+    items: {} as Record<string, string>,
+  });
+  const storage = new MockStorage();
+  const persist = new StorePersist(store, storage, { paths: ['items.*'] });
+  await persist.initialization;
+
+  store.update((state) => {
+    state.items.a = 'a';
+    state.items.b = 'b';
+  });
+  await flushPromises();
+
+  t.deepEqual(storage.items, {
+    'items.a': '"a"',
+    'items.b': '"b"',
+  });
+
+  store.update((state) => {
+    state.items = {};
+    state.items.c = 'c';
+  });
+  await flushPromises();
+
+  t.deepEqual(storage.items, {
+    'items.c': '"c"',
+  });
 });
