@@ -1,5 +1,12 @@
 # Changelog
 
+### [0.4.5](https://www.github.com/schummar/schummar-state/compare/v0.4.4...v0.4.5) (2022-11-08)
+
+
+### Bug Fixes
+
+* delete obsolete persisted items ([71c6639](https://www.github.com/schummar/schummar-state/commit/71c66396f357263fa80ef5eba3d794d90b134e90))
+
 ### [0.4.4](https://www.github.com/schummar/schummar-state/compare/v0.4.3...v0.4.4) (2022-09-26)
 
 
