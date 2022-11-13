@@ -1,5 +1,6 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, assert, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Cache } from '../../src/lib/cache';
+import { flushPromises, sleep } from '../testHelpers';
 
 const weakRefMockHandles: (() => void)[] = [];
 
@@ -24,12 +25,12 @@ const clearWeakRefMocks = () => {
 
 beforeEach(() => {
   vi.useFakeTimers();
-  vi.stubGlobal('WeakRef', WeakRefMock);
+  // vi.stubGlobal('WeakRef', WeakRefMock);
 });
 
 afterEach(() => {
   vi.resetAllMocks();
-  clearWeakRefMocks();
+  // clearWeakRefMocks();
 });
 
 describe('cache', () => {
@@ -146,4 +147,49 @@ describe('cache', () => {
     expect(valuesBefore).toEqual([]);
     expect(valuesAfter).toEqual([{ key: 1 }, { key: 2 }]);
   });
+
+  test.only(
+    'real WeakRef',
+    async () => {
+      vi.restoreAllMocks();
+      vi.resetModules();
+      vi.useRealTimers();
+
+      const factory = vi.fn((key: number) => ({ key }));
+      const cache = new Cache(factory, 1);
+      cache.get(1);
+      expect(cache.values().length).toBe(1);
+
+      await sleep(1);
+      await sleep(1);
+      await sleep(1);
+      await sleep(1);
+      gc();
+      console.log('gc');
+
+      await sleep(1);
+      await sleep(1);
+      await sleep(1);
+      // gc();
+
+      // console.log(0);
+      // await flushPromises();
+      // vi.advanceTimersByTime(100);
+      // await flushPromises();
+      // console.log(1);
+
+      // assert(gc, 'gc needs to be exposed');
+      // gc();
+      // console.log(2);
+      // await flushPromises();
+      // vi.advanceTimersByTime(1000);
+      // await flushPromises();
+
+      // await sleep(1000);
+      // gc();
+
+      expect(cache.values().length).toBe(0);
+    },
+    { timeout: 20000 }
+  );
 });

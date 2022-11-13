@@ -2,11 +2,13 @@ import { hash } from './hash';
 
 export class Cache<Args extends any[], T extends object> {
   private cache = new Map<string, { t: number; ref?: T; weakRef?: WeakRef<T> }>();
-  private interval = this.cacheTime ? setInterval(() => this.cleanup(), this.cacheTime / 10) : undefined;
+  private interval = this.cacheTime ? setInterval(() => this.cleanup(), Math.max(this.cacheTime / 10, 1)) : undefined;
 
   constructor(private factory: (...args: Args) => T, private cacheTime?: number) {}
 
   cleanup() {
+    console.log('check');
+
     const cutoff = Date.now() - (this.cacheTime ?? 0);
 
     for (const [key, entry] of [...this.cache.entries()]) {
@@ -16,6 +18,7 @@ export class Cache<Args extends any[], T extends object> {
 
       if (!entry.weakRef?.deref()) {
         this.cache.delete(key);
+        console.log('delete');
       }
     }
   }
