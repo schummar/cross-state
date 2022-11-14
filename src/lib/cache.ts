@@ -7,18 +7,15 @@ export class Cache<Args extends any[], T extends object> {
   constructor(private factory: (...args: Args) => T, private cacheTime?: number) {}
 
   cleanup() {
-    console.log('check');
-
-    const cutoff = Date.now() - (this.cacheTime ?? 0);
+    const cutoff = this.now() - (this.cacheTime ?? 0);
 
     for (const [key, entry] of [...this.cache.entries()]) {
       if (entry.ref && entry.t <= cutoff) {
         delete entry.ref;
       }
 
-      if (!entry.weakRef?.deref()) {
+      if (!entry.ref && !entry.weakRef?.deref()) {
         this.cache.delete(key);
-        console.log('delete');
       }
     }
   }
@@ -31,14 +28,14 @@ export class Cache<Args extends any[], T extends object> {
     if (!entry || !value) {
       value = this.factory(...args);
       entry = {
-        t: Date.now(),
+        t: this.now(),
         ref: value,
         weakRef: typeof WeakRef !== 'undefined' ? new WeakRef(value) : undefined,
       };
 
       this.cache.set(key, entry);
     } else {
-      entry.t = Date.now();
+      entry.t = this.now();
       entry.ref ?? value;
     }
 
@@ -53,5 +50,17 @@ export class Cache<Args extends any[], T extends object> {
     if (this.interval) {
       clearInterval(this.interval);
     }
+  }
+
+  stats() {
+    return {
+      count: this.cache.size,
+      withRef: [...this.cache.values()].filter((x) => !!x.ref).length,
+      withWeakRef: [...this.cache.values()].filter((x) => !!x.weakRef?.deref()).length,
+    };
+  }
+
+  private now() {
+    return performance.now();
   }
 }

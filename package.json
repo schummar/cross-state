@@ -58,9 +58,9 @@
     "lint:eslint": "eslint src",
     "lint:tsc": "tsc --noEmit --emitDeclarationOnly false",
     "prepublishOnly": "npm run lint build",
-    "test": "vitest run --coverage",
-    "test:watch": "vitest",
-    "test:export": "vitest run --coverage --reporter=verbose --reporter=junit --outputFile=test/testResults.xml"
+    "test": "pnpm test:watch run --coverage",
+    "test:watch": "node --expose-gc node_modules/vitest/vitest.mjs",
+    "test:export": "pnpm test:watch run --coverage --reporter=verbose --reporter=junit --outputFile=test/testResults.xml"
   },
   "devDependencies": {
     "@schummar/runp": "1.8.2",

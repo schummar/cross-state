@@ -1,41 +1,22 @@
 import { afterEach, assert, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Cache } from '../../src/lib/cache';
-import { flushPromises, sleep } from '../testHelpers';
+import { sleep } from '../testHelpers';
 
-const weakRefMockHandles: (() => void)[] = [];
-
-class WeakRefMock {
-  constructor(private value: any) {
-    weakRefMockHandles.push(() => {
-      this.value = undefined;
-    });
-  }
-
-  deref() {
-    return this.value;
-  }
-}
-
-const clearWeakRefMocks = () => {
-  for (const ref of weakRefMockHandles) {
-    ref();
-  }
-  weakRefMockHandles.length = 0;
-};
+const originalWeakRef = typeof WeakRef !== 'undefined' ? WeakRef : undefined;
 
 beforeEach(() => {
   vi.useFakeTimers();
-  // vi.stubGlobal('WeakRef', WeakRefMock);
+  vi.spyOn(Cache.prototype, 'now' as any).mockImplementation(() => Date.now());
 });
 
 afterEach(() => {
-  vi.resetAllMocks();
-  // clearWeakRefMocks();
+  vi.restoreAllMocks();
+  vi.stubGlobal('WeakRef', originalWeakRef);
 });
 
 describe('cache', () => {
   test('create', async () => {
-    const cache = new Cache(() => ({}), 1000);
+    const cache = new Cache(() => ({}), 1);
 
     expect(cache).toBeInstanceOf(Object);
     expect(cache.stop).toBeInstanceOf(Function);
@@ -45,7 +26,7 @@ describe('cache', () => {
 
   test('get', async () => {
     const factory = vi.fn((key: number) => ({ key }));
-    const cache = new Cache(factory, 1000);
+    const cache = new Cache(factory, 1);
 
     const v1 = cache.get(1);
     const v2 = cache.get(2);
@@ -56,21 +37,24 @@ describe('cache', () => {
 
   describe('get cached value', () => {
     test('within timeout', async () => {
+      vi.stubGlobal('WeakRef', undefined);
+
       const factory = vi.fn(() => ({}));
-      const cache = new Cache(factory, 1000);
+      const cache = new Cache(factory, 2);
 
       const first = cache.get();
-      vi.advanceTimersByTime(500);
+      vi.advanceTimersByTime(1);
       const second = cache.get();
 
       expect(factory.mock.calls.length).toBe(1);
       expect(first).toEqual({});
       expect(second).toBe(first);
+      expect(cache.stats()).toEqual({ count: 1, withRef: 1, withWeakRef: 0 });
     });
 
     test('keeping ref', async () => {
       const factory = vi.fn(() => ({}));
-      const cache = new Cache(factory, 1000);
+      const cache = new Cache(factory, 1);
 
       const first = cache.get();
       vi.advanceTimersByTime(1000);
@@ -79,6 +63,7 @@ describe('cache', () => {
       expect(factory.mock.calls.length).toBe(1);
       expect(first).toEqual({});
       expect(second).toBe(first);
+      expect(cache.stats()).toEqual({ count: 1, withRef: 0, withWeakRef: 1 });
     });
 
     test('with no cacheTime', async () => {
@@ -95,25 +80,43 @@ describe('cache', () => {
 
   describe('cached value timeout', () => {
     test('when no ref is left', async () => {
-      const factory = vi.fn(() => ({}));
-      const cache = new Cache(factory, 1000);
+      vi.useRealTimers();
+      assert(gc, 'gc must be exposed');
+
+      let count = 0;
+      const factory = () => {
+        count++;
+        return {};
+      };
+      const cache = new Cache(factory, 1);
+      cache.get();
+      expect(count).toBe(1);
+      expect(cache.stats()).toEqual({ count: 1, withRef: 1, withWeakRef: 1 });
+
+      await sleep(100);
+      expect(cache.stats()).toEqual({ count: 1, withRef: 0, withWeakRef: 1 });
+
+      await sleep(0);
+      gc();
+      expect(cache.stats()).toEqual({ count: 1, withRef: 0, withWeakRef: 0 });
+
+      await sleep(100);
+      expect(cache.stats()).toEqual({ count: 0, withRef: 0, withWeakRef: 0 });
 
       cache.get();
-      clearWeakRefMocks();
-      vi.advanceTimersByTime(1000);
-      cache.get();
-
-      expect(factory.mock.calls.length).toBe(2);
+      expect(count).toBe(2);
+      expect(cache.stats()).toEqual({ count: 1, withRef: 1, withWeakRef: 1 });
     });
 
     test('without WeakRef support', async () => {
       vi.stubGlobal('WeakRef', undefined);
 
       const factory = vi.fn(() => ({}));
-      const cache = new Cache(factory, 1000);
+      const cache = new Cache(factory, 1);
 
       const first = cache.get();
-      vi.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(2);
+
       const second = cache.get();
 
       expect(factory.mock.calls.length).toBe(2);
@@ -124,15 +127,13 @@ describe('cache', () => {
 
   test('stop', async () => {
     const factory = vi.fn(() => ({}));
-    const cache = new Cache(factory, 1000);
+    const cache = new Cache(factory, 1);
 
     cache.stop();
     cache.get();
     vi.advanceTimersByTime(1000);
-    clearWeakRefMocks();
-    cache.get();
 
-    expect(factory.mock.calls.length).toBe(1);
+    expect(cache.stats()).toEqual({ count: 1, withRef: 1, withWeakRef: 1 });
   });
 
   test('values', async () => {
@@ -147,49 +148,4 @@ describe('cache', () => {
     expect(valuesBefore).toEqual([]);
     expect(valuesAfter).toEqual([{ key: 1 }, { key: 2 }]);
   });
-
-  test.only(
-    'real WeakRef',
-    async () => {
-      vi.restoreAllMocks();
-      vi.resetModules();
-      vi.useRealTimers();
-
-      const factory = vi.fn((key: number) => ({ key }));
-      const cache = new Cache(factory, 1);
-      cache.get(1);
-      expect(cache.values().length).toBe(1);
-
-      await sleep(1);
-      await sleep(1);
-      await sleep(1);
-      await sleep(1);
-      gc();
-      console.log('gc');
-
-      await sleep(1);
-      await sleep(1);
-      await sleep(1);
-      // gc();
-
-      // console.log(0);
-      // await flushPromises();
-      // vi.advanceTimersByTime(100);
-      // await flushPromises();
-      // console.log(1);
-
-      // assert(gc, 'gc needs to be exposed');
-      // gc();
-      // console.log(2);
-      // await flushPromises();
-      // vi.advanceTimersByTime(1000);
-      // await flushPromises();
-
-      // await sleep(1000);
-      // gc();
-
-      expect(cache.values().length).toBe(0);
-    },
-    { timeout: 20000 }
-  );
 });

@@ -24,20 +24,20 @@ export default defineConfig({
     minify: false,
 
     lib: {
-      entry: '',
+      entry: {
+        index: 'src/index.ts',
+        'integrations/react': 'src/integrations/react/index.ts',
+      },
       formats: ['es', 'cjs'],
     },
 
     rollupOptions: {
-      input: {
-        index: 'src/index.ts',
-        'integrations/react': 'src/integrations/react/index.ts',
-      },
-
-      output: {
-        entryFileNames: '[format]/[name].js',
-        chunkFileNames: '[format]/[name].js',
-      },
+      output: [
+        {
+          entryFileNames: '[format]/[name].js',
+          chunkFileNames: '[format]/[name].js',
+        },
+      ],
     },
   },
 });
