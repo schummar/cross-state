@@ -1,31 +1,30 @@
-import { describe, expect, test, vi } from 'vitest';
-import { once, store } from '../../src';
-import { FakeWebSocket } from '../core/_subscriptionStore.test';
+import { onceValue } from '@core/once';
+import { describe, expect, test } from 'vitest';
+import { fetchStore, once } from '../../src';
 
-describe.skip('once', () => {
+describe('once', () => {
   test('once has value', async () => {
-    const state = store<number>(function () {
-      const ws = new FakeWebSocket([[1, 1]]);
-      ws.onmessage = this.update;
-      return () => undefined;
-    });
+    const state = fetchStore(async () => 1);
+    const promise = once(state.subValue, (x): x is number => x !== undefined);
 
-    const promise = once(state.subscribe);
-    vi.advanceTimersByTime(1);
     const value = await promise;
     expect(value).toBe(1);
   });
 
-  test('once with error', async () => {
-    const state = store<number>(function () {
-      const ws = new FakeWebSocket([[Error('error'), 1]]);
-      ws.onerror = this.updateError;
-      return () => undefined;
+  test('onceValue with value', async () => {
+    const state = fetchStore(async () => 1);
+    const promise = onceValue(state.sub);
+
+    const value = await promise;
+    expect(value).toBe(1);
+  });
+
+  test('onceValue with error', async () => {
+    const state = fetchStore(async () => {
+      throw Error('once error');
     });
+    const promise = onceValue(state.sub);
 
-    const promise = once(state.subscribe);
-    vi.advanceTimersByTime(1);
-
-    expect(promise).rejects.toThrow(Error('error'));
+    await expect(promise).rejects.toThrowError('once error');
   });
 });
