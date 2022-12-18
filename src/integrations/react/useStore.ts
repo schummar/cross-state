@@ -1,31 +1,22 @@
-import { useCallback, useDebugValue, useLayoutEffect, useRef } from 'react';
-import { useSyncExternalStoreWithSelector } from 'use-sync-external-store/shim/with-selector';
-import type { Store, SubscribeOptions } from '../../core/commonTypes';
-import { makeSelector } from '../../lib/makeSelector';
-import type { Path, Value } from '../../lib/propAccess';
-import { trackingProxy } from '../../lib/trackingProxy';
-import { useStoreScope } from './storeScope';
+import type { SubscribeOptions } from '@core/commonTypes';
+import type { Store } from '@core/store';
+import { hash } from '@lib/hash';
+import { trackingProxy } from '@lib/trackingProxy';
+import { useCallback, useDebugValue, useEffect, useRef } from 'react';
+import { useSyncExternalStoreWithSelector } from 'use-sync-external-store/with-selector';
 
 export type UseStoreOptions = Omit<SubscribeOptions, 'runNow'>;
 
-export function useStore<T>(store: Store<T>, options?: UseStoreOptions): T;
-export function useStore<T, S>(store: Store<T>, selector: (value: T) => S, options?: UseStoreOptions): S;
-export function useStore<T, P extends Path<T>>(store: Store<T>, selector: P, options?: UseStoreOptions): Value<T, P>;
-export function useStore<T, S = T>(
-  store: Store<T>,
-  ...[arg1, arg2]: [options?: UseStoreOptions] | [selector: (value: T) => S, options?: UseStoreOptions]
-): S {
-  store = useStoreScope(store);
-  const selector = makeSelector<T, S>(arg1 instanceof Function || typeof arg1 === 'string' ? arg1 : undefined);
-  const options = arg1 instanceof Function || typeof arg1 === 'string' ? arg2 : arg1;
+export function useStore<T>(store: Store<T>, options?: UseStoreOptions): T {
+  const lastEqualsRef = useRef<(newValue: T) => boolean>();
 
-  const lastEqualsRef = useRef<(newValue: S) => boolean>();
+  const subOptions = { ...options, runNow: false, equals: undefined };
 
   const subscribe = useCallback(
     (listener: () => void) => {
-      return store.subscribe(listener, { ...options, runNow: false });
+      return store.sub(listener, subOptions);
     },
-    [store, options?.throttle, options?.equals]
+    [store, hash(subOptions)]
   );
 
   const value = useSyncExternalStoreWithSelector(
@@ -33,12 +24,12 @@ export function useStore<T, S = T>(
     subscribe,
     store.get,
     undefined,
-    selector,
+    (x) => x,
     options?.equals ?? ((_v, newValue) => lastEqualsRef.current?.(newValue) ?? false)
   );
   const [proxiedValue, equals] = trackingProxy(value);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     lastEqualsRef.current = equals;
   });
 

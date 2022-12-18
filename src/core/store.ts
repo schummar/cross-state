@@ -43,7 +43,7 @@ export class Store<T> {
   protected effects = new Map<Effect, { handle?: Cancel; retain?: number; timeout?: ReturnType<typeof setTimeout> }>();
   protected notifyId = {};
 
-  constructor(protected initialValue: T, protected options: StoreOptions = {}) {
+  constructor(protected readonly initialValue: T, protected readonly options: StoreOptions = {}) {
     bind(this);
   }
 

@@ -1,25 +1,32 @@
-import type { ReactNode } from 'react';
+import type { Store } from '@core/store';
+import { store } from '@core/store';
+import type { StoreScope } from '@core/storeScope';
+import type { Context, ReactNode } from 'react';
 import { createContext, useContext, useMemo } from 'react';
-import type { Store } from '../../core/commonTypes';
 
-export const storeScopeContext = createContext(new Map<Store<any>, Store<any>>());
+export type StoreScopeProps<T> = { scope: StoreScope<T>; store?: Store<T>; children?: ReactNode };
 
-export function StoreScope({ store, children }: { store: Store<any>; children?: ReactNode }) {
-  const instance = useMemo(() => store.recreate(), [store]);
-  const context = useContext(storeScopeContext);
+export const contextMap = new WeakMap<StoreScope<any>, Context<Store<any>>>();
 
-  const updatedContext = useMemo(() => {
-    const updatedContext = new Map(context);
-    updatedContext.set(store, instance);
-    return updatedContext;
-  }, [instance, context]);
+export function getStoreScopeContext<T>(scope: StoreScope<T>): Context<Store<T>> {
+  let context = contextMap.get(scope);
 
-  return <storeScopeContext.Provider value={updatedContext}>{children}</storeScopeContext.Provider>;
+  if (!context) {
+    context = createContext<Store<T>>(store(scope.defaultValue));
+    contextMap.set(scope, context);
+  }
+
+  return context;
 }
 
-export function useStoreScope<S extends Store<any>>(store: S) {
-  const context = useContext(storeScopeContext);
-  const instance = context.get(store) as S | undefined;
+export function StoreScopeProvider<T>({ scope, store: inputStore, children }: StoreScopeProps<T>) {
+  const context = getStoreScopeContext(scope);
+  const currentStore = useMemo(() => inputStore ?? store(scope.defaultValue), [scope, inputStore]);
 
-  return instance ?? store;
+  return <context.Provider value={currentStore}>{children}</context.Provider>;
+}
+
+export function useStoreScope<T>(scope: StoreScope<T>): Store<T> {
+  const context = getStoreScopeContext(scope);
+  return useContext(context);
 }
