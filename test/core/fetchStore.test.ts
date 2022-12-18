@@ -1,7 +1,7 @@
-import { FetchStore } from '@core/fetchStore';
 import { shallowEqual } from 'fast-equals';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { fetchStore, store } from '../../src';
+import { FetchStore } from '../../src/core/fetchStore';
 import { flushPromises, getValues, sleep } from '../testHelpers';
 
 beforeEach(() => {
@@ -113,7 +113,7 @@ describe('dynamic store', () => {
     test('with runNow=false', async () => {
       const state = fetchStore(async () => 1);
       const listener = vi.fn();
-      state.subValue(listener, { runNow: false });
+      state.map('value').sub(listener, { runNow: false });
       expect(getValues(listener).length).toBe(0);
 
       await flushPromises();
@@ -123,7 +123,7 @@ describe('dynamic store', () => {
     test('with throttle', async () => {
       const state = fetchStore(async () => 1);
       const listener = vi.fn();
-      state.subValue(listener, { throttle: 2 });
+      state.map('value').sub(listener, { throttle: 2 });
       state.setValue(2);
       vi.advanceTimersByTime(1);
       state.setValue(3);
@@ -135,7 +135,7 @@ describe('dynamic store', () => {
     test('with default equals', async () => {
       const state = fetchStore(async () => [1]);
       const listener = vi.fn();
-      state.subValue(listener, { disableProxy: true });
+      state.map('value', { disableProxy: true }).sub(listener);
       await flushPromises();
       state.setValue([1]);
 
@@ -145,10 +145,7 @@ describe('dynamic store', () => {
     test('with shallowEqual', async () => {
       const state = fetchStore(async () => [1]);
       const listener = vi.fn();
-      state.subValue(listener, {
-        disableProxy: true,
-        equals: shallowEqual,
-      });
+      state.map('value', { disableProxy: true }).sub(listener, { equals: shallowEqual });
       await flushPromises();
       state.setValue([1]);
 

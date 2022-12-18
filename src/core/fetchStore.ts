@@ -187,11 +187,6 @@ export class FetchStore<T> extends Store<FetchStoreState<T>> {
     });
   }
 
-  subValue(listener: Listener<T | undefined>, options?: UseOptions & SubscribeOptions): Cancel {
-    const { disableProxy, ...subOptions } = options ?? {};
-    return this.map((state) => state.value, { disableProxy }).sub(listener, subOptions);
-  }
-
   mapValue<S>(selector: Selector<T, S>): FetchStore<S>;
   mapValue<P extends Path<T>>(selector: P): FetchStore<Value<T, P>>;
   mapValue<S>(_selector: Selector<T, S> | string): FetchStore<S> {
