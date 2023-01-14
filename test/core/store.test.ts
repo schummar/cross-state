@@ -159,5 +159,41 @@ describe('static store', () => {
 
       expect(nextListener).toHaveBeenCalledTimes(2);
     });
+
+    test('store.subscribe cancel', () => {
+      const state = store(1);
+      const listener = vi.fn();
+      const cancel = state.sub(listener);
+      cancel();
+      state.update(2);
+      expect(listener.mock.calls).toMatchObject([[1, undefined]]);
+    });
+
+    test('store.subscribe cancel twice', () => {
+      const state = store(1);
+      const listener = vi.fn();
+      const cancel = state.sub(listener);
+      cancel();
+      cancel();
+      state.update(2);
+      expect(listener.mock.calls).toMatchObject([[1, undefined]]);
+    });
+
+    test('store.subscribe cancel and resubscribe', () => {
+      const state = store(1);
+      const listener = vi.fn();
+      const cancel = state.sub(listener);
+      state.update(2);
+      cancel();
+      state.update(3);
+      state.sub(listener);
+      state.update(4);
+      expect(listener.mock.calls).toMatchObject([
+        [1, undefined],
+        [2, 1],
+        [3, undefined],
+        [4, 3],
+      ]);
+    });
   });
 });
