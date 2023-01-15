@@ -1,10 +1,10 @@
 import type { AtomicStore } from '../core/atomicStore';
-import type { Cancel, Listener, Store } from '../core/commonTypes';
-import { simpleDeepEquals } from '../lib/equals';
-import { forwardError } from '../lib/forwardError';
-import { get, set } from '../lib/propAccess';
-import type { Queue } from '../lib/queue';
-import { queue } from '../lib/queue';
+import type { Cancel, Listener, Store } from '../../src/core/commonTypes';
+import { simpleDeepEquals } from '../../src/lib/equals';
+import { forwardError } from '../../src/lib/forwardError';
+import { get, set } from '../../src/lib/propAccess';
+import type { Queue } from '../../src/lib/queue';
+import { queue } from '../../src/lib/queue';
 import type { PersistOptions } from './persistOptions';
 import type { PersistStorage } from './persistStorage';
 

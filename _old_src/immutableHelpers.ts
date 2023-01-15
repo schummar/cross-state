@@ -1,6 +1,6 @@
-import type { Update, UpdateFrom } from '../core/commonTypes';
-import type { Path, Value } from './propAccess';
-import { set } from './propAccess';
+import type { Update, UpdateFrom } from '../src/core/commonTypes';
+import type { Path, Value } from '../src/lib/propAccess';
+import { set } from '../src/lib/propAccess';
 
 type FnUpdate<T> = (value: T) => T;
 type Fn = (...args: any) => any;

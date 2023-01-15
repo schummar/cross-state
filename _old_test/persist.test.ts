@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { atomicStore } from '../../src';
-import { immerActions } from '../../src/integrations/immer';
-import type { PersistStorage } from '../../src/persist';
-import { persist } from '../../src/persist';
+import { atomicStore } from '../src';
+import { immerActions } from '../src/integrations/immer';
+import type { PersistStorage } from '../_old_src/persist';
+import { persist } from '../_old_src/persist';
 
 beforeEach(() => {
   vi.useFakeTimers();

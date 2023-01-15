@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { store } from '../../src';
+import { store } from '../src';
 
 describe.skip('store actions', () => {
   test('map store', () => {

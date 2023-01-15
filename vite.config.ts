@@ -13,7 +13,7 @@ export default defineConfig({
 
   test: {
     environment: 'happy-dom',
-    include: ['./test/{core,lib}/*.test.{ts,tsx}'],
+    include: ['./test/**/*.test.{ts,tsx}'],
     exclude: ['**/_*'],
     setupFiles: ['./test/testSetup.ts'],
   },
@@ -32,12 +32,10 @@ export default defineConfig({
     },
 
     rollupOptions: {
-      output: [
-        {
-          entryFileNames: '[format]/[name].js',
-          chunkFileNames: '[format]/[name].js',
-        },
-      ],
+      output: {
+        entryFileNames: '[format]/[name].js',
+        chunkFileNames: '[format]/[name].js',
+      },
     },
   },
 });

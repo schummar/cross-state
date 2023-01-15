@@ -1,13 +1,13 @@
-import { Cache } from '../lib/cache';
-import { calcDuration } from '../lib/calcDuration';
-import { defaultEquals, simpleShallowEquals } from '../lib/equals';
-import { makeSelector } from '../lib/makeSelector';
-import type { Path, Value } from '../lib/propAccess';
+import { Cache } from '../src/lib/cache';
+import { calcDuration } from '../src/lib/calcDuration';
+import { defaultEquals, simpleShallowEquals } from '../src/lib/equals';
+import { makeSelector } from '../src/lib/makeSelector';
+import type { Path, Value } from '../src/lib/propAccess';
 import { atomicStore } from './atomicStore';
-import { once } from './once';
-import type { Resource, ResourceGroup } from './resourceGroup';
-import { allResources } from './resourceGroup';
-import type { Cancel, Duration, Effect, Listener, Store, SubscribeOptions } from './commonTypes';
+import { once } from '../src/core/once';
+import type { Resource, ResourceGroup } from '../src/core/resourceGroup';
+import { allResources } from '../src/core/resourceGroup';
+import type { Cancel, Duration, Effect, Listener, Store, SubscribeOptions } from '../src/core/commonTypes';
 
 ///////////////////////////////////////////////////////////
 // Types
