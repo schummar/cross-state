@@ -3,15 +3,8 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import tsconfigPaths from 'vite-tsconfig-paths';
 
-process.env.NODE_ENV = 'production';
-
 export default defineConfig({
-  plugins: [
-    react({
-      jsxRuntime: 'automatic',
-    }),
-    tsconfigPaths(),
-  ],
+  plugins: [react(), tsconfigPaths({})],
 
   test: {
     environment: 'happy-dom',
@@ -28,8 +21,8 @@ export default defineConfig({
     lib: {
       entry: {
         index: 'src/index.ts',
-        'integrations/react': 'src/integrations/react/index.ts',
-        'integrations/immer': 'src/integrations/immer/index.ts',
+        react: 'src/react/index.ts',
+        immer: 'src/immer/index.ts',
       },
     },
 

@@ -22,6 +22,7 @@
     "useDefineForClassFields": false,
 
     "paths": {
+      "@": ["./src"],
       "@*": ["./src/*"]
     }
   },

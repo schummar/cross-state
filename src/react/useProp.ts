@@ -1,5 +1,5 @@
 import type { Store } from '@core/store';
-import type { UpdateFn } from '../../core/commonTypes';
+import type { UpdateFn } from '@core/commonTypes';
 import type { UseStoreOptions } from './useStore';
 import { useStore } from './useStore';
 

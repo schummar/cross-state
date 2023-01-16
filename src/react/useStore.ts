@@ -2,7 +2,7 @@ import type { SubscribeOptions } from '@core/commonTypes';
 import type { Store } from '@core/store';
 import { hash } from '@lib/hash';
 import { trackingProxy } from '@lib/trackingProxy';
-import { useCallback, useDebugValue, useEffect, useRef } from 'react';
+import { useCallback, useDebugValue, useLayoutEffect, useRef } from 'react';
 import { useSyncExternalStoreWithSelector } from 'use-sync-external-store/with-selector';
 
 export type UseStoreOptions = Omit<SubscribeOptions, 'runNow'>;
@@ -29,7 +29,7 @@ export function useStore<T>(store: Store<T>, options?: UseStoreOptions): T {
   );
   const [proxiedValue, equals] = trackingProxy(value);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     lastEqualsRef.current = equals;
   });
 

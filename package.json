@@ -14,14 +14,14 @@
       "default": "./dist/es/index.mjs"
     },
     "./react": {
-      "import": "./dist/es/integrations/react.mjs",
-      "require": "./dist/cjs/integrations/react.cjs",
-      "default": "./dist/es/integrations/react.mjs"
+      "import": "./dist/es/react.mjs",
+      "require": "./dist/cjs/react.cjs",
+      "default": "./dist/es/react.mjs"
     },
     "./immer": {
-      "import": "./dist/es/integrations/immer.mjs",
-      "require": "./dist/cjs/integrations/immer.cjs",
-      "default": "./dist/es/integrations/immer.mjs"
+      "import": "./dist/es/immer.mjs",
+      "require": "./dist/cjs/immer.cjs",
+      "default": "./dist/es/immer.mjs"
     }
   },
   "types": "dist/types/index.d.ts",
@@ -31,10 +31,10 @@
         "dist/types/index.d.ts"
       ],
       "react": [
-        "dist/types/integrations/react/index.d.ts"
+        "dist/types/react/index.d.ts"
       ],
       "immer": [
-        "dist/types/integrations/immer/index.d.ts"
+        "dist/types/immer/index.d.ts"
       ]
     }
   },

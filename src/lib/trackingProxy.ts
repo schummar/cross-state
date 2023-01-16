@@ -3,9 +3,10 @@ type Obj = Record<string | symbol, unknown>;
 
 const ProxyKeys = ['get', 'getOwnPropertyDescriptor', 'getPrototypeOf', 'has', 'isExtensible', 'ownKeys'] as const;
 
+const isPlainObject = (value: unknown) => typeof value === 'object' && value !== null && Object.getPrototypeOf(value) === Object.prototype;
+
 export function trackingProxy<T>(value: T): TrackingProxy<T> {
-  const isPlainObject = typeof value === 'object' && value !== null && Object.getPrototypeOf(value) === Object.prototype;
-  if (!isPlainObject && !Array.isArray(value)) {
+  if (!isPlainObject(value) && !Array.isArray(value)) {
     return [value, (other) => other === value];
   }
 
@@ -21,6 +22,10 @@ export function trackingProxy<T>(value: T): TrackingProxy<T> {
           const [proxiedValue, equals] = trackingProxy(fn(value, ...args));
 
           deps.push((otherValue) => {
+            if (!isPlainObject(otherValue) && !Array.isArray(otherValue)) {
+              return false;
+            }
+
             return equals(fn(otherValue, ...args));
           });
 
