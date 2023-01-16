@@ -5,28 +5,23 @@
   "version": "0.0.0",
   "description": "(React) state library",
   "sideEffects": false,
-  "main": "dist/cjs/index.js",
+  "main": "dist/cjs/index.cjs",
   "module": "dist/es/index.mjs",
   "exports": {
     ".": {
       "import": "./dist/es/index.mjs",
-      "require": "./dist/cjs/index.js",
+      "require": "./dist/cjs/index.cjs",
       "default": "./dist/es/index.mjs"
     },
     "./react": {
-      "import": "./dist/es/integrations/react/index.mjs",
-      "require": "./dist/cjs/integrations/react/index.js",
-      "default": "./dist/es/integrations/react/index.mjs"
+      "import": "./dist/es/integrations/react.mjs",
+      "require": "./dist/cjs/integrations/react.cjs",
+      "default": "./dist/es/integrations/react.mjs"
     },
     "./immer": {
-      "import": "./dist/es/integrations/immer/index.mjs",
-      "require": "./dist/cjs/integrations/immer/index.js",
-      "default": "./dist/es/integrations/immer/index.mjs"
-    },
-    "./persist": {
-      "import": "./dist/es/persist/index.mjs",
-      "require": "./dist/cjs/persist/index.js",
-      "default": "./dist/es/persist/index.mjs"
+      "import": "./dist/es/integrations/immer.mjs",
+      "require": "./dist/cjs/integrations/immer.cjs",
+      "default": "./dist/es/integrations/immer.mjs"
     }
   },
   "types": "dist/types/index.d.ts",
@@ -51,7 +46,7 @@
   "scripts": {
     "start": "tsc --watch",
     "build": "runp -k build:clean :p build:compile:*",
-    "build:clean": "rimraf \"dist/**/*\"",
+    "build:clean": "rimraf dist",
     "build:compile:js": "vite build",
     "build:compile:types": "tsc",
     "lint": "runp lint:*",
@@ -80,7 +75,7 @@
     "prettier": "2.8.3",
     "react": "18.2.0",
     "react-dom": "18.2.0",
-    "rimraf": "4.0.6",
+    "rimraf": "4.0.7",
     "semantic-release": "20.0.2",
     "typescript": "4.9.4",
     "use-sync-external-store": "1.2.0",

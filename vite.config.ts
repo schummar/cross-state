@@ -27,15 +27,25 @@ export default defineConfig({
       entry: {
         index: 'src/index.ts',
         'integrations/react': 'src/integrations/react/index.ts',
+        'integrations/immer': 'src/integrations/immer/index.ts',
       },
-      formats: ['es', 'cjs'],
     },
 
     rollupOptions: {
-      output: {
-        entryFileNames: '[format]/[name].js',
-        chunkFileNames: '[format]/[name].js',
-      },
+      output: [
+        {
+          dir: 'dist/es',
+          format: 'es',
+          entryFileNames: '[name].mjs',
+          chunkFileNames: '[name].mjs',
+        },
+        {
+          dir: 'dist/cjs',
+          format: 'cjs',
+          entryFileNames: '[name].cjs',
+          chunkFileNames: '[name].cjs',
+        },
+      ],
     },
   },
 });
