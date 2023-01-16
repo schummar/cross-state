@@ -19,7 +19,12 @@
     "jsx": "react-jsx",
     "types": ["vite/client"],
     "skipLibCheck": true,
-    "useDefineForClassFields": false
+    "useDefineForClassFields": false,
+
+    "paths": {
+      "@": ["./src"],
+      "@*": ["./src/*"]
+    }
   },
   "include": ["src"]
 }

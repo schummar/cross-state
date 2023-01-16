@@ -1,5 +1,5 @@
-import type { Store } from '..';
-import type { Cancel, UpdateFrom, Use, UseFetch } from '../core/commonTypes';
+import type { Cancel, UpdateFrom, Use, UseFetch } from '@core/commonTypes';
+import type { Store } from '@core/store';
 import type { MaybePromise } from './maybePromise';
 import { queue } from './queue';
 import { trackingProxy } from './trackingProxy';

@@ -1,9 +1,9 @@
+import type { SubscribeOptions } from '@core/commonTypes';
+import type { Store } from '@core/store';
+import { hash } from '@lib/hash';
+import { trackingProxy } from '@lib/trackingProxy';
 import { useCallback, useDebugValue, useLayoutEffect, useRef } from 'react';
 import { useSyncExternalStoreWithSelector } from 'use-sync-external-store/with-selector';
-import type { Store } from '..';
-import type { SubscribeOptions } from '../core/commonTypes';
-import { hash } from '../lib/hash';
-import { trackingProxy } from '../lib/trackingProxy';
 
 export type UseStoreOptions = Omit<SubscribeOptions, 'runNow'>;
 

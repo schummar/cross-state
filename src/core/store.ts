@@ -1,13 +1,13 @@
-import { bind } from '../lib/bind';
-import { calcDuration } from '../lib/calcDuration';
-import { CalculationHelper } from '../lib/calculationHelper';
-import { defaultEquals } from '../lib/equals';
-import { forwardError } from '../lib/forwardError';
-import { makeSelector } from '../lib/makeSelector';
-import type { Path, Value } from '../lib/propAccess';
-import { get, set } from '../lib/propAccess';
-import { arrayActions, mapActions, recordActions, setActions } from '../lib/storeActions';
-import { throttle } from '../lib/throttle';
+import { calcDuration } from '@lib';
+import { bind } from '@lib/bind';
+import { CalculationHelper } from '@lib/calculationHelper';
+import { defaultEquals } from '@lib/equals';
+import { forwardError } from '@lib/forwardError';
+import { makeSelector } from '@lib/makeSelector';
+import type { Path, Value } from '@lib/propAccess';
+import { get, set } from '@lib/propAccess';
+import { arrayActions, mapActions, recordActions, setActions } from '@lib/storeActions';
+import { throttle } from '@lib/throttle';
 import type { Cancel, Duration, Effect, Listener, Selector, SubscribeOptions, Update, Use, UseOptions } from './commonTypes';
 
 export type StoreActions = Record<string, (...args: any[]) => any>;

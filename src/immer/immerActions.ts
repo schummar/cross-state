@@ -1,6 +1,6 @@
+import type { Store } from '@core/store';
 import type { Draft, nothing } from 'immer';
 import { produce } from 'immer';
-import type { Store } from '..';
 
 export const immerActions = {
   immerUpdate<T>(
