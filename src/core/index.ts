@@ -6,3 +6,4 @@ export { allResources, ResourceGroup } from './resourceGroup';
 export type { Resource } from './resourceGroup';
 export { derivedStore, store } from './store';
 export type { BoundStoreActions, DerivedStore, Store, StoreActions, StoreOptions, StoreOptionsWithActions } from './store';
+export { StoreScope } from './storeScope';
