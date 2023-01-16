@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { calcDuration } from '../../src/lib';
+import { calcDuration } from '../../src/lib/calcDuration';
 
 describe('calcDuration', () => {
   test('numeric', async () => {
@@ -35,5 +35,15 @@ describe('calcDuration', () => {
   test('mixed', async () => {
     const duration = calcDuration({ milliseconds: 1, seconds: 1, minutes: 1, hours: 1, days: 1 });
     expect(duration).toBe(1 + 1000 + 60 * 1000 + 60 * 60 * 1000 + 24 * 60 * 60 * 1000);
+  });
+
+  test('empty', async () => {
+    const duration = calcDuration({});
+    expect(duration).toBe(0);
+  });
+
+  test('negative', async () => {
+    const duration = calcDuration({ milliseconds: -1 });
+    expect(duration).toBe(-1);
   });
 });

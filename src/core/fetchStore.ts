@@ -1,9 +1,10 @@
-import { Cache, calcDuration } from '@lib';
+import { Cache } from '@lib/cache';
+import { calcDuration } from '@lib/calcDuration';
 import { CalculationHelper } from '@lib/calculationHelper';
 import { defaultEquals, simpleShallowEquals } from '@lib/equals';
 import { makeSelector } from '@lib/makeSelector';
 import type { Path, Value } from '@lib/propAccess';
-import type { Cancel, Duration, Listener, Selector, SubscribeOptions, Update, Use, UseFetch, UseOptions } from './commonTypes';
+import type { Cancel, Duration, Listener, Selector, SubscribeOptions, Update, Use, UseFetch } from './commonTypes';
 import type { ResourceGroup } from './resourceGroup';
 import { allResources } from './resourceGroup';
 import { Store } from './store';

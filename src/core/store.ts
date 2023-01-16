@@ -1,5 +1,5 @@
-import { calcDuration } from '@lib';
 import { bind } from '@lib/bind';
+import { calcDuration } from '@lib/calcDuration';
 import { CalculationHelper } from '@lib/calculationHelper';
 import { defaultEquals } from '@lib/equals';
 import { forwardError } from '@lib/forwardError';
