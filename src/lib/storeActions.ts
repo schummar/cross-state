@@ -1,7 +1,14 @@
-import type { Update } from '@core/commonTypes';
+import type { Update, UpdateFrom } from '@core/commonTypes';
 import type { Store } from '../core/store';
 
 type Fn = (...args: any) => any;
+
+type OptionalPropertyOf<T> = Exclude<
+  {
+    [K in keyof T]: T extends Record<K, T[K]> ? never : K;
+  }[keyof T],
+  undefined
+>;
 
 const arrMod = <P extends keyof Array<any>>(prop: P) =>
   function <V>(
@@ -25,7 +32,7 @@ export const arrayActions = {
 };
 
 export const recordActions = {
-  set<K extends string | number | symbol, V>(this: Store<Record<K, V>>, key: K, value: Update<V>) {
+  set<T extends Record<any, any>, K extends keyof T>(this: Store<T>, key: K, value: Update<T[K]>) {
     if (value instanceof Function) {
       value = value(this.get()[key]);
     }
@@ -34,19 +41,23 @@ export const recordActions = {
     return this;
   },
 
-  delete<K extends string | number | symbol, V>(this: Store<Record<K, V>>, key: K) {
-    const copy = { ...(this.get() as Record<K, V>) };
+  delete<T extends Record<any, any>, K extends OptionalPropertyOf<T>>(this: Store<T>, key: K) {
+    const copy = { ...this.get() };
     delete copy[key];
     this.update(copy);
   },
 
-  clear<K extends string | number | symbol, V>(this: Store<Record<K, V>>) {
-    this.update({} as Record<K, V>);
+  clear<T extends Record<any, any>>(this: Store<Partial<T>>) {
+    this.update({} as T);
   },
 };
 
 export const mapActions = {
-  set<K, V>(this: Store<Map<K, V>>, key: K, value: V) {
+  set<K, V>(this: Store<Map<K, V>>, key: K, value: UpdateFrom<V, [V | undefined]>) {
+    if (value instanceof Function) {
+      value = value(this.get().get(key));
+    }
+
     const newMap = new Map(this.get());
     newMap.set(key, value);
     this.update(newMap);

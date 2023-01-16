@@ -3,37 +3,136 @@ import { store } from '../../src';
 import { immerActions } from '../../src/immer';
 
 describe('store methods', () => {
-  test('map actions', () => {
-    const state = store(new Map([['x', 1]]));
+  describe('map actions', () => {
+    test('set', () => {
+      const state = store(new Map([['x', 1]]));
 
-    state.set('y', 2);
-    expect(state.get()).toEqual(
-      new Map([
-        ['x', 1],
-        ['y', 2],
-      ])
-    );
+      state.set('y', 2);
+      expect(state.get()).toEqual(
+        new Map([
+          ['x', 1],
+          ['y', 2],
+        ])
+      );
+    });
+
+    test('delete', () => {
+      const state = store(new Map([['x', 1]]));
+
+      state.delete('x');
+      expect(state.get()).toEqual(new Map());
+    });
+
+    test('clear', () => {
+      const state = store(new Map([['x', 1]]));
+
+      state.clear();
+      expect(state.get()).toEqual(new Map());
+    });
   });
 
-  test('set actions', () => {
-    const state = store(new Set([1]));
+  describe('set actions', () => {
+    test('add', () => {
+      const state = store(new Set([1]));
 
-    state.add(2);
-    expect(state.get()).toEqual(new Set([1, 2]));
+      state.add(2);
+      expect(state.get()).toEqual(new Set([1, 2]));
+    });
+
+    test('delete', () => {
+      const state = store(new Set([1]));
+
+      state.delete(1);
+      expect(state.get()).toEqual(new Set());
+    });
+
+    test('clear', () => {
+      const state = store(new Set([1]));
+
+      state.clear();
+      expect(state.get()).toEqual(new Set());
+    });
   });
 
-  test('array actions', () => {
-    const state = store([1]);
+  describe('array actions', () => {
+    test('push', () => {
+      const state = store([1]);
 
-    state.push(2);
-    expect(state.get()).toEqual([1, 2]);
+      state.push(2);
+      expect(state.get()).toEqual([1, 2]);
+    });
+
+    test('pop', () => {
+      const state = store([1]);
+
+      state.pop();
+      expect(state.get()).toEqual([]);
+    });
+
+    test('shift', () => {
+      const state = store([1]);
+
+      state.shift();
+      expect(state.get()).toEqual([]);
+    });
+
+    test('unshift', () => {
+      const state = store([1]);
+
+      state.unshift(2);
+      expect(state.get()).toEqual([2, 1]);
+    });
+
+    test('reverse', () => {
+      const state = store([1, 2]);
+
+      state.reverse();
+      expect(state.get()).toEqual([2, 1]);
+    });
+
+    test('sort', () => {
+      const state = store([2, 1]);
+
+      state.sort();
+      expect(state.get()).toEqual([1, 2]);
+    });
+
+    test('splice', () => {
+      const state = store([1, 2]);
+
+      state.splice(0, 1, 3);
+      expect(state.get()).toEqual([3, 2]);
+    });
   });
 
-  test('record actions', () => {
-    const state = store({ x: 1 });
+  describe('record actions', () => {
+    test('set', () => {
+      const state = store({ x: 1 });
 
-    state.set('x', 2);
-    expect(state.get()).toEqual({ x: 2 });
+      state.set('x', 2);
+      expect(state.get()).toEqual({ x: 2 });
+    });
+
+    test('set with function', () => {
+      const state = store({ x: 1 });
+
+      state.set('x', (x) => x + 1);
+      expect(state.get()).toEqual({ x: 2 });
+    });
+
+    test('delete', () => {
+      const state = store<{ x?: number }>({ x: 1 });
+
+      state.delete('x');
+      expect(state.get()).toEqual({});
+    });
+
+    test('clear', () => {
+      const state = store<{ x?: number }>({ x: 1 });
+
+      state.clear();
+      expect(state.get()).toEqual({});
+    });
   });
 
   test('custom reducer', () => {
