@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import tsconfigPaths from 'vite-tsconfig-paths';
 
+process.env.NODE_ENV = 'production';
+
 export default defineConfig({
   plugins: [
     react({
@@ -45,6 +47,12 @@ export default defineConfig({
           entryFileNames: '[name].cjs',
           chunkFileNames: '[name].cjs',
         },
+      ],
+      external: [
+        //
+        'react',
+        'react/jsx-runtime',
+        'immer',
       ],
     },
   },
