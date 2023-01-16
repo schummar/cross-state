@@ -1,14 +1,13 @@
 import { bind } from '@lib/bind';
 import { calcDuration } from '@lib/calcDuration';
-import { CalculationHelper } from '@lib/calculationHelper';
 import { defaultEquals } from '@lib/equals';
 import { forwardError } from '@lib/forwardError';
 import { makeSelector } from '@lib/makeSelector';
 import type { Path, Value } from '@lib/propAccess';
-import { get, set } from '@lib/propAccess';
 import { arrayActions, mapActions, recordActions, setActions } from '@lib/storeActions';
 import { throttle } from '@lib/throttle';
 import type { Cancel, Duration, Effect, Listener, Selector, SubscribeOptions, Update, Use, UseOptions } from './commonTypes';
+import { DerivedStore } from './derivedStore';
 
 export type StoreActions = Record<string, (...args: any[]) => any>;
 
@@ -19,21 +18,22 @@ export interface StoreOptions {
 }
 
 export interface StoreOptionsWithActions<T, Actions extends StoreActions> extends StoreOptions {
-  methods?: Actions & ThisType<Store<T> & Actions>;
+  methods?: Actions & ThisType<Store<T> & Actions & StandardActions<T>>;
 }
 
+type StandardActions<T> = T extends Map<any, any>
+  ? typeof mapActions
+  : T extends Set<any>
+  ? typeof setActions
+  : T extends Array<any>
+  ? typeof arrayActions
+  : T extends Record<any, any>
+  ? typeof recordActions
+  : Record<string, never>;
+
 type StoreWithActions<T, Actions extends StoreActions> = Store<T> &
-  (Record<string, never> extends Actions
-    ? T extends Map<any, any>
-      ? typeof mapActions
-      : T extends Set<any>
-      ? typeof setActions
-      : T extends Array<any>
-      ? typeof arrayActions
-      : T extends Record<any, any>
-      ? typeof recordActions
-      : Record<string, never>
-    : Omit<BoundStoreActions<T, Actions>, keyof Store<T>>);
+  Omit<BoundStoreActions<T, Actions>, keyof Store<T>> &
+  StandardActions<T>;
 
 const noop = () => undefined;
 
@@ -183,20 +183,30 @@ export class Store<T> {
 
 const defaultOptions: StoreOptions = {};
 
-function _store<T, Actions extends StoreActions = Record<string, never>>(
+function _store<T>(calculate: (this: { use: Use }, fns: { use: Use }) => T, options?: StoreOptions): DerivedStore<T>;
+// eslint-disable-next-line @typescript-eslint/ban-types
+function _store<T, Actions extends StoreActions = {}>(
   initialState: T,
   options?: StoreOptionsWithActions<T, Actions>
-): StoreWithActions<T, Actions> {
-  let methods = options?.methods;
+): StoreWithActions<T, Actions>;
+function _store<T, Actions extends StoreActions>(
+  initialState: T | ((this: { use: Use }, fns: { use: Use }) => T),
+  options?: StoreOptionsWithActions<T, Actions>
+): StoreWithActions<T, Actions> | DerivedStore<T> {
+  if (initialState instanceof Function) {
+    return new DerivedStore(initialState);
+  }
+
+  let methods: StoreActions | undefined = options?.methods;
 
   if (initialState instanceof Map) {
-    methods ??= mapActions as any;
+    methods = { ...mapActions, ...methods };
   } else if (initialState instanceof Set) {
-    methods ??= setActions as any;
+    methods = { ...setActions, ...methods };
   } else if (Array.isArray(initialState)) {
-    methods ??= arrayActions as any;
+    methods = { ...arrayActions, ...methods };
   } else if (initialState instanceof Object) {
-    methods ??= recordActions as any;
+    methods = { ...recordActions, ...methods };
   }
 
   const store = new Store(initialState, options);
@@ -211,79 +221,3 @@ function _store<T, Actions extends StoreActions = Record<string, never>>(
 }
 
 export const store = Object.assign(_store, { defaultOptions });
-
-export class DerivedStore<T> extends Store<T> {
-  calculationHelper = new CalculationHelper({
-    calculate: ({ use }) => {
-      const value = this.calculate.apply({ use }, [{ use }]);
-      this.valid = true;
-      super.update(value);
-    },
-
-    addEffect: this.addEffect,
-    getValue: () => this.value,
-    onInvalidate: this.invalidate,
-  });
-
-  protected valid = false;
-  protected check?: () => void;
-  protected cancel?: Cancel;
-
-  constructor(
-    protected calculate: (this: { use: Use }, fns: { use: Use }) => T,
-    protected derivedFrom?: { store: Store<any>; selectors: (Selector<any, any> | string)[] }
-  ) {
-    super(undefined as T);
-  }
-
-  get(): T {
-    if (!this.valid) {
-      this.calculationHelper.execute();
-    }
-
-    return super.get();
-  }
-
-  update(update: Update<T>): void {
-    if (this.derivedFrom && this.derivedFrom.selectors.every((selector) => typeof selector === 'string')) {
-      const path = this.derivedFrom.selectors.join('.');
-
-      if (update instanceof Function) {
-        const before = get<any, any>(this.derivedFrom.store, path) as T;
-        update = update(before);
-      }
-
-      this.derivedFrom.store.update((before: any) => set<any, any>(before, path, update));
-    } else {
-      this.valid = true;
-      super.update(update);
-    }
-  }
-
-  map<S>(selector: Selector<T, S>): DerivedStore<S>;
-  map<P extends Path<T>>(selector: P): DerivedStore<Value<T, P>>;
-  map(_selector: string | Selector<T, any>): DerivedStore<any> {
-    const selector = makeSelector(_selector);
-
-    const derivedFrom = this.derivedFrom ?? { store: this, selectors: [] };
-    const newDerivedFrom = { ...derivedFrom, selectors: derivedFrom.selectors.concat(_selector) };
-
-    return new DerivedStore(({ use }) => {
-      return selector(use(this));
-    }, newDerivedFrom);
-  }
-
-  protected invalidate() {
-    this.valid = false;
-
-    if (this.isActive) {
-      this.calculationHelper.execute();
-    }
-  }
-}
-
-function _derivedStore<T>(calculate: (this: { use: Use }, fns: { use: Use }) => T) {
-  return new DerivedStore(calculate);
-}
-
-export const derivedStore = Object.assign(_derivedStore, {});

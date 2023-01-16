@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { derivedStore, store } from '../../src';
+import { store } from '../../src';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -11,13 +11,13 @@ afterEach(() => {
 
 describe('derived store', () => {
   test('create', () => {
-    const state = derivedStore(() => 1);
+    const state = store(() => 1);
     expect(state).toBeTruthy();
   });
 
   test('get', () => {
     const dep = store(1);
-    const derived = derivedStore(({ use }) => {
+    const derived = store(({ use }) => {
       return use(dep) * 2;
     });
 

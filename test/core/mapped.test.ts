@@ -73,4 +73,13 @@ describe('mapped', () => {
     expect(dep2.get()).toEqual({ y: 2 });
     expect(mapped.get()).toEqual(2);
   });
+
+  test('update for non-string selector throws', () => {
+    const state = store({ x: 1 });
+    const mapped = state.map((s) => s.x);
+
+    expect(() => mapped.update(2)).toThrowError(
+      'Can only updated computed stores that are derived from other stores using string selectors'
+    );
+  });
 });

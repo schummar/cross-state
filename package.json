@@ -1,8 +1,8 @@
 {
-  "name": "schummar-state",
+  "name": "cross-state",
   "type": "module",
   "repository": "schummar/schummar-state",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "(React) state library",
   "sideEffects": false,
   "main": "dist/cjs/index.cjs",
@@ -52,6 +52,7 @@
     "lint": "runp lint:*",
     "lint:eslint": "eslint src",
     "lint:tsc": "tsc --noEmit --emitDeclarationOnly false",
+    "lint:tsc:tests": "tsc --noEmit --emitDeclarationOnly false -p test/tsconfig.json",
     "prepublishOnly": "runp lint test build",
     "test": "pnpm test:watch run --coverage",
     "test:watch": "node --expose-gc node_modules/vitest/vitest.mjs",

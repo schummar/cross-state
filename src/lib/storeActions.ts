@@ -1,3 +1,4 @@
+import type { Update } from '@core/commonTypes';
 import type { Store } from '../core/store';
 
 type Fn = (...args: any) => any;
@@ -24,7 +25,11 @@ export const arrayActions = {
 };
 
 export const recordActions = {
-  set<K extends string | number | symbol, V>(this: Store<Record<K, V>>, key: K, value: V) {
+  set<K extends string | number | symbol, V>(this: Store<Record<K, V>>, key: K, value: Update<V>) {
+    if (value instanceof Function) {
+      value = value(this.get()[key]);
+    }
+
     this.update({ ...this.get(), [key]: value });
     return this;
   },
