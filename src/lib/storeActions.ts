@@ -11,11 +11,11 @@ type OptionalPropertyOf<T> = Exclude<
 >;
 
 const arrMod = <P extends keyof Array<any>>(prop: P) =>
-  function <V>(
-    this: Store<Array<V>>,
-    ...args: Array<V>[P] extends Fn ? Parameters<Array<V>[P]> : never
-  ): Array<V>[P] extends Fn ? ReturnType<Array<V>[P]> : never {
-    const newArr = this.get().slice();
+  function <T extends Array<any>>(
+    this: Store<T>,
+    ...args: T[P] extends Fn ? Parameters<T[P]> : never
+  ): T[P] extends Fn ? ReturnType<T[P]> : never {
+    const newArr = this.get().slice() as T;
     const result = (newArr[prop] as Fn)(...(args as any));
     this.update(newArr);
     return result;

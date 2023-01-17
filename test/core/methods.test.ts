@@ -5,13 +5,13 @@ import { immerActions } from '../../src/immer';
 describe('store methods', () => {
   describe('map actions', () => {
     test('set', () => {
-      const state = store(new Map([['x', 1]]));
+      const state = store(new Map([['x', { x: 1 }]]));
 
-      state.set('y', 2);
+      state.set('y', { x: 2 });
       expect(state.get()).toEqual(
         new Map([
-          ['x', 1],
-          ['y', 2],
+          ['x', { x: 1 }],
+          ['y', { x: 2 }],
         ])
       );
     });
@@ -33,10 +33,10 @@ describe('store methods', () => {
 
   describe('set actions', () => {
     test('add', () => {
-      const state = store(new Set([1]));
+      const state = store(new Set([{ x: 1 }]));
 
-      state.add(2);
-      expect(state.get()).toEqual(new Set([1, 2]));
+      state.add({ x: 2 });
+      expect(state.get()).toEqual(new Set([{ x: 1 }, { x: 2 }]));
     });
 
     test('delete', () => {
@@ -56,10 +56,10 @@ describe('store methods', () => {
 
   describe('array actions', () => {
     test('push', () => {
-      const state = store([1]);
+      const state = store([{ x: 1 }]);
 
-      state.push(2);
-      expect(state.get()).toEqual([1, 2]);
+      state.push({ x: 2 });
+      expect(state.get()).toEqual([{ x: 1 }, { x: 2 }]);
     });
 
     test('pop', () => {
