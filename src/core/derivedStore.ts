@@ -1,8 +1,9 @@
 import { CalculationHelper } from '@lib/calculationHelper';
 import { makeSelector } from '@lib/makeSelector';
 import type { Path, Value } from '@lib/propAccess';
-import { get, set } from '@lib/propAccess';
+import { set } from '@lib/propAccess';
 import type { Cancel, Selector, Update, Use } from './commonTypes';
+import type { StoreOptions } from './store';
 import { Store } from './store';
 
 export class DerivedStore<T> extends Store<T> {
@@ -24,12 +25,15 @@ export class DerivedStore<T> extends Store<T> {
 
   constructor(
     protected calculate: (this: { use: Use }, fns: { use: Use }) => T,
+    protected readonly options: StoreOptions = {},
     protected derivedFrom?: { store: Store<any>; selectors: (Selector<any, any> | string)[] }
   ) {
     super(undefined as T);
   }
 
   get(): T {
+    this.calculationHelper.check();
+
     if (!this.valid) {
       this.calculationHelper.execute();
     }
@@ -42,7 +46,7 @@ export class DerivedStore<T> extends Store<T> {
       const path = this.derivedFrom.selectors.join('.');
 
       if (update instanceof Function) {
-        const before = get<any, any>(this.derivedFrom.store, path) as T;
+        const before = this.get();
         update = update(before);
       }
 
@@ -50,19 +54,6 @@ export class DerivedStore<T> extends Store<T> {
     } else {
       throw new Error('Can only updated computed stores that are derived from other stores using string selectors');
     }
-  }
-
-  map<S>(selector: Selector<T, S>): DerivedStore<S>;
-  map<P extends Path<T>>(selector: P): DerivedStore<Value<T, P>>;
-  map(_selector: string | Selector<T, any>): DerivedStore<any> {
-    const selector = makeSelector(_selector);
-
-    const derivedFrom = this.derivedFrom ?? { store: this, selectors: [] };
-    const newDerivedFrom = { ...derivedFrom, selectors: derivedFrom.selectors.concat(_selector) };
-
-    return new DerivedStore(({ use }) => {
-      return selector(use(this));
-    }, newDerivedFrom);
   }
 
   protected invalidate() {
@@ -74,8 +65,8 @@ export class DerivedStore<T> extends Store<T> {
   }
 }
 
-function _derivedStore<T>(calculate: (this: { use: Use }, fns: { use: Use }) => T) {
-  return new DerivedStore(calculate);
+function _derivedStore<T>(calculate: (this: { use: Use }, fns: { use: Use }) => T, options?: StoreOptions) {
+  return new DerivedStore(calculate, options);
 }
 
 export const derivedStore = Object.assign(_derivedStore, {});

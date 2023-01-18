@@ -23,4 +23,13 @@ describe('derived store', () => {
 
     expect(derived.get()).toBe(2);
   });
+
+  test('update throws', () => {
+    const dep = store(1);
+    const derived = store(({ use }) => {
+      return use(dep) * 2;
+    });
+
+    expect(() => derived.update(1)).toThrow('Can only updated computed stores that are derived from other stores using string selectors');
+  });
 });

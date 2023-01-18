@@ -74,6 +74,27 @@ describe('mapped', () => {
     expect(mapped.get()).toEqual(2);
   });
 
+  test('update with function', () => {
+    const state = store({ x: 1 });
+    const mapped = state.map('x');
+
+    mapped.update((x) => x + 1);
+
+    expect(state.get()).toEqual({ x: 2 });
+    expect(mapped.get()).toEqual(2);
+  });
+
+  test('update revalidates', () => {
+    const state = store({ x: 1 });
+    const mapped = state.map('x');
+
+    mapped.get();
+    mapped.update(2);
+
+    expect(state.get()).toEqual({ x: 2 });
+    expect(mapped.get()).toEqual(2);
+  });
+
   test('update for non-string selector throws', () => {
     const state = store({ x: 1 });
     const mapped = state.map((s) => s.x);

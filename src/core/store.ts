@@ -7,7 +7,7 @@ import type { Path, Value } from '@lib/propAccess';
 import { arrayActions, mapActions, recordActions, setActions } from '@lib/storeActions';
 import { throttle } from '@lib/throttle';
 import type { Cancel, Duration, Effect, Listener, Selector, SubscribeOptions, Update, Use, UseOptions } from './commonTypes';
-import { DerivedStore } from './derivedStore';
+import { derivedStore, DerivedStore } from './derivedStore';
 
 export type StoreActions = Record<string, (...args: any[]) => any>;
 
@@ -109,9 +109,13 @@ export class Store<T> {
     const selector = makeSelector(_selector);
     const derivedFrom = { store: this, selectors: [_selector] };
 
-    return new DerivedStore(({ use }) => {
-      return selector(use(this, options));
-    }, derivedFrom);
+    return new DerivedStore(
+      ({ use }) => {
+        return selector(use(this, options));
+      },
+      this.options,
+      derivedFrom
+    );
   }
 
   /** Add an effect that will be executed when the store becomes active, which means when it has at least one subscriber.
@@ -194,7 +198,7 @@ function _store<T, Actions extends StoreActions>(
   options?: StoreOptionsWithActions<T, Actions>
 ): StoreWithActions<T, Actions> | DerivedStore<T> {
   if (initialState instanceof Function) {
-    return new DerivedStore(initialState);
+    return derivedStore(initialState, options);
   }
 
   let methods: StoreActions | undefined = options?.methods;

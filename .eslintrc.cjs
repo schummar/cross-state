@@ -12,6 +12,6 @@ module.exports = {
     '@typescript-eslint/consistent-type-imports': 'error',
     '@typescript-eslint/no-this-alias': 'off',
     'import/no-unresolved': 'off',
-    'no-console': 'warn',
+    'no-console': ['warn', { allow: ['error', 'warn', 'info', 'debug'] }],
   },
 };

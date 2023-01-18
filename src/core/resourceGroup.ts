@@ -4,17 +4,21 @@ export interface Resource {
 }
 
 export class ResourceGroup extends Set<Resource> {
-  invalidate() {
+  invalidateAll() {
     for (const resource of this) {
       resource.invalidate();
     }
   }
 
-  clear() {
+  clearAll() {
     for (const resource of this) {
       resource.clear();
     }
   }
 }
 
-export const allResources = new ResourceGroup();
+export const _allResources = new ResourceGroup();
+export const allResources = {
+  invalidateAll: _allResources.invalidateAll.bind(_allResources),
+  clearAll: _allResources.clearAll.bind(_allResources),
+};

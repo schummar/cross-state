@@ -1,6 +1,6 @@
 import { shallowEqual } from 'fast-equals';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { fetchStore, store } from '../../src';
+import { allResources, fetchStore, ResourceGroup, store } from '../../src';
 import { FetchStore } from '../../src/core/fetchStore';
 import { flushPromises, getValues, sleep } from '../testHelpers';
 
@@ -203,6 +203,54 @@ describe('dynamic store', () => {
       vi.advanceTimersByTime(100);
       expect(dep1.isActive).toBe(false);
       expect(dep2.isActive).toBe(false);
+    });
+  });
+
+  describe('resourceGroup', () => {
+    describe('allResources', () => {
+      test('invalidateAll', async () => {
+        const state = fetchStore(async () => 1);
+        await state.fetch();
+
+        expect(state.get().isStale).toBe(false);
+
+        allResources.invalidateAll();
+        expect(state.get().isStale).toBe(true);
+      });
+
+      test('clearAll', async () => {
+        const state = fetchStore(async () => 1);
+        await state.fetch();
+
+        expect(state.get().value).toBe(1);
+
+        allResources.clearAll();
+        expect(state.get().value).toBe(undefined);
+      });
+    });
+
+    describe('custom resourceGroup', () => {
+      test('invalidateAll', async () => {
+        const resourceGroup = new ResourceGroup();
+        const state = fetchStore(async () => 1, { resourceGroup });
+        await state.fetch();
+
+        expect(state.get().isStale).toBe(false);
+
+        resourceGroup.invalidateAll();
+        expect(state.get().isStale).toBe(true);
+      });
+
+      test('clearAll', async () => {
+        const resourceGroup = new ResourceGroup();
+        const state = fetchStore(async () => 1, { resourceGroup });
+        await state.fetch();
+
+        expect(state.get().value).toBe(1);
+
+        resourceGroup.clearAll();
+        expect(state.get().value).toBe(undefined);
+      });
     });
   });
 });

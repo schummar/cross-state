@@ -6,7 +6,7 @@ import { makeSelector } from '@lib/makeSelector';
 import type { Path, Value } from '@lib/propAccess';
 import type { Cancel, Duration, Listener, Selector, SubscribeOptions, Update, Use, UseFetch } from './commonTypes';
 import type { ResourceGroup } from './resourceGroup';
-import { allResources } from './resourceGroup';
+import { _allResources } from './resourceGroup';
 import { Store } from './store';
 
 type Common<T> = { isUpdating: false; update?: undefined; ref: unknown } | { isUpdating: true; update: Promise<T>; ref: unknown };
@@ -243,7 +243,7 @@ function withArgs<T, Args extends any[]>(
 
   const resource = { invalidate, clear };
   const groups = Array.isArray(resourceGroup) ? resourceGroup : resourceGroup ? [resourceGroup] : [];
-  for (const group of groups.concat(allResources)) {
+  for (const group of groups.concat(_allResources)) {
     group.add(resource);
   }
 

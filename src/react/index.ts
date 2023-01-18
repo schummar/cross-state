@@ -1,3 +1,4 @@
+export { read } from './read';
 export { StoreScopeProvider, useStoreScope } from './storeScope';
 export type { StoreScopeProps } from './storeScope';
 export { useProp } from './useProp';
