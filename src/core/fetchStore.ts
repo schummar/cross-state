@@ -3,7 +3,7 @@ import { calcDuration } from '@lib/calcDuration';
 import { CalculationHelper } from '@lib/calculationHelper';
 import { defaultEquals, simpleShallowEquals } from '@lib/equals';
 import { makeSelector } from '@lib/makeSelector';
-import type { Path, Value } from '@lib/propAccess';
+import type { Path, Value } from '@lib/path';
 import type { Cancel, Duration, Listener, Selector, SubscribeOptions, Update, Use, UseFetch } from './commonTypes';
 import type { ResourceGroup } from './resourceGroup';
 import { _allResources } from './resourceGroup';
@@ -190,7 +190,7 @@ export class FetchStore<T> extends Store<FetchStoreState<T>> {
 
   mapValue<S>(selector: Selector<T, S>): FetchStore<S>;
   mapValue<P extends Path<T>>(selector: P): FetchStore<Value<T, P>>;
-  mapValue<S>(_selector: Selector<T, S> | string): FetchStore<S> {
+  mapValue<S>(_selector: Selector<T, S> | Path<any>): FetchStore<S> {
     const selector = makeSelector(_selector);
     const that = this;
 

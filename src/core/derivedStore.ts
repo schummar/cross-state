@@ -1,6 +1,5 @@
 import { CalculationHelper } from '@lib/calculationHelper';
-import { makeSelector } from '@lib/makeSelector';
-import type { Path, Value } from '@lib/propAccess';
+import type { Path } from '@lib/path';
 import { set } from '@lib/propAccess';
 import type { Cancel, Selector, Update, Use } from './commonTypes';
 import type { StoreOptions } from './store';
@@ -26,7 +25,7 @@ export class DerivedStore<T> extends Store<T> {
   constructor(
     protected calculate: (this: { use: Use }, fns: { use: Use }) => T,
     protected readonly options: StoreOptions = {},
-    protected derivedFrom?: { store: Store<any>; selectors: (Selector<any, any> | string)[] }
+    protected derivedFrom?: { store: Store<any>; selectors: (Selector<any, any> | Path<any>)[] }
   ) {
     super(undefined as T);
   }

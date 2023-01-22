@@ -3,7 +3,7 @@ import { calcDuration } from '@lib/calcDuration';
 import { defaultEquals } from '@lib/equals';
 import { forwardError } from '@lib/forwardError';
 import { makeSelector } from '@lib/makeSelector';
-import type { Path, Value } from '@lib/propAccess';
+import type { Path, Value } from '@lib/path';
 import { arrayActions, mapActions, recordActions, setActions } from '@lib/storeActions';
 import { throttle } from '@lib/throttle';
 import type { Cancel, Duration, Effect, Listener, Selector, SubscribeOptions, Update, Use, UseOptions } from './commonTypes';
@@ -105,7 +105,7 @@ export class Store<T> {
 
   map<S>(selector: Selector<T, S>, options?: UseOptions): DerivedStore<S>;
   map<P extends Path<T>>(selector: P, options?: UseOptions): DerivedStore<Value<T, P>>;
-  map(_selector: Selector<T, any> | string, options?: UseOptions): DerivedStore<any> {
+  map(_selector: Selector<T, any> | Path<any>, options?: UseOptions): DerivedStore<any> {
     const selector = makeSelector(_selector);
     const derivedFrom = { store: this, selectors: [_selector] };
 

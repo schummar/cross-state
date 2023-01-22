@@ -1,6 +1,7 @@
+import type { Path } from './path';
 import { get } from './propAccess';
 
-export function makeSelector<T, S>(selector?: ((value: T) => S) | string): (value: T) => S {
+export function makeSelector<T, S>(selector?: ((value: T) => S) | Path<any>): (value: T) => S {
   if (!selector) {
     return (x) => x as any;
   }
