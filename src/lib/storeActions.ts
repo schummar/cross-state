@@ -1,14 +1,8 @@
 import type { Update, UpdateFrom } from '@core/commonTypes';
 import type { Store } from '../core/store';
+import type { OptionalPropertyOf } from './typeHelpers';
 
 type Fn = (...args: any) => any;
-
-type OptionalPropertyOf<T> = Exclude<
-  {
-    [K in keyof T]: T extends Record<K, T[K]> ? never : K;
-  }[keyof T],
-  undefined
->;
 
 const arrMod = <P extends keyof Array<any>>(prop: P) =>
   function <T extends Array<any>>(

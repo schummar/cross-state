@@ -14,3 +14,10 @@ export type ArrayToStringPath<T> = T extends []
   : never;
 
 export type StringToArrayPath<T> = T extends '' ? [] : T extends `${infer First}.${infer Rest}` ? [First, ...StringToArrayPath<Rest>] : [T];
+
+export type OptionalPropertyOf<T> = Exclude<
+  {
+    [K in keyof T]: T extends Record<K, T[K]> ? never : K;
+  }[keyof T],
+  undefined
+>;

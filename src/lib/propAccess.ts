@@ -2,20 +2,20 @@ import type { Update } from '../core/commonTypes';
 import { flatClone } from './clone';
 import type { Path, Value } from './path';
 
-export function castArrayPath<T>(path: Path<T>): Path<T> & KeyType[] {
+export function castArrayPath(path: string | KeyType[]): KeyType[] {
   if (Array.isArray(path)) {
-    return path as Path<T> & KeyType[];
+    return path as any;
   }
 
   if (path === '') {
-    return [] as Path<T> & KeyType[];
+    return [] as any;
   }
 
-  return path.split('.') as Path<T> & KeyType[];
+  return (path as string).split('.') as any;
 }
 
 export function get<T, P extends Path<T>>(obj: T, path: P): Value<T, P> {
-  const _path = castArrayPath(path);
+  const _path = castArrayPath(path as any);
   const [first, ...rest] = _path;
 
   if (first === undefined || !obj) {
@@ -27,7 +27,7 @@ export function get<T, P extends Path<T>>(obj: T, path: P): Value<T, P> {
   }
 
   if (obj instanceof Set) {
-    return get(Array.from(obj)[first as number], rest as any);
+    return get(Array.from(obj)[Number(first)], rest as any);
   }
 
   if (obj instanceof Object) {
@@ -38,7 +38,7 @@ export function get<T, P extends Path<T>>(obj: T, path: P): Value<T, P> {
 }
 
 export function set<T, P extends Path<T>>(obj: T, path: P, value: Update<Value<T, P>>, rootPath = path): T {
-  const _path = castArrayPath(path);
+  const _path = castArrayPath(path as any);
   const [first, ...rest] = _path;
 
   if (first === undefined) {
@@ -47,7 +47,7 @@ export function set<T, P extends Path<T>>(obj: T, path: P, value: Update<Value<T
 
   const updateChild = (child: any) => {
     if (!child && rest.length > 0) {
-      const _rootPath = castArrayPath(rootPath);
+      const _rootPath = castArrayPath(rootPath as any);
 
       const prefix = _rootPath.slice(0, -rest.length) as KeyType[];
       throw Error(`Cannot set ${rootPath} because ${prefix.join('.')} is ${child}`);
@@ -64,11 +64,10 @@ export function set<T, P extends Path<T>>(obj: T, path: P, value: Update<Value<T
   }
 
   if (obj instanceof Set) {
-    const copy = flatClone(obj);
-    const child = Array.from(copy)[first as number];
-    copy.delete(child);
-    copy.add(updateChild(child));
-    return copy;
+    const copy = [...obj];
+    const child = copy[Number(first)];
+    copy[Number(first)] = updateChild(child);
+    return new Set(copy) as any;
   }
 
   if (obj instanceof Object) {
@@ -78,4 +77,28 @@ export function set<T, P extends Path<T>>(obj: T, path: P, value: Update<Value<T
   }
 
   throw new Error(`Could not set ${path} of ${obj}`);
+}
+
+export function remove<T, P extends Path<T, true>>(obj: T, path: P): T {
+  const _path = castArrayPath(path as any);
+
+  if (_path.length === 0) {
+    return undefined as any;
+  }
+
+  const parentPath = _path.slice(0, -1);
+  const key = _path[_path.length - 1];
+
+  const parent = flatClone(get(obj, parentPath as any));
+
+  if (parent instanceof Map) {
+    parent.delete(key);
+  } else if (parent instanceof Set) {
+    const value = Array.from(parent)[Number(key)];
+    parent.delete(value);
+  } else {
+    delete parent[key as keyof typeof parent];
+  }
+
+  return set(obj, parentPath as any, parent);
 }

@@ -2,7 +2,7 @@ import { describe, expectTypeOf, test } from 'vitest';
 import type { GetKeys, Path, PathAsArray, Value } from '../../src/lib/path';
 
 describe('path', () => {
-  describe('getKeys', () => {
+  describe('GetKeys', () => {
     test('object', () => {
       expectTypeOf({} as GetKeys<{ x: number; y: number }>).toEqualTypeOf<'x' | 'y'>();
     });
@@ -16,7 +16,7 @@ describe('path', () => {
     });
   });
 
-  describe('path', () => {
+  describe('Path', () => {
     test('object', () => {
       expectTypeOf({} as Path<{ x: number; y: number }>).toEqualTypeOf<['x'] | ['y'] | 'x' | 'y'>();
     });
@@ -71,7 +71,7 @@ describe('path', () => {
     });
   });
 
-  describe('value', () => {
+  describe('Value', () => {
     test('object', () => {
       expectTypeOf({} as Value<{ x: 'value'; y: 'value' }, 'x'>).toEqualTypeOf<'value'>();
     });
@@ -141,6 +141,12 @@ describe('path', () => {
           ['a', 'b', 'c', 0]
         >
       ).toEqualTypeOf<'value' | undefined>();
+    });
+  });
+
+  describe('Path with constraint', () => {
+    test('optional path', () => {
+      expectTypeOf({} as Path<{ a: number; b?: number; c: number | undefined }, true>).toEqualTypeOf<['b'] | 'b'>();
     });
   });
 });

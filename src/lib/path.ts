@@ -1,4 +1,4 @@
-import type { Arr, ArrayToStringPath, Obj, StringToArrayPath, StringToNumber } from './typeHelpers';
+import type { Arr, ArrayToStringPath, Obj, OptionalPropertyOf, StringToArrayPath, StringToNumber } from './typeHelpers';
 
 export type KeyType = string | number;
 
@@ -10,23 +10,25 @@ export type GetKeys<T extends Obj | Arr> = T extends Arr
     : number // other array
   : keyof T;
 
-export type PathAsArray<T> = 0 extends 1 & T
+export type PathAsArray<T, Optional = false> = 0 extends 1 & T
   ? string[]
   : T extends never
   ? never
   : T extends Obj | Arr
   ? {
-      [K in GetKeys<T>]: [K] | [K, ...PathAsArray<T[K]>];
+      [K in GetKeys<T>]:
+        | (Optional extends true ? (K extends OptionalPropertyOf<T> ? [K] : never) : [K])
+        | [K, ...PathAsArray<T[K], Optional>];
     }[GetKeys<T>]
-  : T extends Map<infer K, infer V>
-  ? [K] | [K, ...PathAsArray<V>]
-  : T extends Set<unknown>
+  : T extends Map<infer K extends KeyType, infer V>
+  ? [K] | [K, ...PathAsArray<V, Optional>]
+  : T extends Set<any>
   ? [number]
   : never;
 
-export type PathAsString<T> = ArrayToStringPath<PathAsArray<T>>;
+export type PathAsString<T, Optional = false> = ArrayToStringPath<PathAsArray<T, Optional>>;
 
-export type Path<T> = PathAsString<T> | PathAsArray<T>;
+export type Path<T, Optional = false> = PathAsString<T, Optional> | PathAsArray<T, Optional>;
 
 export type Value<T, P> = 0 extends 1 & T
   ? any
@@ -41,7 +43,7 @@ export type Value<T, P> = 0 extends 1 & T
     ? any[] extends T
       ? Value<T[First & keyof T], Rest> | undefined
       : Value<T[First & keyof T], Rest>
-    : T extends Map<unknown, infer V> | Set<infer V>
+    : T extends Map<any, infer V> | Set<infer V>
     ? Value<V, Rest> | undefined
     : never
   : T;
