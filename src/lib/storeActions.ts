@@ -1,5 +1,7 @@
 import type { Update, UpdateFrom } from '@core/commonTypes';
 import type { Store } from '../core/store';
+import type { Path, Value } from './path';
+import { get, set } from './propAccess';
 import type { OptionalPropertyOf } from './typeHelpers';
 
 type Fn = (...args: any) => any;
@@ -26,12 +28,12 @@ export const arrayActions = {
 };
 
 export const recordActions = {
-  set<T extends Record<any, any>, K extends keyof T>(this: Store<T>, key: K, value: Update<T[K]>) {
+  set<T extends Record<any, any>, P extends Path<T>>(this: Store<T>, path: P, value: Update<Value<T, P>>) {
     if (value instanceof Function) {
-      value = value(this.get()[key]);
+      value = value(get(this.get(), path));
     }
 
-    this.update({ ...this.get(), [key]: value });
+    this.update(set(this.get(), path, value));
     return this;
   },
 
