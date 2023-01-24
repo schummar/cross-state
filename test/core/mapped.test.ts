@@ -27,12 +27,12 @@ describe('mapped', () => {
 
   test('subscribe', async () => {
     const state = store(1);
-    const fn = vi.fn(() => undefined);
-    state.map((x) => x * 2).sub(fn);
+    const listener = vi.fn(() => undefined);
+    state.map((x) => x * 2).sub(listener);
 
     state.update(2);
 
-    expect(fn.mock.calls).toEqual([
+    expect(listener.mock.calls).toEqual([
       [2, undefined],
       [4, 2],
     ]);
@@ -41,12 +41,12 @@ describe('mapped', () => {
   test('subscribe nested', async () => {
     const dep1 = store(1);
     const dep2 = dep1.map((x) => x * 2);
-    const fn = vi.fn(() => undefined);
-    dep2.map((x) => x * 2).sub(fn);
+    const listener = vi.fn(() => undefined);
+    dep2.map((x) => x * 2).sub(listener);
 
     dep1.update(2);
 
-    expect(fn.mock.calls).toEqual([
+    expect(listener.mock.calls).toEqual([
       [4, undefined],
       [8, 4],
     ]);
@@ -100,7 +100,7 @@ describe('mapped', () => {
     const mapped = state.map((s) => s.x);
 
     expect(() => mapped.update(2)).toThrowError(
-      'Can only updated computed stores that are derived from other stores using string selectors'
+      'Can only updated computed stores that are derived from other stores using string selectors',
     );
   });
 });

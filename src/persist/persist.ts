@@ -1,5 +1,5 @@
 import type { Store } from '@';
-import { store } from '@';
+import { store as createStore } from '@';
 import { diff } from '@lib/diff';
 import type { WildcardPath, WildcardPathAsArray } from '@lib/path';
 import { castArrayPath } from '@lib/propAccess';
@@ -38,14 +38,14 @@ class Persist<T> {
             : {
                 path: castArrayPath(p.path as any) as WildcardPathAsArray<T>,
                 throttleMs: p.throttleMs,
-              }
+              },
         )
         .sort((a, b) => b.path.length - a.path.length),
 
       throttleMs: options.throttleMs,
     };
 
-    console.log(this.options);
+    console.debug(this.options);
 
     this.start();
   }
@@ -57,12 +57,12 @@ class Persist<T> {
       const [patches] = diff(committed, value);
       committed = value;
 
-      console.log(patches);
+      console.debug(patches);
     });
   }
 
   stop() {
-    console.log('stop');
+    console.debug('stop');
   }
 }
 
@@ -70,7 +70,7 @@ export function persist<T>(store: Store<T>, options?: PersistOptions<T>): Persis
   return new Persist<T>(store, options);
 }
 
-const s = store({
+const s = createStore({
   a: 1,
   b: { c: 2, d: 3 },
   e: new Map([
@@ -78,7 +78,7 @@ const s = store({
     [2, 2],
   ]),
 });
-const p = persist(s, {
+const _p = persist(s, {
   paths: ['e', 'b.c', 'e.*'],
 });
 
@@ -90,6 +90,6 @@ s.set(
   new Map([
     [1, 2],
     [2, 3],
-  ])
+  ]),
 );
 s.set(['e', 1], 3);

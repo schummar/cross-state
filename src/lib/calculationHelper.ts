@@ -1,8 +1,8 @@
-import type { Cancel, UpdateFrom, Use, UseFetch } from '@core/commonTypes';
-import type { Store } from '@core/store';
 import type { MaybePromise } from './maybePromise';
 import { queue } from './queue';
 import { trackingProxy } from './trackingProxy';
+import type { Store } from '@core/store';
+import type { Cancel, UpdateFrom, Use, UseFetch } from '@core/commonTypes';
 
 export class CalculationHelper<T> {
   private current?: {
@@ -19,11 +19,11 @@ export class CalculationHelper<T> {
         updateError: (error: unknown) => void;
       }) => Cancel | void;
       addEffect: (effect: () => Cancel | void) => Cancel;
-      getValue: () => T | undefined;
+      getValue?: () => T | undefined;
       setValue?: (value: T) => void;
       setError?: (error: unknown) => void;
       onInvalidate?: () => void;
-    }
+    },
   ) {
     options.addEffect(() => {
       if (this.current) {
@@ -67,7 +67,7 @@ export class CalculationHelper<T> {
       delete this.current;
     };
 
-    const check = () => {
+    const checkAll = () => {
       if (!checks.every((check) => check())) {
         cancel();
         onInvalidate?.();
@@ -94,7 +94,7 @@ export class CalculationHelper<T> {
         on() {
           this.off();
 
-          sub = store.sub(check, { runNow: false });
+          sub = store.sub(checkAll, { runNow: false });
         },
         off() {
           sub?.();
@@ -118,14 +118,14 @@ export class CalculationHelper<T> {
       }
 
       const value = store.fetch();
-      const ref = store.get().ref;
+      const { ref } = store.get();
 
       let sub: Cancel | undefined;
 
       const dep = {
         on() {
           this.off();
-          sub = store.sub(check, { runNow: false });
+          sub = store.sub(checkAll, { runNow: false });
         },
         off() {
           sub?.();
@@ -153,7 +153,7 @@ export class CalculationHelper<T> {
 
         if (update instanceof Function) {
           try {
-            update = update(getValue());
+            update = update(getValue?.());
           } catch (error) {
             setError?.(error);
             return;
@@ -190,7 +190,7 @@ export class CalculationHelper<T> {
       setError?.(error);
     }
 
-    this.current = { cancel, check };
+    this.current = { cancel, check: checkAll };
   }
 
   stop() {

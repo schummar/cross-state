@@ -13,8 +13,8 @@ describe('hash', () => {
           ['a', 1],
           ['b', 2],
           ['c', 3],
-        ])
-      )
+        ]),
+      ),
     ).toBe('m[["a",1],["b",2],["c",3]]');
   });
 
@@ -31,6 +31,8 @@ describe('hash', () => {
   });
 
   test('Nested', () => {
-    expect(hash({ a: new Set([1]), b: new Map([['a', 1]]) })).toBe('o[["a",s[1]],["b",m[["a",1]]]]');
+    expect(hash({ a: new Set([1]), b: new Map([['a', 1]]) })).toBe(
+      'o[["a",s[1]],["b",m[["a",1]]]]',
+    );
   });
 });

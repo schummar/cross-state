@@ -7,7 +7,10 @@ describe('diff', () => {
     const b = { x: 1, y: 3 };
     const result = diff(a, b);
 
-    expect(result).toEqual([[{ op: 'replace', path: ['y'], value: 3 }], [{ op: 'replace', path: ['y'], value: 2 }]]);
+    expect(result).toEqual([
+      [{ op: 'replace', path: ['y'], value: 3 }],
+      [{ op: 'replace', path: ['y'], value: 2 }],
+    ]);
   });
 
   test('array', () => {
@@ -15,7 +18,10 @@ describe('diff', () => {
     const b = [1, 3];
     const result = diff(a, b);
 
-    expect(result).toEqual([[{ op: 'replace', path: [1], value: 3 }], [{ op: 'replace', path: [1], value: 2 }]]);
+    expect(result).toEqual([
+      [{ op: 'replace', path: [1], value: 3 }],
+      [{ op: 'replace', path: [1], value: 2 }],
+    ]);
   });
 
   test('map', () => {
@@ -29,7 +35,10 @@ describe('diff', () => {
     ]);
     const result = diff(a, b);
 
-    expect(result).toEqual([[{ op: 'replace', path: ['y'], value: 3 }], [{ op: 'replace', path: ['y'], value: 2 }]]);
+    expect(result).toEqual([
+      [{ op: 'replace', path: ['y'], value: 3 }],
+      [{ op: 'replace', path: ['y'], value: 2 }],
+    ]);
   });
 
   test('set', () => {
@@ -37,7 +46,10 @@ describe('diff', () => {
     const b = new Set([1, 3]);
     const result = diff(a, b);
 
-    expect(result).toEqual([[{ op: 'replace', path: [1], value: 3 }], [{ op: 'replace', path: [1], value: 2 }]]);
+    expect(result).toEqual([
+      [{ op: 'replace', path: [1], value: 3 }],
+      [{ op: 'replace', path: [1], value: 2 }],
+    ]);
   });
 
   test('nested', () => {
@@ -45,7 +57,10 @@ describe('diff', () => {
     const b = { x: 1, y: { z: 3 } };
     const result = diff(a, b);
 
-    expect(result).toEqual([[{ op: 'replace', path: ['y', 'z'], value: 3 }], [{ op: 'replace', path: ['y', 'z'], value: 2 }]]);
+    expect(result).toEqual([
+      [{ op: 'replace', path: ['y', 'z'], value: 3 }],
+      [{ op: 'replace', path: ['y', 'z'], value: 2 }],
+    ]);
   });
 
   test('nested map', () => {
@@ -59,7 +74,10 @@ describe('diff', () => {
     ]);
     const result = diff(a, b);
 
-    expect(result).toEqual([[{ op: 'replace', path: ['y', 'z'], value: 3 }], [{ op: 'replace', path: ['y', 'z'], value: 2 }]]);
+    expect(result).toEqual([
+      [{ op: 'replace', path: ['y', 'z'], value: 3 }],
+      [{ op: 'replace', path: ['y', 'z'], value: 2 }],
+    ]);
   });
 
   test('set nested in map', () => {
@@ -67,6 +85,9 @@ describe('diff', () => {
     const b = new Map<string, unknown>([['x', new Set([2])]]);
     const result = diff(a, b);
 
-    expect(result).toEqual([[{ op: 'replace', path: ['x', 0], value: 2 }], [{ op: 'replace', path: ['x', 0], value: 1 }]]);
+    expect(result).toEqual([
+      [{ op: 'replace', path: ['x', 0], value: 2 }],
+      [{ op: 'replace', path: ['x', 0], value: 1 }],
+    ]);
   });
 });

@@ -7,12 +7,12 @@ import type { Path, Value } from '../../../src/lib/propAccess';
 
 function c<T extends Record<string | number, unknown> | readonly unknown[], P extends Path<T>>(
   name: string,
-  obj: T,
+  object: T,
   path: P,
   oldValue: Value<T, P>,
-  newValue: Value<T, P>
+  newValue: Value<T, P>,
 ) {
-  return [name, obj, path, oldValue, newValue] as const;
+  return [name, object, path, oldValue, newValue] as const;
 }
 
 describe('useProp', () => {
@@ -47,9 +47,9 @@ describe('useProp', () => {
     c('object', { x: 0, y: 0 }, 'x', 0, 1),
     c('array', [1, 2, 3] as [number, number, number], '2', 3, 4),
     c('nested', { x: [{ y: 1 }] } as { x: [{ y: number }] }, 'x.0.y', 1, 2),
-  ])('data type %s', (_name, obj, path, oldValue, newValue) => {
+  ])('data type %s', (_name, object, path, oldValue, newValue) => {
     test('get and set', async () => {
-      const store = atomicStore(obj);
+      const store = atomicStore(object);
 
       const Component = vi.fn<[], any>(function Component() {
         const [v, set] = useProp(store, path);

@@ -7,7 +7,7 @@ export function hash(value: unknown): string {
     return `m[${[...value.entries()].map(hash).sort().join(',')}]`;
   }
 
-  if (value instanceof Array) {
+  if (Array.isArray(value)) {
     return `[${value.map(hash).join(',')}]`;
   }
 

@@ -10,5 +10,9 @@ function applySinglePatch<T>(target: T, patch: Patch): T {
 }
 
 export function applyPatches<T>(target: T, ...patches: Patch[]): T {
-  return patches.reduce((target, patch) => applySinglePatch(target, patch), target);
+  for (const patch of patches) {
+    target = applySinglePatch(target, patch);
+  }
+
+  return target;
 }

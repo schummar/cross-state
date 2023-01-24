@@ -1,17 +1,29 @@
+import type {
+  Cancel,
+  Duration,
+  Effect,
+  Listener,
+  Selector,
+  SubscribeOptions,
+  Update,
+  Use,
+  UseOptions,
+} from './commonTypes';
 import { bind } from '@lib/bind';
 import { calcDuration } from '@lib/calcDuration';
+import { CalculationHelper } from '@lib/calculationHelper';
 import { defaultEquals } from '@lib/equals';
 import { forwardError } from '@lib/forwardError';
 import { makeSelector } from '@lib/makeSelector';
 import type { Path, Value } from '@lib/path';
+import { set } from '@lib/propAccess';
 import { arrayActions, mapActions, recordActions, setActions } from '@lib/storeActions';
 import { throttle } from '@lib/throttle';
-import type { Cancel, Duration, Effect, Listener, Selector, SubscribeOptions, Update, Use, UseOptions } from './commonTypes';
-import { derivedStore, DerivedStore } from './derivedStore';
 
 export type StoreActions = Record<string, (...args: any[]) => any>;
 
-export type BoundStoreActions<T, Actions extends StoreActions> = Actions & ThisType<Store<T> & Actions>;
+export type BoundStoreActions<T, Actions extends StoreActions> = Actions &
+  ThisType<Store<T> & Actions>;
 
 export interface StoreOptions {
   retain?: number;
@@ -20,6 +32,8 @@ export interface StoreOptions {
 export interface StoreOptionsWithActions<T, Actions extends StoreActions> extends StoreOptions {
   methods?: Actions & ThisType<Store<T> & Actions & StandardActions<T>>;
 }
+
+export type Calculate<T> = (this: { use: Use }, fns: { use: Use }) => T;
 
 type StandardActions<T> = T extends Map<any, any>
   ? typeof mapActions
@@ -38,26 +52,89 @@ type StoreWithActions<T, Actions extends StoreActions> = Store<T> &
 const noop = () => undefined;
 
 export class Store<T> {
-  protected value = this.initialValue;
+  private _value?: { v: T };
+
   protected listeners = new Set<Listener>();
-  protected effects = new Map<Effect, { handle?: Cancel; retain?: number; timeout?: ReturnType<typeof setTimeout> }>();
+
+  protected effects = new Map<
+    Effect,
+    { handle?: Cancel; retain?: number; timeout?: ReturnType<typeof setTimeout> }
+  >();
+
   protected notifyId = {};
 
-  constructor(protected readonly initialValue: T, protected readonly options: StoreOptions = {}) {
+  private calculationHelper = new CalculationHelper({
+    calculate: ({ use }) => {
+      if (this.getter instanceof Function) {
+        const value = this.getter.apply({ use }, [{ use }]);
+        this._value = { v: value };
+        this.notify();
+      }
+    },
+
+    addEffect: this.addEffect.bind(this),
+    onInvalidate: this.invalidate.bind(this),
+  });
+
+  constructor(
+    protected readonly getter: T | Calculate<T>,
+    protected readonly options: StoreOptions = {},
+    protected derivedFrom?: { store: Store<any>; selectors: (Selector<any, any> | Path<any>)[] },
+  ) {
     bind(this);
+
+    if (!(getter instanceof Function)) {
+      this._value = { v: getter };
+    }
   }
 
   get(): T {
-    return this.value;
+    this.calculationHelper.check();
+
+    if (!this._value) {
+      this.calculationHelper.execute();
+      return this.get();
+    }
+
+    return this._value.v;
   }
 
   update(update: Update<T>): void {
+    if (
+      this.derivedFrom &&
+      this.derivedFrom.selectors.every((selector) => typeof selector === 'string')
+    ) {
+      const path = this.derivedFrom.selectors.join('.');
+
+      if (update instanceof Function) {
+        const before = this.get();
+        update = update(before);
+      }
+
+      this.derivedFrom.store.update((before: any) => set<any, any>(before, path, update));
+      return;
+    }
+
+    if (this.getter instanceof Function) {
+      throw new TypeError(
+        'Can only updated computed stores that are derived from other stores using string selectors',
+      );
+    }
+
     if (update instanceof Function) {
       update = update(this.get());
     }
 
-    this.value = update;
+    this._value = { v: update };
     this.notify();
+  }
+
+  protected invalidate() {
+    this._value = undefined;
+
+    if (this.isActive) {
+      this.calculationHelper.execute();
+    }
   }
 
   sub(listener: Listener<T>, options?: SubscribeOptions): Cancel {
@@ -103,18 +180,20 @@ export class Store<T> {
     };
   }
 
-  map<S>(selector: Selector<T, S>, options?: UseOptions): DerivedStore<S>;
-  map<P extends Path<T>>(selector: P, options?: UseOptions): DerivedStore<Value<T, P>>;
-  map(_selector: Selector<T, any> | Path<any>, options?: UseOptions): DerivedStore<any> {
+  map<S>(selector: Selector<T, S>, options?: UseOptions): Store<S>;
+
+  map<P extends Path<T>>(selector: P, options?: UseOptions): Store<Value<T, P>>;
+
+  map(_selector: Selector<T, any> | Path<any>, options?: UseOptions): Store<any> {
     const selector = makeSelector(_selector);
     const derivedFrom = { store: this, selectors: [_selector] };
 
-    return new DerivedStore(
+    return new Store(
       ({ use }) => {
         return selector(use(this, options));
       },
       this.options,
-      derivedFrom
+      derivedFrom,
     );
   }
 
@@ -137,7 +216,11 @@ export class Store<T> {
     return () => {
       const { handle, timeout } = this.effects.get(effect) ?? {};
       handle?.();
-      timeout !== undefined && clearTimeout(timeout);
+
+      if (timeout !== undefined) {
+        clearTimeout(timeout);
+      }
+
       this.effects.delete(effect);
     };
   }
@@ -151,7 +234,9 @@ export class Store<T> {
     if (this.listeners.size > 1) return;
 
     for (const [effect, { handle, retain, timeout }] of this.effects.entries()) {
-      timeout !== undefined && clearTimeout(timeout);
+      if (timeout !== undefined) {
+        clearTimeout(timeout);
+      }
 
       this.effects.set(effect, {
         handle: handle ?? effect() ?? noop,
@@ -165,8 +250,13 @@ export class Store<T> {
     if (this.listeners.size > 0) return;
 
     for (const [effect, { handle, retain, timeout }] of this.effects.entries()) {
-      !retain && handle?.();
-      timeout !== undefined && clearTimeout(timeout);
+      if (!retain) {
+        handle?.();
+      }
+
+      if (timeout !== undefined) {
+        clearTimeout(timeout);
+      }
 
       this.effects.set(effect, {
         handle: retain ? handle : undefined,
@@ -177,8 +267,11 @@ export class Store<T> {
   }
 
   protected notify() {
-    const n = (this.notifyId = {});
-    for (const listener of [...this.listeners]) {
+    const n = {};
+    this.notifyId = n;
+
+    const snapshot = [...this.listeners];
+    for (const listener of snapshot) {
       listener();
       if (n !== this.notifyId) break;
     }
@@ -187,18 +280,23 @@ export class Store<T> {
 
 const defaultOptions: StoreOptions = {};
 
-function _store<T>(calculate: (this: { use: Use }, fns: { use: Use }) => T, options?: StoreOptions): DerivedStore<T>;
+function _store<T>(
+  calculate: (this: { use: Use }, fns: { use: Use }) => T,
+  options?: StoreOptions,
+): Store<T>;
 // eslint-disable-next-line @typescript-eslint/ban-types
 function _store<T, Actions extends StoreActions = {}>(
   initialState: T,
-  options?: StoreOptionsWithActions<T, Actions>
+  options?: StoreOptionsWithActions<T, Actions>,
 ): StoreWithActions<T, Actions>;
 function _store<T, Actions extends StoreActions>(
   initialState: T | ((this: { use: Use }, fns: { use: Use }) => T),
-  options?: StoreOptionsWithActions<T, Actions>
-): StoreWithActions<T, Actions> | DerivedStore<T> {
+  options?: StoreOptionsWithActions<T, Actions>,
+): StoreWithActions<T, Actions> | Store<T> {
+  const store = new Store(initialState, options);
+
   if (initialState instanceof Function) {
-    return derivedStore(initialState, options);
+    return store;
   }
 
   let methods: StoreActions | undefined = options?.methods;
@@ -213,12 +311,10 @@ function _store<T, Actions extends StoreActions>(
     methods = { ...recordActions, ...methods };
   }
 
-  const store = new Store(initialState, options);
-
   const boundActions = Object.fromEntries(
     Object.entries(methods ?? ({} as BoundStoreActions<T, any>))
       .filter(([name]) => !(name in store))
-      .map(([name, fn]) => [name, (fn as any).bind(store)])
+      .map(([name, action]) => [name, (action as any).bind(store)]),
   ) as BoundStoreActions<T, any>;
 
   return Object.assign(store, boundActions);

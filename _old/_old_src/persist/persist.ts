@@ -18,9 +18,15 @@ export interface PersistedStore<T> extends AtomicStore<T> {
   subscribePatches?: (listener: Listener<PersistPatch[]>) => Cancel;
 }
 
-export function persist<T>(store: AtomicStore<T>, storage: PersistStorage, options: PersistOptions<T>) {
+export function persist<T>(
+  store: AtomicStore<T>,
+  storage: PersistStorage,
+  options: PersistOptions<T>,
+) {
   // Sort paths, so that shortest path are always processed first => sub paths overwrite their part after the parent path has written its
-  const paths = (Array.isArray(options.paths) ? options.paths : [options.paths ?? '']).filter(validPath);
+  const paths = (Array.isArray(options.paths) ? options.paths : [options.paths ?? '']).filter(
+    validPath,
+  );
   paths.sort((a, b) => a.length - b.length);
 
   let isStopped = false;
@@ -94,8 +100,8 @@ async function getStorageKeys(storage: PersistStorage) {
   return keys;
 }
 
-const validPath = (path: string) => !path.match(/\*.|[^.]\*/);
-const sanitizeRegex = (s: string) => s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+const validPath = (path: string) => !/\*.|[^.]\*/.test(path);
+const sanitizeRegex = (s: string) => s.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
 
 async function load(storage: PersistStorage, paths: string[], options: PersistOptions<any>) {
   const result = new Map<string, any>();
@@ -103,14 +109,16 @@ async function load(storage: PersistStorage, paths: string[], options: PersistOp
 
   try {
     storageKeys = await getStorageKeys(storage);
-  } catch (e) {
-    forwardError(e);
+  } catch (error) {
+    forwardError(error);
     return result;
   }
 
   for (const path of paths) {
     const prefix = path ? `${options.id}_` : options.id;
-    const pattern = new RegExp(`^${sanitizeRegex(prefix)}${sanitizeRegex(path).replace('\\*', '[^.]+')}$`);
+    const pattern = new RegExp(
+      `^${sanitizeRegex(prefix)}${sanitizeRegex(path).replace('\\*', '[^.]+')}$`,
+    );
     const matches = storageKeys.filter((key) => pattern.test(key));
 
     for (const key of matches) {
@@ -122,8 +130,8 @@ async function load(storage: PersistStorage, paths: string[], options: PersistOp
 
           result.set(key.slice(prefix.length), parsed);
         }
-      } catch (e) {
-        forwardError(e);
+      } catch (error) {
+        forwardError(error);
       }
     }
   }
@@ -138,7 +146,7 @@ function save(
   options: PersistOptions<any>,
   handles: (() => void)[],
   restored: Map<string, any>,
-  q: Queue
+  q: Queue,
 ) {
   let i = 1;
 
@@ -156,7 +164,9 @@ function save(
     const handle = store.subscribe(
       (state) => (observedPath === '' ? state : get(state, observedPath)),
       (partValue) => {
-        const saveValues: [string, any][] = isWildcard ? Object.entries(partValue) : [['', partValue]];
+        const saveValues: [string, any][] = isWildcard
+          ? Object.entries(partValue)
+          : [['', partValue]];
 
         for (const [name, value] of saveValues) {
           q(async () => {
@@ -176,35 +186,35 @@ function save(
               if (result instanceof Promise) {
                 await result;
               }
-            } catch (e) {
-              forwardError(e);
+            } catch (error) {
+              forwardError(error);
             }
           });
         }
       },
       {
         throttle: options.throttle,
-      }
+      },
     );
     handles.push(handle);
   }
 }
 
-function cut(obj: Record<string, unknown>, path: string): unknown {
+function cut(object: Record<string, unknown>, path: string): unknown {
   const index = path.indexOf('.');
 
   if (index >= 0) {
     const key = path.slice(0, index);
     const rest = path.slice(index + 1);
-    const subObj = obj[key as any];
+    const subObject = object[key as any];
 
-    if (!subObj) {
-      return obj;
+    if (!subObject) {
+      return object;
     }
 
     return {
-      ...obj,
-      [key]: cut(subObj as Record<string, unknown>, rest),
+      ...object,
+      [key]: cut(subObject as Record<string, unknown>, rest),
     };
   }
 
@@ -212,7 +222,7 @@ function cut(obj: Record<string, unknown>, path: string): unknown {
     return {};
   }
 
-  const copy = { ...obj };
+  const copy = { ...object };
   delete copy[path];
   return copy;
 }

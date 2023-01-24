@@ -1,4 +1,7 @@
-export function throttle<Args extends any[]>(fn: (...args: Args) => void, ms: number): (...args: Args) => void {
+export function throttle<Args extends any[]>(
+  action: (...args: Args) => void,
+  ms: number,
+): (...args: Args) => void {
   let t = 0;
   let timeout: ReturnType<typeof setTimeout> | undefined;
 
@@ -9,13 +12,13 @@ export function throttle<Args extends any[]>(fn: (...args: Args) => void, ms: nu
 
     const dt = t + ms - Date.now();
     if (dt <= 0) {
-      fn(...args);
+      action(...args);
       t = Date.now();
       return;
     }
 
     timeout = setTimeout(() => {
-      fn(...args);
+      action(...args);
       t = Date.now();
     }, dt);
   };

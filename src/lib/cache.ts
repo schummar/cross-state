@@ -2,14 +2,17 @@ import { hash } from './hash';
 
 export class Cache<Args extends any[], T extends object> {
   private cache = new Map<string, { t: number; ref?: T; weakRef?: WeakRef<T> }>();
-  private interval = this.cacheTime ? setInterval(() => this.cleanup(), Math.max(this.cacheTime / 10, 1)) : undefined;
+
+  private interval = this.cacheTime
+    ? setInterval(() => this.cleanup(), Math.max(this.cacheTime / 10, 1))
+    : undefined;
 
   constructor(private factory: (...args: Args) => T, private cacheTime?: number) {}
 
   cleanup() {
     const cutoff = this.now() - (this.cacheTime ?? 0);
 
-    for (const [key, entry] of [...this.cache.entries()]) {
+    for (const [key, entry] of this.cache.entries()) {
       if (entry.ref && entry.t <= cutoff) {
         delete entry.ref;
       }
@@ -36,14 +39,16 @@ export class Cache<Args extends any[], T extends object> {
       this.cache.set(key, entry);
     } else {
       entry.t = this.now();
-      entry.ref ?? value;
+      entry.ref ??= value;
     }
 
     return value;
   }
 
   values() {
-    return [...this.cache.values()].map((entry) => entry.ref ?? entry.weakRef?.deref()).filter((value): value is T => !!value);
+    return [...this.cache.values()]
+      .map((entry) => entry.ref ?? entry.weakRef?.deref())
+      .filter((value): value is T => !!value);
   }
 
   stop() {

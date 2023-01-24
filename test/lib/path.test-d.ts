@@ -46,7 +46,9 @@ describe('path', () => {
     });
 
     test('no simplified path for string containing dots', () => {
-      expectTypeOf({} as Path<{ 'a.b': { c: number }; d: number }>).toEqualTypeOf<['a.b'] | ['a.b', 'c'] | ['d'] | 'd'>();
+      expectTypeOf({} as Path<{ 'a.b': { c: number }; d: number }>).toEqualTypeOf<
+        ['a.b'] | ['a.b', 'c'] | ['d'] | 'd'
+      >();
     });
 
     test('nested', () => {
@@ -56,7 +58,7 @@ describe('path', () => {
           b: {
             c: [Map<number, { x: number }>, Set<{ x: number }>][];
           };
-        }>
+        }>,
       ).toEqualTypeOf<
         | ['a']
         | ['b']
@@ -77,7 +79,9 @@ describe('path', () => {
     });
 
     test('record', () => {
-      expectTypeOf({} as Value<Record<string, 'value'>, ['x']>).toEqualTypeOf<'value' | undefined>();
+      expectTypeOf({} as Value<Record<string, 'value'>, ['x']>).toEqualTypeOf<
+        'value' | undefined
+      >();
     });
 
     test('array', () => {
@@ -106,7 +110,7 @@ describe('path', () => {
             };
           },
           ['b', 'c', number, 0, number, 'x']
-        >
+        >,
       ).toEqualTypeOf<'value' | undefined>();
     });
 
@@ -117,7 +121,7 @@ describe('path', () => {
             a: { b: { c: ['value'] } };
           },
           ['a', 'b', 'c', 0]
-        >
+        >,
       ).toEqualTypeOf<'value'>();
     });
 
@@ -128,7 +132,7 @@ describe('path', () => {
             a: { b?: { c: ['value'] } };
           },
           ['a', 'b', 'c', 0]
-        >
+        >,
       ).toEqualTypeOf<'value' | undefined>();
     });
 
@@ -139,14 +143,16 @@ describe('path', () => {
             a: { b: Record<string, ['value']> };
           },
           ['a', 'b', 'c', 0]
-        >
+        >,
       ).toEqualTypeOf<'value' | undefined>();
     });
   });
 
   describe('Path with constraint', () => {
     test('optional path', () => {
-      expectTypeOf({} as Path<{ a: number; b?: number; c: number | undefined }, true>).toEqualTypeOf<['b'] | 'b'>();
+      expectTypeOf(
+        {} as Path<{ a: number; b?: number; c: number | undefined }, true>,
+      ).toEqualTypeOf<['b'] | 'b'>();
     });
   });
 });

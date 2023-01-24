@@ -14,7 +14,13 @@ describe('useStore', () => {
     //
     c('primitive', 0, 1, 0, (s) => s),
     c('object', { x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, (s) => s.x),
-    c('object with optionals', { a: { b: { c: 1 } } }, { a: undefined }, { a: { b: { c: 1 } } }, (s) => s.a?.b.c),
+    c(
+      'object with optionals',
+      { a: { b: { c: 1 } } },
+      { a: undefined },
+      { a: { b: { c: 1 } } },
+      (s) => s.a?.b.c,
+    ),
     c('array', [1, 2, 3], [1, 2, 4], [1, 2, 3, 4], (s) => s[2]),
     c('array.length', [1, 2, 3], [1, 2, 3, 4], [1, 2, 4], (s) => s.length),
   ])('%s', (_name, before, after1, after2, select) => {

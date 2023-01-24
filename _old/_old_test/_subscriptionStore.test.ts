@@ -19,7 +19,7 @@ export class FakeWebSocket<T> {
         setTimeout(() => {
           if (v instanceof Error) this.onerror?.(v);
           else this.onmessage?.(v);
-        }, t)
+        }, t),
       );
     }
   }
@@ -191,7 +191,7 @@ describe.skip('subscription store', () => {
     const state = store<number>(function () {
       const ws = new FakeWebSocket([
         [1, 1],
-        [Error('error'), 2],
+        [new Error('error'), 2],
         [3, 3],
       ]);
 
@@ -205,12 +205,12 @@ describe.skip('subscription store', () => {
     vi.advanceTimersByTime(3);
     await flushPromises();
 
-    expect(getValues(listener)).toEqual([undefined, 1, Error('error'), 3]);
+    expect(getValues(listener)).toEqual([undefined, 1, new Error('error'), 3]);
   });
 
   test('with error in promise', async () => {
     const state = store<number>(function () {
-      this.update(Promise.reject(Error('error')));
+      this.update(Promise.reject(new Error('error')));
       return () => undefined;
     });
 
@@ -218,7 +218,7 @@ describe.skip('subscription store', () => {
     state.subscribeStatus(listener);
     await flushPromises();
 
-    expect(getValues(listener)).toEqual([undefined, Error('error')]);
+    expect(getValues(listener)).toEqual([undefined, new Error('error')]);
   });
 
   describe('unsubscribe', () => {
@@ -233,7 +233,7 @@ describe.skip('subscription store', () => {
           ws.onmessage = this.update;
           return ws.close;
         },
-        { retain: 0 }
+        { retain: 0 },
       );
 
       const listener = vi.fn();
@@ -259,7 +259,7 @@ describe.skip('subscription store', () => {
           ws.onmessage = this.update;
           return ws.close;
         },
-        { retain: 1 }
+        { retain: 1 },
       );
 
       const listener = vi.fn();
@@ -294,9 +294,9 @@ describe.skip('subscription store', () => {
 
       const listener = vi.fn();
       state.subscribeStatus(listener);
-      state.setError(Error('error'));
+      state.setError(new Error('error'));
 
-      expect(getValues(listener)).toEqual([1, Error('error')]);
+      expect(getValues(listener)).toEqual([1, new Error('error')]);
     });
   });
 });

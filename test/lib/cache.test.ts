@@ -63,7 +63,7 @@ describe('cache', () => {
       expect(factory.mock.calls.length).toBe(1);
       expect(first).toEqual({});
       expect(second).toBe(first);
-      expect(cache.stats()).toEqual({ count: 1, withRef: 0, withWeakRef: 1 });
+      expect(cache.stats()).toEqual({ count: 1, withRef: 1, withWeakRef: 1 });
     });
 
     test('with no cacheTime', async () => {

@@ -1,6 +1,6 @@
+import { useStore } from './useStore';
 import type { FetchStore } from '@core/fetchStore';
 import type { SubscribeOptions } from '@core/commonTypes';
-import { useStore } from './useStore';
 
 export type UseStoreOptions = Omit<SubscribeOptions, 'runNow'>;
 

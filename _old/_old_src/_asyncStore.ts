@@ -3,25 +3,53 @@ import { calcDuration } from '../src/lib/calcDuration';
 import { defaultEquals, simpleShallowEquals } from '../src/lib/equals';
 import { makeSelector } from '../src/lib/makeSelector';
 import type { Path, Value } from '../src/lib/propAccess';
-import { atomicStore } from './atomicStore';
 import { once } from '../src/core/once';
 import type { Resource, ResourceGroup } from '../src/core/resourceGroup';
 import { allResources } from '../src/core/resourceGroup';
-import type { Cancel, Duration, Effect, Listener, Store, SubscribeOptions } from '../src/core/commonTypes';
+import type {
+  Cancel,
+  Duration,
+  Effect,
+  Listener,
+  Store,
+  SubscribeOptions,
+} from '../src/core/commonTypes';
+import { atomicStore } from './atomicStore';
 
-///////////////////////////////////////////////////////////
+/// ////////////////////////////////////////////////////////
 // Types
-///////////////////////////////////////////////////////////
+/// ////////////////////////////////////////////////////////
 
-type WithValue<T> = { value: T; error: undefined; isPending: boolean; isStale: boolean; status: 'value' };
-type WithError = { value: undefined; error: unknown; isPending: boolean; isStale: boolean; status: 'error' };
-type Empty = { value: undefined; error: undefined; isPending: boolean; isStale: boolean; status: 'empty' };
+type WithValue<T> = {
+  value: T;
+  error: undefined;
+  isPending: boolean;
+  isStale: boolean;
+  status: 'value';
+};
+type WithError = {
+  value: undefined;
+  error: unknown;
+  isPending: boolean;
+  isStale: boolean;
+  status: 'error';
+};
+type Empty = {
+  value: undefined;
+  error: undefined;
+  isPending: boolean;
+  isStale: boolean;
+  status: 'empty';
+};
 type State<T> = WithValue<T> | WithError | Empty;
 
 export type AsyncStoreValue<T> =
-  | ([value: T, error: undefined, isPending: boolean, isStale: boolean, status: 'value'] & WithValue<T>)
-  | ([value: undefined, error: unknown, isPending: boolean, isStale: boolean, status: 'error'] & WithError)
-  | ([value: undefined, error: undefined, isPending: boolean, isStale: boolean, status: 'empty'] & Empty);
+  | ([value: T, error: undefined, isPending: boolean, isStale: boolean, status: 'value'] &
+      WithValue<T>)
+  | ([value: undefined, error: unknown, isPending: boolean, isStale: boolean, status: 'error'] &
+      WithError)
+  | ([value: undefined, error: undefined, isPending: boolean, isStale: boolean, status: 'empty'] &
+      Empty);
 
 export type AsyncStoreOptions<Value> = {
   invalidateAfter?: Duration | ((state: AsyncStoreValue<Value>) => Duration);
@@ -40,14 +68,14 @@ export interface AsyncAction<Value, Args extends any[]> {
 
 export type AsyncStore<Value, Args extends any[]> = AsyncStoreImpl<Value, Args>;
 
-///////////////////////////////////////////////////////////
+/// ////////////////////////////////////////////////////////
 // Helpers
-///////////////////////////////////////////////////////////
+/// ////////////////////////////////////////////////////////
 
 export const asyncStoreValueEquals = <Value>(
   [va, ...a]: AsyncStoreValue<Value>,
   [vb, ...b]: AsyncStoreValue<Value>,
-  equals = defaultEquals
+  equals = defaultEquals,
 ) => {
   return equals(va, vb) && simpleShallowEquals(a, b);
 };
@@ -64,9 +92,9 @@ export const createState = <Value>(x: Partial<State<Value>> = {}): AsyncStoreVal
   return Object.assign(Object.values(state), state);
 };
 
-///////////////////////////////////////////////////////////
+/// ////////////////////////////////////////////////////////
 // Global
-///////////////////////////////////////////////////////////
+/// ////////////////////////////////////////////////////////
 
 let defaultOptions: AsyncStoreOptions<any> = {
   invalidateAfter: undefined as Duration | undefined,
@@ -78,22 +106,33 @@ function setDefaultOptions(options: typeof defaultOptions) {
   defaultOptions = options;
 }
 
-///////////////////////////////////////////////////////////
+/// ////////////////////////////////////////////////////////
 // Implementation
-///////////////////////////////////////////////////////////
+/// ////////////////////////////////////////////////////////
 
 class AsyncStoreImpl<V, Args extends any[]> implements Store<AsyncStoreValue<V>> {
   private args: Args;
+
   private invalidateTimer?: ReturnType<typeof setTimeout>;
+
   private clearTimer?: ReturnType<typeof setTimeout>;
+
   private cancelRun?: Cancel;
+
   private internalStore = atomicStore(createState<V>());
 
-  constructor(private readonly fn: AsyncAction<V, Args>, private readonly options: AsyncStoreOptions<V>, ...args: Args) {
+  constructor(
+    private readonly function_: AsyncAction<V, Args>,
+    private readonly options: AsyncStoreOptions<V>,
+    ...args: Args
+  ) {
     this.args = args;
 
     this.internalStore.addEffect(() => {
-      if ((this.internalStore.get().status === 'empty' || this.internalStore.get().isStale) && !this.internalStore.get().isPending) {
+      if (
+        (this.internalStore.get().status === 'empty' || this.internalStore.get().isStale) &&
+        !this.internalStore.get().isPending
+      ) {
         this.run();
       }
 
@@ -119,20 +158,33 @@ class AsyncStoreImpl<V, Args extends any[]> implements Store<AsyncStoreValue<V>>
   }
 
   subscribe(listener: Listener<AsyncStoreValue<V>>, options?: SubscribeOptions): Cancel;
-  subscribe<S>(selector: (value: AsyncStoreValue<V>) => S, listener: Listener<S>, options?: SubscribeOptions): Cancel;
+
+  subscribe<S>(
+    selector: (value: AsyncStoreValue<V>) => S,
+    listener: Listener<S>,
+    options?: SubscribeOptions,
+  ): Cancel;
+
   subscribe<P extends Path<AsyncStoreValue<V>>>(
     selector: P,
     listener: Listener<Value<AsyncStoreValue<V>, P>>,
-    options?: SubscribeOptions
+    options?: SubscribeOptions,
   ): Cancel;
+
   subscribe<S>(
-    ...[arg0, arg1, arg2]:
+    ...[argument0, argument1, argument2]:
       | [listener: Listener<S>, options?: SubscribeOptions]
-      | [selector: ((value: AsyncStoreValue<V>) => S) | string, listener: Listener<S>, options?: SubscribeOptions]
+      | [
+          selector: ((value: AsyncStoreValue<V>) => S) | string,
+          listener: Listener<S>,
+          options?: SubscribeOptions,
+        ]
   ) {
-    const selector = makeSelector<AsyncStoreValue<V>, S>(arg1 instanceof Function ? arg0 : undefined);
-    const listener = (arg1 instanceof Function ? arg1 : arg0) as Listener<S>;
-    const options = arg1 instanceof Function ? arg2 : arg1;
+    const selector = makeSelector<AsyncStoreValue<V>, S>(
+      argument1 instanceof Function ? argument0 : undefined,
+    );
+    const listener = (argument1 instanceof Function ? argument1 : argument0) as Listener<S>;
+    const options = argument1 instanceof Function ? argument2 : argument1;
 
     return this.internalStore.subscribe(selector, listener, {
       ...options,
@@ -156,7 +208,7 @@ class AsyncStoreImpl<V, Args extends any[]> implements Store<AsyncStoreValue<V>>
     const state = await once(
       this,
       (state): state is AsyncStoreValue<V> & { status: 'value' | 'error' } =>
-        (returnStale || !state.isStale) && (state.status === 'value' || state.status === 'error')
+        (returnStale || !state.isStale) && (state.status === 'value' || state.status === 'error'),
     );
     if (state.status === 'value') {
       return state.value;
@@ -181,7 +233,13 @@ class AsyncStoreImpl<V, Args extends any[]> implements Store<AsyncStoreValue<V>>
 
   invalidate() {
     this.cancelRun?.();
-    this.internalStore.update((s) => createState({ ...s, isPending: this.internalStore.isActive(), isStale: s.status !== 'empty' }));
+    this.internalStore.update((s) =>
+      createState({
+        ...s,
+        isPending: this.internalStore.isActive(),
+        isStale: s.status !== 'empty',
+      }),
+    );
     if (this.internalStore.isActive()) {
       this.run();
     }
@@ -219,7 +277,7 @@ class AsyncStoreImpl<V, Args extends any[]> implements Store<AsyncStoreValue<V>>
             return store.get();
           },
         },
-        this.args
+        this.args,
       );
 
       this.internalStore.update((s) => createState({ ...s, isPending: true }));
@@ -239,7 +297,10 @@ class AsyncStoreImpl<V, Args extends any[]> implements Store<AsyncStoreValue<V>>
   private setTimers() {
     this.resetTimers();
 
-    let { invalidateAfter = defaultOptions.invalidateAfter, clearAfter = defaultOptions.clearAfter } = this.options;
+    let {
+      invalidateAfter = defaultOptions.invalidateAfter,
+      clearAfter = defaultOptions.clearAfter,
+    } = this.options;
 
     if (invalidateAfter instanceof Function) {
       invalidateAfter = invalidateAfter(this.get());
@@ -263,12 +324,12 @@ class AsyncStoreImpl<V, Args extends any[]> implements Store<AsyncStoreValue<V>>
 }
 
 function getAsyncStore<Value = unknown, Args extends any[] = []>(
-  fn: AsyncAction<Value, Args>,
-  options: AsyncStoreOptions<Value> = {}
+  function_: AsyncAction<Value, Args>,
+  options: AsyncStoreOptions<Value> = {},
 ): AsyncCollection<Value, Args> {
   const cache = new Cache(
-    (...args: Args) => new AsyncStoreImpl(fn, options, ...args),
-    calcDuration(options.clearUnusedAfter ?? defaultOptions.clearUnusedAfter ?? 0)
+    (...args: Args) => new AsyncStoreImpl(function_, options, ...args),
+    calcDuration(options.clearUnusedAfter ?? defaultOptions.clearUnusedAfter ?? 0),
   );
 
   const get = (...args: Args) => {
@@ -288,7 +349,11 @@ function getAsyncStore<Value = unknown, Args extends any[] = []>(
   };
 
   const resource = { invalidate, clear };
-  const groups = Array.isArray(options.resourceGroup) ? options.resourceGroup : options.resourceGroup ? [options.resourceGroup] : [];
+  const groups = Array.isArray(options.resourceGroup)
+    ? options.resourceGroup
+    : options.resourceGroup
+    ? [options.resourceGroup]
+    : [];
   for (const group of groups.concat(allResources)) {
     group.add(resource);
   }

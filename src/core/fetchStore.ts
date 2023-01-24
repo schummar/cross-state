@@ -1,25 +1,51 @@
+import type {
+  Cancel,
+  Duration,
+  Listener,
+  Selector,
+  SubscribeOptions,
+  Update,
+  Use,
+  UseFetch,
+} from './commonTypes';
+import type { ResourceGroup } from './resourceGroup';
+import { _allResources } from './resourceGroup';
+import { Store } from './store';
 import { Cache } from '@lib/cache';
 import { calcDuration } from '@lib/calcDuration';
 import { CalculationHelper } from '@lib/calculationHelper';
 import { defaultEquals, simpleShallowEquals } from '@lib/equals';
 import { makeSelector } from '@lib/makeSelector';
 import type { Path, Value } from '@lib/path';
-import type { Cancel, Duration, Listener, Selector, SubscribeOptions, Update, Use, UseFetch } from './commonTypes';
-import type { ResourceGroup } from './resourceGroup';
-import { _allResources } from './resourceGroup';
-import { Store } from './store';
 
-type Common<T> = { isUpdating: false; update?: undefined; ref: unknown } | { isUpdating: true; update: Promise<T>; ref: unknown };
-type WithValue<T> = { status: 'value'; value: T; error?: undefined; isStale: boolean } & Common<T>;
-type WithError<T> = { status: 'error'; value?: undefined; error: unknown; isStale: boolean } & Common<T>;
-type Pending<T> = { status: 'pending'; value?: undefined; error?: undefined; isStale: true } & Common<T>;
+type Common<T> =
+  | { isUpdating: false; update?: undefined; ref: unknown }
+  | { isUpdating: true; update: Promise<T>; ref: unknown };
+type WithValue<T> = {
+  status: 'value';
+  value: T;
+  error?: undefined;
+  isStale: boolean;
+} & Common<T>;
+type WithError<T> = {
+  status: 'error';
+  value?: undefined;
+  error: unknown;
+  isStale: boolean;
+} & Common<T>;
+type Pending<T> = {
+  status: 'pending';
+  value?: undefined;
+  error?: undefined;
+  isStale: true;
+} & Common<T>;
 export type FetchStoreState<T> = WithValue<T> | WithError<T> | Pending<T>;
 
 export interface FetchOptions {
   cache?: 'updateWhenStale' | 'backgroundUpdate' | 'forceUpdate';
 }
 
-export interface FetchFn<T, Args extends any[] = []> {
+export interface FetchFunction<T, Args extends any[] = []> {
   (this: { use: Use; useFetch: UseFetch }, ...args: Args): Promise<T>;
 }
 
@@ -43,20 +69,23 @@ const fetchStoreStateEquals =
 const createRef = () => Math.random().toString(36).slice(2);
 
 export class FetchStore<T> extends Store<FetchStoreState<T>> {
-  calculationHelper = new CalculationHelper({
+  private fetchCalculationHelper = new CalculationHelper({
     calculate: ({ use, useFetch }) => {
-      const promise = this.fetchFn.apply({ use, useFetch });
+      const promise = this.fetchFunction.apply({ use, useFetch });
       this.setPromise(promise);
     },
 
     addEffect: this.addEffect,
-    getValue: () => this.value.value,
+    getValue: () => this.get().value,
     setValue: this.setValue,
     setError: this.setError,
     onInvalidate: this.invalidate,
   });
 
-  constructor(protected fetchFn: FetchFn<T>, protected options: FetchStoreOptions<T> = {}) {
+  constructor(
+    protected fetchFunction: FetchFunction<T>,
+    protected options: FetchStoreOptions<T> = {},
+  ) {
     super({
       status: 'pending',
       isStale: true,
@@ -66,21 +95,21 @@ export class FetchStore<T> extends Store<FetchStoreState<T>> {
   }
 
   update(value: Update<FetchStoreState<T>>): void {
-    this.calculationHelper.stop();
+    this.fetchCalculationHelper.stop();
     super.update(value);
   }
 
   async fetch(options?: FetchOptions): Promise<T> {
-    this.calculationHelper.check();
+    this.fetchCalculationHelper.check();
 
     const { cache = 'updateWhenStale' } = options ?? {};
-    const { status, value, error, update, isStale } = this.value;
+    const { status, value, error, update, isStale } = this.get();
 
     if (((status === 'pending' || isStale) && !update) || cache === 'forceUpdate') {
-      this.calculationHelper.execute();
+      this.fetchCalculationHelper.execute();
 
       if (status === 'pending' || cache !== 'backgroundUpdate') {
-        return this.value.update!;
+        return this.get().update!;
       }
     }
 
@@ -97,7 +126,7 @@ export class FetchStore<T> extends Store<FetchStoreState<T>> {
 
   setValue(value: T | Promise<T>): void {
     if (value instanceof Promise) {
-      this.calculationHelper.stop();
+      this.fetchCalculationHelper.stop();
       this.setPromise(value);
     } else {
       this.update({
@@ -114,7 +143,7 @@ export class FetchStore<T> extends Store<FetchStoreState<T>> {
     const ref = createRef();
 
     super.update({
-      ...this.value,
+      ...this.get(),
       isUpdating: true,
       update: promise,
       ref,
@@ -122,7 +151,7 @@ export class FetchStore<T> extends Store<FetchStoreState<T>> {
 
     promise
       .then((value) => {
-        if (promise === this.value.update) {
+        if (promise === this.get().update) {
           super.update({
             status: 'value',
             value,
@@ -133,7 +162,7 @@ export class FetchStore<T> extends Store<FetchStoreState<T>> {
         }
       })
       .catch((error) => {
-        if (promise === this.value.update) {
+        if (promise === this.get().update) {
           super.update({
             status: 'error',
             error,
@@ -157,14 +186,14 @@ export class FetchStore<T> extends Store<FetchStoreState<T>> {
 
   invalidate(): void {
     this.update({
-      ...this.value,
+      ...this.get(),
       isStale: true,
       isUpdating: false,
       update: undefined,
     });
 
     if (this.isActive) {
-      this.calculationHelper.execute();
+      this.fetchCalculationHelper.execute();
     }
   }
 
@@ -177,7 +206,7 @@ export class FetchStore<T> extends Store<FetchStoreState<T>> {
     });
 
     if (this.isActive) {
-      this.calculationHelper.execute();
+      this.fetchCalculationHelper.execute();
     }
   }
 
@@ -189,7 +218,9 @@ export class FetchStore<T> extends Store<FetchStoreState<T>> {
   }
 
   mapValue<S>(selector: Selector<T, S>): FetchStore<S>;
+
   mapValue<P extends Path<T>>(selector: P): FetchStore<Value<T, P>>;
+
   mapValue<S>(_selector: Selector<T, S> | Path<any>): FetchStore<S> {
     const selector = makeSelector(_selector);
     const that = this;
@@ -203,13 +234,13 @@ export class FetchStore<T> extends Store<FetchStoreState<T>> {
 
 const defaultOptions: FetchStoreOptions<unknown> = {};
 
-function create<T>(fetch: FetchFn<T>, options?: FetchStoreOptions<T>): FetchStore<T> {
+function create<T>(fetch: FetchFunction<T>, options?: FetchStoreOptions<T>): FetchStore<T> {
   return withArgs(fetch, options)();
 }
 
 function withArgs<T, Args extends any[]>(
-  fetch: FetchFn<T, Args>,
-  options?: FetchStoreOptions<T>
+  fetch: FetchFunction<T, Args>,
+  options?: FetchStoreOptions<T>,
 ): {
   (...args: Args): FetchStore<T>;
   invalidate: () => void;
@@ -222,7 +253,7 @@ function withArgs<T, Args extends any[]>(
       new FetchStore(function () {
         return fetch.apply(this, args);
       }, options),
-    calcDuration(clearUnusedAfter)
+    calcDuration(clearUnusedAfter),
   );
 
   const get = (...args: Args) => {
@@ -242,7 +273,11 @@ function withArgs<T, Args extends any[]>(
   };
 
   const resource = { invalidate, clear };
-  const groups = Array.isArray(resourceGroup) ? resourceGroup : resourceGroup ? [resourceGroup] : [];
+  const groups = Array.isArray(resourceGroup)
+    ? resourceGroup
+    : resourceGroup
+    ? [resourceGroup]
+    : [];
   for (const group of groups.concat(_allResources)) {
     group.add(resource);
   }

@@ -14,9 +14,11 @@ export const simpleShallowEquals = (a: any, b: any): boolean => {
       return false;
     }
 
-    const e1 = Object.entries(a);
-    const e2 = Object.entries(b);
-    return e1.length === e2.length && e1.every(([key, value]) => value === b[key]);
+    const entries1 = Object.entries(a);
+    const entries2 = Object.entries(b);
+    return (
+      entries1.length === entries2.length && entries1.every(([key, value]) => value === b[key])
+    );
   }
 
   return false;
@@ -36,9 +38,12 @@ export const simpleDeepEquals = (a: any, b: any): boolean => {
       return false;
     }
 
-    const e1 = Object.entries(a);
-    const e2 = Object.entries(b);
-    return e1.length === e2.length && e1.every(([key, value]) => simpleDeepEquals(value, b[key]));
+    const entries1 = Object.entries(a);
+    const entries2 = Object.entries(b);
+    return (
+      entries1.length === entries2.length &&
+      entries1.every(([key, value]) => simpleDeepEquals(value, b[key]))
+    );
   }
 
   return false;

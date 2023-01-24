@@ -25,7 +25,7 @@ describe('storeContext', () => {
         <StoreScope store={store}>
           <Component />
         </StoreScope>
-      </>
+      </>,
     );
     const [div1, div2] = screen.getAllByTestId('div') as [HTMLElement, HTMLElement];
     expect(div1.textContent).toBe('1-1');

@@ -55,14 +55,19 @@ describe('read', () => {
     render(
       <Container>
         <Component />
-      </Container>
+      </Container>,
     );
     const div = screen.getByTestId('content');
     expect(div.textContent).toBe('0');
   });
 
   test('read throws promise while value is pending', async () => {
-    const s = fetchStore(async () => new Promise<{ x: number }>(() => undefined));
+    const s = fetchStore(
+      async () =>
+        new Promise<{ x: number }>(() => {
+          // never resolve
+        }),
+    );
 
     const Component = vi.fn<[], any>(function Component() {
       const { x } = read(s);
@@ -73,7 +78,7 @@ describe('read', () => {
     render(
       <Container>
         <Component />
-      </Container>
+      </Container>,
     );
     const div = screen.getByTestId('content');
     expect(div.textContent).toBe('fallback');
@@ -96,7 +101,7 @@ describe('read', () => {
     render(
       <Container>
         <Component />
-      </Container>
+      </Container>,
     );
     const div = screen.getByTestId('content');
     expect(div.textContent).toBe('error: error');

@@ -51,7 +51,7 @@ describe('dynamic store', () => {
 
     test('fetch with error', async () => {
       const state = fetchStore(async () => {
-        throw Error('error');
+        throw new Error('error');
       });
 
       await flushPromises();
@@ -97,7 +97,7 @@ describe('dynamic store', () => {
 
     test('when the actions throws an error', async () => {
       const state = fetchStore(async () => {
-        throw Error('error');
+        throw new Error('error');
       });
       const listener = vi.fn();
       state.sub(listener);
@@ -106,7 +106,7 @@ describe('dynamic store', () => {
       expect(getValues(listener)).toEqual([
         //
         undefined,
-        Error('error'),
+        new Error('error'),
       ]);
     });
 
@@ -205,52 +205,52 @@ describe('dynamic store', () => {
       expect(dep2.isActive).toBe(false);
     });
   });
+});
 
-  describe('resourceGroup', () => {
-    describe('allResources', () => {
-      test('invalidateAll', async () => {
-        const state = fetchStore(async () => 1);
-        await state.fetch();
+describe('resourceGroup', () => {
+  describe('allResources', () => {
+    test('invalidateAll', async () => {
+      const state = fetchStore(async () => 1);
+      await state.fetch();
 
-        expect(state.get().isStale).toBe(false);
+      expect(state.get().isStale).toBe(false);
 
-        allResources.invalidateAll();
-        expect(state.get().isStale).toBe(true);
-      });
-
-      test('clearAll', async () => {
-        const state = fetchStore(async () => 1);
-        await state.fetch();
-
-        expect(state.get().value).toBe(1);
-
-        allResources.clearAll();
-        expect(state.get().value).toBe(undefined);
-      });
+      allResources.invalidateAll();
+      expect(state.get().isStale).toBe(true);
     });
 
-    describe('custom resourceGroup', () => {
-      test('invalidateAll', async () => {
-        const resourceGroup = new ResourceGroup();
-        const state = fetchStore(async () => 1, { resourceGroup });
-        await state.fetch();
+    test('clearAll', async () => {
+      const state = fetchStore(async () => 1);
+      await state.fetch();
 
-        expect(state.get().isStale).toBe(false);
+      expect(state.get().value).toBe(1);
 
-        resourceGroup.invalidateAll();
-        expect(state.get().isStale).toBe(true);
-      });
+      allResources.clearAll();
+      expect(state.get().value).toBe(undefined);
+    });
+  });
 
-      test('clearAll', async () => {
-        const resourceGroup = new ResourceGroup();
-        const state = fetchStore(async () => 1, { resourceGroup });
-        await state.fetch();
+  describe('custom resourceGroup', () => {
+    test('invalidateAll', async () => {
+      const resourceGroup = new ResourceGroup();
+      const state = fetchStore(async () => 1, { resourceGroup });
+      await state.fetch();
 
-        expect(state.get().value).toBe(1);
+      expect(state.get().isStale).toBe(false);
 
-        resourceGroup.clearAll();
-        expect(state.get().value).toBe(undefined);
-      });
+      resourceGroup.invalidateAll();
+      expect(state.get().isStale).toBe(true);
+    });
+
+    test('clearAll', async () => {
+      const resourceGroup = new ResourceGroup();
+      const state = fetchStore(async () => 1, { resourceGroup });
+      await state.fetch();
+
+      expect(state.get().value).toBe(1);
+
+      resourceGroup.clearAll();
+      expect(state.get().value).toBe(undefined);
     });
   });
 });

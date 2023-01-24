@@ -21,7 +21,7 @@ describe('once', () => {
 
   test('onceValue with error', async () => {
     const state = fetchStore(async () => {
-      throw Error('once error');
+      throw new Error('once error');
     });
     const promise = onceValue(state.sub);
 

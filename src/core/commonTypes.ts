@@ -47,7 +47,7 @@ export type Duration =
 export type UpdateFrom<Value, From extends any[]> = Value | ((...args: From) => Value);
 export type Update<Value> = UpdateFrom<Value, [Value]>;
 
-export interface UpdateFn<Value> {
+export interface UpdateFunction<Value> {
   (update: Update<Value>): void;
 }
 

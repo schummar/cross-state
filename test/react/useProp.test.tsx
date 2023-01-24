@@ -32,7 +32,7 @@ describe('useProp', () => {
     const s = store({ x: 0 });
 
     const Component = vi.fn<[], any>(function Component() {
-      const [v, setV] = useProp(s.map((s) => s.x));
+      const [v, setV] = useProp(s.map((state) => state.x));
 
       return (
         <div data-testid="div" onClick={() => setV(1)}>
@@ -48,6 +48,8 @@ describe('useProp', () => {
       act(() => {
         div.click();
       });
-    }).toThrowError('Can only updated computed stores that are derived from other stores using string selectors');
+    }).toThrowError(
+      'Can only updated computed stores that are derived from other stores using string selectors',
+    );
   });
 });

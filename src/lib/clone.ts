@@ -1,19 +1,19 @@
-export function flatClone<T>(obj: T): T {
-  if (obj instanceof Map) {
-    return new Map(obj) as any;
+export function flatClone<T>(object: T): T {
+  if (object instanceof Map) {
+    return new Map(object) as any;
   }
 
-  if (obj instanceof Set) {
-    return new Set(obj) as any;
+  if (object instanceof Set) {
+    return new Set(object) as any;
   }
 
-  if (Array.isArray(obj)) {
-    return [...obj] as any;
+  if (Array.isArray(object)) {
+    return [...object] as any;
   }
 
-  if (obj instanceof Object) {
-    return { ...obj };
+  if (object instanceof Object) {
+    return { ...object };
   }
 
-  return obj;
+  return object;
 }

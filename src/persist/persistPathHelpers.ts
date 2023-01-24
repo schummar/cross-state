@@ -1,15 +1,22 @@
 import type { KeyType } from '@lib/path';
 
 export const isAncestor = (ancestor: KeyType[], path: KeyType[]): boolean => {
-  return ancestor.length <= path.length && ancestor.every((v, i) => v === '*' || path[i] === '*' || String(v) === String(path[i]));
+  return (
+    ancestor.length <= path.length &&
+    ancestor.every((v, i) => v === '*' || path[i] === '*' || String(v) === String(path[i]))
+  );
 };
 
-export const split = (value: any, path: KeyType[]): [value: unknown, subValues: { path: KeyType[]; value: unknown }[]] => {
+export const split = (
+  value: any,
+  path: KeyType[],
+): [value: unknown, subValues: { path: KeyType[]; value: unknown }[]] => {
   const [first, ...rest] = path;
   if (first === undefined) return [value, []];
 
   if (rest.length === 0) {
-    if (first === '*') return [{}, Object.entries(value).map(([k, v]) => ({ path: [k], value: v }))];
+    if (first === '*')
+      return [{}, Object.entries(value).map(([k, v]) => ({ path: [k], value: v }))];
     if (!(first in value)) return [value, []];
     const { [first]: subValue, ...newValue } = value;
     return [newValue, [{ path: [first], value: subValue }]];

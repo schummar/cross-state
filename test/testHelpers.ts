@@ -7,9 +7,12 @@ export async function flushPromises(n = 100) {
 }
 
 export async function sleep(ms: number) {
-  return new Promise((r) => {
-    setTimeout(r, ms);
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
   });
 }
 
-export const getValues = (fn: any) => fn.mock.calls.map(([x]: any) => (x instanceof Object && 'status' in x ? x?.error ?? x?.value : x));
+export const getValues = (function_: any) =>
+  function_.mock.calls.map(([x]: any) =>
+    x instanceof Object && 'status' in x ? x?.error ?? x?.value : x,
+  );

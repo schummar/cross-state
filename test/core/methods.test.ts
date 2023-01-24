@@ -12,7 +12,7 @@ describe('store methods', () => {
         new Map([
           ['x', { x: 1 }],
           ['y', { x: 2 }],
-        ])
+        ]),
       );
     });
 
@@ -141,10 +141,10 @@ describe('store methods', () => {
       {
         methods: {
           inc() {
-            this.update((state) => ({ ...state, x: state.x + 1 }));
+            this.update((x) => ({ ...x, x: x.x + 1 }));
           },
         },
-      }
+      },
     );
 
     state.inc();
@@ -158,14 +158,14 @@ describe('store methods', () => {
       {
         methods: {
           inc() {
-            this.update((state) => ({ ...state, x: state.x + 1 }));
+            this.update((x) => ({ ...x, x: x.x + 1 }));
           },
           incAndDouble() {
             this.inc();
-            this.update((state) => ({ ...state, x: state.x * 2 }));
+            this.update((x) => ({ ...x, x: x.x * 2 }));
           },
         },
-      }
+      },
     );
 
     state.incAndDouble();
@@ -182,7 +182,7 @@ describe('store methods', () => {
             this.set('x', (x) => x + 1);
           },
         },
-      }
+      },
     );
 
     state.set('x', 2);
@@ -197,12 +197,12 @@ describe('store methods', () => {
         methods: {
           ...immerActions,
           inc() {
-            this.immerUpdate((state) => {
-              state.x++;
+            this.immerUpdate((x) => {
+              x.x++;
             });
           },
         },
-      }
+      },
     );
 
     state.inc();

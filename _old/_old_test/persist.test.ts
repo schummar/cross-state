@@ -61,7 +61,11 @@ describe('persist', () => {
       const setItem = vi.fn();
       const storage = mockStorage({ setItem });
       const store = atomicStore({ a: 1 });
-      const { hydrated, allSaved } = persist(store, storage, { id: 'store', throttle: 3, paths: ['a'] });
+      const { hydrated, allSaved } = persist(store, storage, {
+        id: 'store',
+        throttle: 3,
+        paths: ['a'],
+      });
 
       await hydrated;
 
@@ -160,8 +164,17 @@ describe('persist', () => {
         removeItem: () => undefined,
       });
 
-      const store = atomicStore({ a: 1, b: [1, 2, 3], b1: 1, c: { x: 1, y: 2, z: 3 }, z: undefined as number | undefined });
-      const { hydrated, allSaved } = persist(store, storage, { id: 'store', paths: ['', 'b', 'c.*'] });
+      const store = atomicStore({
+        a: 1,
+        b: [1, 2, 3],
+        b1: 1,
+        c: { x: 1, y: 2, z: 3 },
+        z: undefined as number | undefined,
+      });
+      const { hydrated, allSaved } = persist(store, storage, {
+        id: 'store',
+        paths: ['', 'b', 'c.*'],
+      });
       await hydrated;
 
       expect(store.get()).toEqual({ a: 2, b: [1, 2, 4], b1: 2, c: { x: 2, y: 3 } });

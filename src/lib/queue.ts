@@ -9,8 +9,13 @@ export interface Queue {
 }
 
 export function queue(): Queue {
-  const q: { action: Action<any>; resolve: (value: any) => void; reject: (error: unknown) => void }[] = [];
-  let promise: Promise<void> | undefined, resolve: (() => void) | undefined;
+  const q: {
+    action: Action<any>;
+    resolve: (value: any) => void;
+    reject: (error: unknown) => void;
+  }[] = [];
+  let promise: Promise<void> | undefined;
+  let storedResolve: (() => void) | undefined;
   let active = false;
 
   const run = async () => {
@@ -25,13 +30,13 @@ export function queue(): Queue {
             result = await result;
           }
           next.resolve(result);
-        } catch (e) {
-          next.reject(e);
+        } catch (error) {
+          next.reject(error);
         }
       }
 
       active = false;
-      resolve?.();
+      storedResolve?.();
     }
   };
 
@@ -45,22 +50,22 @@ export function queue(): Queue {
     {
       clear() {
         q.length = 0;
-        resolve?.();
+        storedResolve?.();
       },
 
       get whenDone() {
         if (!promise) {
-          promise = new Promise<void>((r) => {
-            resolve = () => {
+          promise = new Promise<void>((resolve) => {
+            storedResolve = () => {
               promise = undefined;
-              resolve = undefined;
-              r();
+              storedResolve = undefined;
+              resolve();
             };
           });
         }
 
         return promise;
       },
-    }
+    },
   );
 }

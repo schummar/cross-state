@@ -67,12 +67,12 @@ describe('static store', () => {
 
     test('store.addEffect cancel while on', () => {
       const state = store(1);
-      const cancelFn = vi.fn();
-      const effect = vi.fn(() => cancelFn);
+      const cancelFunction = vi.fn();
+      const effect = vi.fn(() => cancelFunction);
       const cancelEffect = state.addEffect(effect);
       const cancel = state.sub(vi.fn());
       cancelEffect();
-      expect(cancelFn.mock.calls).toEqual([[]]);
+      expect(cancelFunction.mock.calls).toEqual([[]]);
       cancel();
       state.sub(vi.fn());
       expect(effect.mock.calls.length).toBe(1);
@@ -80,15 +80,15 @@ describe('static store', () => {
 
     test('store.addEffect cancel while off', () => {
       const state = store(1);
-      const cancelFn = vi.fn();
-      const effect = vi.fn(() => cancelFn);
+      const cancelFunction = vi.fn();
+      const effect = vi.fn(() => cancelFunction);
       const cancelEffect = state.addEffect(effect);
       const cancel = state.sub(vi.fn());
       cancel();
-      expect(cancelFn.mock.calls).toEqual([[]]);
+      expect(cancelFunction.mock.calls).toEqual([[]]);
       cancelEffect();
       state.sub(vi.fn());
-      expect(cancelFn.mock.calls.length).toBe(1);
+      expect(cancelFunction.mock.calls.length).toBe(1);
       expect(effect.mock.calls.length).toBe(1);
     });
   });
@@ -150,7 +150,7 @@ describe('static store', () => {
       const state = store(1);
       const nextListener = vi.fn();
       state.sub(() => {
-        throw Error('error');
+        throw new Error('error');
       });
       state.sub(nextListener);
 

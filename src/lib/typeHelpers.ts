@@ -1,5 +1,5 @@
-export type Obj = Record<string | number, unknown>;
-export type Arr = readonly unknown[];
+export type Object_ = Record<string | number, unknown>;
+export type Array_ = readonly unknown[];
 
 export type StringToNumber<T> = T extends `${infer K extends number}` ? K : never;
 
@@ -13,7 +13,11 @@ export type ArrayToStringPath<T> = T extends []
     : `${First}.${ArrayToStringPath<Rest>}`
   : never;
 
-export type StringToArrayPath<T> = T extends '' ? [] : T extends `${infer First}.${infer Rest}` ? [First, ...StringToArrayPath<Rest>] : [T];
+export type StringToArrayPath<T> = T extends ''
+  ? []
+  : T extends `${infer First}.${infer Rest}`
+  ? [First, ...StringToArrayPath<Rest>]
+  : [T];
 
 export type OptionalPropertyOf<T> = Exclude<
   {
