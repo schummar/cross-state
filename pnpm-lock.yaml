@@ -28,7 +28,7 @@ specifiers:
   vitest: 0.28.2
 
 devDependencies:
-  '@schummar/eslint-config': github.com/schummar/eslint-config/5e63d140bd4c65d46c9906e014f19b8e1cc99946_l27ptbbgosyywejtdzamzs6pmq
+  '@schummar/eslint-config': github.com/schummar/eslint-config/ef316cd54057a7dfd8c4fc4c6ff6341959fc68de_l27ptbbgosyywejtdzamzs6pmq
   '@schummar/prettier-config': github.com/schummar/prettier-config/2de579b5f0874c23337d368bb6560d3d02dde6a1_prettier@2.8.3
   '@schummar/runp': 1.8.2
   '@testing-library/react': 13.4.0_biqbaboplfbrettd7655fr4n2y
@@ -5908,9 +5908,9 @@ packages:
     engines: {node: '>=12.20'}
     dev: true
 
-  github.com/schummar/eslint-config/5e63d140bd4c65d46c9906e014f19b8e1cc99946_l27ptbbgosyywejtdzamzs6pmq:
-    resolution: {tarball: https://codeload.github.com/schummar/eslint-config/tar.gz/5e63d140bd4c65d46c9906e014f19b8e1cc99946}
-    id: github.com/schummar/eslint-config/5e63d140bd4c65d46c9906e014f19b8e1cc99946
+  github.com/schummar/eslint-config/ef316cd54057a7dfd8c4fc4c6ff6341959fc68de_l27ptbbgosyywejtdzamzs6pmq:
+    resolution: {tarball: https://codeload.github.com/schummar/eslint-config/tar.gz/ef316cd54057a7dfd8c4fc4c6ff6341959fc68de}
+    id: github.com/schummar/eslint-config/ef316cd54057a7dfd8c4fc4c6ff6341959fc68de
     name: '@schummar/eslint-config'
     version: 1.0.0
     hasBin: true
