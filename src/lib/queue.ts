@@ -1,11 +1,12 @@
 import type { MaybePromise } from './maybePromise';
+import type { Listener } from '@core';
 
 type Action<T> = () => MaybePromise<T>;
 
 export interface Queue {
   <T>(action: Action<T>): Promise<T>;
   clear: () => void;
-  whenDone: Promise<void>;
+  whenDone: () => Promise<void>;
 }
 
 export function queue(): Queue {
@@ -14,9 +15,16 @@ export function queue(): Queue {
     resolve: (value: any) => void;
     reject: (error: unknown) => void;
   }[] = [];
-  let promise: Promise<void> | undefined;
-  let storedResolve: (() => void) | undefined;
+  const completionListeners = new Set<Listener<void>>();
   let active = false;
+
+  const notify = () => {
+    for (const listener of completionListeners) {
+      listener();
+    }
+
+    completionListeners.clear();
+  };
 
   const run = async () => {
     if (!active) {
@@ -36,7 +44,7 @@ export function queue(): Queue {
       }
 
       active = false;
-      storedResolve?.();
+      notify();
     }
   };
 
@@ -50,21 +58,16 @@ export function queue(): Queue {
     {
       clear() {
         q.length = 0;
-        storedResolve?.();
       },
 
-      get whenDone() {
-        if (!promise) {
-          promise = new Promise<void>((resolve) => {
-            storedResolve = () => {
-              promise = undefined;
-              storedResolve = undefined;
-              resolve();
-            };
-          });
+      whenDone() {
+        if (!active) {
+          return Promise.resolve();
         }
 
-        return promise;
+        return new Promise<void>((resolve) => {
+          completionListeners.add(resolve);
+        });
       },
     },
   );
