@@ -1,10 +1,9 @@
-import type { Cancel } from 'schummar-state/*';
 import type { PersistStorage, PersistStorageWithKeys } from './persistStorage';
 import { normalizeStorage } from './persistStorage';
-import type { Store } from '@';
+import type { Cancel, Store } from '@';
 import { store as createStore } from '@';
 import { diff } from '@lib/diff';
-import type { WildcardPath, WildcardPathAsArray } from '@lib/path';
+import type { KeyType, WildcardPath, WildcardPathAsArray } from '@lib/path';
 import { castArrayPath, get, set } from '@lib/propAccess';
 import { queue } from '@lib/queue';
 
@@ -87,7 +86,7 @@ class Persist<T> {
           }
 
           console.debug('watchStore', JSON.stringify(patch.path), patch.value);
-          this.queue(() => this.save(JSON.stringify(patch.path), patch.value));
+          this.queue(() => this.save(patch.path));
         }
       },
       { runNow: false },
@@ -104,7 +103,7 @@ class Persist<T> {
     }
 
     for (const key of keys) {
-      this.queue(() => this.load(key));
+      this.queue(() => this.load(JSON.parse(key)));
     }
 
     const listener = (event: MessageEvent) => {
@@ -116,7 +115,8 @@ class Persist<T> {
     this.handles.add(() => this.channel.removeEventListener('message', listener));
   }
 
-  async load(key: string) {
+  async load(path: KeyType[]) {
+    const key = JSON.stringify(path);
     let value = this.storage.getItem(key);
 
     if (value instanceof Promise) {
@@ -128,18 +128,19 @@ class Persist<T> {
     }
 
     if (value) {
-      const path = JSON.parse(key);
       const parsedValue = value === 'undefined' ? undefined : JSON.parse(value);
 
       this.updateInProgress = [path, parsedValue];
       console.log('apply', path, parsedValue);
 
-      this.store.update((state) => set(state, path, parsedValue));
+      this.store.update((state) => set(state, path as any, parsedValue));
       this.updateInProgress = undefined;
     }
   }
 
-  async save(key: string, value: unknown) {
+  async save(path: KeyType[]) {
+    const key = JSON.stringify(path);
+    const value = get(this.store.get(), path as any);
     const serializedValue = value === undefined ? 'undefined' : JSON.stringify(value);
     const result = this.storage.setItem(key, serializedValue);
 
