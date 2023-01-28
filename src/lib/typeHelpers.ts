@@ -8,6 +8,8 @@ export type ArrayToStringPath<T> = T extends []
   : T extends [infer First extends string, ...infer Rest]
   ? First extends `${string}.${string}`
     ? never
+    : string extends First
+    ? never
     : Rest['length'] extends 0
     ? First
     : `${First}.${ArrayToStringPath<Rest>}`

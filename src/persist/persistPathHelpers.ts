@@ -3,7 +3,7 @@ import type { KeyType } from '@lib/path';
 export const isAncestor = (ancestor: KeyType[], path: KeyType[]): boolean => {
   return (
     ancestor.length <= path.length &&
-    ancestor.every((v, i) => v === '*' || path[i] === '*' || String(v) === String(path[i]))
+    ancestor.every((v, i) => v === '*' || path[i] === '*' || v === path[i])
   );
 };
 

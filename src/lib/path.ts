@@ -54,20 +54,22 @@ export type Value<T, P> = 0 extends 1 & T
     : never
   : T;
 
-export type WildcardPathAsArray<T> = 0 extends 1 & T
-  ? KeyType[]
-  : T extends never
-  ? never
-  : T extends Object_ | Array_
-  ?
-      | {
-          [K in GetKeys<T>]: ['*'] | [K] | [K, ...WildcardPathAsArray<T[K]>];
-        }[GetKeys<T>]
-  : T extends Map<infer K extends KeyType, infer V>
-  ? ['*'] | [K] | [K, ...WildcardPathAsArray<V>]
-  : T extends Set<any>
-  ? ['*'] | [number]
-  : never;
+export type WildcardPathAsArray<T> =
+  | []
+  | (0 extends 1 & T
+      ? KeyType[]
+      : T extends never
+      ? never
+      : T extends Object_ | Array_
+      ?
+          | {
+              [K in GetKeys<T>]: ['*'] | [K] | [K, ...WildcardPathAsArray<T[K]>];
+            }[GetKeys<T>]
+      : T extends Map<infer K extends KeyType, infer V>
+      ? ['*'] | [K] | [K, ...WildcardPathAsArray<V>]
+      : T extends Set<any>
+      ? ['*'] | [number]
+      : never);
 
 export type WildcardPathAsString<T> = ArrayToStringPath<WildcardPathAsArray<T>>;
 export type WildcardPath<T> = WildcardPathAsString<T> | WildcardPathAsArray<T>;

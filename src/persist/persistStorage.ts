@@ -1,3 +1,5 @@
+import { maybeAsync, maybeAsyncArray } from '@lib/maybeAsync';
+
 export interface PersistStorageBase {
   getItem: (key: string) => string | null | Promise<string | null>;
   setItem: (key: string, value: string) => unknown | Promise<unknown>;
@@ -22,32 +24,23 @@ export function normalizeStorage(storage: PersistStorage): PersistStorageWithKey
     setItem: storage.setItem.bind(storage),
     removeItem: storage.removeItem.bind(storage),
 
-    async keys(): Promise<string[]> {
+    keys(): string[] | Promise<string[]> {
       if ('keys' in storage) {
         return storage.keys();
       }
 
-      let length = storage.length instanceof Function ? storage.length() : storage.length;
+      return maybeAsync(
+        storage.length instanceof Function ? storage.length() : storage.length,
+        (length) => {
+          const keyPromises = maybeAsyncArray(
+            Array.from({ length }, (_, index) => () => storage.key(index)),
+          );
 
-      if (length instanceof Promise) {
-        length = await length;
-      }
-
-      const keys = new Array<string>();
-
-      for (let i = 0; i < length; i++) {
-        let key = storage.key(i);
-
-        if (key instanceof Promise) {
-          key = await key;
-        }
-
-        if (typeof key === 'string') {
-          keys.push(key);
-        }
-      }
-
-      return keys;
+          return maybeAsync(keyPromises, (keys) =>
+            keys.filter((key): key is string => typeof key === 'string'),
+          );
+        },
+      );
     },
   };
 }

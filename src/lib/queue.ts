@@ -4,9 +4,10 @@ import type { Listener } from '@core';
 type Action<T> = () => MaybePromise<T>;
 
 export interface Queue {
-  <T>(action: Action<T>): Promise<T>;
+  <T>(action: Action<T>, ref?: any): Promise<T>;
   clear: () => void;
   whenDone: () => Promise<void>;
+  getRefs: () => any[];
 }
 
 export function queue(): Queue {
@@ -14,6 +15,7 @@ export function queue(): Queue {
     action: Action<any>;
     resolve: (value: any) => void;
     reject: (error: unknown) => void;
+    ref?: any;
   }[] = [];
   const completionListeners = new Set<Listener<void>>();
   let active = false;
@@ -37,6 +39,7 @@ export function queue(): Queue {
           if (result instanceof Promise) {
             result = await result;
           }
+
           next.resolve(result);
         } catch (error) {
           next.reject(error);
@@ -49,9 +52,9 @@ export function queue(): Queue {
   };
 
   return Object.assign(
-    <T>(action: Action<T>) => {
+    <T>(action: Action<T>, ref?: any) => {
       return new Promise<T>((resolve, reject) => {
-        q.push({ action, resolve, reject });
+        q.push({ action, resolve, reject, ref });
         run();
       });
     },
@@ -68,6 +71,10 @@ export function queue(): Queue {
         return new Promise<void>((resolve) => {
           completionListeners.add(resolve);
         });
+      },
+
+      getRefs() {
+        return q.map((item) => item.ref).filter((x) => x !== undefined);
       },
     },
   );

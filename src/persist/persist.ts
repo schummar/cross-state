@@ -1,9 +1,11 @@
+import { isAncestor } from './persistPathHelpers';
 import type { PersistStorage, PersistStorageWithKeys } from './persistStorage';
 import { normalizeStorage } from './persistStorage';
 import type { Cancel, Store } from '@';
-import { store as createStore } from '@';
 import { diff } from '@lib/diff';
-import type { KeyType, WildcardPath, WildcardPathAsArray } from '@lib/path';
+import { simpleShallowEquals } from '@lib/equals';
+import { maybeAsync, maybeAsyncArray } from '@lib/maybeAsync';
+import type { KeyType, WildcardPath } from '@lib/path';
 import { castArrayPath, get, set } from '@lib/propAccess';
 import { queue } from '@lib/queue';
 
@@ -19,11 +21,11 @@ export interface PersistOptions<T> {
   throttleMs?: number;
 }
 
-class Persist<T> {
+export class Persist<T> {
   storage: PersistStorageWithKeys;
 
   paths: {
-    path: WildcardPathAsArray<T>;
+    path: KeyType[];
     throttleMs?: number;
   }[];
 
@@ -39,27 +41,29 @@ class Persist<T> {
 
   constructor(public readonly store: Store<T>, public readonly options: PersistOptions<T>) {
     this.storage = normalizeStorage(options.storage);
+    this.channel = new BroadcastChannel(`cross-state-persist_${options.id}`);
 
     this.paths = (options.paths ?? [])
       .map<{
-        path: WildcardPathAsArray<T>;
+        path: KeyType[];
         throttleMs?: number;
       }>((p) =>
         typeof p === 'string' || Array.isArray(p)
           ? {
-              path: castArrayPath(p as any) as WildcardPathAsArray<T>,
+              path: castArrayPath(p as any),
             }
           : {
-              path: castArrayPath(p.path as any) as WildcardPathAsArray<T>,
+              path: castArrayPath(p.path as any),
               throttleMs: p.throttleMs,
             },
       )
       .sort((a, b) => b.path.length - a.path.length);
 
-    this.channel = new BroadcastChannel(`cross-state-persist_${options.id}`);
+    if (this.paths.length === 0) {
+      this.paths.push({ path: ['*'] });
+    }
 
     this.watchStore();
-
     this.watchStorage();
   }
 
@@ -67,26 +71,27 @@ class Persist<T> {
     let committed = this.store.get();
 
     const cancel = this.store.sub(
-      (value, before) => {
-        if (this.updateInProgress) {
-          const [path, updatedValue] = this.updateInProgress;
-
-          if (get(value, path) === updatedValue) {
-            console.log('equal', path, updatedValue, value, before);
-            return;
-          }
-        }
-
+      (value) => {
         const [patches] = diff(committed, value);
         committed = value;
 
         for (const patch of patches) {
-          if (patch.op !== 'replace') {
-            return;
+          if (
+            this.updateInProgress &&
+            simpleShallowEquals(this.updateInProgress[0], patch.path) &&
+            this.updateInProgress[1] === (patch.op === 'remove' ? undefined : patch.value)
+          ) {
+            continue;
           }
 
-          console.debug('watchStore', JSON.stringify(patch.path), patch.value);
-          this.queue(() => this.save(patch.path));
+          const ancestor = this.paths.find((p) => isAncestor(p.path, patch.path));
+
+          if (!ancestor) {
+            continue;
+          }
+
+          const pathToSave = patch.path.slice(0, ancestor.path.length);
+          this.queue(() => this.save(pathToSave), pathToSave);
         }
       },
       { runNow: false },
@@ -96,18 +101,21 @@ class Persist<T> {
   }
 
   async watchStorage() {
-    const keys = await this.storage.keys();
+    let keys = this.storage.keys();
+    if (keys instanceof Promise) {
+      keys = await keys;
+    }
 
     if (this.stopped) {
       return;
     }
 
     for (const key of keys) {
-      this.queue(() => this.load(JSON.parse(key)));
+      const path = JSON.parse(key);
+      this.queue(() => this.load(path));
     }
 
     const listener = (event: MessageEvent) => {
-      console.log('message', event.data);
       this.queue(() => this.load(event.data));
     };
 
@@ -115,116 +123,70 @@ class Persist<T> {
     this.handles.add(() => this.channel.removeEventListener('message', listener));
   }
 
-  async load(path: KeyType[]) {
-    const key = JSON.stringify(path);
-    let value = this.storage.getItem(key);
-
-    if (value instanceof Promise) {
-      value = await value;
-    }
-
-    if (this.stopped) {
+  load(path: KeyType[]) {
+    const matchingPath = this.paths.find(
+      (p) => p.path.length === path.length && isAncestor(p.path, path),
+    );
+    if (!matchingPath) {
       return;
     }
 
-    if (value) {
+    const key = JSON.stringify(path);
+
+    return maybeAsync(this.storage.getItem(key), (value) => {
+      if (this.stopped || !value) {
+        return;
+      }
+
+      const inSaveQueue = this.queue
+        .getRefs()
+        .find((ref) => isAncestor(ref, path) || isAncestor(path, ref));
+      if (inSaveQueue) {
+        return;
+      }
+
       const parsedValue = value === 'undefined' ? undefined : JSON.parse(value);
 
       this.updateInProgress = [path, parsedValue];
-      console.log('apply', path, parsedValue);
-
       this.store.update((state) => set(state, path as any, parsedValue));
       this.updateInProgress = undefined;
-    }
+    });
   }
 
-  async save(path: KeyType[]) {
+  save(path: KeyType[]) {
     const key = JSON.stringify(path);
     const value = get(this.store.get(), path as any);
     const serializedValue = value === undefined ? 'undefined' : JSON.stringify(value);
-    const result = this.storage.setItem(key, serializedValue);
 
-    if (result instanceof Promise) {
-      await result;
-    }
+    return maybeAsync(this.storage.setItem(key, serializedValue), () => {
+      this.channel.postMessage(path);
 
-    this.channel.postMessage(key);
+      return maybeAsync(this.storage.keys(), (keys) => {
+        const toRemove = keys.filter((k) => {
+          const parsedKey = JSON.parse(k);
+          return (
+            parsedKey.length > path.length && isAncestor(path, parsedKey)
+            // !this.queue.getRefs().find((ref) => isAncestor(ref, parsedKey))
+          );
+        });
+
+        return maybeAsyncArray(toRemove.map((k) => () => this.storage.removeItem(k)));
+      });
+    });
   }
 
   async stop() {
-    console.debug('stop');
-
     this.stopped = true;
-    await this.queue.whenDone();
 
+    for (const handle of this.handles) {
+      handle();
+    }
+
+    await this.queue.whenDone();
     this.channel.close();
-    // this.queue.clear();
   }
 }
 
 export function persist<T>(store: Store<T>, options: PersistOptions<T>): Persist<T> {
   return new Persist<T>(store, options);
 }
-
-const items = new Map<string, string>();
-
-const storage: PersistStorage = {
-  getItem(key) {
-    return items.get(key) ?? null;
-  },
-  setItem(key, value) {
-    items.set(key, value);
-  },
-  removeItem(key) {
-    items.delete(key);
-  },
-  keys() {
-    return [...items.keys()];
-  },
-};
-
-const s1 = createStore({
-  a: 1,
-  // b: { c: 2, d: 3 },
-  // e: new Map([
-  //   [1, 1],
-  //   [2, 2],
-  // ]),
-});
-
-const _p1 = persist(s1, {
-  id: 'test',
-  storage,
-  // paths: ['e', 'b.c', 'e.*'],
-  paths: ['a'],
-});
-
-const s2 = createStore(s1.get());
-
-const _p2 = persist(s2, {
-  id: 'test',
-  storage,
-  // paths: ['e', 'b.c', 'e.*'],
-  paths: ['a'],
-});
-
-// s1.set('a', 2);
-// s1.set('b', { c: 3, d: 4 });
-// s1.set(['b', 'c'], 4);
-// s1.set(
-//   'e',
-//   new Map([
-//     [1, 2],
-//     [2, 3],
-//   ]),
-// );
-s1.set(['a'], 2);
-s2.set(['a'], 3);
-
-// await new Promise((r) => setTimeout(r, 1000));
-
-await new Promise((r) => setTimeout(r, 1000));
-await _p1.stop();
-await _p2.stop();
-console.log('s1', s1.get());
-console.log('s2', s2.get());

@@ -2,8 +2,6 @@ import { afterEach, assert, beforeEach, describe, expect, test, vi } from 'vites
 import { Cache } from '../../src/lib/cache';
 import { sleep } from '../testHelpers';
 
-const originalWeakRef = typeof WeakRef !== 'undefined' ? WeakRef : undefined;
-
 beforeEach(() => {
   vi.useFakeTimers();
   vi.spyOn(Cache.prototype, 'now' as any).mockImplementation(() => Date.now());
@@ -11,7 +9,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
-  vi.stubGlobal('WeakRef', originalWeakRef);
+  vi.unstubAllGlobals();
 });
 
 describe('cache', () => {
