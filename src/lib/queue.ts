@@ -7,6 +7,7 @@ export interface Queue {
   <T>(action: Action<T>, ref?: any): Promise<T>;
   clear: () => void;
   whenDone: () => Promise<void>;
+  size: number;
   getRefs: () => any[];
 }
 
@@ -71,6 +72,10 @@ export function queue(): Queue {
         return new Promise<void>((resolve) => {
           completionListeners.add(resolve);
         });
+      },
+
+      get size() {
+        return q.length;
       },
 
       getRefs() {

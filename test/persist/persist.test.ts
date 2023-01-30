@@ -1,4 +1,5 @@
 // eslint-disable-next-line max-classes-per-file
+import seedrandom from 'seedrandom';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { store } from '../../src';
 import { maybeAsync } from '../../src/lib/maybeAsync';
@@ -418,6 +419,81 @@ describe('persist', () => {
       expect(s1.get()).toStrictEqual({ a: 3 });
       expect(s2.get()).toStrictEqual({ a: 3 });
       expect(storage.items).toStrictEqual(new Map([[`["a"]`, '3']]));
+    });
+
+    test.skip('sync avoids conflicts when updating ancestors or descendants', async () => {
+      const storage = new MockStorage({ keys: 1, get: 1, set: 1, remove: 1 });
+
+      const s1 = store({ a: { b: 1, c: 1 }, d: 1 });
+      persist(s1, {
+        id: 'test',
+        storage,
+        paths: [[], ['a'], ['a', 'b']],
+      });
+
+      const s2 = store({ a: { b: 1, c: 1 }, d: 1 });
+      persist(s2, {
+        id: 'test',
+        storage,
+        paths: [[], ['a'], ['a', 'b']],
+      });
+
+      const s3 = store({ a: { b: 1, c: 1 }, d: 1 });
+      persist(s3, {
+        id: 'test',
+        storage,
+        paths: [[], ['a'], ['a', 'b']],
+      });
+
+      s1.set(['a', 'b'], 2);
+      s2.set(['a', 'c'], 2);
+      s3.set(['d'], 2);
+
+      for (let i = 0; i < 100; i++) {
+        vi.runAllTimers();
+        await flushPromises();
+      }
+
+      expect(s1.get()).toStrictEqual({ a: { b: 2, c: 1 }, d: 1 });
+      expect(s2.get()).toStrictEqual({ a: { b: 1, c: 2 }, d: 1 });
+      expect(s3.get()).toStrictEqual({ a: { b: 1, c: 1 }, d: 2 });
+      expect(storage.items).toStrictEqual(new Map());
+    });
+
+    test('sync avoids conflicts chaos test', async () => {
+      const numberStores = 10;
+      const numberUpdates = 1000;
+
+      const storage = new MockStorage({ keys: 1, get: 1, set: 1, remove: 1 });
+
+      const stores = Array.from({ length: numberStores }, () => {
+        const s = store({ x: 1 });
+
+        persist(s, {
+          id: 'test',
+          storage,
+        });
+
+        return s;
+      });
+
+      const rand = seedrandom('seed');
+
+      for (let i = 0; i < numberUpdates; i++) {
+        const s = stores[Math.abs(rand.int32()) % stores.length];
+        s?.update({ x: Math.abs(rand.int32()) % 1000 });
+
+        vi.advanceTimersByTime(Math.abs(rand.int32()) % 10);
+        await flushPromises();
+      }
+
+      for (let i = 0; i < numberUpdates; i++) {
+        vi.runAllTimers();
+        await flushPromises();
+      }
+
+      const values = stores.map((s) => s.get().x);
+      expect(values).toStrictEqual(Array.from({ length: stores.length }, () => values[0]));
     });
   });
 });

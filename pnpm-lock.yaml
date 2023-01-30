@@ -7,6 +7,7 @@ specifiers:
   '@testing-library/react': 13.4.0
   '@types/react': 18.0.27
   '@types/react-dom': 18.0.10
+  '@types/seedrandom': ^3.0.4
   '@types/use-sync-external-store': 0.0.3
   '@vitejs/plugin-react': 3.0.1
   '@vitest/coverage-c8': 0.28.3
@@ -19,6 +20,7 @@ specifiers:
   react: 18.2.0
   react-dom: 18.2.0
   rimraf: 4.1.2
+  seedrandom: ^3.0.5
   semantic-release: 20.1.0
   tsc-alias: ^1.8.2
   typescript: 4.9.4
@@ -34,6 +36,7 @@ devDependencies:
   '@testing-library/react': 13.4.0_biqbaboplfbrettd7655fr4n2y
   '@types/react': 18.0.27
   '@types/react-dom': 18.0.10
+  '@types/seedrandom': 3.0.4
   '@types/use-sync-external-store': 0.0.3
   '@vitejs/plugin-react': 3.0.1_vite@4.0.4
   '@vitest/coverage-c8': 0.28.3_bkgtr223ce2rgck22nv3oolgzi
@@ -46,6 +49,7 @@ devDependencies:
   react: 18.2.0
   react-dom: 18.2.0_react@18.2.0
   rimraf: 4.1.2
+  seedrandom: 3.0.5
   semantic-release: 20.1.0
   tsc-alias: 1.8.2
   typescript: 4.9.4
@@ -971,6 +975,10 @@ packages:
 
   /@types/scheduler/0.16.2:
     resolution: {integrity: sha512-hppQEBDmlwhFAXKJX2KnWLYu5yMfi91yazPb2l+lbJiwW+wdo1gNeRA+3RgNSO39WYX2euey41KEwnqesU2Jew==}
+    dev: true
+
+  /@types/seedrandom/3.0.4:
+    resolution: {integrity: sha512-/rWdxeiuZenlawrHU+XV6ZHMTKOqrC2hMfeDfLTIWJhDZP5aVqXRysduYHBbhD7CeJO6FJr/D2uBVXB7GT6v7w==}
     dev: true
 
   /@types/semver/7.3.13:
@@ -4848,6 +4856,10 @@ packages:
       refa: 0.9.1
       regexp-ast-analysis: 0.2.4
       regexpp: 3.2.0
+    dev: true
+
+  /seedrandom/3.0.5:
+    resolution: {integrity: sha512-8OwmbklUNzwezjGInmZ+2clQmExQPvomqjL7LFqOYqtmuxRgQYqOD3mHaU+MvZn5FLUeVxVfQjwLZW/n/JFuqg==}
     dev: true
 
   /semantic-release/20.1.0:
