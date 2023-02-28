@@ -3,9 +3,12 @@ import { fetchStore, once } from '../../src';
 import { onceValue } from '../../src/core/once';
 
 describe('once', () => {
-  test('once has value', async () => {
+  test.only('once has value', async () => {
     const state = fetchStore(async () => 1);
-    const promise = once(state.map('value').sub, (x): x is number => x !== undefined);
+    const promise = once(state.map('value').sub, (x): x is number => {
+      console.log('check', x);
+      return x !== undefined;
+    });
 
     const value = await promise;
     expect(value).toBe(1);

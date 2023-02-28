@@ -15,5 +15,5 @@ export function read<T>(store: FetchStore<T>, options?: UseStoreOptions): T {
     throw error;
   }
 
-  throw store.fetch();
+  throw store.get();
 }

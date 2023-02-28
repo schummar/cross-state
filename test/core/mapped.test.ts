@@ -30,7 +30,7 @@ describe('mapped', () => {
     const listener = vi.fn(() => undefined);
     state.map((x) => x * 2).sub(listener);
 
-    state.update(2);
+    state.set(2);
 
     expect(listener.mock.calls).toEqual([
       [2, undefined],
@@ -44,7 +44,7 @@ describe('mapped', () => {
     const listener = vi.fn(() => undefined);
     dep2.map((x) => x * 2).sub(listener);
 
-    dep1.update(2);
+    dep1.set(2);
 
     expect(listener.mock.calls).toEqual([
       [4, undefined],
@@ -56,7 +56,7 @@ describe('mapped', () => {
     const state = store({ x: 1 });
     const mapped = state.map('x');
 
-    mapped.update(2);
+    mapped.set(2);
 
     expect(state.get()).toEqual({ x: 2 });
     expect(mapped.get()).toEqual(2);
@@ -67,7 +67,7 @@ describe('mapped', () => {
     const dep2 = dep1.map('x');
     const mapped = dep2.map('y');
 
-    mapped.update(2);
+    mapped.set(2);
 
     expect(dep1.get()).toEqual({ x: { y: 2 } });
     expect(dep2.get()).toEqual({ y: 2 });
@@ -78,7 +78,7 @@ describe('mapped', () => {
     const state = store({ x: 1 });
     const mapped = state.map('x');
 
-    mapped.update((x) => x + 1);
+    mapped.set((x) => x + 1);
 
     expect(state.get()).toEqual({ x: 2 });
     expect(mapped.get()).toEqual(2);
@@ -89,7 +89,7 @@ describe('mapped', () => {
     const mapped = state.map('x');
 
     mapped.get();
-    mapped.update(2);
+    mapped.set(2);
 
     expect(state.get()).toEqual({ x: 2 });
     expect(mapped.get()).toEqual(2);
@@ -99,7 +99,7 @@ describe('mapped', () => {
     const state = store({ x: 1 });
     const mapped = state.map((s) => s.x);
 
-    expect(() => mapped.update(2)).toThrowError(
+    expect(() => mapped.set(2)).toThrowError(
       'Can only updated computed stores that are derived from other stores using string selectors',
     );
   });

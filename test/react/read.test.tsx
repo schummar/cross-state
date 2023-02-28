@@ -44,7 +44,7 @@ class ErrorBoundary extends React.Component<{ children: ReactNode }> {
 describe('read', () => {
   test('read returns plain value when value is resolved', async () => {
     const s = fetchStore(async () => ({ x: 0 }));
-    await s.fetch();
+    await s.get();
 
     const Component = vi.fn<[], any>(function Component() {
       const { x } = read(s);
@@ -90,7 +90,7 @@ describe('read', () => {
     const s = fetchStore(async () => {
       throw new Error('error');
     });
-    await s.fetch().catch(() => undefined);
+    await s.get().catch(() => undefined);
 
     const Component = vi.fn<[], any>(function Component() {
       const { x } = read(s);

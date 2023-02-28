@@ -9,6 +9,6 @@ export const immerActions = {
       draft: Draft<T>,
     ) => void | Draft<T> | (Draft<T> extends undefined ? typeof nothing : never) | undefined,
   ) {
-    this.update(produce(recipe));
+    this.set(produce(recipe));
   },
 };

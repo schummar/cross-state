@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { store } from '../../src';
+import { store } from '../../src/core/store';
 import { immerActions } from '../../src/immer';
 
 describe('store methods', () => {
@@ -141,7 +141,7 @@ describe('store methods', () => {
       {
         methods: {
           inc() {
-            this.update((x) => ({ ...x, x: x.x + 1 }));
+            this.set((x) => ({ ...x, x: x.x + 1 }));
           },
         },
       },
@@ -158,11 +158,11 @@ describe('store methods', () => {
       {
         methods: {
           inc() {
-            this.update((x) => ({ ...x, x: x.x + 1 }));
+            this.set((x) => ({ ...x, x: x.x + 1 }));
           },
           incAndDouble() {
             this.inc();
-            this.update((x) => ({ ...x, x: x.x * 2 }));
+            this.set((x) => ({ ...x, x: x.x * 2 }));
           },
         },
       },

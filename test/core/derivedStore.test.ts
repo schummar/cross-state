@@ -30,7 +30,7 @@ describe('derived store', () => {
       return use(dep) * 2;
     });
 
-    expect(() => derived.update(1)).toThrow(
+    expect(() => derived.set(1)).toThrow(
       'Can only updated computed stores that are derived from other stores using string selectors',
     );
   });

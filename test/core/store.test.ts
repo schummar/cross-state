@@ -23,13 +23,13 @@ describe('static store', () => {
 
   test('store.set', () => {
     const state = store(1);
-    state.update(2);
+    state.set(2);
     expect(state.get()).toBe(2);
   });
 
   test('store.set as function', () => {
     const state = store(1);
-    state.update((a) => a + 1);
+    state.set((a) => a + 1);
     expect(state.get()).toBe(2);
   });
 
@@ -98,7 +98,7 @@ describe('static store', () => {
       const state = store(1);
       const listener = vi.fn();
       state.sub(listener);
-      state.update(2);
+      state.set(2);
       expect(listener.mock.calls.map((x) => x[0])).toEqual([1, 2]);
     });
 
@@ -107,7 +107,7 @@ describe('static store', () => {
       const listener = vi.fn();
       state.sub(listener, { runNow: false });
 
-      state.update(2);
+      state.set(2);
       expect(listener.mock.calls).toMatchObject([[2, undefined]]);
     });
 
@@ -115,9 +115,9 @@ describe('static store', () => {
       const state = store(1);
       const listener = vi.fn();
       state.sub(listener, { throttle: 2 });
-      state.update(2);
+      state.set(2);
       vi.advanceTimersByTime(1);
-      state.update(3);
+      state.set(3);
       expect(listener.mock.calls).toMatchObject([[1, undefined]]);
 
       vi.advanceTimersByTime(1);
@@ -131,7 +131,7 @@ describe('static store', () => {
       const state = store({ a: 1 });
       const listener = vi.fn();
       state.sub(listener);
-      state.update({ a: 1 });
+      state.set({ a: 1 });
       expect(listener.mock.calls).toMatchObject([
         [{ a: 1 }, undefined],
         [{ a: 1 }, { a: 1 }],
@@ -142,7 +142,7 @@ describe('static store', () => {
       const state = store({ a: 1 });
       const listener = vi.fn();
       state.sub(listener, { equals: shallowEqual });
-      state.update({ a: 1 });
+      state.set({ a: 1 });
       expect(listener.mock.calls).toMatchObject([[{ a: 1 }, undefined]]);
     });
 
@@ -154,7 +154,7 @@ describe('static store', () => {
       });
       state.sub(nextListener);
 
-      state.update(2);
+      state.set(2);
       expect(() => vi.runAllTimers()).toThrow('error');
 
       expect(nextListener).toHaveBeenCalledTimes(2);
@@ -165,7 +165,7 @@ describe('static store', () => {
       const listener = vi.fn();
       const cancel = state.sub(listener);
       cancel();
-      state.update(2);
+      state.set(2);
       expect(listener.mock.calls).toMatchObject([[1, undefined]]);
     });
 
@@ -175,7 +175,7 @@ describe('static store', () => {
       const cancel = state.sub(listener);
       cancel();
       cancel();
-      state.update(2);
+      state.set(2);
       expect(listener.mock.calls).toMatchObject([[1, undefined]]);
     });
 
@@ -183,11 +183,11 @@ describe('static store', () => {
       const state = store(1);
       const listener = vi.fn();
       const cancel = state.sub(listener);
-      state.update(2);
+      state.set(2);
       cancel();
-      state.update(3);
+      state.set(3);
       state.sub(listener);
-      state.update(4);
+      state.set(4);
       expect(listener.mock.calls).toMatchObject([
         [1, undefined],
         [2, 1],

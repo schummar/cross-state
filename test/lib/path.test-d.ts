@@ -22,7 +22,7 @@ describe('path', () => {
     });
 
     test('record', () => {
-      expectTypeOf({} as Path<Record<string, number>>).toEqualTypeOf<[string]>();
+      expectTypeOf({} as Path<Record<string, number>>).toEqualTypeOf<[string] | string>();
     });
 
     test('array', () => {
@@ -34,7 +34,7 @@ describe('path', () => {
     });
 
     test('map', () => {
-      expectTypeOf({} as Path<Map<string, number>>).toEqualTypeOf<[string]>();
+      expectTypeOf({} as Path<Map<string, number>>).toEqualTypeOf<[string] | string>();
     });
 
     test('set', () => {

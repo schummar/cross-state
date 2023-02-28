@@ -148,7 +148,7 @@ export class Persist<T> {
       const parsedValue = value === 'undefined' ? undefined : JSON.parse(value);
 
       this.updateInProgress = [path, parsedValue];
-      this.store.update((state) => set(state, path as any, parsedValue));
+      this.store.set((state) => set(state, path as any, parsedValue));
       this.updateInProgress = undefined;
     });
   }

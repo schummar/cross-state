@@ -19,7 +19,7 @@ export function useStore<T>(store: Store<T>, options?: UseStoreOptions): T {
     [store, hash(subOptions)],
   );
 
-  const value = useSyncExternalStoreWithSelector(
+  const value = useSyncExternalStoreWithSelector<T, T>(
     //
     subscribe,
     store.get,

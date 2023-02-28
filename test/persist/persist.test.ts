@@ -100,7 +100,7 @@ describe('persist', () => {
         storage,
       });
 
-      s1.update({ a: { b: 2 } });
+      s1.set({ a: { b: 2 } });
 
       expect(storage.items).toStrictEqual(new Map([['["a"]', '{"b":2}']]));
     });
@@ -114,7 +114,7 @@ describe('persist', () => {
         paths: [['a'], ['c']],
       });
 
-      s1.update({ a: 4, b: 5, c: 6 });
+      s1.set({ a: 4, b: 5, c: 6 });
 
       expect(storage.items).toStrictEqual(
         new Map([
@@ -133,7 +133,7 @@ describe('persist', () => {
         paths: ['a.*'],
       });
 
-      s1.update({ a: { x: 4, y: 2, z: 5 } });
+      s1.set({ a: { x: 4, y: 2, z: 5 } });
 
       expect(storage.items).toStrictEqual(
         new Map([
@@ -152,7 +152,7 @@ describe('persist', () => {
         paths: ['a.*'],
       });
 
-      s1.update({ a: [1, 4, 3] });
+      s1.set({ a: [1, 4, 3] });
 
       expect(storage.items).toStrictEqual(new Map([['["a",1]', '4']]));
     });
@@ -172,7 +172,7 @@ describe('persist', () => {
         paths: ['a.*'],
       });
 
-      s1.update({
+      s1.set({
         a: new Map([
           ['x', 4],
           ['y', 2],
@@ -199,7 +199,7 @@ describe('persist', () => {
         paths: ['a.*'],
       });
 
-      s1.update({
+      s1.set({
         a: new Set([1, 4, 3]),
       });
 
@@ -214,7 +214,7 @@ describe('persist', () => {
         storage,
       });
 
-      s1.update({});
+      s1.set({});
 
       expect(storage.items).toStrictEqual(new Map([['["a"]', 'undefined']]));
     });
@@ -304,7 +304,7 @@ describe('persist', () => {
         storage,
       });
 
-      s1.update({ a: 3 });
+      s1.set({ a: 3 });
       vi.runAllTimers();
       await flushPromises();
 
@@ -323,7 +323,7 @@ describe('persist', () => {
         paths: [[], ['a']],
       });
 
-      s1.update({ b: 3 });
+      s1.set({ b: 3 });
       vi.runAllTimers();
       await flushPromises();
 
@@ -342,7 +342,7 @@ describe('persist', () => {
         paths: [[], ['a']],
       });
 
-      s1.update({ a: 3 });
+      s1.set({ a: 3 });
       vi.runAllTimers();
       await flushPromises();
 
@@ -372,7 +372,7 @@ describe('persist', () => {
         storage,
       });
 
-      s1.update({ a: 2 });
+      s1.set({ a: 2 });
 
       expect(s2.get()).toStrictEqual({ a: 1 });
 
@@ -397,8 +397,8 @@ describe('persist', () => {
         storage,
       });
 
-      s1.update({ a: 2 });
-      s2.update({ a: 3 });
+      s1.set({ a: 2 });
+      s2.set({ a: 3 });
 
       expect(s1.get()).toStrictEqual({ a: 2 });
       expect(s2.get()).toStrictEqual({ a: 3 });
@@ -481,7 +481,7 @@ describe('persist', () => {
 
       for (let i = 0; i < numberUpdates; i++) {
         const s = stores[Math.abs(rand.int32()) % stores.length];
-        s?.update({ x: Math.abs(rand.int32()) % 1000 });
+        s?.set({ x: Math.abs(rand.int32()) % 1000 });
 
         vi.advanceTimersByTime(Math.abs(rand.int32()) % 10);
         await flushPromises();

@@ -1,4 +1,9 @@
 export * from './core';
 export { Cache } from './lib/cache';
 export { calcDuration } from './lib/calcDuration';
-export { arrayActions, mapActions, recordActions, setActions } from './lib/storeActions';
+export {
+  arrayMethods as arrayActions,
+  mapMethods as mapActions,
+  recordMethods as recordActions,
+  setMethods as setActions,
+} from './lib/standardMethods';

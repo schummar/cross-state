@@ -7,10 +7,9 @@ export function trackPromise<T>(promise: Promise<T>): TrackedPromise<T> {
     return promise;
   }
 
-  const promiseWithState: TrackedPromise<T> = {
-    ...promise,
+  const promiseWithState = Object.assign<Promise<T>, State<T>>(promise, {
     status: 'pending',
-  };
+  });
 
   promise.then(
     (value) => {

@@ -16,38 +16,38 @@ import { defaultEquals } from '@lib/equals';
 import { forwardError } from '@lib/forwardError';
 import { makeSelector } from '@lib/makeSelector';
 import type { Path, Value } from '@lib/path';
-import { set } from '@lib/propAccess';
-import { arrayActions, mapActions, recordActions, setActions } from '@lib/storeActions';
+import { get, set } from '@lib/propAccess';
+import { arrayMethods, mapMethods, recordMethods, setMethods } from '@lib/standardMethods';
 import { throttle } from '@lib/throttle';
 
-export type StoreActions = Record<string, (...args: any[]) => any>;
+export type StoreMethods = Record<string, (...args: any[]) => any>;
 
-export type BoundStoreActions<T, Actions extends StoreActions> = Actions &
-  ThisType<Store<T> & Actions>;
+export type BoundStoreMethods<T, Methods extends StoreMethods> = Methods &
+  ThisType<Store<T> & Methods>;
 
 export interface StoreOptions {
   retain?: number;
 }
 
-export interface StoreOptionsWithActions<T, Actions extends StoreActions> extends StoreOptions {
-  methods?: Actions & ThisType<Store<T> & Actions & StandardActions<T>>;
+export interface StoreOptionsWithMethods<T, Methods extends StoreMethods> extends StoreOptions {
+  methods?: Methods & ThisType<Store<T> & Methods & StandardMethods<T>>;
 }
 
 export type Calculate<T> = (this: { use: Use }, fns: { use: Use }) => T;
 
-type StandardActions<T> = T extends Map<any, any>
-  ? typeof mapActions
+type StandardMethods<T> = T extends Map<any, any>
+  ? typeof mapMethods
   : T extends Set<any>
-  ? typeof setActions
+  ? typeof setMethods
   : T extends Array<any>
-  ? typeof arrayActions
+  ? typeof arrayMethods
   : T extends Record<any, any>
-  ? typeof recordActions
+  ? typeof recordMethods
   : Record<string, never>;
 
-type StoreWithActions<T, Actions extends StoreActions> = Store<T> &
-  Omit<BoundStoreActions<T, Actions>, keyof Store<T>> &
-  StandardActions<T>;
+type StoreWithMethods<T, Methods extends StoreMethods> = Store<T> &
+  Omit<BoundStoreMethods<T, Methods>, keyof Store<T>> &
+  StandardMethods<T>;
 
 const noop = () => undefined;
 
@@ -101,19 +101,29 @@ export class Store<T> {
     return this._value.v;
   }
 
-  update(update: Update<T>): void {
+  set(update: Update<T>): void;
+
+  set<P extends Path<T>>(path: P, update: Update<Value<T, P>>): void;
+
+  set(...args: any[]): void {
+    const path: any = args.length > 1 ? args[0] : [];
+    let update: Update<any> = args.length > 1 ? args[1] : args[0];
+
+    if (update instanceof Function) {
+      const before = this.get();
+      const valueBefore = get(before, path);
+      const valueAfter = update(valueBefore);
+      update = set(before, path, valueAfter);
+    } else if (path.length > 0) {
+      update = set(this.get(), path, update);
+    }
+
     if (
       this.derivedFrom &&
       this.derivedFrom.selectors.every((selector) => typeof selector === 'string')
     ) {
-      const path = this.derivedFrom.selectors.join('.');
-
-      if (update instanceof Function) {
-        const before = this.get();
-        update = update(before);
-      }
-
-      this.derivedFrom.store.update((before: any) => set<any, any>(before, path, update));
+      const derivationPath = this.derivedFrom.selectors.join('.');
+      this.derivedFrom.store.set((before: any) => set<any, any>(before, derivationPath, update));
       return;
     }
 
@@ -121,10 +131,6 @@ export class Store<T> {
       throw new TypeError(
         'Can only updated computed stores that are derived from other stores using string selectors',
       );
-    }
-
-    if (update instanceof Function) {
-      update = update(this.get());
     }
 
     this._value = { v: update };
@@ -300,39 +306,39 @@ function _store<T>(
   options?: StoreOptions,
 ): Store<T>;
 // eslint-disable-next-line @typescript-eslint/ban-types
-function _store<T, Actions extends StoreActions = {}>(
+function _store<T, Methods extends StoreMethods = {}>(
   initialState: T,
-  options?: StoreOptionsWithActions<T, Actions>,
-): StoreWithActions<T, Actions>;
-function _store<T, Actions extends StoreActions>(
+  options?: StoreOptionsWithMethods<T, Methods>,
+): StoreWithMethods<T, Methods>;
+function _store<T, Methods extends StoreMethods>(
   initialState: T | ((this: { use: Use }, fns: { use: Use }) => T),
-  options?: StoreOptionsWithActions<T, Actions>,
-): StoreWithActions<T, Actions> | Store<T> {
+  options?: StoreOptionsWithMethods<T, Methods>,
+): StoreWithMethods<T, Methods> | Store<T> {
   const store = new Store(initialState, options);
 
   if (initialState instanceof Function) {
     return store;
   }
 
-  let methods: StoreActions | undefined = options?.methods;
+  let methods: StoreMethods | undefined = options?.methods;
 
   if (initialState instanceof Map) {
-    methods = { ...mapActions, ...methods };
+    methods = { ...mapMethods, ...methods };
   } else if (initialState instanceof Set) {
-    methods = { ...setActions, ...methods };
+    methods = { ...setMethods, ...methods };
   } else if (Array.isArray(initialState)) {
-    methods = { ...arrayActions, ...methods };
+    methods = { ...arrayMethods, ...methods };
   } else if (initialState instanceof Object) {
-    methods = { ...recordActions, ...methods };
+    methods = { ...recordMethods, ...methods };
   }
 
-  const boundActions = Object.fromEntries(
-    Object.entries(methods ?? ({} as BoundStoreActions<T, any>))
+  const boundMethods = Object.fromEntries(
+    Object.entries(methods ?? ({} as BoundStoreMethods<T, any>))
       .filter(([name]) => !(name in store))
       .map(([name, action]) => [name, (action as any).bind(store)]),
-  ) as BoundStoreActions<T, any>;
+  ) as BoundStoreMethods<T, any>;
 
-  return Object.assign(store, boundActions);
+  return Object.assign(store, boundMethods);
 }
 
 export const store = Object.assign(_store, { defaultOptions });

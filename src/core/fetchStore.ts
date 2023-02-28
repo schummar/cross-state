@@ -1,5 +1,4 @@
-// eslint-disable-next-line max-classes-per-file
-import type { Duration, Selector, Update, UpdateFrom, Use } from './commonTypes';
+import type { Duration, Selector, Update, Use } from './commonTypes';
 import type { ResourceGroup } from './resourceGroup';
 import { _allResources } from './resourceGroup';
 import type { StoreOptions } from './store';
@@ -51,7 +50,8 @@ export class FetchStore<T> extends Store<TrackedPromise<T>> {
         promise
           .finally(() => {
             if (this._value?.v === promise) {
-              this.staleValue.update(undefined);
+              this.staleValue.set(undefined);
+              this.notify();
             }
           })
           .catch(() => undefined);
@@ -84,28 +84,24 @@ export class FetchStore<T> extends Store<TrackedPromise<T>> {
     return value;
   }
 
-  override update(update: Update<TrackedPromise<T>> | Promise<T>): void {
+  update(update: Update<Promise<T>>): void {
     if (update instanceof Function) {
       const updateFunction = update;
 
-      return super.update((oldValue) => {
+      return super.set((oldValue) => {
         const newValue = updateFunction(oldValue);
         return trackPromise(newValue);
       });
     }
 
-    if (!(update instanceof Promise)) {
-      update = Promise.resolve(update);
-    }
-
-    super.update(trackPromise(update));
+    super.set(trackPromise(update));
   }
 
   invalidate() {
     if (this._value?.v && this._value.v.status !== 'pending') {
-      this.staleValue.update(this._value.v);
+      this.staleValue.set(this._value.v);
     } else {
-      this.staleValue.update(undefined);
+      this.staleValue.set(undefined);
     }
 
     super.reset();
@@ -187,28 +183,3 @@ export const fetchStore = Object.assign(create, {
   withArgs,
   defaultOptions,
 });
-
-const f1 = fetchStore(async () => 1);
-const _f2 = fetchStore(async function () {
-  this.use(f1);
-});
-
-class A<T> {
-  update(value: ((t: T) => T) | T) {
-    console.log(value);
-  }
-}
-
-class B<T> extends A<Promise<T>> {
-  override update(value: ((t: Promise<T>) => Promise<T>) | T | number): void {
-    console.log(value);
-  }
-}
-
-function function1<T>(a: A<T>): T {
-  return a as any;
-}
-
-function _function2<T>(b: B<T>) {
-  function1(b);
-}

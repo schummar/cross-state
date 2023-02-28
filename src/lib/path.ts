@@ -1,6 +1,6 @@
 import type {
-  Array_,
   ArrayToStringPath,
+  Array_,
   Object_,
   OptionalPropertyOf,
   StringToArrayPath,

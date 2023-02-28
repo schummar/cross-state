@@ -9,5 +9,5 @@ export function useProp<T>(
 ): [value: T, setValue: UpdateFunction<T>] {
   const value = useStore(store, options);
 
-  return [value, store.update];
+  return [value, store.set];
 }
