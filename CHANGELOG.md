@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://www.github.com/schummar/schummar-state/compare/v0.4.6...v0.5.0) (2023-02-28)
+
+
+### Features
+
+* added debounce ([51784a1](https://www.github.com/schummar/schummar-state/commit/51784a18431566fcf1357b3d561fa04bf59f091b))
+
 ### [0.4.6](https://www.github.com/schummar/schummar-state/compare/v0.4.5...v0.4.6) (2022-11-08)
 
 
