@@ -1,7 +1,7 @@
 // eslint-disable-next-line max-classes-per-file
 import seedrandom from 'seedrandom';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { store } from '../../src';
+import { createStore } from '../../src';
 import { maybeAsync } from '../../src/lib/maybeAsync';
 import type { PersistStorageWithKeys } from '../../src/persist';
 import { persist } from '../../src/persist';
@@ -82,7 +82,7 @@ class MockStorage implements PersistStorageWithKeys {
 describe('persist', () => {
   test('initialize', async () => {
     const storage = new MockStorage();
-    const s1 = store({ a: 1 });
+    const s1 = createStore({ a: 1 });
     persist(s1, {
       id: 'test',
       storage,
@@ -94,7 +94,7 @@ describe('persist', () => {
   describe('save', () => {
     test('save all', async () => {
       const storage = new MockStorage();
-      const s1 = store({ a: { b: 1 } });
+      const s1 = createStore({ a: { b: 1 } });
       persist(s1, {
         id: 'test',
         storage,
@@ -107,7 +107,7 @@ describe('persist', () => {
 
     test('save path', async () => {
       const storage = new MockStorage();
-      const s1 = store({ a: 1, b: 2, c: 3 });
+      const s1 = createStore({ a: 1, b: 2, c: 3 });
       persist(s1, {
         id: 'test',
         storage,
@@ -126,7 +126,7 @@ describe('persist', () => {
 
     test('save wildcard path', async () => {
       const storage = new MockStorage();
-      const s1 = store({ a: { x: 1, y: 2, z: 3 } });
+      const s1 = createStore({ a: { x: 1, y: 2, z: 3 } });
       persist(s1, {
         id: 'test',
         storage,
@@ -145,7 +145,7 @@ describe('persist', () => {
 
     test('save wildcard path with array', async () => {
       const storage = new MockStorage();
-      const s1 = store({ a: [1, 2, 3] });
+      const s1 = createStore({ a: [1, 2, 3] });
       persist(s1, {
         id: 'test',
         storage,
@@ -159,7 +159,7 @@ describe('persist', () => {
 
     test('save wildcard path with map', async () => {
       const storage = new MockStorage();
-      const s1 = store({
+      const s1 = createStore({
         a: new Map([
           ['x', 1],
           ['y', 2],
@@ -190,7 +190,7 @@ describe('persist', () => {
 
     test('save wildcard path with set', async () => {
       const storage = new MockStorage();
-      const s1 = store({
+      const s1 = createStore({
         a: new Set([1, 2, 3]),
       });
       persist(s1, {
@@ -208,7 +208,7 @@ describe('persist', () => {
 
     test('save removal', async () => {
       const storage = new MockStorage();
-      const s1 = store<any>({ a: { b: 1 } });
+      const s1 = createStore<any>({ a: { b: 1 } });
       persist(s1, {
         id: 'test',
         storage,
@@ -225,7 +225,7 @@ describe('persist', () => {
       const storage = new MockStorage();
       storage.items.set('["a"]', '{"b":2}');
 
-      const s1 = store({ a: { b: 1 } });
+      const s1 = createStore({ a: { b: 1 } });
       persist(s1, {
         id: 'test',
         storage,
@@ -239,7 +239,7 @@ describe('persist', () => {
       storage.items.set('["a"]', '4');
       storage.items.set('["c"]', '6');
 
-      const s1 = store({ a: 1, b: 2, c: 3 });
+      const s1 = createStore({ a: 1, b: 2, c: 3 });
       persist(s1, {
         id: 'test',
         storage,
@@ -254,7 +254,7 @@ describe('persist', () => {
       storage.items.set('["a","x"]', '4');
       storage.items.set('["a","z"]', '5');
 
-      const s1 = store({ a: { x: 1, y: 2, z: 3 } });
+      const s1 = createStore({ a: { x: 1, y: 2, z: 3 } });
       persist(s1, {
         id: 'test',
         storage,
@@ -269,7 +269,7 @@ describe('persist', () => {
       storage.items.set('["a"]', '3');
       storage.items.set('["b"]', '4');
 
-      const s1 = store({ a: 1, b: 2 });
+      const s1 = createStore({ a: 1, b: 2 });
       persist(s1, {
         id: 'test',
         storage,
@@ -283,7 +283,7 @@ describe('persist', () => {
       const storage = new MockStorage();
       storage.items.set('["a"]', 'undefined');
 
-      const s1 = store<any>({ a: { b: 1 } });
+      const s1 = createStore<any>({ a: { b: 1 } });
       persist(s1, {
         id: 'test',
         storage,
@@ -298,7 +298,7 @@ describe('persist', () => {
       const storage = new MockStorage({ get: 1 });
       storage.items.set('["a"]', '2');
 
-      const s1 = store({ a: 1 });
+      const s1 = createStore({ a: 1 });
       persist(s1, {
         id: 'test',
         storage,
@@ -316,7 +316,7 @@ describe('persist', () => {
       const storage = new MockStorage({ get: 1 });
       storage.items.set('["a"]', '2');
 
-      const s1 = store<any>({ a: 1 });
+      const s1 = createStore<any>({ a: 1 });
       persist(s1, {
         id: 'test',
         storage,
@@ -335,7 +335,7 @@ describe('persist', () => {
       const storage = new MockStorage({ get: 1 });
       storage.items.set('[]', '{"a":2}');
 
-      const s1 = store({ a: 1 });
+      const s1 = createStore({ a: 1 });
       persist(s1, {
         id: 'test',
         storage,
@@ -360,13 +360,13 @@ describe('persist', () => {
     test('sync changes across tabs', async () => {
       const storage = new MockStorage();
 
-      const s1 = store({ a: 1 });
+      const s1 = createStore({ a: 1 });
       persist(s1, {
         id: 'test',
         storage,
       });
 
-      const s2 = store({ a: 1 });
+      const s2 = createStore({ a: 1 });
       persist(s2, {
         id: 'test',
         storage,
@@ -385,13 +385,13 @@ describe('persist', () => {
     test('sync avoids conflicts', async () => {
       const storage = new MockStorage({ keys: 1, get: 1, set: 1, remove: 1 });
 
-      const s1 = store({ a: 1 });
+      const s1 = createStore({ a: 1 });
       persist(s1, {
         id: 'test',
         storage,
       });
 
-      const s2 = store({ a: 1 });
+      const s2 = createStore({ a: 1 });
       persist(s2, {
         id: 'test',
         storage,
@@ -424,21 +424,21 @@ describe('persist', () => {
     test.skip('sync avoids conflicts when updating ancestors or descendants', async () => {
       const storage = new MockStorage({ keys: 1, get: 1, set: 1, remove: 1 });
 
-      const s1 = store({ a: { b: 1, c: 1 }, d: 1 });
+      const s1 = createStore({ a: { b: 1, c: 1 }, d: 1 });
       persist(s1, {
         id: 'test',
         storage,
         paths: [[], ['a'], ['a', 'b']],
       });
 
-      const s2 = store({ a: { b: 1, c: 1 }, d: 1 });
+      const s2 = createStore({ a: { b: 1, c: 1 }, d: 1 });
       persist(s2, {
         id: 'test',
         storage,
         paths: [[], ['a'], ['a', 'b']],
       });
 
-      const s3 = store({ a: { b: 1, c: 1 }, d: 1 });
+      const s3 = createStore({ a: { b: 1, c: 1 }, d: 1 });
       persist(s3, {
         id: 'test',
         storage,
@@ -467,7 +467,7 @@ describe('persist', () => {
       const storage = new MockStorage({ keys: 1, get: 1, set: 1, remove: 1 });
 
       const stores = Array.from({ length: numberStores }, () => {
-        const s = store({ x: 1 });
+        const s = createStore({ x: 1 });
 
         persist(s, {
           id: 'test',

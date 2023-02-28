@@ -1,6 +1,6 @@
 import { shallowEqual } from 'fast-equals';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { store } from '../../src';
+import { createStore } from '../../src';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -12,29 +12,29 @@ afterEach(() => {
 
 describe('static store', () => {
   test('create store', () => {
-    const state = store(1);
+    const state = createStore(1);
     expect(state).toBeTruthy();
   });
 
   test('store.get', () => {
-    const state = store(1);
+    const state = createStore(1);
     expect(state.get()).toBe(1);
   });
 
   test('store.set', () => {
-    const state = store(1);
+    const state = createStore(1);
     state.set(2);
     expect(state.get()).toBe(2);
   });
 
   test('store.set as function', () => {
-    const state = store(1);
+    const state = createStore(1);
     state.set((a) => a + 1);
     expect(state.get()).toBe(2);
   });
 
   test('store.isActive', () => {
-    const state = store(1);
+    const state = createStore(1);
     expect(state.isActive).toBe(false);
     const cancel = state.sub(() => undefined);
     expect(state.isActive).toBe(true);
@@ -44,7 +44,7 @@ describe('static store', () => {
 
   describe('addEffect', () => {
     test('addEffect', () => {
-      const state = store(1);
+      const state = createStore(1);
       const effect = vi.fn();
       state.addEffect(effect);
       expect(effect.mock.calls.length).toBe(0);
@@ -54,7 +54,7 @@ describe('static store', () => {
     });
 
     test('store.addEffect resubscribed', () => {
-      const state = store(1);
+      const state = createStore(1);
       const effect = vi.fn();
       state.addEffect(effect);
 
@@ -66,7 +66,7 @@ describe('static store', () => {
     });
 
     test('store.addEffect cancel while on', () => {
-      const state = store(1);
+      const state = createStore(1);
       const cancelFunction = vi.fn();
       const effect = vi.fn(() => cancelFunction);
       const cancelEffect = state.addEffect(effect);
@@ -79,7 +79,7 @@ describe('static store', () => {
     });
 
     test('store.addEffect cancel while off', () => {
-      const state = store(1);
+      const state = createStore(1);
       const cancelFunction = vi.fn();
       const effect = vi.fn(() => cancelFunction);
       const cancelEffect = state.addEffect(effect);
@@ -95,7 +95,7 @@ describe('static store', () => {
 
   describe('store.subscribe', () => {
     test('store.subscribe', () => {
-      const state = store(1);
+      const state = createStore(1);
       const listener = vi.fn();
       state.sub(listener);
       state.set(2);
@@ -103,7 +103,7 @@ describe('static store', () => {
     });
 
     test('store.subscribe runNow=false', () => {
-      const state = store(1);
+      const state = createStore(1);
       const listener = vi.fn();
       state.sub(listener, { runNow: false });
 
@@ -112,7 +112,7 @@ describe('static store', () => {
     });
 
     test('store.subscribe throttle', async () => {
-      const state = store(1);
+      const state = createStore(1);
       const listener = vi.fn();
       state.sub(listener, { throttle: 2 });
       state.set(2);
@@ -128,7 +128,7 @@ describe('static store', () => {
     });
 
     test('store.subscribe debounce', async () => {
-      const state = store(1);
+      const state = createStore(1);
       const listener = vi.fn();
       state.sub(listener, { debounce: 2 });
       state.set(2);
@@ -142,7 +142,7 @@ describe('static store', () => {
     });
 
     test('store.subscribe debounce with maxWait', async () => {
-      const state = store(1);
+      const state = createStore(1);
       const listener = vi.fn();
       state.sub(listener, { debounce: { wait: 2, maxWait: 2 } });
       state.set(2);
@@ -153,7 +153,7 @@ describe('static store', () => {
     });
 
     test('store.subscribe default equals', async () => {
-      const state = store({ a: 1 });
+      const state = createStore({ a: 1 });
       const listener = vi.fn();
       state.sub(listener);
       state.set({ a: 1 });
@@ -164,7 +164,7 @@ describe('static store', () => {
     });
 
     test('store.subscribe shallowEqual', async () => {
-      const state = store({ a: 1 });
+      const state = createStore({ a: 1 });
       const listener = vi.fn();
       state.sub(listener, { equals: shallowEqual });
       state.set({ a: 1 });
@@ -172,7 +172,7 @@ describe('static store', () => {
     });
 
     test('catch error', async () => {
-      const state = store(1);
+      const state = createStore(1);
       const nextListener = vi.fn();
       state.sub(() => {
         throw new Error('error');
@@ -186,7 +186,7 @@ describe('static store', () => {
     });
 
     test('store.subscribe cancel', () => {
-      const state = store(1);
+      const state = createStore(1);
       const listener = vi.fn();
       const cancel = state.sub(listener);
       cancel();
@@ -195,7 +195,7 @@ describe('static store', () => {
     });
 
     test('store.subscribe cancel twice', () => {
-      const state = store(1);
+      const state = createStore(1);
       const listener = vi.fn();
       const cancel = state.sub(listener);
       cancel();
@@ -205,7 +205,7 @@ describe('static store', () => {
     });
 
     test('store.subscribe cancel and resubscribe', () => {
-      const state = store(1);
+      const state = createStore(1);
       const listener = vi.fn();
       const cancel = state.sub(listener);
       state.set(2);
@@ -222,7 +222,7 @@ describe('static store', () => {
     });
 
     test('store.once without condition', async () => {
-      const state = store(0);
+      const state = createStore(0);
       const value = state.once();
 
       state.set(1);
@@ -230,7 +230,7 @@ describe('static store', () => {
     });
 
     test('store.once with condition', async () => {
-      const state = store(0);
+      const state = createStore(0);
       const value = state.once((x) => x > 1);
 
       state.set(1);
@@ -239,7 +239,7 @@ describe('static store', () => {
     });
 
     test('store.once with type guard', async () => {
-      const state = store<string | number>('0');
+      const state = createStore<string | number>('0');
       const value = state.once((x): x is number => typeof x === 'number');
 
       state.set('1');

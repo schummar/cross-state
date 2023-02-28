@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { store } from '../../src';
+import { createStore } from '../../src';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -11,14 +11,14 @@ afterEach(() => {
 
 describe('mapped', () => {
   test('get', () => {
-    const dep = store(1);
+    const dep = createStore(1);
     const value = dep.map((x) => x * 2).get();
 
     expect(value).toBe(2);
   });
 
   test('get nested', () => {
-    const dep1 = store(1);
+    const dep1 = createStore(1);
     const dep2 = dep1.map((x) => x * 2);
     const value = dep2.map((x) => x * 2).get();
 
@@ -26,7 +26,7 @@ describe('mapped', () => {
   });
 
   test('subscribe', async () => {
-    const state = store(1);
+    const state = createStore(1);
     const listener = vi.fn(() => undefined);
     state.map((x) => x * 2).sub(listener);
 
@@ -39,7 +39,7 @@ describe('mapped', () => {
   });
 
   test('subscribe nested', async () => {
-    const dep1 = store(1);
+    const dep1 = createStore(1);
     const dep2 = dep1.map((x) => x * 2);
     const listener = vi.fn(() => undefined);
     dep2.map((x) => x * 2).sub(listener);
@@ -53,7 +53,7 @@ describe('mapped', () => {
   });
 
   test('update', () => {
-    const state = store({ x: 1 });
+    const state = createStore({ x: 1 });
     const mapped = state.map('x');
 
     mapped.set(2);
@@ -63,7 +63,7 @@ describe('mapped', () => {
   });
 
   test('update nested', () => {
-    const dep1 = store({ x: { y: 1 } });
+    const dep1 = createStore({ x: { y: 1 } });
     const dep2 = dep1.map('x');
     const mapped = dep2.map('y');
 
@@ -75,7 +75,7 @@ describe('mapped', () => {
   });
 
   test('update with function', () => {
-    const state = store({ x: 1 });
+    const state = createStore({ x: 1 });
     const mapped = state.map('x');
 
     mapped.set((x) => x + 1);
@@ -85,7 +85,7 @@ describe('mapped', () => {
   });
 
   test('update revalidates', () => {
-    const state = store({ x: 1 });
+    const state = createStore({ x: 1 });
     const mapped = state.map('x');
 
     mapped.get();
@@ -96,7 +96,7 @@ describe('mapped', () => {
   });
 
   test('update for non-string selector throws', () => {
-    const state = store({ x: 1 });
+    const state = createStore({ x: 1 });
     const mapped = state.map((s) => s.x);
 
     expect(() => mapped.set(2)).toThrowError(

@@ -1,6 +1,6 @@
 import { shallowEqual } from 'fast-equals';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { allResources, fetchStore, ResourceGroup, store } from '../../src';
+import { allResources, createCache, ResourceGroup, createStore } from '../../src';
 import { Cache } from '../../src/core/cache';
 import { flushPromises, getValues, sleep } from '../testHelpers';
 
@@ -14,13 +14,13 @@ afterEach(() => {
 
 describe('cache', () => {
   test('create', () => {
-    const state = fetchStore(async () => 1);
+    const state = createCache(async () => 1);
     expect(state).toBeInstanceOf(Cache);
   });
 
   describe('get', () => {
     test('get pending', async () => {
-      const state = fetchStore(async () => 1);
+      const state = createCache(async () => 1);
       expect(state.get()).toMatchObject({
         status: 'pending',
         isStale: true,
@@ -29,7 +29,7 @@ describe('cache', () => {
     });
 
     test('get updating', async () => {
-      const state = fetchStore(async () => 1);
+      const state = createCache(async () => 1);
       state.get();
       expect(state.get()).toMatchObject({
         status: 'pending',
@@ -42,7 +42,7 @@ describe('cache', () => {
 
   describe('fetch', () => {
     test('fetch', async () => {
-      const state = fetchStore(async () => 1);
+      const state = createCache(async () => 1);
       expect(state.fetch()).toBeInstanceOf(Promise);
 
       await flushPromises();
@@ -50,7 +50,7 @@ describe('cache', () => {
     });
 
     test('fetch with error', async () => {
-      const state = fetchStore(async () => {
+      const state = createCache(async () => {
         throw new Error('error');
       });
 
@@ -61,7 +61,7 @@ describe('cache', () => {
 
   describe('sub', () => {
     test('simple', async () => {
-      const state = fetchStore(async () => 1);
+      const state = createCache(async () => 1);
       const listener = vi.fn();
       state.sub(listener);
       expect(listener.mock.calls.length).toBe(1);
@@ -96,7 +96,7 @@ describe('cache', () => {
     });
 
     test('when the actions throws an error', async () => {
-      const state = fetchStore(async () => {
+      const state = createCache(async () => {
         throw new Error('error');
       });
       const listener = vi.fn();
@@ -111,7 +111,7 @@ describe('cache', () => {
     });
 
     test('with runNow=false', async () => {
-      const state = fetchStore(async () => 1);
+      const state = createCache(async () => 1);
       const listener = vi.fn();
       state.map('value').sub(listener, { runNow: false });
       expect(getValues(listener).length).toBe(0);
@@ -121,7 +121,7 @@ describe('cache', () => {
     });
 
     test('with throttle', async () => {
-      const state = fetchStore(async () => 1);
+      const state = createCache(async () => 1);
       const listener = vi.fn();
       state.map('value').sub(listener, { throttle: 2 });
       state.setValue(2);
@@ -133,7 +133,7 @@ describe('cache', () => {
     });
 
     test('with default equals', async () => {
-      const state = fetchStore(async () => [1]);
+      const state = createCache(async () => [1]);
       const listener = vi.fn();
       state.map('value', { disableProxy: true }).sub(listener);
       await flushPromises();
@@ -143,7 +143,7 @@ describe('cache', () => {
     });
 
     test('with shallowEqual', async () => {
-      const state = fetchStore(async () => [1]);
+      const state = createCache(async () => [1]);
       const listener = vi.fn();
       state.map('value', { disableProxy: true }).sub(listener, { equals: shallowEqual });
       await flushPromises();
@@ -153,12 +153,12 @@ describe('cache', () => {
     });
 
     test('with dependencies', async () => {
-      const dep1 = store(1);
-      const dep2 = fetchStore(async () => {
+      const dep1 = createStore(1);
+      const dep2 = createCache(async () => {
         await sleep(1);
         return 10;
       });
-      const state = fetchStore(async function () {
+      const state = createCache(async function () {
         return this.use(dep1) + (await this.useFetch(dep2)) + 100;
       });
       const listener = vi.fn();
@@ -186,12 +186,12 @@ describe('cache', () => {
     });
 
     test('cancel depdendencies', async () => {
-      const dep1 = store(1);
-      const dep2 = fetchStore(async () => {
+      const dep1 = createStore(1);
+      const dep2 = createCache(async () => {
         await sleep(1);
         return 10;
       });
-      const state = fetchStore(async function () {
+      const state = createCache(async function () {
         return this.use(dep1) + (this.use(dep2).value ?? 0) + 100;
       });
 
@@ -210,7 +210,7 @@ describe('cache', () => {
 describe('resourceGroup', () => {
   describe('allResources', () => {
     test('invalidateAll', async () => {
-      const state = fetchStore(async () => 1);
+      const state = createCache(async () => 1);
       await state.fetch();
 
       expect(state.get().isStale).toBe(false);
@@ -220,7 +220,7 @@ describe('resourceGroup', () => {
     });
 
     test('clearAll', async () => {
-      const state = fetchStore(async () => 1);
+      const state = createCache(async () => 1);
       await state.fetch();
 
       expect(state.get().value).toBe(1);
@@ -233,7 +233,7 @@ describe('resourceGroup', () => {
   describe('custom resourceGroup', () => {
     test('invalidateAll', async () => {
       const resourceGroup = new ResourceGroup();
-      const state = fetchStore(async () => 1, { resourceGroup });
+      const state = createCache(async () => 1, { resourceGroup });
       await state.fetch();
 
       expect(state.get().isStale).toBe(false);
@@ -244,7 +244,7 @@ describe('resourceGroup', () => {
 
     test('clearAll', async () => {
       const resourceGroup = new ResourceGroup();
-      const state = fetchStore(async () => 1, { resourceGroup });
+      const state = createCache(async () => 1, { resourceGroup });
       await state.fetch();
 
       expect(state.get().value).toBe(1);

@@ -1,11 +1,11 @@
 import { act, render, screen } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
-import { store } from '../../src';
+import { createStore } from '../../src';
 import { useProp } from '../../src/react';
 
 describe('useProp', () => {
   test('get and set value', async () => {
-    const s = store({ x: 0 });
+    const s = createStore({ x: 0 });
 
     const Component = vi.fn<[], any>(function Component() {
       const [v, setV] = useProp(s.map('x'));
@@ -29,7 +29,7 @@ describe('useProp', () => {
   });
 
   test('throws when not using a string selector', async () => {
-    const s = store({ x: 0 });
+    const s = createStore({ x: 0 });
 
     const Component = vi.fn<[], any>(function Component() {
       const [v, setV] = useProp(s.map((state) => state.x));

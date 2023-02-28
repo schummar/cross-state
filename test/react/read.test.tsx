@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import React, { Suspense } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { fetchStore } from '../../src';
+import { createCache } from '../../src';
 import { read } from '../../src/react';
 
 const originalError = console.error;
@@ -43,7 +43,7 @@ class ErrorBoundary extends React.Component<{ children: ReactNode }> {
 
 describe('read', () => {
   test('read returns plain value when value is resolved', async () => {
-    const s = fetchStore(async () => ({ x: 0 }));
+    const s = createCache(async () => ({ x: 0 }));
     await s.get();
 
     const Component = vi.fn<[], any>(function Component() {
@@ -62,7 +62,7 @@ describe('read', () => {
   });
 
   test('read throws promise while value is pending', async () => {
-    const s = fetchStore(
+    const s = createCache(
       async () =>
         new Promise<{ x: number }>(() => {
           // never resolve
@@ -87,7 +87,7 @@ describe('read', () => {
   test('read throws error when value is rejected', async () => {
     console.error = () => undefined;
 
-    const s = fetchStore(async () => {
+    const s = createCache(async () => {
       throw new Error('error');
     });
     await s.get().catch(() => undefined);

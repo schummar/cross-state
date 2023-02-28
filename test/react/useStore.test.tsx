@@ -1,7 +1,7 @@
 import { act, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, test, vi } from 'vitest';
-import { fetchStore, store } from '../../src';
+import { createCache, createStore } from '../../src';
 import { useStore } from '../../src/react';
 import { flushPromises } from '../testHelpers';
 
@@ -25,7 +25,7 @@ describe('useStore', () => {
     c('array.length', [1, 2, 3], [1, 2, 3, 4], [1, 2, 4], (s) => s.length),
   ])('%s', (_name, before, after1, after2, select) => {
     test('changed', async () => {
-      const s = store(before);
+      const s = createStore(before);
 
       const Component = vi.fn<[], any>(function Component() {
         const v = useStore(s.map(select));
@@ -45,7 +45,7 @@ describe('useStore', () => {
     });
 
     test('same', async () => {
-      const s = store(before);
+      const s = createStore(before);
 
       const Component = vi.fn<[], any>(function Component() {
         const v = useStore(s.map(select));
@@ -65,7 +65,7 @@ describe('useStore', () => {
     });
 
     test('same without selector', async () => {
-      const s = store(before);
+      const s = createStore(before);
 
       const Component = vi.fn<[], any>(function Component() {
         const v = useStore(s);
@@ -86,7 +86,7 @@ describe('useStore', () => {
   });
 
   test('only watch value', async () => {
-    const s = fetchStore(async () => 1);
+    const s = createCache(async () => 1);
 
     const Component = vi.fn<[], any>(function Component() {
       const { value } = useStore(s);
@@ -107,7 +107,7 @@ describe('useStore', () => {
   });
 
   test('primitive/object union', async () => {
-    const s = store<{ a: string } | string>({ a: 'a' });
+    const s = createStore<{ a: string } | string>({ a: 'a' });
 
     const Component = vi.fn<[], any>(function Component() {
       const value = useStore(s);
