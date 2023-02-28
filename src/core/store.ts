@@ -54,9 +54,7 @@ const noop = () => undefined;
 export class Store<T> {
   protected _value?: { v: T };
 
-  protected listeners = new Set<Listener>();
-
-  protected passiveListeners = new Set<Listener>();
+  protected listeners = new Map<Listener, boolean>();
 
   protected effects = new Map<
     Effect,
@@ -180,10 +178,8 @@ export class Store<T> {
       innerListener = throttle(innerListener, calcDuration(throttleOption));
     }
 
-    if (passive) {
-      this.passiveListeners.add(innerListener);
-    } else {
-      this.listeners.add(innerListener);
+    this.listeners.set(innerListener, passive ?? false);
+    if (!passive) {
       this.onSubscribe();
     }
 
@@ -192,13 +188,35 @@ export class Store<T> {
     }
 
     return () => {
-      if (passive) {
-        this.passiveListeners.delete(innerListener);
-      } else {
-        this.listeners.delete(innerListener);
+      this.listeners.delete(innerListener);
+      if (!passive) {
         this.onUnsubscribe();
       }
     };
+  }
+
+  once<S extends T>(condition: (value: T) => value is S): Promise<S>;
+
+  once(condition?: (value: T) => boolean): Promise<T>;
+
+  once(condition: (value: T) => boolean = (value) => !!value): Promise<any> {
+    return new Promise<T>((resolve) => {
+      let stopped = false;
+      const cancel = this.sub(
+        (value) => {
+          if (stopped || (condition && !condition(value))) {
+            return;
+          }
+
+          resolve(value);
+          stopped = true;
+          setTimeout(() => cancel());
+        },
+        {
+          runNow: !!condition,
+        },
+      );
+    });
   }
 
   map<S>(selector: Selector<T, S>, options?: UseOptions): Store<S>;
@@ -252,7 +270,7 @@ export class Store<T> {
   }
 
   protected onSubscribe() {
-    if (this.listeners.size > 1) return;
+    if ([...this.listeners.values()].filter(Boolean).length > 1) return;
 
     for (const [effect, { handle, retain, timeout }] of this.effects.entries()) {
       if (timeout !== undefined) {
@@ -268,7 +286,7 @@ export class Store<T> {
   }
 
   protected onUnsubscribe() {
-    if (this.listeners.size > 0) return;
+    if ([...this.listeners.values()].some(Boolean)) return;
 
     for (const [effect, { handle, retain, timeout }] of this.effects.entries()) {
       if (!retain) {
@@ -291,7 +309,7 @@ export class Store<T> {
     const n = {};
     this.notifyId = n;
 
-    const snapshot = [...this.listeners, ...this.passiveListeners];
+    const snapshot = [...this.listeners.keys()];
     for (const listener of snapshot) {
       listener();
       if (n !== this.notifyId) break;

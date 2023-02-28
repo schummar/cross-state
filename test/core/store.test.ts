@@ -195,5 +195,31 @@ describe('static store', () => {
         [4, 3],
       ]);
     });
+
+    test('store.once without condition', async () => {
+      const state = store(0);
+      const value = state.once();
+
+      state.set(1);
+      await expect(value).resolves.toBe(1);
+    });
+
+    test('store.once with condition', async () => {
+      const state = store(0);
+      const value = state.once((x) => x > 1);
+
+      state.set(1);
+      state.set(2);
+      await expect(value).resolves.toBe(2);
+    });
+
+    test('store.once with type guard', async () => {
+      const state = store<string | number>('0');
+      const value = state.once((x): x is number => typeof x === 'number');
+
+      state.set('1');
+      state.set(2);
+      await expect(value).resolves.toBe(2);
+    });
   });
 });
