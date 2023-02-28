@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
+import { DebounceOptions } from '../helpers/debounce';
 import { createSelector, SelectorPaths, SelectorValue } from '../helpers/stringSelector';
 import { Store } from './store';
 
-export type UseStoreStateOptions = { throttle?: number };
+export type UseStoreStateOptions = { throttle?: number; debounce?: number | DebounceOptions };
 
 export function useStoreState<T>(store: Store<T>, options?: UseStoreStateOptions): T;
 export function useStoreState<T, S>(store: Store<T>, selector: (state: T) => S, dependencies?: any[], options?: UseStoreStateOptions): S;
@@ -12,7 +13,7 @@ export function useStoreState<T, K extends SelectorPaths<T>>(
   options?: UseStoreStateOptions
 ): SelectorValue<T, K>;
 export function useStoreState<T, S>(store: Store<T>, ...args: any[]): S {
-  let selector: (state: T) => S, deps: any[], options: { throttle?: number };
+  let selector: (state: T) => S, deps: any[], options: { throttle?: number; debounce?: number };
 
   if (args[0] instanceof Function) {
     selector = args[0];
@@ -37,7 +38,12 @@ export function useStoreState<T, S>(store: Store<T>, ...args: any[]): S {
   // The third parameter of subscribe means that it emit and update right after subscription. I think this is important
   // because between evaluating in useMemo and running the effect some time passes, so we can't be sure the value hasn't changed in between.
   useEffect(
-    () => store.subscribe(selector, () => setCounter((c) => c + 1), { runNow: true, throttle: options.throttle }),
+    () =>
+      store.subscribe(selector, () => setCounter((c) => c + 1), {
+        runNow: true,
+        throttle: options.throttle,
+        debounce: options.debounce,
+      }),
     [store, ...deps]
   );
 

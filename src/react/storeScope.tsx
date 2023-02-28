@@ -29,8 +29,8 @@ export class StoreScope<T> {
     return useContext(this.context);
   }
 
-  useState(options?: { throttle?: number }): T;
-  useState<S>(selector: (state: T) => S, dependencies?: any[], options?: { throttle?: number }): S;
+  useState(options?: UseStoreStateOptions): T;
+  useState<S>(selector: (state: T) => S, dependencies?: any[], options?: UseStoreStateOptions): S;
   useState<K extends SelectorPaths<T>>(selector: K, options?: UseStoreStateOptions): SelectorValue<T, K>;
   useState(...args: any[]): any {
     const store = this.useStore();

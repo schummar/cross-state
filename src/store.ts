@@ -1,5 +1,6 @@
 import { circularDeepEqual } from 'fast-equals';
 import { applyPatches, Draft, enableMapSet, enablePatches, freeze, Patch, produce } from 'immer';
+import { debounce as debounceFn, DebounceOptions } from './helpers/debounce';
 import { Cancel } from './helpers/misc';
 import { throttle as throttleFn } from './helpers/throttle';
 
@@ -62,9 +63,9 @@ export class Store<T> {
   subscribe<S>(
     selector: (state: T) => S,
     listener: (value: S, prev: S | undefined, state: T) => void,
-    { runNow = true, throttle = 0 } = {}
+    { runNow = true, throttle = 0, debounce = 0 as number | DebounceOptions } = {}
   ): Cancel {
-    const throttledListener = throttle ? throttleFn(listener, throttle) : listener;
+    const throttledListener = throttle ? throttleFn(listener, throttle) : debounce ? debounceFn(listener, debounce) : listener;
 
     let value = selector(this.state);
 

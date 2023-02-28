@@ -1,4 +1,5 @@
 import { Draft, enableMapSet } from 'immer';
+import { DebounceOptions } from './helpers/debounce';
 import { hash } from './helpers/hash';
 import { Cancel } from './helpers/misc';
 import retry from './helpers/retry';
@@ -240,7 +241,7 @@ export class Action<Arg, Value> {
   subscribe(
     arg: Arg,
     listener: (value: Value | undefined, state: { error?: unknown; isLoading: boolean }, instance: Instance<Arg, Value>) => void,
-    { runNow, throttle }: { runNow?: boolean; throttle?: number } = {}
+    { runNow, throttle, debounce }: { runNow?: boolean; throttle?: number; debounce?: number | DebounceOptions } = {}
   ): Cancel {
     const key = hash(arg);
     return this.cache.subscribe(
@@ -254,7 +255,7 @@ export class Action<Arg, Value> {
           },
           instance
         ),
-      { runNow, throttle }
+      { runNow, throttle, debounce }
     );
   }
 

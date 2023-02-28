@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { DebounceOptions } from '../helpers/debounce';
 import { Action } from './action';
 import useEqualityRef from './useEqualityRef';
 
@@ -13,6 +14,7 @@ export type UseActionOptions = {
   dormant?: boolean;
   /** */
   throttle?: number;
+  debounce?: number | DebounceOptions;
 };
 
 export type UseActionReturn<Value> = [Value | undefined, { error?: unknown; isLoading: boolean }];
@@ -24,7 +26,7 @@ const ignore = () => {
 export function useAction<Arg, Value>(
   action: Action<Arg, Value>,
   arg: Arg,
-  { watchOnly, updateOnMount, clearBeforeUpdate, dormant, throttle }: UseActionOptions = {}
+  { watchOnly, updateOnMount, clearBeforeUpdate, dormant, throttle, debounce }: UseActionOptions = {}
 ): UseActionReturn<Value> {
   // This counter is incremented when the action notifies about changes, in order to trigger another render
   const [counter, setCounter] = useState(0);
@@ -46,9 +48,9 @@ export function useAction<Arg, Value>(
         setCounter((c) => c + 1);
         if (!watchOnly) action.get(arg).catch(ignore);
       },
-      { runNow: true, throttle }
+      { runNow: true, throttle, debounce }
     );
-  }, [action, useEqualityRef(arg), watchOnly, dormant, throttle]);
+  }, [action, useEqualityRef(arg), watchOnly, dormant, throttle, debounce]);
 
   // This value therefore updates when either the action changes or the action notifies
 

@@ -1,9 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import test from 'ava';
 import React, { ReactNode, useEffect, useState } from 'react';
+import { DebounceOptions } from '../../src/helpers/debounce';
 import { sleep } from '../../src/helpers/misc';
 import { Store } from '../../src/react';
-import { UseStorePropResult } from '../../src/react/useStoreProp';
 
 function Simple({ useValue }: { useValue: () => ReactNode }) {
   const value = useValue();
@@ -36,8 +36,16 @@ function WithProp({ useProp }: { useProp: () => [value: number, update: (value: 
   );
 }
 
-function NoSelector({ store, throttle }: { store: Store<{ foo: number }>; throttle?: number }) {
-  const value = store.useState(throttle ? { throttle } : undefined);
+function NoSelector({
+  store,
+  throttle,
+  debounce,
+}: {
+  store: Store<{ foo: number }>;
+  throttle?: number;
+  debounce?: number | DebounceOptions;
+}) {
+  const value = store.useState({ throttle, debounce });
 
   return <div data-testid="div">{JSON.stringify(value)}</div>;
 }
@@ -157,6 +165,57 @@ test.serial('throttled', async (t) => {
   t.is(div.textContent, '2');
 
   await sleep(125);
+  t.is(div.textContent, '4');
+});
+
+test.serial('debounced', async (t) => {
+  const store = new Store({ foo: 1 });
+
+  render(<Simple useValue={() => store.useState((state) => state.foo, undefined, { debounce: 100 })} />);
+  const div = screen.getByTestId('div');
+
+  store.update((s) => {
+    s.foo++;
+  });
+  await Promise.resolve();
+  t.is(div.textContent, '1');
+
+  store.update((s) => {
+    s.foo++;
+  });
+  await Promise.resolve();
+
+  store.update((s) => {
+    s.foo++;
+  });
+  await Promise.resolve();
+  t.is(div.textContent, '1');
+
+  await sleep(125);
+  t.is(div.textContent, '4');
+});
+
+test.serial('debounced with maxWait', async (t) => {
+  const store = new Store({ foo: 1 });
+
+  render(<Simple useValue={() => store.useState((state) => state.foo, undefined, { debounce: { wait: 100, maxWait: 200 } })} />);
+  const div = screen.getByTestId('div');
+
+  store.update((s) => {
+    s.foo++;
+  });
+  await sleep(75);
+
+  store.update((s) => {
+    s.foo++;
+  });
+  await sleep(75);
+
+  store.update((s) => {
+    s.foo++;
+  });
+  await sleep(75);
+
   t.is(div.textContent, '4');
 });
 

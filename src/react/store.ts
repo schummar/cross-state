@@ -4,7 +4,7 @@ import { useStoreProp, UseStorePropResult } from './useStoreProp';
 import { useStoreState, UseStoreStateOptions } from './useStoreState';
 
 export class Store<T> extends BaseStore<T> {
-  useState(options?: { throttle?: number }): T;
+  useState(options?: UseStoreStateOptions): T;
   useState<S>(selector: (state: T) => S, dependencies?: any[], options?: UseStoreStateOptions): S;
   useState<K extends SelectorPaths<T>>(selector: K, options?: UseStoreStateOptions): SelectorValue<T, K>;
   useState(...args: any[]): any {
