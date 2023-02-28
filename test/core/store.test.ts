@@ -127,6 +127,31 @@ describe('static store', () => {
       ]);
     });
 
+    test('store.subscribe debounce', async () => {
+      const state = store(1);
+      const listener = vi.fn();
+      state.sub(listener, { debounce: 2 });
+      state.set(2);
+      vi.advanceTimersByTime(1);
+      state.set(3);
+      vi.advanceTimersByTime(1);
+      expect(listener.mock.calls).toMatchObject([]);
+
+      vi.advanceTimersByTime(1);
+      expect(listener.mock.calls).toMatchObject([[3, undefined]]);
+    });
+
+    test('store.subscribe debounce with maxWait', async () => {
+      const state = store(1);
+      const listener = vi.fn();
+      state.sub(listener, { debounce: { wait: 2, maxWait: 2 } });
+      state.set(2);
+      vi.advanceTimersByTime(1);
+      state.set(3);
+      vi.advanceTimersByTime(1);
+      expect(listener.mock.calls).toMatchObject([[3, undefined]]);
+    });
+
     test('store.subscribe default equals', async () => {
       const state = store({ a: 1 });
       const listener = vi.fn();

@@ -1,10 +1,10 @@
 import { afterEach, assert, beforeEach, describe, expect, test, vi } from 'vitest';
-import { Cache } from '../../src/lib/cache';
+import { InstanceCache } from '../../src/lib/instanceCache';
 import { sleep } from '../testHelpers';
 
 beforeEach(() => {
   vi.useFakeTimers();
-  vi.spyOn(Cache.prototype, 'now' as any).mockImplementation(() => Date.now());
+  vi.spyOn(InstanceCache.prototype, 'now' as any).mockImplementation(() => Date.now());
 });
 
 afterEach(() => {
@@ -12,9 +12,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('cache', () => {
+describe('instanceCache', () => {
   test('create', async () => {
-    const cache = new Cache(() => ({}), 1);
+    const cache = new InstanceCache(() => ({}), 1);
 
     expect(cache).toBeInstanceOf(Object);
     expect(cache.stop).toBeInstanceOf(Function);
@@ -24,7 +24,7 @@ describe('cache', () => {
 
   test('get', async () => {
     const factory = vi.fn((key: number) => ({ key }));
-    const cache = new Cache(factory, 1);
+    const cache = new InstanceCache(factory, 1);
 
     const v1 = cache.get(1);
     const v2 = cache.get(2);
@@ -38,7 +38,7 @@ describe('cache', () => {
       vi.stubGlobal('WeakRef', undefined);
 
       const factory = vi.fn(() => ({}));
-      const cache = new Cache(factory, 2);
+      const cache = new InstanceCache(factory, 2);
 
       const first = cache.get();
       vi.advanceTimersByTime(1);
@@ -52,7 +52,7 @@ describe('cache', () => {
 
     test('keeping ref', async () => {
       const factory = vi.fn(() => ({}));
-      const cache = new Cache(factory, 1);
+      const cache = new InstanceCache(factory, 1);
 
       const first = cache.get();
       vi.advanceTimersByTime(1000);
@@ -66,7 +66,7 @@ describe('cache', () => {
 
     test('with no cacheTime', async () => {
       const factory = vi.fn(() => ({}));
-      const cache = new Cache(factory);
+      const cache = new InstanceCache(factory);
 
       cache.get();
       vi.advanceTimersByTime(1000);
@@ -86,7 +86,7 @@ describe('cache', () => {
         count++;
         return {};
       };
-      const cache = new Cache(factory, 1);
+      const cache = new InstanceCache(factory, 1);
       cache.get();
       expect(count).toBe(1);
       expect(cache.stats()).toEqual({ count: 1, withRef: 1, withWeakRef: 1 });
@@ -110,7 +110,7 @@ describe('cache', () => {
       vi.stubGlobal('WeakRef', undefined);
 
       const factory = vi.fn(() => ({}));
-      const cache = new Cache(factory, 1);
+      const cache = new InstanceCache(factory, 1);
 
       const first = cache.get();
       vi.advanceTimersByTime(2);
@@ -125,7 +125,7 @@ describe('cache', () => {
 
   test('stop', async () => {
     const factory = vi.fn(() => ({}));
-    const cache = new Cache(factory, 1);
+    const cache = new InstanceCache(factory, 1);
 
     cache.stop();
     cache.get();
@@ -136,7 +136,7 @@ describe('cache', () => {
 
   test('values', async () => {
     const factory = vi.fn((key: number) => ({ key }));
-    const cache = new Cache(factory, 1000);
+    const cache = new InstanceCache(factory, 1000);
 
     const valuesBefore = cache.values();
     cache.get(1);

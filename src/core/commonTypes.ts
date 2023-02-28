@@ -1,4 +1,5 @@
 import type { Store } from './store';
+import type { DebounceOptions } from '@lib/debounce';
 
 export interface Listener<T = void> {
   (value: T, previouseValue?: T): void;
@@ -24,6 +25,8 @@ export interface SubscribeOptions {
    * subscribe(callback, { throttle: { seconds: 10 } }); // Will execute immediately and then at least 10 seconds havbe to pass. If the store changed during those 10 seconds, the callback will be executed again.
    */
   throttle?: Duration;
+  /** If set, callback execution is delayed. */
+  debounce?: DebounceOptions;
   /** Provide a custom equality function. By default a strict equals (===) will be used.
    */
   equals?: (a: any, b: any) => boolean;

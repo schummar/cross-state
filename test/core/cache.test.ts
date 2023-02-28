@@ -1,7 +1,7 @@
 import { shallowEqual } from 'fast-equals';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { allResources, fetchStore, ResourceGroup, store } from '../../src';
-import { FetchStore } from '../../src/core/fetchStore';
+import { Cache } from '../../src/core/cache';
 import { flushPromises, getValues, sleep } from '../testHelpers';
 
 beforeEach(() => {
@@ -12,10 +12,10 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('dynamic store', () => {
+describe('cache', () => {
   test('create', () => {
     const state = fetchStore(async () => 1);
-    expect(state).toBeInstanceOf(FetchStore);
+    expect(state).toBeInstanceOf(Cache);
   });
 
   describe('get', () => {
@@ -30,7 +30,7 @@ describe('dynamic store', () => {
 
     test('get updating', async () => {
       const state = fetchStore(async () => 1);
-      state.fetch();
+      state.get();
       expect(state.get()).toMatchObject({
         status: 'pending',
         isStale: true,

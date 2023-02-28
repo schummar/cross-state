@@ -1,7 +1,12 @@
+import { calcDuration } from './calcDuration';
+import type { Duration } from '@core';
+
 export function throttle<Args extends any[]>(
   action: (...args: Args) => void,
-  ms: number,
+  duration: Duration,
 ): (...args: Args) => void {
+  const ms = calcDuration(duration);
+
   let t = 0;
   let timeout: ReturnType<typeof setTimeout> | undefined;
 

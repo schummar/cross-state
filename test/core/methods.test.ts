@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'vitest';
-import { store } from '../../src/core/store';
+import { createStore } from '../../src/core/store';
 import { immerActions } from '../../src/immer';
 
 describe('store methods', () => {
   describe('map actions', () => {
     test('set', () => {
-      const state = store(new Map([['x', { x: 1 }]]));
+      const state = createStore(new Map([['x', { x: 1 }]]));
 
       state.set('y', { x: 2 });
       expect(state.get()).toEqual(
@@ -17,14 +17,14 @@ describe('store methods', () => {
     });
 
     test('delete', () => {
-      const state = store(new Map([['x', 1]]));
+      const state = createStore(new Map([['x', 1]]));
 
       state.delete('x');
       expect(state.get()).toEqual(new Map());
     });
 
     test('clear', () => {
-      const state = store(new Map([['x', 1]]));
+      const state = createStore(new Map([['x', 1]]));
 
       state.clear();
       expect(state.get()).toEqual(new Map());
@@ -33,21 +33,21 @@ describe('store methods', () => {
 
   describe('set actions', () => {
     test('add', () => {
-      const state = store(new Set([{ x: 1 }]));
+      const state = createStore(new Set([{ x: 1 }]));
 
       state.add({ x: 2 });
       expect(state.get()).toEqual(new Set([{ x: 1 }, { x: 2 }]));
     });
 
     test('delete', () => {
-      const state = store(new Set([1]));
+      const state = createStore(new Set([1]));
 
       state.delete(1);
       expect(state.get()).toEqual(new Set());
     });
 
     test('clear', () => {
-      const state = store(new Set([1]));
+      const state = createStore(new Set([1]));
 
       state.clear();
       expect(state.get()).toEqual(new Set());
@@ -56,49 +56,49 @@ describe('store methods', () => {
 
   describe('array actions', () => {
     test('push', () => {
-      const state = store([{ x: 1 }]);
+      const state = createStore([{ x: 1 }]);
 
       state.push({ x: 2 });
       expect(state.get()).toEqual([{ x: 1 }, { x: 2 }]);
     });
 
     test('pop', () => {
-      const state = store([1]);
+      const state = createStore([1]);
 
       state.pop();
       expect(state.get()).toEqual([]);
     });
 
     test('shift', () => {
-      const state = store([1]);
+      const state = createStore([1]);
 
       state.shift();
       expect(state.get()).toEqual([]);
     });
 
     test('unshift', () => {
-      const state = store([1]);
+      const state = createStore([1]);
 
       state.unshift(2);
       expect(state.get()).toEqual([2, 1]);
     });
 
     test('reverse', () => {
-      const state = store([1, 2]);
+      const state = createStore([1, 2]);
 
       state.reverse();
       expect(state.get()).toEqual([2, 1]);
     });
 
     test('sort', () => {
-      const state = store([2, 1]);
+      const state = createStore([2, 1]);
 
       state.sort();
       expect(state.get()).toEqual([1, 2]);
     });
 
     test('splice', () => {
-      const state = store([1, 2]);
+      const state = createStore([1, 2]);
 
       state.splice(0, 1, 3);
       expect(state.get()).toEqual([3, 2]);
@@ -107,28 +107,28 @@ describe('store methods', () => {
 
   describe('record actions', () => {
     test('set', () => {
-      const state = store({ x: 1 });
+      const state = createStore({ x: 1 });
 
       state.set('x', 2);
       expect(state.get()).toEqual({ x: 2 });
     });
 
     test('set with function', () => {
-      const state = store({ x: 1 });
+      const state = createStore({ x: 1 });
 
       state.set('x', (x) => x + 1);
       expect(state.get()).toEqual({ x: 2 });
     });
 
     test('delete', () => {
-      const state = store<{ x?: number }>({ x: 1 });
+      const state = createStore<{ x?: number }>({ x: 1 });
 
       state.delete('x');
       expect(state.get()).toEqual({});
     });
 
     test('clear', () => {
-      const state = store<{ x?: number }>({ x: 1 });
+      const state = createStore<{ x?: number }>({ x: 1 });
 
       state.clear();
       expect(state.get()).toEqual({});
@@ -136,7 +136,7 @@ describe('store methods', () => {
   });
 
   test('custom reducer', () => {
-    const state = store(
+    const state = createStore(
       { x: 1 },
       {
         methods: {
@@ -153,7 +153,7 @@ describe('store methods', () => {
   });
 
   test('nested customer reducers', () => {
-    const state = store(
+    const state = createStore(
       { x: 1 },
       {
         methods: {
@@ -174,7 +174,7 @@ describe('store methods', () => {
   });
 
   test('custom reducer and record actions', () => {
-    const state = store(
+    const state = createStore(
       { x: 1 },
       {
         methods: {
@@ -191,7 +191,7 @@ describe('store methods', () => {
   });
 
   test('custom reducer and record actions and immer actions', () => {
-    const state = store(
+    const state = createStore(
       { x: 1 },
       {
         methods: {

@@ -12,6 +12,7 @@ import type {
 import { bind } from '@lib/bind';
 import { calcDuration } from '@lib/calcDuration';
 import { CalculationHelper } from '@lib/calculationHelper';
+import { debounce } from '@lib/debounce';
 import { defaultEquals } from '@lib/equals';
 import { forwardError } from '@lib/forwardError';
 import { makeSelector } from '@lib/makeSelector';
@@ -148,6 +149,7 @@ export class Store<T> {
       passive,
       runNow = true,
       throttle: throttleOption,
+      debounce: debounceOption,
       equals = defaultEquals,
     } = options ?? {};
 
@@ -175,7 +177,9 @@ export class Store<T> {
     };
 
     if (throttleOption) {
-      innerListener = throttle(innerListener, calcDuration(throttleOption));
+      innerListener = throttle(innerListener, throttleOption);
+    } else if (debounceOption) {
+      innerListener = debounce(innerListener, debounceOption);
     }
 
     this.listeners.set(innerListener, passive ?? false);
@@ -319,16 +323,16 @@ export class Store<T> {
 
 const defaultOptions: StoreOptions = {};
 
-function _store<T>(
+function create<T>(
   calculate: (this: { use: Use }, fns: { use: Use }) => T,
   options?: StoreOptions,
 ): Store<T>;
 // eslint-disable-next-line @typescript-eslint/ban-types
-function _store<T, Methods extends StoreMethods = {}>(
+function create<T, Methods extends StoreMethods = {}>(
   initialState: T,
   options?: StoreOptionsWithMethods<T, Methods>,
 ): StoreWithMethods<T, Methods>;
-function _store<T, Methods extends StoreMethods>(
+function create<T, Methods extends StoreMethods>(
   initialState: T | ((this: { use: Use }, fns: { use: Use }) => T),
   options?: StoreOptionsWithMethods<T, Methods>,
 ): StoreWithMethods<T, Methods> | Store<T> {
@@ -359,4 +363,4 @@ function _store<T, Methods extends StoreMethods>(
   return Object.assign(store, boundMethods);
 }
 
-export const store = Object.assign(_store, { defaultOptions });
+export const createStore = Object.assign(create, { defaultOptions });

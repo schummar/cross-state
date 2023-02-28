@@ -1,5 +1,5 @@
 export * from './core';
-export { Cache } from './lib/cache';
+export { InstanceCache as Cache } from './lib/instanceCache';
 export { calcDuration } from './lib/calcDuration';
 export {
   arrayMethods as arrayActions,

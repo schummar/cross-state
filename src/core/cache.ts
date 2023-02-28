@@ -1,38 +1,40 @@
 import type { Duration, Selector, Update, Use } from './commonTypes';
 import type { ResourceGroup } from './resourceGroup';
-import { _allResources } from './resourceGroup';
+import { allResources } from './resourceGroup';
 import type { StoreOptions } from './store';
-import { store, Store } from './store';
-import { Cache } from '@lib/cache';
+import { createStore, Store } from './store';
 import { calcDuration } from '@lib/calcDuration';
+import { InstanceCache } from '@lib/instanceCache';
 import { makeSelector } from '@lib/makeSelector';
 import type { Path, Value } from '@lib/path';
 import type { ErrorState, ValueState } from '@lib/state';
 import type { TrackedPromise } from '@lib/trackedPromise';
 import { trackPromise } from '@lib/trackedPromise';
 
-export interface FetchOptions {
+export interface CacheGetOptions {
   update?: 'whenMissing' | 'whenStale' | 'force';
   backgroundUpdate?: boolean;
 }
 
-export interface FetchFunction<T, Args extends any[] = []> {
+export interface CacheFunction<T, Args extends any[] = []> {
   (this: { use: Use }, ...args: Args): Promise<T>;
 }
 
-export interface FetchStoreOptions<T> {
-  invalidateAfter?: Duration | ((state: ValueState<T> | ErrorState) => Duration);
-  clearAfter?: Duration | ((state: ValueState<T> | ErrorState) => Duration);
+export interface CacheOptions<T> {
+  invalidateAfter?: Duration | ((state: ValueState<T> | ErrorState) => Duration | undefined);
+  clearAfter?: Duration | ((state: ValueState<T> | ErrorState) => Duration | undefined);
   resourceGroup?: ResourceGroup | ResourceGroup[];
   retain?: number;
   clearUnusedAfter?: Duration;
 }
 
-export class FetchStore<T> extends Store<TrackedPromise<T>> {
-  staleValue = store<(TrackedPromise<T> & { status: 'value' | 'error' }) | undefined>(undefined);
+export class Cache<T> extends Store<TrackedPromise<T>> {
+  staleValue = createStore<(TrackedPromise<T> & { status: 'value' | 'error' }) | undefined>(
+    undefined,
+  );
 
   constructor(
-    getter: FetchFunction<T>,
+    getter: CacheFunction<T>,
     options?: StoreOptions,
     derivedFrom?: { store: Store<any>; selectors: (Selector<any, any> | Path<any>)[] },
   ) {
@@ -60,7 +62,7 @@ export class FetchStore<T> extends Store<TrackedPromise<T>> {
     );
   }
 
-  get({ update = 'whenStale', backgroundUpdate = false }: FetchOptions = {}) {
+  get({ update = 'whenStale', backgroundUpdate = false }: CacheGetOptions = {}) {
     const value = this._value?.v;
     const staleValue = this.staleValue.get();
 
@@ -111,41 +113,41 @@ export class FetchStore<T> extends Store<TrackedPromise<T>> {
     super.reset();
   }
 
-  mapValue<S>(selector: Selector<T, S>): FetchStore<S>;
+  mapValue<S>(selector: Selector<T, S>): Cache<S>;
 
-  mapValue<P extends Path<T>>(selector: P): FetchStore<Value<T, P>>;
+  mapValue<P extends Path<T>>(selector: P): Cache<Value<T, P>>;
 
-  mapValue<S>(_selector: Selector<T, S> | Path<any>): FetchStore<S> {
+  mapValue<S>(_selector: Selector<T, S> | Path<any>): Cache<S> {
     const selector = makeSelector(_selector);
     const that = this;
 
-    return new FetchStore(async function () {
+    return new Cache(async function () {
       const value = await this.use(that);
       return selector(value);
     });
   }
 }
 
-const defaultOptions: FetchStoreOptions<unknown> = {};
+const defaultOptions: CacheOptions<unknown> = {};
 
-function create<T>(fetch: FetchFunction<T>, options?: FetchStoreOptions<T>): FetchStore<T> {
-  return withArgs(fetch, options)();
+function create<T>(cacheFunction: CacheFunction<T>, options?: CacheOptions<T>): Cache<T> {
+  return withArgs(cacheFunction, options)();
 }
 
 function withArgs<T, Args extends any[]>(
-  fetch: FetchFunction<T, Args>,
-  options?: FetchStoreOptions<T>,
+  cacheFunction: CacheFunction<T, Args>,
+  options?: CacheOptions<T>,
 ): {
-  (...args: Args): FetchStore<T>;
+  (...args: Args): Cache<T>;
   invalidate: () => void;
   clear: () => void;
 } {
   const { clearUnusedAfter = defaultOptions.clearUnusedAfter ?? 0, resourceGroup } = options ?? {};
 
-  const cache = new Cache(
+  const cache = new InstanceCache(
     (...args: Args) =>
-      new FetchStore(function () {
-        return fetch.apply(this, args);
+      new Cache(function () {
+        return cacheFunction.apply(this, args);
       }, options),
     calcDuration(clearUnusedAfter),
   );
@@ -172,14 +174,14 @@ function withArgs<T, Args extends any[]>(
     : resourceGroup
     ? [resourceGroup]
     : [];
-  for (const group of groups.concat(_allResources)) {
-    group.add(resource);
+  for (const group of groups.concat(allResources)) {
+    group.resources.add(resource);
   }
 
   return Object.assign(get, resource);
 }
 
-export const fetchStore = Object.assign(create, {
+export const createCache = Object.assign(create, {
   withArgs,
   defaultOptions,
 });

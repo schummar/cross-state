@@ -1,9 +1,9 @@
+export { createCache as fetchStore } from './cache';
+export type { Cache, CacheFunction, CacheGetOptions, CacheOptions } from './cache';
 export type { Cancel, Duration, Effect, Listener, SubscribeOptions } from './commonTypes';
-export { fetchStore } from './fetchStore';
-export type { FetchFunction, FetchOptions, FetchStore, FetchStoreOptions } from './fetchStore';
 export { allResources, ResourceGroup } from './resourceGroup';
 export type { Resource } from './resourceGroup';
-export { store } from './store';
+export { createStore as store } from './store';
 export type {
   BoundStoreMethods,
   Store,

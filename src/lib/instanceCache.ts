@@ -1,6 +1,6 @@
 import { hash } from './hash';
 
-export class Cache<Args extends any[], T extends object> {
+export class InstanceCache<Args extends any[], T extends object> {
   private cache = new Map<string, { t: number; ref?: T; weakRef?: WeakRef<T> }>();
 
   private interval = this.cacheTime
