@@ -1,220 +1,118 @@
-import type {
-  Cancel,
-  Duration,
-  Listener,
-  Selector,
-  SubscribeOptions,
-  Update,
-  Use,
-  UseFetch,
-} from './commonTypes';
+// eslint-disable-next-line max-classes-per-file
+import type { Duration, Selector, Update, UpdateFrom, Use } from './commonTypes';
 import type { ResourceGroup } from './resourceGroup';
 import { _allResources } from './resourceGroup';
-import { Store } from './store';
+import type { StoreOptions } from './store';
+import { store, Store } from './store';
 import { Cache } from '@lib/cache';
 import { calcDuration } from '@lib/calcDuration';
-import { CalculationHelper } from '@lib/calculationHelper';
-import { defaultEquals, simpleShallowEquals } from '@lib/equals';
 import { makeSelector } from '@lib/makeSelector';
 import type { Path, Value } from '@lib/path';
-
-type Common<T> =
-  | { isUpdating: false; update?: undefined; ref: unknown }
-  | { isUpdating: true; update: Promise<T>; ref: unknown };
-type WithValue<T> = {
-  status: 'value';
-  value: T;
-  error?: undefined;
-  isStale: boolean;
-} & Common<T>;
-type WithError<T> = {
-  status: 'error';
-  value?: undefined;
-  error: unknown;
-  isStale: boolean;
-} & Common<T>;
-type Pending<T> = {
-  status: 'pending';
-  value?: undefined;
-  error?: undefined;
-  isStale: true;
-} & Common<T>;
-export type FetchStoreState<T> = WithValue<T> | WithError<T> | Pending<T>;
+import type { ErrorState, ValueState } from '@lib/state';
+import type { TrackedPromise } from '@lib/trackedPromise';
+import { trackPromise } from '@lib/trackedPromise';
 
 export interface FetchOptions {
-  cache?: 'updateWhenStale' | 'backgroundUpdate' | 'forceUpdate';
+  update?: 'whenMissing' | 'whenStale' | 'force';
+  backgroundUpdate?: boolean;
 }
 
 export interface FetchFunction<T, Args extends any[] = []> {
-  (this: { use: Use; useFetch: UseFetch }, ...args: Args): Promise<T>;
+  (this: { use: Use }, ...args: Args): Promise<T>;
 }
 
 export interface FetchStoreOptions<T> {
-  invalidateAfter?: Duration | ((state: FetchStoreState<T>) => Duration);
-  clearAfter?: Duration | ((state: FetchStoreState<T>) => Duration);
+  invalidateAfter?: Duration | ((state: ValueState<T> | ErrorState) => Duration);
+  clearAfter?: Duration | ((state: ValueState<T> | ErrorState) => Duration);
   resourceGroup?: ResourceGroup | ResourceGroup[];
   retain?: number;
   clearUnusedAfter?: Duration;
-  //   parentStore?: { store: Store<any>; selectors: (Selector<any, any> | string)[] };
 }
 
-const fetchStoreStateEquals =
-  (equals = defaultEquals) =>
-  (a: FetchStoreState<any>, b: FetchStoreState<any>) => {
-    const { value: av, ...ar } = a;
-    const { value: bv, ...br } = b;
-    return simpleShallowEquals(ar, br) && (ar.status !== 'value' || equals(av, bv));
-  };
-
-const createRef = () => Math.random().toString(36).slice(2);
-
-export class FetchStore<T> extends Store<FetchStoreState<T>> {
-  private fetchCalculationHelper = new CalculationHelper({
-    calculate: ({ use, useFetch }) => {
-      const promise = this.fetchFunction.apply({ use, useFetch });
-      this.setPromise(promise);
-    },
-
-    addEffect: this.addEffect,
-    getValue: () => this.get().value,
-    setValue: this.setValue,
-    setError: this.setError,
-    onInvalidate: this.invalidate,
-  });
+export class FetchStore<T> extends Store<TrackedPromise<T>> {
+  staleValue = store<(TrackedPromise<T> & { status: 'value' | 'error' }) | undefined>(undefined);
 
   constructor(
-    protected fetchFunction: FetchFunction<T>,
-    protected options: FetchStoreOptions<T> = {},
+    getter: FetchFunction<T>,
+    options?: StoreOptions,
+    derivedFrom?: { store: Store<any>; selectors: (Selector<any, any> | Path<any>)[] },
   ) {
-    super({
-      status: 'pending',
-      isStale: true,
-      isUpdating: false,
-      ref: createRef(),
-    });
+    super(
+      function () {
+        const value = getter.apply(this);
+        return trackPromise(value);
+      },
+      options,
+      derivedFrom,
+    );
+
+    this.sub(
+      (promise) => {
+        promise
+          .finally(() => {
+            if (this._value?.v === promise) {
+              this.staleValue.update(undefined);
+            }
+          })
+          .catch(() => undefined);
+      },
+      { passive: true },
+    );
   }
 
-  update(value: Update<FetchStoreState<T>>): void {
-    this.fetchCalculationHelper.stop();
-    super.update(value);
-  }
+  get({ update = 'whenStale', backgroundUpdate = false }: FetchOptions = {}) {
+    const value = this._value?.v;
+    const staleValue = this.staleValue.get();
 
-  async fetch(options?: FetchOptions): Promise<T> {
-    this.fetchCalculationHelper.check();
+    if (
+      (update === 'whenMissing' && !value && !staleValue) ||
+      (update === 'whenStale' && !value) ||
+      update === 'force'
+    ) {
+      this.invalidate();
+      const newValue = super.get();
 
-    const { cache = 'updateWhenStale' } = options ?? {};
-    const { status, value, error, update, isStale } = this.get();
-
-    if (((status === 'pending' || isStale) && !update) || cache === 'forceUpdate') {
-      this.fetchCalculationHelper.execute();
-
-      if (status === 'pending' || cache !== 'backgroundUpdate') {
-        return this.get().update!;
+      if ((!value && !staleValue) || !backgroundUpdate) {
+        return newValue;
       }
     }
 
-    if (status === 'value') {
-      return value;
+    if (!value || (value.status === 'pending' && backgroundUpdate)) {
+      return staleValue!;
     }
 
-    if (status === 'error') {
-      throw error;
-    }
-
-    return update;
+    return value;
   }
 
-  setValue(value: T | Promise<T>): void {
-    if (value instanceof Promise) {
-      this.fetchCalculationHelper.stop();
-      this.setPromise(value);
+  override update(update: Update<TrackedPromise<T>> | Promise<T>): void {
+    if (update instanceof Function) {
+      const updateFunction = update;
+
+      return super.update((oldValue) => {
+        const newValue = updateFunction(oldValue);
+        return trackPromise(newValue);
+      });
+    }
+
+    if (!(update instanceof Promise)) {
+      update = Promise.resolve(update);
+    }
+
+    super.update(trackPromise(update));
+  }
+
+  invalidate() {
+    if (this._value?.v && this._value.v.status !== 'pending') {
+      this.staleValue.update(this._value.v);
     } else {
-      this.update({
-        status: 'value',
-        value,
-        isStale: false,
-        isUpdating: false,
-        ref: createRef(),
-      });
+      this.staleValue.update(undefined);
     }
-  }
 
-  protected setPromise(promise: Promise<T>) {
-    const ref = createRef();
-
-    super.update({
-      ...this.get(),
-      isUpdating: true,
-      update: promise,
-      ref,
-    });
-
-    promise
-      .then((value) => {
-        if (promise === this.get().update) {
-          super.update({
-            status: 'value',
-            value,
-            isStale: false,
-            isUpdating: false,
-            ref,
-          });
-        }
-      })
-      .catch((error) => {
-        if (promise === this.get().update) {
-          super.update({
-            status: 'error',
-            error,
-            isStale: false,
-            isUpdating: false,
-            ref,
-          });
-        }
-      });
-  }
-
-  setError(error: unknown): void {
-    this.update({
-      status: 'error',
-      error,
-      isStale: false,
-      isUpdating: false,
-      ref: createRef(),
-    });
-  }
-
-  invalidate(): void {
-    this.update({
-      ...this.get(),
-      isStale: true,
-      isUpdating: false,
-      update: undefined,
-    });
-
-    if (this.isActive) {
-      this.fetchCalculationHelper.execute();
-    }
+    super.reset();
   }
 
   clear(): void {
-    this.update({
-      status: 'pending',
-      isStale: true,
-      isUpdating: false,
-      ref: createRef(),
-    });
-
-    if (this.isActive) {
-      this.fetchCalculationHelper.execute();
-    }
-  }
-
-  sub(listener: Listener<FetchStoreState<T>>, options?: SubscribeOptions): Cancel {
-    return super.sub(listener, {
-      ...options,
-      equals: fetchStoreStateEquals(options?.equals),
-    });
+    super.reset();
   }
 
   mapValue<S>(selector: Selector<T, S>): FetchStore<S>;
@@ -226,7 +124,7 @@ export class FetchStore<T> extends Store<FetchStoreState<T>> {
     const that = this;
 
     return new FetchStore(async function () {
-      const value: T = await this.useFetch(that);
+      const value = await this.use(that);
       return selector(value);
     });
   }
@@ -289,3 +187,28 @@ export const fetchStore = Object.assign(create, {
   withArgs,
   defaultOptions,
 });
+
+const f1 = fetchStore(async () => 1);
+const _f2 = fetchStore(async function () {
+  this.use(f1);
+});
+
+class A<T> {
+  update(value: ((t: T) => T) | T) {
+    console.log(value);
+  }
+}
+
+class B<T> extends A<Promise<T>> {
+  override update(value: ((t: Promise<T>) => Promise<T>) | T | number): void {
+    console.log(value);
+  }
+}
+
+function function1<T>(a: A<T>): T {
+  return a as any;
+}
+
+function _function2<T>(b: B<T>) {
+  function1(b);
+}
