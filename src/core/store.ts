@@ -52,9 +52,11 @@ type StoreWithActions<T, Actions extends StoreActions> = Store<T> &
 const noop = () => undefined;
 
 export class Store<T> {
-  private _value?: { v: T };
+  protected _value?: { v: T };
 
   protected listeners = new Set<Listener>();
+
+  protected passiveListeners = new Set<Listener>();
 
   protected effects = new Map<
     Effect,
@@ -63,7 +65,7 @@ export class Store<T> {
 
   protected notifyId = {};
 
-  private calculationHelper = new CalculationHelper({
+  protected calculationHelper = new CalculationHelper({
     calculate: ({ use }) => {
       if (this.getter instanceof Function) {
         const value = this.getter.apply({ use }, [{ use }]);
@@ -73,7 +75,7 @@ export class Store<T> {
     },
 
     addEffect: this.addEffect.bind(this),
-    onInvalidate: this.invalidate.bind(this),
+    onInvalidate: this.reset.bind(this),
   });
 
   constructor(
@@ -129,7 +131,7 @@ export class Store<T> {
     this.notify();
   }
 
-  protected invalidate() {
+  protected reset() {
     this._value = undefined;
 
     if (this.isActive) {
@@ -138,7 +140,12 @@ export class Store<T> {
   }
 
   sub(listener: Listener<T>, options?: SubscribeOptions): Cancel {
-    const { runNow = true, throttle: throttleOption, equals = defaultEquals } = options ?? {};
+    const {
+      passive,
+      runNow = true,
+      throttle: throttleOption,
+      equals = defaultEquals,
+    } = options ?? {};
 
     let compareToValue = this.get();
     let previousValue: T | undefined;
@@ -167,16 +174,24 @@ export class Store<T> {
       innerListener = throttle(innerListener, calcDuration(throttleOption));
     }
 
-    this.listeners.add(innerListener);
-    this.onSubscribe();
+    if (passive) {
+      this.passiveListeners.add(innerListener);
+    } else {
+      this.listeners.add(innerListener);
+      this.onSubscribe();
+    }
 
     if (runNow && !hasRun) {
       innerListener(true);
     }
 
     return () => {
-      this.listeners.delete(innerListener);
-      this.onUnsubscribe();
+      if (passive) {
+        this.passiveListeners.delete(innerListener);
+      } else {
+        this.listeners.delete(innerListener);
+        this.onUnsubscribe();
+      }
     };
   }
 
@@ -270,7 +285,7 @@ export class Store<T> {
     const n = {};
     this.notifyId = n;
 
-    const snapshot = [...this.listeners];
+    const snapshot = [...this.listeners, ...this.passiveListeners];
     for (const listener of snapshot) {
       listener();
       if (n !== this.notifyId) break;

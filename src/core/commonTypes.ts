@@ -1,4 +1,3 @@
-import type { FetchStore } from './fetchStore';
 import type { Store } from './store';
 
 export interface Listener<T = void> {
@@ -14,6 +13,7 @@ export interface Effect {
 }
 
 export interface SubscribeOptions {
+  passive?: boolean;
   /** Whether to execute the callback immediately with the current store value.
    * @default true
    */
@@ -57,8 +57,4 @@ export interface UseOptions {
 
 export interface Use {
   <T>(store: Store<T>, options?: UseOptions): T;
-}
-
-export interface UseFetch {
-  <T>(fetchStore: FetchStore<T>): Promise<T>;
 }
