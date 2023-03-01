@@ -126,7 +126,7 @@ export class Store<T> {
       return;
     }
 
-    if (this.getter instanceof Function) {
+    if (this.derivedFrom) {
       throw new TypeError(
         'Can only updated computed stores that are derived from other stores using string selectors',
       );

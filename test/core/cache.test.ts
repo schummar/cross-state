@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { allResources, createCache, createResourceGroup, ResourceGroup } from '../../src';
 import { Cache } from '../../src/core/cache';
+import { flushPromises } from '../testHelpers';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -164,6 +165,56 @@ describe('cache', () => {
       value: 2,
       isStale: false,
       isUpdating: false,
+    });
+  });
+
+  describe('invalidateAfter', async () => {
+    test('triggers after the given time', async () => {
+      const cache = createCache(async () => 1, { invalidateAfter: { milliseconds: 1 } });
+      await cache.get();
+
+      expect(cache.state.get().isStale).toBe(false);
+
+      vi.advanceTimersByTime(1);
+
+      expect(cache.state.get().isStale).toBe(true);
+    });
+
+    test('is delayed when the value is updated', async () => {
+      const cache = createCache(async () => 1, { invalidateAfter: { milliseconds: 2 } });
+      await cache.get();
+
+      vi.advanceTimersByTime(1);
+      cache.set(Promise.resolve(2));
+      await flushPromises();
+      vi.advanceTimersByTime(1);
+
+      expect(cache.state.get().isStale).toBe(false);
+    });
+  });
+
+  describe('clearAfter', async () => {
+    test('triggers after the given time', async () => {
+      const cache = createCache(async () => 1, { clearAfter: { milliseconds: 1 } });
+      await cache.get();
+
+      expect(cache.state.get().value).toBe(1);
+
+      vi.advanceTimersByTime(1);
+
+      expect(cache.state.get().value).toBe(undefined);
+    });
+
+    test('is delayed when the value is updated', async () => {
+      const cache = createCache(async () => 1, { clearAfter: { milliseconds: 2 } });
+      await cache.get();
+
+      vi.advanceTimersByTime(1);
+      cache.set(Promise.resolve(2));
+      await flushPromises();
+      vi.advanceTimersByTime(1);
+
+      expect(cache.state.get().value).toBe(2);
     });
   });
 });

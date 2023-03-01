@@ -24,14 +24,14 @@ describe('derived store', () => {
     expect(derived.get()).toBe(2);
   });
 
-  test('update throws', () => {
+  test('update works', () => {
     const dep = createStore(1);
     const derived = createStore(({ use }) => {
       return use(dep) * 2;
     });
 
-    expect(() => derived.set(1)).toThrow(
-      'Can only updated computed stores that are derived from other stores using string selectors',
-    );
+    derived.set(2);
+
+    expect(derived.get()).toBe(2);
   });
 });

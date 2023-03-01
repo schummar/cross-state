@@ -1,7 +1,6 @@
 import type { Duration, Selector, Use } from './commonTypes';
 import type { ResourceGroup } from './resourceGroup';
 import { allResources } from './resourceGroup';
-import type { StoreOptions } from './store';
 import { createStore, Store } from './store';
 import type { CacheState, ErrorState, ValueState } from '@lib/cacheState';
 import { calcDuration } from '@lib/calcDuration';
@@ -35,50 +34,15 @@ export class Cache<T> extends Store<Promise<T>> {
 
   protected stalePromise?: Promise<T>;
 
+  protected timers = new Set<ReturnType<typeof setTimeout>>();
+
   constructor(
     getter: CacheFunction<T>,
-    options?: StoreOptions,
+    public readonly options: CacheOptions<T> = {},
     derivedFrom?: { store: Store<any>; selectors: (Selector<any, any> | Path<any>)[] },
   ) {
     super(getter, options, derivedFrom);
-
-    this.sub(
-      async (promise) => {
-        this.state.set((state) => ({
-          ...state,
-          isUpdating: true,
-        }));
-
-        try {
-          const value = await promise;
-
-          if (promise !== this._value?.v) {
-            return;
-          }
-
-          this.state.set({
-            status: 'value',
-            value,
-            isStale: false,
-            isUpdating: false,
-          });
-          delete this.stalePromise;
-        } catch (error) {
-          if (promise !== this._value?.v) {
-            return;
-          }
-
-          this.state.set({
-            status: 'error',
-            error,
-            isStale: false,
-            isUpdating: false,
-          });
-          delete this.stalePromise;
-        }
-      },
-      { passive: true },
-    );
+    this.watchPromise();
   }
 
   get({ update = 'whenStale', backgroundUpdate = false }: CacheGetOptions = {}) {
@@ -142,6 +106,80 @@ export class Cache<T> extends Store<Promise<T>> {
       const value = await this.use(that);
       return selector(value);
     });
+  }
+
+  protected watchPromise() {
+    this.sub(
+      async (promise) => {
+        this.state.set((state) => ({
+          ...state,
+          isUpdating: true,
+        }));
+
+        this.setTimers();
+
+        try {
+          const value = await promise;
+
+          if (promise !== this._value?.v) {
+            return;
+          }
+
+          this.state.set({
+            status: 'value',
+            value,
+            isStale: false,
+            isUpdating: false,
+          });
+          delete this.stalePromise;
+          this.setTimers();
+        } catch (error) {
+          if (promise !== this._value?.v) {
+            return;
+          }
+
+          this.state.set({
+            status: 'error',
+            error,
+            isStale: false,
+            isUpdating: false,
+          });
+          delete this.stalePromise;
+          this.setTimers();
+        }
+      },
+      { passive: true },
+    );
+  }
+
+  protected setTimers() {
+    for (const timer of this.timers) {
+      clearTimeout(timer);
+    }
+    this.timers.clear();
+
+    const state = this.state.get();
+    let { invalidateAfter, clearAfter } = this.options;
+
+    if (state.status === 'pending') {
+      return;
+    }
+
+    if (invalidateAfter instanceof Function) {
+      invalidateAfter = invalidateAfter(state);
+    }
+
+    if (invalidateAfter) {
+      this.timers.add(setTimeout(() => this.invalidate(), calcDuration(invalidateAfter)));
+    }
+
+    if (clearAfter instanceof Function) {
+      clearAfter = clearAfter(state);
+    }
+
+    if (clearAfter) {
+      this.timers.add(setTimeout(() => this.clear(), calcDuration(clearAfter)));
+    }
   }
 }
 
