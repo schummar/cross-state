@@ -8,7 +8,7 @@ export interface Resource {
 export class ResourceGroup {
   resources = new Set<Resource>();
 
-  constructor() {
+  constructor(public readonly name?: string) {
     bind(this);
   }
 
@@ -26,3 +26,7 @@ export class ResourceGroup {
 }
 
 export const allResources = new ResourceGroup();
+
+export function createResourceGroup(name?: string) {
+  return new ResourceGroup(name);
+}

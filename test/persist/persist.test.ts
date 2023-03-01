@@ -467,21 +467,21 @@ describe('persist', () => {
       const storage = new MockStorage({ keys: 1, get: 1, set: 1, remove: 1 });
 
       const stores = Array.from({ length: numberStores }, () => {
-        const s = createStore({ x: 1 });
+        const store = createStore({ x: 1 });
 
-        persist(s, {
+        persist(store, {
           id: 'test',
           storage,
         });
 
-        return s;
+        return store;
       });
 
       const rand = seedrandom('seed');
 
       for (let i = 0; i < numberUpdates; i++) {
-        const s = stores[Math.abs(rand.int32()) % stores.length];
-        s?.set({ x: Math.abs(rand.int32()) % 1000 });
+        const store = stores[Math.abs(rand.int32()) % stores.length];
+        store?.set({ x: Math.abs(rand.int32()) % 1000 });
 
         vi.advanceTimersByTime(Math.abs(rand.int32()) % 10);
         await flushPromises();

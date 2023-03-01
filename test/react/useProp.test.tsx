@@ -5,10 +5,10 @@ import { useProp } from '../../src/react';
 
 describe('useProp', () => {
   test('get and set value', async () => {
-    const s = createStore({ x: 0 });
+    const store = createStore({ x: 0 });
 
     const Component = vi.fn<[], any>(function Component() {
-      const [v, setV] = useProp(s.map('x'));
+      const [v, setV] = useProp(store.map('x'));
 
       return (
         <div data-testid="div" onClick={() => setV(1)}>
@@ -25,14 +25,14 @@ describe('useProp', () => {
     });
 
     expect(div.textContent).toBe('1');
-    expect(s.get()).toStrictEqual({ x: 1 });
+    expect(store.get()).toStrictEqual({ x: 1 });
   });
 
   test('throws when not using a string selector', async () => {
-    const s = createStore({ x: 0 });
+    const store = createStore({ x: 0 });
 
     const Component = vi.fn<[], any>(function Component() {
-      const [v, setV] = useProp(s.map((state) => state.x));
+      const [v, setV] = useProp(store.map((state) => state.x));
 
       return (
         <div data-testid="div" onClick={() => setV(1)}>

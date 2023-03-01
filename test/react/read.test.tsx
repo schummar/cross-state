@@ -41,13 +41,13 @@ class ErrorBoundary extends React.Component<{ children: ReactNode }> {
   }
 }
 
-describe.skip('read', () => {
+describe('read', () => {
   test('read returns plain value when value is resolved', async () => {
-    const s = createCache(async () => ({ x: 0 }));
-    await s.get();
+    const cache = createCache(async () => ({ x: 0 }));
+    await cache.get();
 
     const Component = vi.fn<[], any>(function Component() {
-      const { x } = read(s);
+      const { x } = read(cache);
 
       return <div>{x}</div>;
     });
@@ -62,7 +62,7 @@ describe.skip('read', () => {
   });
 
   test('read throws promise while value is pending', async () => {
-    const s = createCache(
+    const cache = createCache(
       async () =>
         new Promise<{ x: number }>(() => {
           // never resolve
@@ -70,7 +70,7 @@ describe.skip('read', () => {
     );
 
     const Component = vi.fn<[], any>(function Component() {
-      const { x } = read(s);
+      const { x } = read(cache);
 
       return <div>{x}</div>;
     });
@@ -87,13 +87,13 @@ describe.skip('read', () => {
   test('read throws error when value is rejected', async () => {
     console.error = () => undefined;
 
-    const s = createCache(async () => {
+    const cache = createCache(async () => {
       throw new Error('error');
     });
-    await s.get().catch(() => undefined);
+    await cache.get().catch(() => undefined);
 
     const Component = vi.fn<[], any>(function Component() {
-      const { x } = read(s);
+      const { x } = read(cache);
 
       return <div>{x}</div>;
     });

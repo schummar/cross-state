@@ -2,7 +2,7 @@ import type { MaybePromise } from './maybePromise';
 import { queue } from './queue';
 import { trackingProxy } from './trackingProxy';
 import type { Store } from '@core/store';
-import type { Cancel, UpdateFrom, Use, UseFetch } from '@core/commonTypes';
+import type { Cancel, UpdateFrom, Use } from '@core/commonTypes';
 
 export class CalculationHelper<T> {
   private current?: {
@@ -14,7 +14,6 @@ export class CalculationHelper<T> {
     private options: {
       calculate: (fns: {
         use: Use;
-        useFetch: UseFetch;
         updateValue: (update: UpdateFrom<MaybePromise<T>, [T | undefined]>) => void;
         updateError: (error: unknown) => void;
       }) => Cancel | void;
@@ -112,39 +111,6 @@ export class CalculationHelper<T> {
       return value;
     };
 
-    const useFetch: UseFetch = (store) => {
-      if (isCancled) {
-        return store.fetch();
-      }
-
-      const value = store.fetch();
-      const { ref } = store.get();
-
-      let sub: Cancel | undefined;
-
-      const dep = {
-        on() {
-          this.off();
-          sub = store.sub(checkAll, { runNow: false });
-        },
-        off() {
-          sub?.();
-          sub = undefined;
-        },
-      };
-
-      if (isActive) {
-        dep.on();
-      }
-
-      checks.push(() => {
-        return store.get().ref === ref;
-      });
-      deps.set(store, dep);
-
-      return value;
-    };
-
     const updateValue = (update: UpdateFrom<MaybePromise<T>, [T | undefined]>) =>
       q(async () => {
         if (isCancled) {
@@ -185,7 +151,7 @@ export class CalculationHelper<T> {
 
     let cancelSubscription: Cancel | void;
     try {
-      cancelSubscription = calculate({ use, useFetch, updateValue, updateError });
+      cancelSubscription = calculate({ use, updateValue, updateError });
     } catch (error) {
       setError?.(error);
     }

@@ -1,9 +1,8 @@
 import { act, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, test, vi } from 'vitest';
-import { createCache, createStore } from '../../src';
+import { createStore } from '../../src';
 import { useStore } from '../../src/react';
-import { flushPromises } from '../testHelpers';
 
 function c<T>(name: string, before: T, after1: T, after2: T, select: (t: T) => ReactNode) {
   return [name, before, after1, after2, select] as const;
@@ -25,10 +24,10 @@ describe('useStore', () => {
     c('array.length', [1, 2, 3], [1, 2, 3, 4], [1, 2, 4], (s) => s.length),
   ])('%s', (_name, before, after1, after2, select) => {
     test('changed', async () => {
-      const s = createStore(before);
+      const store = createStore(before);
 
       const Component = vi.fn<[], any>(function Component() {
-        const v = useStore(s.map(select));
+        const v = useStore(store.map(select));
 
         return <div data-testid="div">{v}</div>;
       });
@@ -37,7 +36,7 @@ describe('useStore', () => {
       const div = screen.getByTestId('div');
 
       act(() => {
-        s.set(after1);
+        store.set(after1);
       });
 
       expect(div.textContent).toBe(String(select(after1) ?? ''));
@@ -45,10 +44,10 @@ describe('useStore', () => {
     });
 
     test('same', async () => {
-      const s = createStore(before);
+      const store = createStore(before);
 
       const Component = vi.fn<[], any>(function Component() {
-        const v = useStore(s.map(select));
+        const v = useStore(store.map(select));
 
         return <div data-testid="div">{v}</div>;
       });
@@ -57,7 +56,7 @@ describe('useStore', () => {
       const div = screen.getByTestId('div');
 
       act(() => {
-        s.set(after2);
+        store.set(after2);
       });
 
       expect(div.textContent).toBe(String(select(after2)));
@@ -65,10 +64,10 @@ describe('useStore', () => {
     });
 
     test('same without selector', async () => {
-      const s = createStore(before);
+      const store = createStore(before);
 
       const Component = vi.fn<[], any>(function Component() {
-        const v = useStore(s);
+        const v = useStore(store);
 
         return <div data-testid="div">{select(v)}</div>;
       });
@@ -77,7 +76,7 @@ describe('useStore', () => {
       const div = screen.getByTestId('div');
 
       act(() => {
-        s.set(after2);
+        store.set(after2);
       });
 
       expect(div.textContent).toBe(String(select(after2)));
@@ -86,10 +85,10 @@ describe('useStore', () => {
   });
 
   test('primitive/object union', async () => {
-    const s = createStore<{ a: string } | string>({ a: 'a' });
+    const store = createStore<{ a: string } | string>({ a: 'a' });
 
     const Component = vi.fn<[], any>(function Component() {
-      const value = useStore(s);
+      const value = useStore(store);
 
       return <div data-testid="div">{JSON.stringify(value)}</div>;
     });
@@ -98,7 +97,7 @@ describe('useStore', () => {
     const div = screen.getByTestId('div');
 
     act(() => {
-      s.set('a');
+      store.set('a');
     });
 
     expect(div.textContent).toBe('"a"');

@@ -78,8 +78,8 @@ export class Store<T> {
   });
 
   constructor(
-    protected readonly getter: T | Calculate<T>,
-    protected readonly options: StoreOptions = {},
+    public readonly getter: T | Calculate<T>,
+    public readonly options: StoreOptions = {},
     protected derivedFrom?: { store: Store<any>; selectors: (Selector<any, any> | Path<any>)[] },
   ) {
     bind(this);
@@ -186,7 +186,7 @@ export class Store<T> {
       innerListener = debounce(innerListener, debounceOption);
     }
 
-    this.listeners.set(innerListener, passive ?? false);
+    this.listeners.set(innerListener, !passive);
     if (!passive) {
       this.onSubscribe();
     }
@@ -256,7 +256,7 @@ export class Store<T> {
    */
   addEffect(effect: Effect, retain?: Duration) {
     this.effects.set(effect, {
-      handle: this.listeners.size > 0 ? effect() ?? noop : undefined,
+      handle: this.isActive ? effect() ?? noop : undefined,
       retain: retain !== undefined ? calcDuration(retain) : undefined,
     });
 
@@ -274,7 +274,7 @@ export class Store<T> {
 
   /** Return whether the store is currently active, which means whether it has at least one subscriber. */
   get isActive() {
-    return this.listeners.size > 0;
+    return [...this.listeners.values()].some(Boolean);
   }
 
   protected onSubscribe() {

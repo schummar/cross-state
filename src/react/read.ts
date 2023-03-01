@@ -1,11 +1,9 @@
-import { useStore } from './useStore';
-import type { FetchStore } from '@core/fetchStore';
-import type { SubscribeOptions } from '@core/commonTypes';
+import { useCache } from './useCache';
+import type { UseStoreOptions } from './useStore';
+import type { Cache } from '@core';
 
-export type UseStoreOptions = Omit<SubscribeOptions, 'runNow'>;
-
-export function read<T>(store: FetchStore<T>, options?: UseStoreOptions): T {
-  const { status, value, error } = useStore(store, options);
+export function read<T>(cache: Cache<T>, options?: UseStoreOptions): T {
+  const { status, value, error } = useCache(cache, options);
 
   if (status === 'value') {
     return value;
@@ -15,5 +13,5 @@ export function read<T>(store: FetchStore<T>, options?: UseStoreOptions): T {
     throw error;
   }
 
-  throw store.get();
+  throw cache.state.once((state) => state.status !== 'pending');
 }

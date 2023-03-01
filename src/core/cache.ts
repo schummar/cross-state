@@ -1,4 +1,4 @@
-import type { Duration, Selector, Update, Use } from './commonTypes';
+import type { Duration, Selector, Use } from './commonTypes';
 import type { ResourceGroup } from './resourceGroup';
 import { allResources } from './resourceGroup';
 import type { StoreOptions } from './store';
@@ -8,7 +8,6 @@ import { calcDuration } from '@lib/calcDuration';
 import { InstanceCache } from '@lib/instanceCache';
 import { makeSelector } from '@lib/makeSelector';
 import type { Path, Value } from '@lib/path';
-import { trackPromise } from '@lib/trackedPromise';
 
 export interface CacheGetOptions {
   update?: 'whenMissing' | 'whenStale' | 'force';
@@ -28,11 +27,13 @@ export interface CacheOptions<T> {
 }
 
 export class Cache<T> extends Store<Promise<T>> {
-  state = createStore<CacheState<T>>({
+  readonly state = createStore<CacheState<T>>({
     status: 'pending',
     isStale: true,
     isUpdating: false,
   });
+
+  protected stalePromise?: Promise<T>;
 
   constructor(
     getter: CacheFunction<T>,
@@ -61,6 +62,7 @@ export class Cache<T> extends Store<Promise<T>> {
             isStale: false,
             isUpdating: false,
           });
+          delete this.stalePromise;
         } catch (error) {
           if (promise !== this._value?.v) {
             return;
@@ -72,6 +74,7 @@ export class Cache<T> extends Store<Promise<T>> {
             isStale: false,
             isUpdating: false,
           });
+          delete this.stalePromise;
         }
       },
       { passive: true },
@@ -80,42 +83,34 @@ export class Cache<T> extends Store<Promise<T>> {
 
   get({ update = 'whenStale', backgroundUpdate = false }: CacheGetOptions = {}) {
     const promise = this._value?.v;
-    const { status, value, error } = this.state.get();
+    const stalePromise = this.stalePromise;
 
     if (
-      (update === 'whenMissing' && !promise && status === 'pending') ||
+      (update === 'whenMissing' && !promise && !stalePromise) ||
       (update === 'whenStale' && !promise) ||
       update === 'force'
     ) {
       this.invalidate();
       const newValue = super.get();
 
-      if ((!promise && status === 'pending') || !backgroundUpdate) {
+      if ((!promise && !stalePromise) || !backgroundUpdate) {
         return newValue;
       }
     }
 
-    if (!promise || (status !== 'pending' && backgroundUpdate)) {
-      return status === 'value' ? Promise.resolve(value) : Promise.reject(error);
+    if (!promise || (stalePromise && backgroundUpdate)) {
+      return stalePromise!;
     }
 
     return promise;
   }
 
-  update(update: Update<Promise<T>>): void {
-    if (update instanceof Function) {
-      const updateFunction = update;
-
-      return super.set((oldValue) => {
-        const newValue = updateFunction(oldValue);
-        return trackPromise(newValue);
-      });
+  invalidate() {
+    const { status, isStale, isUpdating } = this.state.get();
+    if (status !== 'pending' && !isStale && !isUpdating) {
+      this.stalePromise = this._value?.v;
     }
 
-    super.set(trackPromise(update));
-  }
-
-  invalidate() {
     this.state.set((state) => ({
       ...state,
       isStale: true,
@@ -126,6 +121,12 @@ export class Cache<T> extends Store<Promise<T>> {
   }
 
   clear(): void {
+    this.state.set({
+      status: 'pending',
+      isStale: true,
+      isUpdating: false,
+    });
+    delete this.stalePromise;
     super.reset();
   }
 
