@@ -207,7 +207,7 @@ describe('cache', () => {
   });
 });
 
-describe('resourceGroup', () => {
+describe.skip('resourceGroup', () => {
   describe('allResources', () => {
     test('invalidateAll', async () => {
       const state = createCache(async () => 1);

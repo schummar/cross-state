@@ -153,12 +153,16 @@ export class Store<T> {
       equals = defaultEquals,
     } = options ?? {};
 
-    let compareToValue = this.get();
+    let compareToValue = this._value?.v;
     let previousValue: T | undefined;
     let hasRun = false;
 
     let innerListener = (force?: boolean | void) => {
-      const value = this.get();
+      if (!this._value) {
+        return;
+      }
+
+      const value = this._value.v;
 
       if (!force && equals(value, compareToValue)) {
         return;

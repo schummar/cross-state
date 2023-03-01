@@ -16,4 +16,7 @@ export type PendingState = {
   error?: undefined;
 };
 
-export type State<T> = ValueState<T> | ErrorState | PendingState;
+export type CacheState<T> = (ValueState<T> | ErrorState | PendingState) & {
+  isStale: boolean;
+  isUpdating: boolean;
+};

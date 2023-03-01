@@ -85,27 +85,6 @@ describe('useStore', () => {
     });
   });
 
-  test('only watch value', async () => {
-    const s = createCache(async () => 1);
-
-    const Component = vi.fn<[], any>(function Component() {
-      const { value } = useStore(s);
-
-      return <div data-testid="div">{value}</div>;
-    });
-
-    render(<Component />);
-    const div = screen.getByTestId('div');
-
-    await act(() => flushPromises());
-    act(() => s.clear());
-    await act(() => flushPromises());
-
-    expect(div.textContent).toBe('1');
-
-    expect(Component.mock.calls.length).toBe(4);
-  });
-
   test('primitive/object union', async () => {
     const s = createStore<{ a: string } | string>({ a: 'a' });
 

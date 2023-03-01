@@ -1,13 +1,13 @@
-import type { State } from './state';
+import type { CacheState } from './cacheState';
 
-export type TrackedPromise<T> = Promise<T> & State<T>;
+export type TrackedPromise<T> = Promise<T> & CacheState<T>;
 
 export function trackPromise<T>(promise: Promise<T>): TrackedPromise<T> {
   if (isTrackedPromise(promise)) {
     return promise;
   }
 
-  const promiseWithState = Object.assign<Promise<T>, State<T>>(promise, {
+  const promiseWithState = Object.assign<Promise<T>, CacheState<T>>(promise, {
     status: 'pending',
   });
 
