@@ -54,11 +54,10 @@ export class Cache<T> extends Store<Promise<T>> {
       (update === 'whenStale' && !promise) ||
       update === 'force'
     ) {
-      this.invalidate();
-      const newValue = super.get();
+      this.calculationHelper.execute();
 
       if ((!promise && !stalePromise) || !backgroundUpdate) {
-        return newValue;
+        return super.get();
       }
     }
 
@@ -69,8 +68,10 @@ export class Cache<T> extends Store<Promise<T>> {
     return promise;
   }
 
-  invalidate() {
-    this.calculationHelper.invalidateDependencies();
+  invalidate({ invalidateDependencies = true }: { invalidateDependencies?: boolean } = {}) {
+    if (invalidateDependencies) {
+      this.calculationHelper.invalidateDependencies();
+    }
 
     const { status, isStale, isUpdating } = this.state.get();
     if (status !== 'pending' && !isStale && !isUpdating) {
@@ -86,7 +87,11 @@ export class Cache<T> extends Store<Promise<T>> {
     super.reset();
   }
 
-  clear(): void {
+  clear({ invalidateDependencies = true }: { invalidateDependencies?: boolean } = {}): void {
+    if (invalidateDependencies) {
+      this.calculationHelper.invalidateDependencies();
+    }
+
     this.state.set({
       status: 'pending',
       isStale: true,

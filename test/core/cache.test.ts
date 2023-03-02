@@ -219,19 +219,63 @@ describe('cache', () => {
   });
 
   describe('invalidate dependencies', async () => {
-    test.only('invalidate one dependency', async () => {
+    test('on invalidate', async () => {
       let x = 1;
-      let y = 1;
       const cache1 = createCache(async () => x++);
       const cache2 = createCache(async function () {
-        return { dep: await this.use(cache1), value: y++ };
+        return await this.use(cache1);
       });
 
       await cache2.get();
       cache2.invalidate();
       const value = await cache2.get();
 
-      expect(value).toStrictEqual({ dep: 2, value: 2 });
+      expect(value).toBe(2);
+    });
+
+    test('on clear', async () => {
+      let x = 1;
+      const cache1 = createCache(async () => x++);
+      const cache2 = createCache(async function () {
+        return await this.use(cache1);
+      });
+
+      await cache2.get();
+      cache2.clear();
+      const value = await cache2.get();
+
+      expect(value).toBe(2);
+    });
+
+    test('nested', async () => {
+      let x = 1;
+      const cache1 = createCache(async () => x++);
+      const cache2 = createCache(async function () {
+        return await this.use(cache1);
+      });
+      const cache3 = createCache(async function () {
+        return await this.use(cache2);
+      });
+
+      await cache3.get();
+      cache3.invalidate();
+      const value = await cache3.get();
+
+      expect(value).toBe(2);
+    });
+
+    test(`don't invalidate depdencies`, async () => {
+      let x = 1;
+      const cache1 = createCache(async () => x++);
+      const cache2 = createCache(async function () {
+        return await this.use(cache1);
+      });
+
+      await cache2.get();
+      cache2.invalidate({ invalidateDependencies: false });
+      const value = await cache2.get();
+
+      expect(value).toBe(1);
     });
   });
 });
