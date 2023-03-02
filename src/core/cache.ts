@@ -70,6 +70,8 @@ export class Cache<T> extends Store<Promise<T>> {
   }
 
   invalidate() {
+    this.calculationHelper.invalidateDependencies();
+
     const { status, isStale, isUpdating } = this.state.get();
     if (status !== 'pending' && !isStale && !isUpdating) {
       this.stalePromise = this._value?.v;

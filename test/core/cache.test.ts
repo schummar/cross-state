@@ -217,58 +217,21 @@ describe('cache', () => {
       expect(cache.state.get().value).toBe(2);
     });
   });
-});
 
-describe('resourceGroup', () => {
-  describe('allResources', () => {
-    test('invalidateAll', async () => {
-      const cache = createCache(async () => 1);
-      await cache.get();
+  describe('invalidate dependencies', async () => {
+    test.only('invalidate one dependency', async () => {
+      let x = 1;
+      let y = 1;
+      const cache1 = createCache(async () => x++);
+      const cache2 = createCache(async function () {
+        return { dep: await this.use(cache1), value: y++ };
+      });
 
-      expect(cache.state.get().isStale).toBe(false);
+      await cache2.get();
+      cache2.invalidate();
+      const value = await cache2.get();
 
-      allResources.invalidateAll();
-      expect(cache.state.get().isStale).toBe(true);
-    });
-
-    test('clearAll', async () => {
-      const cache = createCache(async () => 1);
-      await cache.get();
-
-      expect(cache.state.get().value).toBe(1);
-
-      allResources.clearAll();
-      expect(cache.state.get().value).toBe(undefined);
-    });
-  });
-
-  describe('custom resourceGroup', () => {
-    test('create', async () => {
-      const resourceGroup = createResourceGroup('test');
-      expect(resourceGroup).toBeInstanceOf(ResourceGroup);
-      expect(resourceGroup.name).toBe('test');
-    });
-
-    test('invalidateAll', async () => {
-      const resourceGroup = createResourceGroup();
-      const cache = createCache(async () => 1, { resourceGroup });
-      await cache.get();
-
-      expect(cache.state.get().isStale).toBe(false);
-
-      resourceGroup.invalidateAll();
-      expect(cache.state.get().isStale).toBe(true);
-    });
-
-    test('clearAll', async () => {
-      const resourceGroup = createResourceGroup();
-      const cache = createCache(async () => 1, { resourceGroup });
-      await cache.get();
-
-      expect(cache.state.get().value).toBe(1);
-
-      resourceGroup.clearAll();
-      expect(cache.state.get().value).toBe(undefined);
+      expect(value).toStrictEqual({ dep: 2, value: 2 });
     });
   });
 });

@@ -8,6 +8,7 @@ export class CalculationHelper<T> {
   private current?: {
     cancel: Cancel;
     check: () => void;
+    invalidateDependencies: () => void;
   };
 
   constructor(
@@ -38,7 +39,7 @@ export class CalculationHelper<T> {
 
     const { calculate, addEffect, getValue, setValue, setError, onInvalidate } = this.options;
     const checks = new Array<() => boolean>();
-    const deps = new Map<Store<any>, { on: () => void; off: () => void }>();
+    const deps = new Map<Store<any>, { on: () => void; off: () => void; invalidate: () => void }>();
     const q = queue();
     let isActive = false;
     let isCancled = false;
@@ -73,6 +74,12 @@ export class CalculationHelper<T> {
       }
     };
 
+    const invalidateDependencies = () => {
+      for (const dep of deps.values()) {
+        dep.invalidate();
+      }
+    };
+
     const use: Use = (store, { disableProxy } = {}) => {
       if (isCancled) {
         return store.get();
@@ -98,6 +105,11 @@ export class CalculationHelper<T> {
         off() {
           sub?.();
           sub = undefined;
+        },
+        invalidate() {
+          if ('invalidate' in store && store.invalidate instanceof Function) {
+            store.invalidate();
+          }
         },
       };
 
@@ -156,7 +168,7 @@ export class CalculationHelper<T> {
       setError?.(error);
     }
 
-    this.current = { cancel, check: checkAll };
+    this.current = { cancel, check: checkAll, invalidateDependencies };
   }
 
   stop() {
@@ -165,5 +177,9 @@ export class CalculationHelper<T> {
 
   check() {
     this.current?.check();
+  }
+
+  invalidateDependencies() {
+    this.current?.invalidateDependencies();
   }
 }
