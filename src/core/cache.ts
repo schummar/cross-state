@@ -1,6 +1,5 @@
 import type { Duration, Selector, Use } from './commonTypes';
-import type { ResourceGroup } from './resourceGroup';
-import { allResources } from './resourceGroup';
+import { allResources, type ResourceGroup } from './resourceGroup';
 import { createStore, Store } from './store';
 import type { CacheState, ErrorState, ValueState } from '@lib/cacheState';
 import { calcDuration } from '@lib/calcDuration';

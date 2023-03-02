@@ -1,11 +1,12 @@
-export { Cache, CacheFunction, CacheGetOptions, CacheOptions, createCache } from './cache';
+export type { CacheFunction, CacheGetOptions, CacheOptions } from './cache';
+export { Cache, createCache } from './cache';
 export type { Cancel, Duration, Effect, Listener, SubscribeOptions } from './commonTypes';
-export { allResources, createResourceGroup, Resource, ResourceGroup } from './resourceGroup';
-export {
+export type { Resource } from './resourceGroup';
+export { allResources, createResourceGroup, ResourceGroup } from './resourceGroup';
+export type {
   BoundStoreMethods,
-  createStore,
-  Store,
   StoreMethods,
   StoreOptions,
   StoreOptionsWithMethods,
 } from './store';
+export { createStore, Store } from './store';

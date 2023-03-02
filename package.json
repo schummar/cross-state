@@ -55,7 +55,7 @@
     "build:compile:js": "vite build",
     "build:compile:types": "tsc && tsc-alias",
     "lint": "runp lint:*",
-    "lint:eslint": "lint .",
+    "lint:eslint": "lint",
     "lint:tsc": "tsc --noEmit --emitDeclarationOnly false",
     "lint:tsc:tests": "tsc --noEmit --emitDeclarationOnly false -p test/tsconfig.json",
     "prepublishOnly": "runp lint test build",
