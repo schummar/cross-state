@@ -1,6 +1,5 @@
 export { read } from './read';
-export { StoreScopeProvider, useStoreScope } from './storeScope';
-export type { StoreScopeProps } from './storeScope';
+export { StoreScopeProps, StoreScopeProvider, useStoreScope } from './storeScope';
+export { useCache, UseCacheArray, UseCacheValue } from './useCache';
 export { useProp } from './useProp';
-export { useStore } from './useStore';
-export type { UseStoreOptions } from './useStore';
+export { useStore, UseStoreOptions } from './useStore';

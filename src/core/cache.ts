@@ -167,6 +167,7 @@ export class Cache<T> extends Store<Promise<T>> {
 
     const state = this.state.get();
     let { invalidateAfter, clearAfter } = this.options;
+    const ref = new WeakRef(this);
 
     if (state.status === 'pending') {
       return;
@@ -177,7 +178,7 @@ export class Cache<T> extends Store<Promise<T>> {
     }
 
     if (invalidateAfter) {
-      this.timers.add(setTimeout(() => this.invalidate(), calcDuration(invalidateAfter)));
+      this.timers.add(setTimeout(() => ref?.deref()?.invalidate(), calcDuration(invalidateAfter)));
     }
 
     if (clearAfter instanceof Function) {
@@ -185,7 +186,7 @@ export class Cache<T> extends Store<Promise<T>> {
     }
 
     if (clearAfter) {
-      this.timers.add(setTimeout(() => this.clear(), calcDuration(clearAfter)));
+      this.timers.add(setTimeout(() => ref?.deref()?.clear(), calcDuration(clearAfter)));
     }
   }
 }
@@ -237,7 +238,7 @@ function withArgs<T, Args extends any[]>(
     ? [resourceGroup]
     : [];
   for (const group of groups.concat(allResources)) {
-    group.resources.add(resource);
+    group.add(resource);
   }
 
   return Object.assign(get, resource);

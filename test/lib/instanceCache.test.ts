@@ -35,8 +35,6 @@ describe('instanceCache', () => {
 
   describe('get cached value', () => {
     test('within timeout', async () => {
-      vi.stubGlobal('WeakRef', undefined);
-
       const factory = vi.fn(() => ({}));
       const cache = new InstanceCache(factory, 2);
 
@@ -47,7 +45,7 @@ describe('instanceCache', () => {
       expect(factory.mock.calls.length).toBe(1);
       expect(first).toEqual({});
       expect(second).toBe(first);
-      expect(cache.stats()).toEqual({ count: 1, withRef: 1, withWeakRef: 0 });
+      expect(cache.stats()).toEqual({ count: 1, withRef: 1, withWeakRef: 1 });
     });
 
     test('keeping ref', async () => {
@@ -106,8 +104,17 @@ describe('instanceCache', () => {
       expect(cache.stats()).toEqual({ count: 1, withRef: 1, withWeakRef: 1 });
     });
 
-    test('without WeakRef support', async () => {
-      vi.stubGlobal('WeakRef', undefined);
+    test('with WeakRef fallback', async () => {
+      vi.stubGlobal(
+        'WeakRef',
+        class WeakRef {
+          constructor(private value: any) {}
+
+          deref() {
+            return this.value;
+          }
+        },
+      );
 
       const factory = vi.fn(() => ({}));
       const cache = new InstanceCache(factory, 1);
@@ -117,9 +124,9 @@ describe('instanceCache', () => {
 
       const second = cache.get();
 
-      expect(factory.mock.calls.length).toBe(2);
+      expect(factory.mock.calls.length).toBe(1);
       expect(first).toEqual({});
-      expect(second).not.toBe(first);
+      expect(second).toBe(first);
     });
   });
 

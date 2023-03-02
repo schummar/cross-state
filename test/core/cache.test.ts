@@ -1,14 +1,14 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { allResources, createCache, createResourceGroup, ResourceGroup } from '../../src';
+import { afterEach, assert, beforeEach, describe, expect, test, vi } from 'vitest';
+import { createCache } from '../../src';
 import { Cache } from '../../src/core/cache';
-import { flushPromises } from '../testHelpers';
+import { flushPromises, sleep } from '../testHelpers';
 
 beforeEach(() => {
   vi.useFakeTimers();
 });
 
 afterEach(() => {
-  vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 describe('cache', () => {
@@ -104,6 +104,16 @@ describe('cache', () => {
     });
   });
 
+  describe('sub', () => {
+    test('passive', async () => {
+      const cache = createCache(async () => 1);
+      const sub = vi.fn();
+      cache.sub(sub, { passive: true });
+
+      expect(sub.mock.calls.length).toBe(0);
+    });
+  });
+
   test('invalidate', async () => {
     let i = 1;
     const cache = createCache(async () => i++);
@@ -191,6 +201,19 @@ describe('cache', () => {
 
       expect(cache.state.get().isStale).toBe(false);
     });
+
+    test('invalidation time does to prevent garbage collection', async () => {
+      vi.useRealTimers();
+      assert(gc, 'gc must be exposed');
+
+      const cache = new WeakRef(createCache(async () => 1, { invalidateAfter: { days: 1 } }));
+      await cache.deref()?.get();
+
+      await sleep(0);
+      gc();
+
+      expect(cache.deref()).toBe(undefined);
+    }, 20_000);
   });
 
   describe('clearAfter', async () => {

@@ -1,7 +1,7 @@
 import { hash } from './hash';
 
 export class InstanceCache<Args extends any[], T extends object> {
-  private cache = new Map<string, { t: number; ref?: T; weakRef?: WeakRef<T> }>();
+  private cache = new Map<string, { t: number; ref?: T; weakRef: WeakRef<T> }>();
 
   private interval = this.cacheTime
     ? setInterval(() => this.cleanup(), Math.max(this.cacheTime / 10, 1))
@@ -33,7 +33,7 @@ export class InstanceCache<Args extends any[], T extends object> {
       entry = {
         t: this.now(),
         ref: value,
-        weakRef: typeof WeakRef !== 'undefined' ? new WeakRef(value) : undefined,
+        weakRef: new WeakRef(value),
       };
 
       this.cache.set(key, entry);

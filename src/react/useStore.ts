@@ -5,12 +5,12 @@ import type { Store } from '@core/store';
 import { hash } from '@lib/hash';
 import { trackingProxy } from '@lib/trackingProxy';
 
-export type UseStoreOptions = Omit<SubscribeOptions, 'runNow'>;
+export type UseStoreOptions = Omit<SubscribeOptions, 'runNow' | 'passive'>;
 
 export function useStore<T>(store: Store<T>, options?: UseStoreOptions): T {
   const lastEqualsRef = useRef<(newValue: T) => boolean>();
 
-  const subOptions = { ...options, runNow: false, equals: undefined };
+  const subOptions = { ...options, runNow: false, equals: undefined, passive: false };
 
   const subscribe = useCallback(
     (listener: () => void) => {
