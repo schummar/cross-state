@@ -38,9 +38,12 @@ export class Cache<T> extends Store<Promise<T>> {
   constructor(
     getter: CacheFunction<T>,
     public readonly options: CacheOptions<T> = {},
-    derivedFrom?: { store: Store<any>; selectors: (Selector<any, any> | Path<any>)[] },
+    public readonly derivedFromCache?: {
+      cache: Cache<any>;
+      selectors: (Selector<any, any> | Path<any>)[];
+    },
   ) {
-    super(getter, options, derivedFrom);
+    super(getter, options);
     this.watchPromise();
   }
 
@@ -106,12 +109,22 @@ export class Cache<T> extends Store<Promise<T>> {
 
   mapValue<S>(_selector: Selector<T, S> | Path<any>): Cache<S> {
     const selector = makeSelector(_selector);
+    const derivedFromCache = {
+      cache: this.derivedFromCache ? this.derivedFromCache.cache : this,
+      selectors: this.derivedFromCache
+        ? [...this.derivedFromCache.selectors, _selector]
+        : [_selector],
+    };
     const that = this;
 
-    return new Cache(async function () {
-      const value = await this.use(that);
-      return selector(value);
-    });
+    return new Cache(
+      async function () {
+        const value = await this.use(that);
+        return selector(value);
+      },
+      {},
+      derivedFromCache,
+    );
   }
 
   protected watchPromise() {

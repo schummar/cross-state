@@ -80,7 +80,10 @@ export class Store<T> {
   constructor(
     public readonly getter: T | Calculate<T>,
     public readonly options: StoreOptions = {},
-    protected derivedFrom?: { store: Store<any>; selectors: (Selector<any, any> | Path<any>)[] },
+    public readonly derivedFrom?: {
+      store: Store<any>;
+      selectors: (Selector<any, any> | Path<any>)[];
+    },
   ) {
     bind(this);
 
@@ -233,7 +236,10 @@ export class Store<T> {
 
   map(_selector: Selector<T, any> | Path<any>, options?: UseOptions): Store<any> {
     const selector = makeSelector(_selector);
-    const derivedFrom = { store: this, selectors: [_selector] };
+    const derivedFrom = {
+      store: this.derivedFrom ? this.derivedFrom.store : this,
+      selectors: this.derivedFrom ? [...this.derivedFrom.selectors, _selector] : [_selector],
+    };
 
     return new Store(
       ({ use }) => {

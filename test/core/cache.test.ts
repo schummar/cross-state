@@ -301,4 +301,27 @@ describe('cache', () => {
       expect(value).toBe(1);
     });
   });
+
+  describe('mapValue', () => {
+    test('simple', async () => {
+      const cache = createCache(async () => 1);
+      const mapped = cache.mapValue((x) => x + 1);
+      const value = await mapped.get();
+
+      expect(value).toBe(2);
+    });
+
+    test('state of mapped value', async () => {
+      const cache = createCache(async () => 1);
+      const mapped = cache.mapValue((x) => x + 1);
+      const value = await mapped.get();
+
+      expect(mapped.state.get()).toStrictEqual({
+        status: 'value',
+        value,
+        isStale: false,
+        isUpdating: false,
+      });
+    });
+  });
 });

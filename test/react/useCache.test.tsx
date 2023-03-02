@@ -142,4 +142,25 @@ describe('useCache', () => {
       expect(div.textContent).toBe('[1,null,false,false]');
     });
   });
+
+  describe('mapValue', () => {
+    test('simple', async () => {
+      const cache = createCache(async () => 1);
+
+      const Component = vi.fn<[], any>(function Component() {
+        const [value] = useCache(cache.mapValue((value) => value + 1));
+
+        return <div data-testid="div">{value}</div>;
+      });
+
+      render(<Component />);
+      const div = screen.getByTestId('div');
+
+      expect(div.textContent).toBe('');
+
+      await act(() => flushPromises());
+
+      expect(div.textContent).toBe('2');
+    });
+  });
 });
