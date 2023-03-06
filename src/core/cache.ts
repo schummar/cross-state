@@ -17,11 +17,12 @@ export interface CacheFunction<T, Args extends any[] = []> {
 }
 
 export interface CacheOptions<T> {
-  invalidateAfter?: Duration | ((state: ValueState<T> | ErrorState) => Duration | undefined);
-  clearAfter?: Duration | ((state: ValueState<T> | ErrorState) => Duration | undefined);
+  invalidateAfter?: Duration | ((state: ValueState<T> | ErrorState) => Duration | null) | null;
+  clearAfter?: Duration | ((state: ValueState<T> | ErrorState) => Duration | null) | null;
   resourceGroup?: ResourceGroup | ResourceGroup[];
   retain?: number;
-  clearUnusedAfter?: Duration;
+  clearUnusedAfter?: Duration | null;
+  invalidateOnWindowFocus?: boolean;
 }
 
 export class Cache<T> extends Store<Promise<T>> {
@@ -45,6 +46,7 @@ export class Cache<T> extends Store<Promise<T>> {
   ) {
     super(getter, options);
     this.watchPromise();
+    this.watchFocus();
   }
 
   get({ update = 'whenStale', backgroundUpdate = false }: CacheGetOptions = {}) {
@@ -178,7 +180,10 @@ export class Cache<T> extends Store<Promise<T>> {
     this.timers.clear();
 
     const state = this.state.get();
-    let { invalidateAfter, clearAfter } = this.options;
+    let {
+      invalidateAfter = defaultOptions.invalidateAfter,
+      clearAfter = defaultOptions.clearAfter,
+    } = this.options;
     const ref = new WeakRef(this);
 
     if (state.status === 'pending') {
@@ -189,7 +194,7 @@ export class Cache<T> extends Store<Promise<T>> {
       invalidateAfter = invalidateAfter(state);
     }
 
-    if (invalidateAfter) {
+    if (invalidateAfter !== null && invalidateAfter !== undefined) {
       this.timers.add(setTimeout(() => ref?.deref()?.invalidate(), calcDuration(invalidateAfter)));
     }
 
@@ -197,9 +202,37 @@ export class Cache<T> extends Store<Promise<T>> {
       clearAfter = clearAfter(state);
     }
 
-    if (clearAfter) {
+    if (clearAfter !== null && clearAfter !== undefined) {
       this.timers.add(setTimeout(() => ref?.deref()?.clear(), calcDuration(clearAfter)));
     }
+  }
+
+  protected watchFocus() {
+    const { invalidateOnWindowFocus = defaultOptions.invalidateOnWindowFocus } = this.options;
+
+    if (
+      !invalidateOnWindowFocus ||
+      typeof document === 'undefined' ||
+      typeof document.addEventListener === 'undefined'
+    ) {
+      return;
+    }
+
+    const ref = new WeakRef(this);
+
+    const onFocus = () => {
+      const that = ref?.deref();
+      if (!that) {
+        document.removeEventListener('visibilitychange', onFocus);
+        return;
+      }
+
+      if (!document.hidden) {
+        that.invalidate();
+      }
+    };
+
+    document.addEventListener('visibilitychange', onFocus);
   }
 }
 
@@ -217,14 +250,14 @@ function withArgs<T, Args extends any[]>(
   invalidate: () => void;
   clear: () => void;
 } {
-  const { clearUnusedAfter = defaultOptions.clearUnusedAfter ?? 0, resourceGroup } = options ?? {};
+  const { clearUnusedAfter = defaultOptions.clearUnusedAfter, resourceGroup } = options ?? {};
 
   const cache = new InstanceCache(
     (...args: Args) =>
       new Cache(function () {
         return cacheFunction.apply(this, args);
       }, options),
-    calcDuration(clearUnusedAfter),
+    clearUnusedAfter ? calcDuration(clearUnusedAfter) : undefined,
   );
 
   const get = (...args: Args) => {

@@ -241,6 +241,38 @@ describe('cache', () => {
     });
   });
 
+  describe('invalidateOnWindowFocus', () => {
+    class MockDocument {
+      listener?: () => void;
+
+      addEventListener(_event: string, listener: () => void) {
+        this.listener = listener;
+      }
+
+      removeEventListener() {
+        this.listener = undefined;
+      }
+
+      dispatchEvent() {
+        this.listener?.();
+      }
+    }
+
+    test('triggers when the window is focused', async () => {
+      const document = new MockDocument();
+      vi.stubGlobal('document', document);
+
+      const cache = createCache(async () => 1, { invalidateOnWindowFocus: true });
+      await cache.get();
+
+      expect(cache.state.get().isStale).toBe(false);
+
+      document.dispatchEvent();
+
+      expect(cache.state.get().isStale).toBe(true);
+    });
+  });
+
   describe('invalidate dependencies', async () => {
     test('on invalidate', async () => {
       let x = 1;
