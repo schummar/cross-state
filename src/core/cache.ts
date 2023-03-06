@@ -18,11 +18,12 @@ export interface CacheFunction<T, Args extends any[] = []> {
 
 export interface CacheOptions<T> {
   invalidateAfter?: Duration | ((state: ValueState<T> | ErrorState) => Duration | null) | null;
-  clearAfter?: Duration | ((state: ValueState<T> | ErrorState) => Duration | null) | null;
+  invalidateOnWindowFocus?: boolean;
+  invalidateOnActivation?: boolean;
+  clearOnInvalidate?: boolean;
+  clearUnusedAfter?: Duration | null;
   resourceGroup?: ResourceGroup | ResourceGroup[];
   retain?: number;
-  clearUnusedAfter?: Duration | null;
-  invalidateOnWindowFocus?: boolean;
 }
 
 export class Cache<T> extends Store<Promise<T>> {
@@ -34,7 +35,7 @@ export class Cache<T> extends Store<Promise<T>> {
 
   protected stalePromise?: Promise<T>;
 
-  protected timers = new Set<ReturnType<typeof setTimeout>>();
+  protected invalidationTimer?: ReturnType<typeof setTimeout>;
 
   constructor(
     getter: CacheFunction<T>,
@@ -73,6 +74,13 @@ export class Cache<T> extends Store<Promise<T>> {
   }
 
   invalidate({ invalidateDependencies = true }: { invalidateDependencies?: boolean } = {}) {
+    const { clearOnInvalidate: clearOnInvalidation = defaultOptions.clearOnInvalidate } =
+      this.options;
+
+    if (clearOnInvalidation) {
+      return this.clear({ invalidateDependencies });
+    }
+
     if (invalidateDependencies) {
       this.calculationHelper.invalidateDependencies();
     }
@@ -174,16 +182,13 @@ export class Cache<T> extends Store<Promise<T>> {
   }
 
   protected setTimers() {
-    for (const timer of this.timers) {
-      clearTimeout(timer);
+    if (this.invalidationTimer) {
+      clearTimeout(this.invalidationTimer);
     }
-    this.timers.clear();
+    this.invalidationTimer = undefined;
 
     const state = this.state.get();
-    let {
-      invalidateAfter = defaultOptions.invalidateAfter,
-      clearAfter = defaultOptions.clearAfter,
-    } = this.options;
+    let { invalidateAfter = defaultOptions.invalidateAfter } = this.options;
     const ref = new WeakRef(this);
 
     if (state.status === 'pending') {
@@ -195,15 +200,10 @@ export class Cache<T> extends Store<Promise<T>> {
     }
 
     if (invalidateAfter !== null && invalidateAfter !== undefined) {
-      this.timers.add(setTimeout(() => ref?.deref()?.invalidate(), calcDuration(invalidateAfter)));
-    }
-
-    if (clearAfter instanceof Function) {
-      clearAfter = clearAfter(state);
-    }
-
-    if (clearAfter !== null && clearAfter !== undefined) {
-      this.timers.add(setTimeout(() => ref?.deref()?.clear(), calcDuration(clearAfter)));
+      this.invalidationTimer = setTimeout(
+        () => ref?.deref()?.invalidate(),
+        calcDuration(invalidateAfter),
+      );
     }
   }
 
@@ -236,7 +236,11 @@ export class Cache<T> extends Store<Promise<T>> {
   }
 }
 
-const defaultOptions: CacheOptions<unknown> = {};
+const defaultOptions: CacheOptions<unknown> = {
+  invalidateOnWindowFocus: true,
+  invalidateOnActivation: true,
+  clearUnusedAfter: { days: 1 },
+};
 
 function create<T>(cacheFunction: CacheFunction<T>, options?: CacheOptions<T>): Cache<T> {
   return withArgs(cacheFunction, options)();

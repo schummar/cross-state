@@ -202,11 +202,13 @@ describe('cache', () => {
       expect(cache.state.get().isStale).toBe(false);
     });
 
-    test('invalidation time does to prevent garbage collection', async () => {
+    test('invalidation timer does not prevent garbage collection', async () => {
       vi.useRealTimers();
       assert(gc, 'gc must be exposed');
 
-      const cache = new WeakRef(createCache(async () => 1, { invalidateAfter: { days: 1 } }));
+      const cache = new WeakRef(
+        createCache(async () => 1, { invalidateAfter: { days: 1 }, clearUnusedAfter: null }),
+      );
       await cache.deref()?.get();
 
       await sleep(0);
@@ -214,11 +216,12 @@ describe('cache', () => {
 
       expect(cache.deref()).toBe(undefined);
     }, 20_000);
-  });
 
-  describe('clearAfter', async () => {
-    test('triggers after the given time', async () => {
-      const cache = createCache(async () => 1, { clearAfter: { milliseconds: 1 } });
+    test('with clearOnInvalidate', async () => {
+      const cache = createCache(async () => 1, {
+        invalidateAfter: { milliseconds: 1 },
+        clearOnInvalidate: true,
+      });
       await cache.get();
 
       expect(cache.state.get().value).toBe(1);
@@ -226,18 +229,6 @@ describe('cache', () => {
       vi.advanceTimersByTime(1);
 
       expect(cache.state.get().value).toBe(undefined);
-    });
-
-    test('is delayed when the value is updated', async () => {
-      const cache = createCache(async () => 1, { clearAfter: { milliseconds: 2 } });
-      await cache.get();
-
-      vi.advanceTimersByTime(1);
-      cache.set(Promise.resolve(2));
-      await flushPromises();
-      vi.advanceTimersByTime(1);
-
-      expect(cache.state.get().value).toBe(2);
     });
   });
 
