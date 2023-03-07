@@ -1,5 +1,3 @@
-import { bind } from '@lib/bind';
-
 export interface Resource {
   invalidate(): void;
   clear(): void;
@@ -11,7 +9,10 @@ export class ResourceGroup {
   private refSet = new Set<WeakRef<Resource>>();
 
   constructor(public readonly name?: string) {
-    bind(this);
+    this.add = this.add.bind(this);
+    this.delete = this.delete.bind(this);
+    this.invalidateAll = this.invalidateAll.bind(this);
+    this.clearAll = this.clearAll.bind(this);
   }
 
   add(resource: Resource) {

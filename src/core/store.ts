@@ -9,9 +9,9 @@ import type {
   Use,
   UseOptions,
 } from './commonTypes';
-import { bind } from '@lib/bind';
 import { calcDuration } from '@lib/calcDuration';
 import { CalculationHelper } from '@lib/calculationHelper';
+import { Callable } from '@lib/callable';
 import { debounce } from '@lib/debounce';
 import { defaultEquals } from '@lib/equals';
 import { forwardError } from '@lib/forwardError';
@@ -52,7 +52,7 @@ type StoreWithMethods<T, Methods extends StoreMethods> = Store<T> &
 
 const noop = () => undefined;
 
-export class Store<T> {
+export class Store<T> extends Callable<any, any> {
   protected _value?: { v: T };
 
   protected listeners = new Map<Listener, boolean>();
@@ -84,8 +84,16 @@ export class Store<T> {
       store: Store<any>;
       selectors: (Selector<any, any> | Path<any>)[];
     },
+    protected readonly _call: (...args: any[]) => any = () => undefined,
   ) {
-    bind(this);
+    super(_call);
+    this.get = this.get.bind(this);
+    this.set = this.set.bind(this);
+    this.sub = this.sub.bind(this);
+    this.once = this.once.bind(this);
+    this.map = this.map.bind(this);
+    this.addEffect = this.addEffect.bind(this);
+    this.isActive = this.isActive.bind(this);
 
     if (!(getter instanceof Function)) {
       this._value = { v: getter };
@@ -142,7 +150,7 @@ export class Store<T> {
   protected reset() {
     this._value = undefined;
 
-    if (this.isActive) {
+    if (this.isActive()) {
       this.calculationHelper.execute();
     }
   }
@@ -262,7 +270,7 @@ export class Store<T> {
    */
   addEffect(effect: Effect, retain?: Duration) {
     this.effects.set(effect, {
-      handle: this.isActive ? effect() ?? noop : undefined,
+      handle: this.isActive() ? effect() ?? noop : undefined,
       retain: retain !== undefined ? calcDuration(retain) : undefined,
     });
 
@@ -279,7 +287,7 @@ export class Store<T> {
   }
 
   /** Return whether the store is currently active, which means whether it has at least one subscriber. */
-  get isActive() {
+  isActive() {
     return [...this.listeners.values()].some(Boolean);
   }
 
@@ -337,7 +345,6 @@ function create<T>(
   calculate: (this: { use: Use }, fns: { use: Use }) => T,
   options?: StoreOptions,
 ): Store<T>;
-// eslint-disable-next-line @typescript-eslint/ban-types
 function create<T, Methods extends StoreMethods = {}>(
   initialState: T,
   options?: StoreOptionsWithMethods<T, Methods>,

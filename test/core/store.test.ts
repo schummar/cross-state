@@ -35,11 +35,11 @@ describe('static store', () => {
 
   test('store.isActive', () => {
     const state = createStore(1);
-    expect(state.isActive).toBe(false);
+    expect(state.isActive()).toBe(false);
     const cancel = state.sub(() => undefined);
-    expect(state.isActive).toBe(true);
+    expect(state.isActive()).toBe(true);
     cancel();
-    expect(state.isActive).toBe(false);
+    expect(state.isActive()).toBe(false);
   });
 
   describe('addEffect', () => {

@@ -1,6 +1,5 @@
 import { afterEach, assert, beforeEach, describe, expect, test, vi } from 'vitest';
-import { createCache } from '../../src';
-import { Cache } from '../../src/core/cache';
+import { Cache, createCache } from '../../src';
 import { flushPromises, sleep } from '../testHelpers';
 
 beforeEach(() => {
@@ -345,6 +344,73 @@ describe('cache', () => {
         isStale: false,
         isUpdating: false,
       });
+    });
+  });
+
+  describe('args', () => {
+    test('no args', async () => {
+      const cache = createCache(async () => 1);
+      const value = await cache.get();
+      expect(value).toBe(1);
+    });
+
+    test('single arg', async () => {
+      const cache = createCache(async (x: number) => x);
+      const value = await cache(1).get();
+      expect(value).toBe(1);
+    });
+
+    test('multiple args', async () => {
+      const cache = createCache(async (x: number, y: number) => x + y);
+      const value = await cache(1, 2).get();
+      expect(value).toBe(3);
+    });
+
+    test('optional arg', async () => {
+      const cache = createCache(async (x?: number) => x ?? 1);
+      const value1 = await cache.get();
+      const value2 = await cache(2).get();
+      expect(value1).toBe(1);
+      expect(value2).toBe(2);
+    });
+
+    test('rest args', async () => {
+      const cache = createCache(async (...args: number[]) => args.reduce((a, b) => a + b, 0));
+      const value1 = await cache.get();
+      const value2 = await cache(1, 2, 3).get();
+
+      expect(value1).toBe(0);
+      expect(value2).toBe(6);
+    });
+
+    test('same instance when called with same args', async () => {
+      const cache = createCache(async (x: number) => x);
+      expect(cache(1)).toBe(cache(1));
+    });
+
+    test('same instance for when not calling as when calling without args', async () => {
+      const cache = createCache(async () => 1);
+      expect(cache).toBe(cache());
+    });
+
+    test('invalidateAll', async () => {
+      const cache = createCache(async (x?: number) => x);
+      await cache.get();
+      await cache(1).get();
+      cache.invalidateAll();
+
+      expect(cache.state.get().isStale).toBe(true);
+      expect(cache(1).state.get().isStale).toBe(true);
+    });
+
+    test('clearAll', async () => {
+      const cache = createCache(async (x?: number) => x);
+      await cache.get();
+      await cache(1).get();
+      cache.clearAll();
+
+      expect(cache.state.get().value).toBe(undefined);
+      expect(cache(1).state.get().value).toBe(undefined);
     });
   });
 });

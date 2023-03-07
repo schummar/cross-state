@@ -7,7 +7,7 @@ export class InstanceCache<Args extends any[], T extends object> {
     ? setInterval(() => this.cleanup(), Math.max(this.cacheTime / 10, 1))
     : undefined;
 
-  constructor(private factory: (...args: Args) => T, private cacheTime?: number) {}
+  constructor(public readonly factory: (...args: Args) => T, public readonly cacheTime?: number) {}
 
   cleanup() {
     const cutoff = this.now() - (this.cacheTime ?? 0);

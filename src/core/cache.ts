@@ -44,8 +44,13 @@ export class Cache<T> extends Store<Promise<T>> {
       cache: Cache<any>;
       selectors: (Selector<any, any> | Path<any>)[];
     },
+    _call?: (...args: any[]) => any,
   ) {
-    super(getter, options);
+    super(getter, options, undefined, _call);
+    this.invalidate = this.invalidate.bind(this);
+    this.clear = this.clear.bind(this);
+    this.mapValue = this.mapValue.bind(this);
+
     this.watchPromise();
     this.watchFocus();
   }
@@ -242,58 +247,78 @@ const defaultOptions: CacheOptions<unknown> = {
   clearUnusedAfter: { days: 1 },
 };
 
-function create<T>(cacheFunction: CacheFunction<T>, options?: CacheOptions<T>): Cache<T> {
-  return withArgs(cacheFunction, options)();
-}
+type CreateReturnType<T, Args extends any[]> = {
+  (...args: Args): Cache<T>;
+  invalidateAll: () => void;
+  clearAll: () => void;
+} & ([] extends Args ? Cache<T> : {});
 
-function withArgs<T, Args extends any[]>(
+function create<T, Args extends any[]>(
   cacheFunction: CacheFunction<T, Args>,
   options?: CacheOptions<T>,
-): {
-  (...args: Args): Cache<T>;
-  invalidate: () => void;
-  clear: () => void;
-} {
+): CreateReturnType<T, Args> {
   const { clearUnusedAfter = defaultOptions.clearUnusedAfter, resourceGroup } = options ?? {};
 
-  const cache = new InstanceCache(
-    (...args: Args) =>
-      new Cache(function () {
+  let baseInstance: CreateReturnType<T, Args> & Cache<T>;
+
+  const instanceCache = new InstanceCache<Args, Cache<T>>(
+    (...args: Args): Cache<T> => {
+      if (args.length === 0 && baseInstance) {
+        return baseInstance;
+      }
+
+      return new Cache(function () {
         return cacheFunction.apply(this, args);
-      }, options),
+      }, options);
+    },
     clearUnusedAfter ? calcDuration(clearUnusedAfter) : undefined,
   );
 
   const get = (...args: Args) => {
-    return cache.get(...args);
+    return instanceCache.get(...args);
   };
 
-  const invalidate = () => {
-    for (const instance of cache.values()) {
+  const invalidateAll = () => {
+    for (const instance of instanceCache.values()) {
       instance.invalidate();
     }
   };
 
-  const clear = () => {
-    for (const instance of cache.values()) {
+  const clearAll = () => {
+    for (const instance of instanceCache.values()) {
       instance.clear();
     }
   };
 
-  const resource = { invalidate, clear };
   const groups = Array.isArray(resourceGroup)
     ? resourceGroup
     : resourceGroup
     ? [resourceGroup]
     : [];
   for (const group of groups.concat(allResources)) {
-    group.add(resource);
+    group.add({ invalidate: invalidateAll, clear: clearAll });
   }
 
-  return Object.assign(get, resource);
+  baseInstance = Object.assign(
+    new Cache(
+      function () {
+        return cacheFunction.apply(this);
+      },
+      options,
+      undefined,
+      get,
+    ),
+    {
+      invalidateAll,
+      clearAll,
+    },
+  ) as CreateReturnType<T, Args> & Cache<T>;
+
+  get(...([] as any));
+
+  return baseInstance;
 }
 
 export const createCache = Object.assign(create, {
-  withArgs,
   defaultOptions,
 });
