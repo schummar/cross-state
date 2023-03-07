@@ -4,7 +4,7 @@ import { defineConfig } from 'vite';
 import tsconfigPaths from 'vite-tsconfig-paths';
 
 export default defineConfig({
-  plugins: [react(), tsconfigPaths({})],
+  plugins: [react(), tsconfigPaths()],
 
   test: {
     environment: 'happy-dom',
@@ -24,23 +24,18 @@ export default defineConfig({
         react: 'src/react/index.ts',
         immer: 'src/immer/index.ts',
       },
+      formats: ['es', 'cjs'],
+      fileName: '[format]/[name]',
     },
 
     rollupOptions: {
-      output: [
-        {
-          dir: 'dist/es',
-          format: 'es',
-          entryFileNames: '[name].mjs',
-          chunkFileNames: '[name].mjs',
+      output: {
+        preserveModules: true,
+        preserveModulesRoot: 'src',
+        sanitizeFileName(fileName) {
+          return fileName.replace(/^.*node_modules\//, '');
         },
-        {
-          dir: 'dist/cjs',
-          format: 'cjs',
-          entryFileNames: '[name].cjs',
-          chunkFileNames: '[name].cjs',
-        },
-      ],
+      },
       external: [
         //
         'react',

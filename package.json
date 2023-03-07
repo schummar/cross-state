@@ -16,23 +16,23 @@
     "react.d.ts"
   ],
   "main": "dist/cjs/index.cjs",
-  "module": "dist/es/index.mjs",
+  "module": "dist/es/index.js",
   "types": "dist/types/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/es/index.mjs",
+      "import": "./dist/es/index.js",
       "require": "./dist/cjs/index.cjs",
-      "default": "./dist/es/index.mjs"
+      "default": "./dist/es/index.js"
     },
     "./react": {
-      "import": "./dist/es/react.mjs",
+      "import": "./dist/es/react.js",
       "require": "./dist/cjs/react.cjs",
-      "default": "./dist/es/react.mjs"
+      "default": "./dist/es/react.js"
     },
     "./immer": {
-      "import": "./dist/es/immer.mjs",
+      "import": "./dist/es/immer.js",
       "require": "./dist/cjs/immer.cjs",
-      "default": "./dist/es/immer.mjs"
+      "default": "./dist/es/immer.js"
     }
   },
   "typesVersions": {
