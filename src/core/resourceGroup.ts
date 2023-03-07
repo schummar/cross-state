@@ -52,7 +52,7 @@ export class ResourceGroup {
   }
 }
 
-export const allResources = new ResourceGroup();
+export const allResources = /* @__PURE__ */ new ResourceGroup();
 
 export function createResourceGroup(name?: string) {
   return new ResourceGroup(name);

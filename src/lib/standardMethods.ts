@@ -15,13 +15,13 @@ const createArrayAction = <P extends keyof Array<any>>(prop: P) =>
   };
 
 export const arrayMethods = {
-  splice: createArrayAction('splice'),
-  push: createArrayAction('push'),
-  pop: createArrayAction('pop'),
-  shift: createArrayAction('shift'),
-  unshift: createArrayAction('unshift'),
-  reverse: createArrayAction('reverse'),
-  sort: createArrayAction('sort'),
+  splice: /* @__PURE__ */ createArrayAction('splice'),
+  push: /* @__PURE__ */ createArrayAction('push'),
+  pop: /* @__PURE__ */ createArrayAction('pop'),
+  shift: /* @__PURE__ */ createArrayAction('shift'),
+  unshift: /* @__PURE__ */ createArrayAction('unshift'),
+  reverse: /* @__PURE__ */ createArrayAction('reverse'),
+  sort: /* @__PURE__ */ createArrayAction('sort'),
 };
 
 export const recordMethods = {

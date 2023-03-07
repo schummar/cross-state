@@ -24,18 +24,21 @@ export default defineConfig({
         react: 'src/react/index.ts',
         immer: 'src/immer/index.ts',
       },
-      formats: ['es', 'cjs'],
-      fileName: '[format]/[name]',
     },
 
     rollupOptions: {
-      output: {
-        preserveModules: true,
-        preserveModulesRoot: 'src',
-        sanitizeFileName(fileName) {
-          return fileName.replace(/^.*node_modules\//, '');
+      output: [
+        {
+          format: 'es',
+          entryFileNames: '[format]/[name].mjs',
+          chunkFileNames: '[format]/[name].mjs',
         },
-      },
+        {
+          format: 'cjs',
+          entryFileNames: '[format]/[name].cjs',
+          chunkFileNames: '[format]/[name].cjs',
+        },
+      ],
       external: [
         //
         'react',

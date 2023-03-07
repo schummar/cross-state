@@ -319,6 +319,6 @@ function create<T, Args extends any[]>(
   return baseInstance;
 }
 
-export const createCache = Object.assign(create, {
+export const createCache = /* @__PURE__ */ Object.assign(create, {
   defaultOptions,
 });

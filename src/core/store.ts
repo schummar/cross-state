@@ -380,4 +380,4 @@ function create<T, Methods extends StoreMethods>(
   return Object.assign(store, boundMethods);
 }
 
-export const createStore = Object.assign(create, { defaultOptions });
+export const createStore = /* @__PURE__ */ Object.assign(create, { defaultOptions });
