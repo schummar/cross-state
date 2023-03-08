@@ -10,8 +10,11 @@ const ProxyKeys = [
   'ownKeys',
 ] as const;
 
-const isPlainObject = (value: unknown) =>
-  typeof value === 'object' && value !== null && Object.getPrototypeOf(value) === Object.prototype;
+function isPlainObject(value: unknown) {
+  return (
+    typeof value === 'object' && value !== null && Object.getPrototypeOf(value) === Object.prototype
+  );
+}
 
 export function trackingProxy<T>(value: T): TrackingProxy<T> {
   if (!isPlainObject(value) && !Array.isArray(value)) {

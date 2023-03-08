@@ -50,7 +50,9 @@ type StoreWithMethods<T, Methods extends StoreMethods> = Store<T> &
   Omit<BoundStoreMethods<T, Methods>, keyof Store<T>> &
   StandardMethods<T>;
 
-const noop = () => undefined;
+function noop() {
+  return undefined;
+}
 
 export class Store<T> extends Callable<any, any> {
   protected _value?: { v: T };

@@ -1,6 +1,8 @@
-export const defaultEquals = (a: any, b: any) => a === b;
+export function defaultEquals(a: any, b: any) {
+  return a === b;
+}
 
-export const simpleShallowEquals = (a: any, b: any): boolean => {
+export function simpleShallowEquals(a: any, b: any): boolean {
   if (a === b) {
     return true;
   }
@@ -22,9 +24,9 @@ export const simpleShallowEquals = (a: any, b: any): boolean => {
   }
 
   return false;
-};
+}
 
-export const simpleDeepEquals = (a: any, b: any): boolean => {
+export function simpleDeepEquals(a: any, b: any): boolean {
   if (a === b) {
     return true;
   }
@@ -47,4 +49,4 @@ export const simpleDeepEquals = (a: any, b: any): boolean => {
   }
 
   return false;
-};
+}
