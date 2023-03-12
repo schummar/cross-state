@@ -6,6 +6,7 @@ import type {
   Selector,
   SubscribeOptions,
   Update,
+  UpdateFrom,
   Use,
   UseOptions,
 } from './commonTypes';
@@ -20,6 +21,7 @@ import type { Path, Value } from '@lib/path';
 import { get, set } from '@lib/propAccess';
 import { arrayMethods, mapMethods, recordMethods, setMethods } from '@lib/standardMethods';
 import { throttle } from '@lib/throttle';
+import { MaybePromise } from '@lib/maybePromise';
 
 export type StoreMethods = Record<string, (...args: any[]) => any>;
 
@@ -34,7 +36,18 @@ export interface StoreOptionsWithMethods<T, Methods extends StoreMethods> extend
   methods?: Methods & ThisType<Store<T> & Methods & StandardMethods<T>>;
 }
 
-export type Calculate<T> = (this: { use: Use }, fns: { use: Use }) => T;
+export type Calculate<T> = (
+  this: {
+    use: Use;
+    updateValue: (update: UpdateFrom<MaybePromise<T>, [T | undefined]>) => void;
+    updateError: (error: unknown) => void;
+  },
+  fns: {
+    use: Use;
+    updateValue: (update: UpdateFrom<MaybePromise<T>, [T | undefined]>) => void;
+    updateError: (error: unknown) => void;
+  },
+) => T;
 
 type StandardMethods<T> = T extends Map<any, any>
   ? typeof mapMethods
@@ -66,10 +79,12 @@ export class Store<T> extends Callable<any, any> {
 
   protected notifyId = {};
 
-  protected calculationHelper = new CalculationHelper({
-    calculate: ({ use }) => {
+  protected calculationHelper = new CalculationHelper<T>({
+    calculate: ({ use, updateValue, updateError }) => {
       if (this.getter instanceof Function) {
-        const value = this.getter.apply({ use }, [{ use }]);
+        const value = this.getter.apply({ use, updateValue, updateError }, [
+          { use, updateValue, updateError },
+        ]);
         this._value = { v: value };
         this.notify();
       }
