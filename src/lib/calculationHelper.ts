@@ -2,7 +2,7 @@ import type { MaybePromise } from './maybePromise';
 import { queue } from './queue';
 import { trackingProxy } from './trackingProxy';
 import type { Store } from '@core/store';
-import type { Cancel, UpdateFrom, Use } from '@core/commonTypes';
+import type { CalculationHelpers, Cancel, UpdateFrom, Use } from '@core/commonTypes';
 
 export class CalculationHelper<T> {
   private current?: {
@@ -13,11 +13,7 @@ export class CalculationHelper<T> {
 
   constructor(
     private options: {
-      calculate: (fns: {
-        use: Use;
-        updateValue: (update: UpdateFrom<MaybePromise<T>, [T | undefined]>) => void;
-        updateError: (error: unknown) => void;
-      }) => Cancel | void;
+      calculate: (helpers: CalculationHelpers<T>) => Cancel | void;
       addEffect: (effect: () => Cancel | void) => Cancel;
       getValue?: () => T | undefined;
       setValue?: (value: T) => void;
@@ -177,6 +173,14 @@ export class CalculationHelper<T> {
 
   check() {
     this.current?.check();
+  }
+
+  checkOrExecute() {
+    if (this.current) {
+      this.check();
+    } else {
+      this.execute();
+    }
   }
 
   invalidateDependencies() {

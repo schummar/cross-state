@@ -1,5 +1,6 @@
 import type { Store } from './store';
 import type { DebounceOptions } from '@lib/debounce';
+import { type MaybePromise } from '@lib/maybePromise';
 
 export interface Listener<T = void> {
   (value: T, previouseValue?: T): void;
@@ -60,4 +61,13 @@ export interface UseOptions {
 
 export interface Use {
   <T>(store: Store<T>, options?: UseOptions): T;
+}
+
+export type ConnectionState = 'connecting' | 'open' | 'closing' | 'closed';
+
+export interface CalculationHelpers<T> {
+  use: Use;
+  updateValue: (update: UpdateFrom<MaybePromise<T>, [T | undefined]>) => void;
+  updateError: (error: unknown) => void;
+  updateConnectionState: (state: ConnectionState) => void;
 }
