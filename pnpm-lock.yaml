@@ -10,6 +10,7 @@ specifiers:
   '@types/react-dom': 18.0.11
   '@types/seedrandom': 3.0.5
   '@types/use-sync-external-store': 0.0.3
+  '@types/ws': ^8.5.4
   '@vitejs/plugin-react': 3.1.0
   '@vitest/coverage-c8': 0.29.2
   eslint: 8.35.0
@@ -30,6 +31,7 @@ specifiers:
   vite: 4.1.4
   vite-tsconfig-paths: 4.0.5
   vitest: 0.29.2
+  ws: ^8.13.0
 
 devDependencies:
   '@schummar/eslint-config': github.com/schummar/eslint-config/7fa6fb08b3870ef5986e4468877924987a4c979f_64jebu3ilvs7epq3v3pc7ikc4m
@@ -41,6 +43,7 @@ devDependencies:
   '@types/react-dom': 18.0.11
   '@types/seedrandom': 3.0.5
   '@types/use-sync-external-store': 0.0.3
+  '@types/ws': 8.5.4
   '@vitejs/plugin-react': 3.1.0_vite@4.1.4
   '@vitest/coverage-c8': 0.29.2_vitest@0.29.2
   eslint: 8.35.0
@@ -61,6 +64,7 @@ devDependencies:
   vite: 4.1.4
   vite-tsconfig-paths: 4.0.5_typescript@4.9.5
   vitest: 0.29.2_3yxaohsw6xbsvmkgfwsihdznfi
+  ws: 8.13.0
 
 packages:
 
@@ -1229,6 +1233,12 @@ packages:
 
   /@types/use-sync-external-store/0.0.3:
     resolution: {integrity: sha512-EwmlvuaxPNej9+T4v5AuBPJa2x2UOJVdjCtDHgcDqitUeOtjnJKJ+apYjVcAoBEMjKW1VVFGZLUb5+qqa09XFA==}
+    dev: true
+
+  /@types/ws/8.5.4:
+    resolution: {integrity: sha512-zdQDHKUgcX/zBc4GrwsE/7dVdAD8JR4EuiAXiiUhhfyIJXXb2+PrGshFyeXWQPMmmZ2XxgaqclgpIC7eTXc1mg==}
+    dependencies:
+      '@types/node': 18.7.18
     dev: true
 
   /@typescript-eslint/eslint-plugin/5.54.1_mlk7dnz565t663n4razh6a6v6i:
@@ -3785,7 +3795,7 @@ packages:
       whatwg-encoding: 2.0.0
       whatwg-mimetype: 3.0.0
       whatwg-url: 11.0.0
-      ws: 8.12.0
+      ws: 8.13.0
       xml-name-validator: 4.0.0
     transitivePeerDependencies:
       - bufferutil
@@ -6110,8 +6120,8 @@ packages:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
     dev: true
 
-  /ws/8.12.0:
-    resolution: {integrity: sha512-kU62emKIdKVeEIOIKVegvqpXMSTAMLJozpHZaJNDYqBjzlSYXQGviYwN1osDLJ9av68qHd4a2oSjd7yD4pacig==}
+  /ws/8.13.0:
+    resolution: {integrity: sha512-x9vcZYTrFPC7aSIbj7sRCYo7L/Xb8Iy+pW0ng0wt2vCJv7M9HOMy0UoN3rr+IFC7hb7vXoqS+P9ktyLLLhO+LA==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1

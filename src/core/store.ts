@@ -28,7 +28,7 @@ export type BoundStoreMethods<T, Methods extends StoreMethods> = Methods &
   ThisType<Store<T> & Methods>;
 
 export interface StoreOptions {
-  retain?: number;
+  retain?: Duration;
 }
 
 export interface StoreOptionsWithMethods<T, Methods extends StoreMethods> extends StoreOptions {
@@ -75,9 +75,9 @@ export class Store<T> extends Callable<any, any> {
         this.notify();
       }
     },
-
-    addEffect: this.addEffect.bind(this),
-    onInvalidate: this.reset.bind(this),
+    addEffect: (effect) => this.addEffect(effect, this.options.retain),
+    getValue: () => this._value?.v,
+    onInvalidate: () => this.reset(),
   });
 
   constructor(

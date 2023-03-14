@@ -51,6 +51,7 @@ export class Cache<T> extends Store<Promise<T>> {
     this.clear = this.clear.bind(this);
     this.mapValue = this.mapValue.bind(this);
 
+    this.calculationHelper.options.onInvalidate = () => this.invalidate();
     this.watchPromise();
     this.watchFocus();
   }
@@ -79,10 +80,9 @@ export class Cache<T> extends Store<Promise<T>> {
   }
 
   invalidate({ invalidateDependencies = true }: { invalidateDependencies?: boolean } = {}) {
-    const { clearOnInvalidate: clearOnInvalidation = defaultOptions.clearOnInvalidate } =
-      this.options;
+    const { clearOnInvalidate = defaultOptions.clearOnInvalidate } = this.options;
 
-    if (clearOnInvalidation) {
+    if (clearOnInvalidate) {
       return this.clear({ invalidateDependencies });
     }
 
@@ -101,6 +101,7 @@ export class Cache<T> extends Store<Promise<T>> {
       isUpdating: false,
     }));
 
+    this.calculationHelper.stop();
     super.reset();
   }
 
@@ -115,6 +116,8 @@ export class Cache<T> extends Store<Promise<T>> {
       isUpdating: false,
     });
     delete this.stalePromise;
+
+    this.calculationHelper.stop();
     super.reset();
   }
 

@@ -2,7 +2,13 @@ import type { MaybePromise } from './maybePromise';
 import { queue } from './queue';
 import { trackingProxy } from './trackingProxy';
 import type { Store } from '@core/store';
-import type { CalculationHelpers, Cancel, UpdateFrom, Use } from '@core/commonTypes';
+import type {
+  CalculationHelpers,
+  Cancel,
+  ConnectionState,
+  UpdateFrom,
+  Use,
+} from '@core/commonTypes';
 
 export class CalculationHelper<T> {
   private current?: {
@@ -12,12 +18,13 @@ export class CalculationHelper<T> {
   };
 
   constructor(
-    private options: {
+    public options: {
       calculate: (helpers: CalculationHelpers<T>) => Cancel | void;
       addEffect: (effect: () => Cancel | void) => Cancel;
       getValue?: () => T | undefined;
-      setValue?: (value: T) => void;
-      setError?: (error: unknown) => void;
+      onValue?: (value: T) => void;
+      onError?: (error: unknown) => void;
+      onConnectionState?: (state: ConnectionState) => void;
       onInvalidate?: () => void;
     },
   ) {
@@ -33,7 +40,8 @@ export class CalculationHelper<T> {
   execute() {
     this.stop();
 
-    const { calculate, addEffect, getValue, setValue, setError, onInvalidate } = this.options;
+    const { calculate, addEffect, getValue, onValue, onError, onConnectionState, onInvalidate } =
+      this.options;
     const checks = new Array<() => boolean>();
     const deps = new Map<Store<any>, { on: () => void; off: () => void; invalidate: () => void }>();
     const q = queue();
@@ -48,10 +56,21 @@ export class CalculationHelper<T> {
       }
 
       return () => {
+        if (isCancled) {
+          return;
+        }
+
         isActive = false;
 
         for (const dep of deps.values()) {
           dep.off();
+        }
+
+        if (cancelSubscription) {
+          cancelSubscription();
+          cancelSubscription = undefined;
+          cancel();
+          onInvalidate?.();
         }
       };
     });
@@ -90,13 +109,22 @@ export class CalculationHelper<T> {
         [value, equals] = trackingProxy(value);
       }
 
+      const check = () => equals(store.get());
       let sub: Cancel | undefined;
 
       const dep = {
         on() {
           this.off();
 
-          sub = store.sub(checkAll, { runNow: false });
+          sub = store.sub(
+            () => {
+              if (!check()) {
+                cancel();
+                onInvalidate?.();
+              }
+            },
+            { runNow: false },
+          );
         },
         off() {
           sub?.();
@@ -113,7 +141,7 @@ export class CalculationHelper<T> {
         dep.on();
       }
 
-      checks.push(() => equals(store.get()));
+      checks.push(check);
       deps.set(store, dep);
 
       return value;
@@ -129,7 +157,7 @@ export class CalculationHelper<T> {
           try {
             update = update(getValue?.());
           } catch (error) {
-            setError?.(error);
+            onError?.(error);
             return;
           }
         }
@@ -139,29 +167,36 @@ export class CalculationHelper<T> {
             update = await update;
           } catch (error) {
             if (!isCancled) {
-              setError?.(error);
+              onError?.(error);
             }
             return;
           }
         }
 
         if (!isCancled) {
-          setValue?.(update);
+          onValue?.(update);
         }
       });
 
     const updateError = (error: unknown) =>
       q(() => {
         if (!isCancled) {
-          setError?.(error);
+          onError?.(error);
+        }
+      });
+
+    const updateConnectionState = (state: ConnectionState) =>
+      q(() => {
+        if (!isCancled) {
+          onConnectionState?.(state);
         }
       });
 
     let cancelSubscription: Cancel | void;
     try {
-      cancelSubscription = calculate({ use, updateValue, updateError });
+      cancelSubscription = calculate({ use, updateValue, updateError, updateConnectionState });
     } catch (error) {
-      setError?.(error);
+      onError?.(error);
     }
 
     this.current = { cancel, check: checkAll, invalidateDependencies };

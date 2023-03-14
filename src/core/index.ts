@@ -10,3 +10,9 @@ export type {
   StoreOptionsWithMethods,
 } from './store';
 export { createStore, Store } from './store';
+export {
+  SubscriptionCacheFunction,
+  SubstriptionCache,
+  SubstriptionCacheOptions,
+  createSubscriptionCache,
+} from './subscriptionCache';
