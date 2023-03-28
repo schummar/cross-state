@@ -1,14 +1,8 @@
 export type TrackingProxy<T> = [value: T, equals: (newValue: T) => boolean];
 type Object_ = Record<string | symbol, unknown>;
 
-const ProxyKeys = [
-  'get',
-  'getOwnPropertyDescriptor',
-  'getPrototypeOf',
-  'has',
-  'isExtensible',
-  'ownKeys',
-] as const;
+const NestedProxyKeys = ['get', 'getOwnPropertyDescriptor', 'ownKeys'] as const;
+const SimpleProxyKeys = ['getPrototypeOf', 'has', 'isExtensible'] as const;
 
 function isPlainObject(value: unknown) {
   return (
@@ -23,10 +17,9 @@ export function trackingProxy<T>(value: T): TrackingProxy<T> {
 
   const deps = new Array<TrackingProxy<any>[1]>();
 
-  const proxy = new Proxy(
-    value as T & Object_,
-    Object.fromEntries(
-      ProxyKeys.map((key) => [
+  const proxy = new Proxy(value as T & Object_, {
+    ...Object.fromEntries(
+      NestedProxyKeys.map((key) => [
         key,
         (currentValue: T & Object_, ...args: any[]) => {
           const function_ = Reflect[key] as any;
@@ -44,7 +37,23 @@ export function trackingProxy<T>(value: T): TrackingProxy<T> {
         },
       ]),
     ),
-  );
+
+    ...Object.fromEntries(
+      SimpleProxyKeys.map((key) => [
+        key,
+        (currentValue: T & Object_, ...args: any[]) => {
+          const function_ = Reflect[key] as any;
+          const value = function_(currentValue, ...args);
+
+          deps.push((otherValue) => {
+            return function_(otherValue, ...args) === value;
+          });
+
+          return value;
+        },
+      ]),
+    ),
+  });
 
   return [proxy, (other) => !!other && deps.every((equals) => equals(other))];
 }
