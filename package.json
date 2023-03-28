@@ -127,7 +127,7 @@
     {
       "name": "core",
       "path": "dist/es/index.mjs",
-      "limit": "5 KB"
+      "limit": "5.5 KB"
     },
     {
       "name": "core: Store",
@@ -152,6 +152,12 @@
       "path": "dist/es/index.mjs",
       "import": "{calcDuration}",
       "limit": "100 B"
+    },
+    {
+      "name": "core: urlStore",
+      "path": "dist/es/index.mjs",
+      "import": "{createUrlStore}",
+      "limit": "3.3 KB"
     },
     {
       "name": "/react",
