@@ -62,8 +62,7 @@
     "prepublishOnly": "runp lint test build :s size",
     "test": "pnpm test:watch run --coverage",
     "test:watch": "node --expose-gc node_modules/vitest/vitest.mjs",
-    "test:export": "pnpm test:watch run --coverage --reporter=verbose --reporter=junit --outputFile=test/testResults.xml",
-    "postinstall": "pnpm build"
+    "test:export": "pnpm test:watch run --coverage --reporter=verbose --reporter=junit --outputFile=test/testResults.xml"
   },
   "peerDependencies": {
     "@types/react": ">=16.8.0",
