@@ -10,7 +10,7 @@ export interface UseDecoupledStateOptions {
 export function useDecoupledState<T>(
   value: T,
   onChange: (value: T) => void,
-  options: UseDecoupledStateOptions,
+  options: UseDecoupledStateOptions = {},
 ): [state: T, setState: (value: T) => void] {
   const [dirty, setDirty] = useState<{ v: T }>();
   const onChangeRef = useRef(onChange);

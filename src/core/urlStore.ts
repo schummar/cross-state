@@ -18,6 +18,7 @@ export class UrlStore<T> extends Store<T | undefined> {
       const parameters = new URLSearchParams(url[options.type].slice(1));
       const urlValue = parameters.get(options.key);
       const deserialize: (value: string) => T = options.deserialize ?? defaultDeserializer;
+      console.debug('UrlStore', options.key, urlValue, parameters);
       return urlValue !== null ? deserialize(urlValue) : undefined;
     });
 
@@ -40,13 +41,13 @@ export class UrlStore<T> extends Store<T | undefined> {
     const originalReplaceState = window.history.replaceState;
 
     window.history.pushState = (...args) => {
-      this.reset();
       originalPushState.apply(window.history, args);
+      this.reset();
     };
 
     window.history.replaceState = (...args) => {
-      this.reset();
       originalReplaceState.apply(window.history, args);
+      this.reset();
     };
 
     return () => {
@@ -68,6 +69,7 @@ export class UrlStore<T> extends Store<T | undefined> {
 
     url[this.options.type] = parameters.toString();
     window.history.replaceState(null, '', url.toString());
+    console.debug('replace', url.toString());
   }
 }
 
