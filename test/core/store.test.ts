@@ -36,7 +36,7 @@ describe('static store', () => {
   test('store.isActive', () => {
     const state = createStore(1);
     expect(state.isActive()).toBe(false);
-    const cancel = state.sub(() => undefined);
+    const cancel = state.subscribe(() => undefined);
     expect(state.isActive()).toBe(true);
     cancel();
     expect(state.isActive()).toBe(false);
@@ -48,8 +48,8 @@ describe('static store', () => {
       const effect = vi.fn();
       state.addEffect(effect);
       expect(effect.mock.calls.length).toBe(0);
-      state.sub(vi.fn());
-      state.sub(vi.fn());
+      state.subscribe(vi.fn());
+      state.subscribe(vi.fn());
       expect(effect).toHaveBeenCalledWith();
     });
 
@@ -58,9 +58,9 @@ describe('static store', () => {
       const effect = vi.fn();
       state.addEffect(effect);
 
-      const cancel = state.sub(vi.fn());
+      const cancel = state.subscribe(vi.fn());
       cancel();
-      state.sub(vi.fn());
+      state.subscribe(vi.fn());
 
       expect(effect.mock.calls).toEqual([[], []]);
     });
@@ -70,11 +70,11 @@ describe('static store', () => {
       const cancelFunction = vi.fn();
       const effect = vi.fn(() => cancelFunction);
       const cancelEffect = state.addEffect(effect);
-      const cancel = state.sub(vi.fn());
+      const cancel = state.subscribe(vi.fn());
       cancelEffect();
       expect(cancelFunction.mock.calls).toEqual([[]]);
       cancel();
-      state.sub(vi.fn());
+      state.subscribe(vi.fn());
       expect(effect.mock.calls.length).toBe(1);
     });
 
@@ -83,11 +83,11 @@ describe('static store', () => {
       const cancelFunction = vi.fn();
       const effect = vi.fn(() => cancelFunction);
       const cancelEffect = state.addEffect(effect);
-      const cancel = state.sub(vi.fn());
+      const cancel = state.subscribe(vi.fn());
       cancel();
       expect(cancelFunction.mock.calls).toEqual([[]]);
       cancelEffect();
-      state.sub(vi.fn());
+      state.subscribe(vi.fn());
       expect(cancelFunction.mock.calls.length).toBe(1);
       expect(effect.mock.calls.length).toBe(1);
     });
@@ -97,7 +97,7 @@ describe('static store', () => {
     test('store.subscribe', () => {
       const state = createStore(1);
       const listener = vi.fn();
-      state.sub(listener);
+      state.subscribe(listener);
       state.set(2);
       expect(listener.mock.calls.map((x) => x[0])).toEqual([1, 2]);
     });
@@ -105,7 +105,7 @@ describe('static store', () => {
     test('store.subscribe runNow=false', () => {
       const state = createStore(1);
       const listener = vi.fn();
-      state.sub(listener, { runNow: false });
+      state.subscribe(listener, { runNow: false });
 
       state.set(2);
       expect(listener.mock.calls).toMatchObject([[2, undefined]]);
@@ -114,7 +114,7 @@ describe('static store', () => {
     test('store.subscribe throttle', async () => {
       const state = createStore(1);
       const listener = vi.fn();
-      state.sub(listener, { throttle: 2 });
+      state.subscribe(listener, { throttle: 2 });
       state.set(2);
       vi.advanceTimersByTime(1);
       state.set(3);
@@ -130,7 +130,7 @@ describe('static store', () => {
     test('store.subscribe debounce', async () => {
       const state = createStore(1);
       const listener = vi.fn();
-      state.sub(listener, { debounce: 2 });
+      state.subscribe(listener, { debounce: 2 });
       state.set(2);
       vi.advanceTimersByTime(1);
       state.set(3);
@@ -144,7 +144,7 @@ describe('static store', () => {
     test('store.subscribe debounce with maxWait', async () => {
       const state = createStore(1);
       const listener = vi.fn();
-      state.sub(listener, { debounce: { wait: 2, maxWait: 2 } });
+      state.subscribe(listener, { debounce: { wait: 2, maxWait: 2 } });
       state.set(2);
       vi.advanceTimersByTime(1);
       state.set(3);
@@ -155,7 +155,7 @@ describe('static store', () => {
     test('store.subscribe default equals', async () => {
       const state = createStore({ a: 1 });
       const listener = vi.fn();
-      state.sub(listener);
+      state.subscribe(listener);
       state.set({ a: 1 });
       expect(listener.mock.calls).toMatchObject([
         [{ a: 1 }, undefined],
@@ -166,7 +166,7 @@ describe('static store', () => {
     test('store.subscribe shallowEqual', async () => {
       const state = createStore({ a: 1 });
       const listener = vi.fn();
-      state.sub(listener, { equals: shallowEqual });
+      state.subscribe(listener, { equals: shallowEqual });
       state.set({ a: 1 });
       expect(listener.mock.calls).toMatchObject([[{ a: 1 }, undefined]]);
     });
@@ -174,10 +174,10 @@ describe('static store', () => {
     test('catch error', async () => {
       const state = createStore(1);
       const nextListener = vi.fn();
-      state.sub(() => {
+      state.subscribe(() => {
         throw new Error('error');
       });
-      state.sub(nextListener);
+      state.subscribe(nextListener);
 
       state.set(2);
       expect(() => vi.runAllTimers()).toThrow('error');
@@ -188,7 +188,7 @@ describe('static store', () => {
     test('store.subscribe cancel', () => {
       const state = createStore(1);
       const listener = vi.fn();
-      const cancel = state.sub(listener);
+      const cancel = state.subscribe(listener);
       cancel();
       state.set(2);
       expect(listener.mock.calls).toMatchObject([[1, undefined]]);
@@ -197,7 +197,7 @@ describe('static store', () => {
     test('store.subscribe cancel twice', () => {
       const state = createStore(1);
       const listener = vi.fn();
-      const cancel = state.sub(listener);
+      const cancel = state.subscribe(listener);
       cancel();
       cancel();
       state.set(2);
@@ -207,11 +207,11 @@ describe('static store', () => {
     test('store.subscribe cancel and resubscribe', () => {
       const state = createStore(1);
       const listener = vi.fn();
-      const cancel = state.sub(listener);
+      const cancel = state.subscribe(listener);
       state.set(2);
       cancel();
       state.set(3);
-      state.sub(listener);
+      state.subscribe(listener);
       state.set(4);
       expect(listener.mock.calls).toMatchObject([
         [1, undefined],

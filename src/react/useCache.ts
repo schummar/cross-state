@@ -45,7 +45,7 @@ export function useCache<T>(
     });
   }, [cache]);
 
-  useEffect(() => (!passive ? cache.sub(() => undefined) : undefined), [cache, passive]);
+  useEffect(() => (!passive ? cache.subscribe(() => undefined) : undefined), [cache, passive]);
 
   return useStore(mappedState, options);
 }

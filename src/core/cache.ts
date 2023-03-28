@@ -146,7 +146,7 @@ export class Cache<T> extends Store<Promise<T>> {
   }
 
   protected watchPromise() {
-    this.sub(
+    this.subscribe(
       async (promise) => {
         this.state.set((state) => ({
           ...state,

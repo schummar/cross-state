@@ -30,7 +30,7 @@ export function useStore<T>(store: Store<T>, options?: UseStoreOptions): T {
   const subOptions = { ...options, runNow: false, equals: undefined, passive: false };
   const subscribe = useCallback(
     (listener: () => void) => {
-      return rootStore.sub(listener, subOptions);
+      return rootStore.subscribe(listener, subOptions);
     },
     [rootStore, hash(subOptions)],
   );

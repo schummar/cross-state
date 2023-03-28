@@ -1,5 +1,5 @@
 import { afterEach, assert, beforeEach, describe, expect, test, vi } from 'vitest';
-import { Cache, createCache } from '../../src';
+import { Cache, createCache } from '../../src/core/cache';
 import { flushPromises, sleep } from '../testHelpers';
 
 beforeEach(() => {
@@ -107,7 +107,7 @@ describe('cache', () => {
     test('passive', async () => {
       const cache = createCache(async () => 1);
       const sub = vi.fn();
-      cache.sub(sub, { passive: true });
+      cache.subscribe(sub, { passive: true });
 
       expect(sub.mock.calls.length).toBe(0);
     });

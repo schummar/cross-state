@@ -92,7 +92,7 @@ export class Store<T> extends Callable<any, any> {
     super(_call);
     this.get = this.get.bind(this);
     this.set = this.set.bind(this);
-    this.sub = this.sub.bind(this);
+    this.subscribe = this.subscribe.bind(this);
     this.once = this.once.bind(this);
     this.map = this.map.bind(this);
     this.addEffect = this.addEffect.bind(this);
@@ -158,7 +158,7 @@ export class Store<T> extends Callable<any, any> {
     }
   }
 
-  sub(listener: Listener<T>, options?: SubscribeOptions): Cancel {
+  subscribe(listener: Listener<T>, options?: SubscribeOptions): Cancel {
     const {
       passive,
       runNow = true,
@@ -224,7 +224,7 @@ export class Store<T> extends Callable<any, any> {
   once(condition: (value: T) => boolean = (value) => !!value): Promise<any> {
     return new Promise<T>((resolve) => {
       let stopped = false;
-      const cancel = this.sub(
+      const cancel = this.subscribe(
         (value) => {
           if (stopped || (condition && !condition(value))) {
             return;

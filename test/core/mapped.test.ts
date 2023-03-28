@@ -28,7 +28,7 @@ describe('mapped', () => {
   test('subscribe', async () => {
     const state = createStore(1);
     const listener = vi.fn(() => undefined);
-    state.map((x) => x * 2).sub(listener);
+    state.map((x) => x * 2).subscribe(listener);
 
     state.set(2);
 
@@ -42,7 +42,7 @@ describe('mapped', () => {
     const dep1 = createStore(1);
     const dep2 = dep1.map((x) => x * 2);
     const listener = vi.fn(() => undefined);
-    dep2.map((x) => x * 2).sub(listener);
+    dep2.map((x) => x * 2).subscribe(listener);
 
     dep1.set(2);
 

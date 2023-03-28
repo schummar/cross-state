@@ -116,7 +116,7 @@ export class CalculationHelper<T> {
         on() {
           this.off();
 
-          sub = store.sub(
+          sub = store.subscribe(
             () => {
               if (!check()) {
                 cancel();

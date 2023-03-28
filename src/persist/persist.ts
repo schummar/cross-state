@@ -73,7 +73,7 @@ export class Persist<T> {
   watchStore() {
     let committed = this.store.get();
 
-    const cancel = this.store.sub(
+    const cancel = this.store.subscribe(
       (value) => {
         const [patches] = diff(committed, value);
         committed = value;

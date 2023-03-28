@@ -1,14 +1,61 @@
-import { describe, test } from 'vitest';
-import WebSocket from 'ws';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
+
 import { createSubscriptionCache } from '../../src';
-import { sleep } from '../testHelpers';
+import { flushPromises, sleep } from '../testHelpers';
+
+class WebSocket {
+  listeners = new Set<{ event: string; callback: (event: any) => void }>();
+
+  onceListeners = new Set<{ event: string; callback: (event: any) => void }>();
+
+  constructor(url: string) {
+    this.url = url;
+    setTimeout(() => this.emit('open', {}), 1);
+  }
+
+  url: string;
+
+  addEventListener(event: string, callback: (event: any) => void) {
+    this.listeners.add({ event, callback });
+  }
+
+  once(event: string, callback: (event: any) => void) {
+    this.onceListeners.add({ event, callback });
+  }
+
+  send(data: string) {
+    this.emit('message', { data });
+  }
+
+  close() {
+    this.emit('close', {});
+  }
+
+  private emit(event: string, data: any) {
+    for (const listener of this.listeners) {
+      if (listener.event === event) {
+        listener.callback(data);
+      }
+    }
+
+    for (const listener of this.onceListeners) {
+      if (listener.event === event) {
+        listener.callback(data);
+      }
+    }
+  }
+}
+
+beforeEach(() => {
+  vi.useFakeTimers();
+});
 
 describe('subscriptionCache', () => {
   test('websocket', async () => {
     const subscriptionCache = createSubscriptionCache<any[]>(function () {
       this.updateConnectionState('connecting');
 
-      const ws = new WebSocket('wss://ws.postman-echo.com/raw');
+      const ws = new WebSocket('');
       ws.addEventListener('message', (event) => {
         this.updateValue((x) => (x ?? []).concat(event.data));
       });
@@ -16,7 +63,7 @@ describe('subscriptionCache', () => {
       ws.addEventListener('open', () => this.updateConnectionState('open'));
       ws.addEventListener('close', () => this.updateConnectionState('closed'));
 
-      this.updateValue(sleep(500).then(() => [42]));
+      this.updateValue(sleep(2).then(() => [42]));
       this.updateValue((x) => (x ?? []).concat(43));
 
       ws.once('open', () => {
@@ -29,13 +76,42 @@ describe('subscriptionCache', () => {
       };
     });
 
-    const cancel = subscriptionCache.sub((value) => console.log({ value }));
-    subscriptionCache.state.sub((state) => console.log({ state }));
+    const listener = vi.fn();
+    const stateListener = vi.fn();
+    const cancel = subscriptionCache.subscribe(listener);
+    subscriptionCache.state.subscribe(stateListener);
 
-    await sleep(1000);
+    expect(listener.mock.calls).toEqual([[undefined, undefined]]);
+
+    vi.advanceTimersByTime(2);
+    await flushPromises();
+
+    expect(listener.mock.calls).toEqual([
+      [undefined, undefined],
+      [[42], undefined],
+      [[42, 43], [42]],
+      [
+        [42, 43, 'hello'],
+        [42, 43],
+      ],
+    ]);
 
     cancel();
 
-    await sleep(3000);
+    expect(stateListener.mock.calls).toEqual([
+      [{ connectionState: 'connecting', error: undefined }, undefined],
+      [
+        { connectionState: 'open', error: undefined },
+        { connectionState: 'connecting', error: undefined },
+      ],
+      [
+        { connectionState: 'closed', error: undefined },
+        { connectionState: 'open', error: undefined },
+      ],
+      [
+        { connectionState: 'closed', error: undefined },
+        { connectionState: 'closed', error: undefined },
+      ],
+    ]);
   });
 });
