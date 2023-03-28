@@ -21,3 +21,4 @@ export {
   type SubstriptionCache,
   type SubstriptionCacheOptions,
 } from './subscriptionCache';
+export { createUrlStore, type UrlStore, type UrlStoreOptions } from './urlStore';
