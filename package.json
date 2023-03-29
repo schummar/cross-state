@@ -157,7 +157,7 @@
       "name": "core: urlStore",
       "path": "dist/es/index.mjs",
       "import": "{createUrlStore}",
-      "limit": "3.3 KB"
+      "limit": "3.5 KB"
     },
     {
       "name": "/react",

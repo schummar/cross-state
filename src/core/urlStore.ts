@@ -8,16 +8,20 @@ export interface UrlStoreOptions<T> extends StoreOptions {
   serialize?: (value: T) => string;
   deserialize?: (value: string) => T;
   defaultValue?: T;
+  onCommit?: (value: T | undefined) => void;
 }
 
 export interface UrlStoreOptionsWithDefaults<T> extends UrlStoreOptions<T> {
   defaultValue: T;
 }
 
+export type UrlStoreOptionsRequired<T> = UrlStoreOptions<T> &
+  Required<Pick<UrlStoreOptions<T>, 'type' | 'serialize' | 'deserialize' | 'defaultValue'>>;
+
 export class UrlStore<T> extends Store<T> {
   private serializedDefaultValue = this.options.serialize(this.options.defaultValue);
 
-  constructor(public readonly options: Required<UrlStoreOptions<T>>) {
+  constructor(public readonly options: UrlStoreOptionsRequired<T>) {
     super(() => {
       const url = new URL(window.location.href);
       const parameters = new URLSearchParams(url[options.type].slice(1));
@@ -71,6 +75,8 @@ export class UrlStore<T> extends Store<T> {
 
     url[this.options.type] = parameters.toString();
     window.history.replaceState(null, '', url.toString());
+
+    this.options.onCommit?.(value);
   }
 }
 
@@ -115,6 +121,5 @@ export function createUrlStore<T>(options: UrlStoreOptions<T>) {
     serialize: options.serialize ?? defaultSerializer,
     deserialize: options.deserialize ?? defaultDeserializer,
     defaultValue: options.defaultValue ?? (undefined as T),
-    retain: options.retain ?? 0,
   });
 }

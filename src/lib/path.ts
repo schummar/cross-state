@@ -1,6 +1,8 @@
 import type {
   ArrayToStringPath,
   Array_,
+  IsAny,
+  IsNever,
   Object_,
   OptionalPropertyOf,
   StringToArrayPath,
@@ -36,8 +38,10 @@ export type PathAsArray<T, Optional = false> = 0 extends 1 & T
 export type PathAsString<T, Optional = false> = ArrayToStringPath<PathAsArray<T, Optional>>;
 export type Path<T, Optional = false> = PathAsString<T, Optional> | PathAsArray<T, Optional>;
 
-export type Value<T, P> = 0 extends 1 & T
+export type Value<T, P> = true extends IsAny<T> | IsAny<P>
   ? any
+  : true extends IsNever<T> | IsNever<P>
+  ? never
   : P extends string
   ? Value<T, StringToArrayPath<P>>
   : P extends [infer First extends KeyType, ...infer Rest extends KeyType[]]

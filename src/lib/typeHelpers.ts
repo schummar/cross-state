@@ -25,3 +25,7 @@ export type OptionalPropertyOf<T> = Exclude<
   }[keyof T],
   undefined
 >;
+
+export type IsAny<T> = 0 extends 1 & T ? true : false;
+
+export type IsNever<T> = [T] extends [never] ? true : false;

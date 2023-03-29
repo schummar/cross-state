@@ -4,27 +4,31 @@ import { debounce } from '@lib/debounce';
 import { hash } from '@lib/hash';
 import { throttle } from '@lib/throttle';
 
-export interface UseDecoupledStateOptions {
+export interface UseDecoupledStateOptions<T> {
   debounce?: Duration;
   throttle?: Duration;
+  onCommit?: (value: T) => void;
 }
 
 export function useDecoupledState<T>(
   value: T,
   onChange: (value: T) => void,
-  options: UseDecoupledStateOptions = {},
+  options: UseDecoupledStateOptions<T> = {},
 ): [state: T, setState: (value: T) => void] {
   const [dirty, setDirty] = useState<{ v: T }>();
-  const onChangeRef = useRef(onChange);
+  const ref = useRef({ onChange, onCommit: options.onCommit });
 
   useEffect(() => {
-    onChangeRef.current = onChange;
+    ref.current = { onChange, onCommit: options.onCommit };
   }, [onChange]);
 
   const update = useMemo(() => {
+    const { onChange, onCommit } = ref.current;
+
     const update = (value: T) => {
-      onChangeRef.current(value);
+      onChange(value);
       setDirty(undefined);
+      onCommit?.(value);
     };
 
     let delayedUpdate: (value: T) => void;
