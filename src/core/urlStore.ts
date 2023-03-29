@@ -1,39 +1,41 @@
+import { type Update } from './commonTypes';
 import { Store, type StoreOptions } from './store';
-import { debounce } from '@lib/debounce';
-import { throttle } from '@lib/throttle';
+import { type Path, type Value } from '@lib/path';
 
 export interface UrlStoreOptions<T> extends StoreOptions {
   key: string;
-  type: 'search' | 'hash';
+  type?: 'search' | 'hash';
   serialize?: (value: T) => string;
   deserialize?: (value: string) => T;
-  debounce?: number;
-  throttle?: number;
+  defaultValue?: T;
 }
 
-export class UrlStore<T> extends Store<T | undefined> {
-  constructor(public readonly options: UrlStoreOptions<T>) {
+export interface UrlStoreOptionsWithDefaults<T> extends UrlStoreOptions<T> {
+  defaultValue: T;
+}
+
+export class UrlStore<T> extends Store<T> {
+  private serializedDefaultValue = this.options.serialize(this.options.defaultValue);
+
+  constructor(public readonly options: Required<UrlStoreOptions<T>>) {
     super(() => {
       const url = new URL(window.location.href);
       const parameters = new URLSearchParams(url[options.type].slice(1));
       const urlValue = parameters.get(options.key);
       const deserialize: (value: string) => T = options.deserialize ?? defaultDeserializer;
-      console.debug('UrlStore', options.key, urlValue, parameters);
-      return urlValue !== null ? deserialize(urlValue) : undefined;
+      return urlValue !== null ? deserialize(urlValue) : options.defaultValue;
     });
-
-    if (options.debounce) {
-      this.updateUrl = debounce(this.updateUrl, options.debounce);
-    } else if (options.throttle) {
-      this.updateUrl = throttle(this.updateUrl, options.throttle);
-    }
 
     this.addEffect(() => this.watchUrl());
   }
 
-  override set(value: T | undefined) {
-    super.set(value);
-    this.updateUrl(value);
+  override set(update: Update<T>): void;
+
+  override set<P extends Path<T>>(path: P, update: Update<Value<T, P>>): void;
+
+  override set(...args: any): void {
+    super.set.apply(this, args);
+    this.updateUrl(super.get());
   }
 
   protected watchUrl() {
@@ -59,17 +61,16 @@ export class UrlStore<T> extends Store<T | undefined> {
   protected updateUrl(value: T | undefined) {
     const url = new URL(window.location.href);
     const parameters = new URLSearchParams(url[this.options.type].slice(1));
-    const serialize: (value: T) => string = this.options.serialize ?? defaultSerializer;
+    const serializedValue = value !== undefined ? this.options.serialize(value) : undefined;
 
-    if (value === undefined) {
+    if (serializedValue === undefined || serializedValue === this.serializedDefaultValue) {
       parameters.delete(this.options.key);
     } else {
-      parameters.set(this.options.key, serialize(value));
+      parameters.set(this.options.key, serializedValue);
     }
 
     url[this.options.type] = parameters.toString();
     window.history.replaceState(null, '', url.toString());
-    console.debug('replace', url.toString());
   }
 }
 
@@ -105,6 +106,15 @@ function defaultSerializer(value: any): string {
   });
 }
 
+export function createUrlStore<T>(options: UrlStoreOptionsWithDefaults<T>): UrlStore<T>;
+export function createUrlStore<T>(options: UrlStoreOptions<T>): UrlStore<T | undefined>;
 export function createUrlStore<T>(options: UrlStoreOptions<T>) {
-  return new UrlStore(options);
+  return new UrlStore({
+    ...options,
+    type: options.type ?? 'search',
+    serialize: options.serialize ?? defaultSerializer,
+    deserialize: options.deserialize ?? defaultDeserializer,
+    defaultValue: options.defaultValue ?? (undefined as T),
+    retain: options.retain ?? 0,
+  });
 }

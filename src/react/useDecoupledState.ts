@@ -1,10 +1,12 @@
 import { startTransition, useEffect, useMemo, useRef, useState } from 'react';
+import { type Duration } from '@core';
 import { debounce } from '@lib/debounce';
+import { hash } from '@lib/hash';
 import { throttle } from '@lib/throttle';
 
 export interface UseDecoupledStateOptions {
-  debounce?: number;
-  throttle?: number;
+  debounce?: Duration;
+  throttle?: Duration;
 }
 
 export function useDecoupledState<T>(
@@ -39,7 +41,7 @@ export function useDecoupledState<T>(
       setDirty({ v: value });
       delayedUpdate(value);
     };
-  }, [options.debounce, options.throttle]);
+  }, [hash([options.debounce, options.throttle])]);
 
   return [dirty ? dirty.v : value, update];
 }

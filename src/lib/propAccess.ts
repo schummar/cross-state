@@ -75,8 +75,8 @@ export function set<T, P extends Path<T>>(
     return new Set(copy) as any;
   }
 
-  if (object instanceof Object) {
-    const copy = flatClone(object);
+  if (object instanceof Object || object === undefined) {
+    const copy = flatClone(object ?? ({} as T));
     copy[first as keyof T] = updateChild(copy[first as keyof T]);
     return copy;
   }
