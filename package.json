@@ -20,16 +20,19 @@
   "types": "dist/types/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/types/index.d.ts",
       "import": "./dist/es/index.mjs",
       "require": "./dist/cjs/index.cjs",
       "default": "./dist/es/index.mjs"
     },
     "./react": {
+      "types": "./dist/types/react/index.d.ts",
       "import": "./dist/es/react.mjs",
       "require": "./dist/cjs/react.cjs",
       "default": "./dist/es/react.mjs"
     },
     "./immer": {
+      "types": "./dist/types/immer/index.d.ts",
       "import": "./dist/es/immer.mjs",
       "require": "./dist/cjs/immer.cjs",
       "default": "./dist/es/immer.mjs"
@@ -37,7 +40,7 @@
   },
   "typesVersions": {
     "*": {
-      "*": [
+      "index.d.ts": [
         "dist/types/index.d.ts"
       ],
       "react": [
