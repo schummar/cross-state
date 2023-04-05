@@ -90,7 +90,7 @@ export class Cache<T> extends Store<Promise<T>> {
   }
 
   invalidate({ invalidateDependencies = true }: { invalidateDependencies?: boolean } = {}) {
-    const { clearOnInvalidate = defaultOptions.clearOnInvalidate } = this.options;
+    const { clearOnInvalidate = createCache.defaultOptions.clearOnInvalidate } = this.options;
 
     if (clearOnInvalidate) {
       return this.clear({ invalidateDependencies });
@@ -218,7 +218,7 @@ export class Cache<T> extends Store<Promise<T>> {
     this.invalidationTimer = undefined;
 
     const state = this.state.get();
-    let { invalidateAfter = defaultOptions.invalidateAfter } = this.options;
+    let { invalidateAfter = createCache.defaultOptions.invalidateAfter } = this.options;
     const ref = new WeakRef(this);
 
     if (state.status === 'pending') {
@@ -238,7 +238,8 @@ export class Cache<T> extends Store<Promise<T>> {
   }
 
   protected watchFocus() {
-    const { invalidateOnWindowFocus = defaultOptions.invalidateOnWindowFocus } = this.options;
+    const { invalidateOnWindowFocus = createCache.defaultOptions.invalidateOnWindowFocus } =
+      this.options;
 
     if (
       !invalidateOnWindowFocus ||
@@ -266,12 +267,6 @@ export class Cache<T> extends Store<Promise<T>> {
   }
 }
 
-const defaultOptions: CacheOptions<unknown> = {
-  invalidateOnWindowFocus: true,
-  invalidateOnActivation: true,
-  clearUnusedAfter: { days: 1 },
-};
-
 type CreateReturnType<T, Args extends any[]> = {
   (...args: Args): Cache<T>;
   invalidateAll: () => void;
@@ -282,7 +277,8 @@ function create<T, Args extends any[]>(
   cacheFunction: CacheFunction<T, Args>,
   options?: CacheOptions<T>,
 ): CreateReturnType<T, Args> {
-  const { clearUnusedAfter = defaultOptions.clearUnusedAfter, resourceGroup } = options ?? {};
+  const { clearUnusedAfter = createCache.defaultOptions.clearUnusedAfter, resourceGroup } =
+    options ?? {};
 
   let baseInstance: CreateReturnType<T, Args> & Cache<T>;
 
@@ -345,5 +341,9 @@ function create<T, Args extends any[]>(
 }
 
 export const createCache = /* @__PURE__ */ Object.assign(create, {
-  defaultOptions,
+  defaultOptions: {
+    invalidateOnWindowFocus: true,
+    invalidateOnActivation: true,
+    clearUnusedAfter: { days: 1 },
+  } as CacheOptions<unknown>,
 });

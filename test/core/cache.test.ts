@@ -2,12 +2,15 @@ import { afterEach, assert, beforeEach, describe, expect, test, vi } from 'vites
 import { Cache, createCache } from '../../src/core/cache';
 import { flushPromises, sleep } from '../testHelpers';
 
+const originalDefaultOptions = { ...createCache.defaultOptions };
+
 beforeEach(() => {
   vi.useFakeTimers();
 });
 
 afterEach(() => {
   vi.useRealTimers();
+  createCache.defaultOptions = { ...originalDefaultOptions };
 });
 
 describe('cache', () => {
@@ -242,6 +245,16 @@ describe('cache', () => {
       vi.advanceTimersByTime(1);
 
       expect(cache.state.get().value).toBe(undefined);
+    });
+
+    test('default invalidateAfter', async () => {
+      createCache.defaultOptions.invalidateAfter = { milliseconds: 1 };
+
+      const cache = createCache(async () => 1);
+      await cache.get();
+      vi.advanceTimersByTime(1);
+
+      expect(cache.state.get().isStale).toBe(true);
     });
   });
 
