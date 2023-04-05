@@ -2,8 +2,8 @@ import type { Draft, nothing } from 'immer';
 import { produce } from 'immer';
 import type { Store } from '@core/store';
 
-export const immerActions = {
-  immerUpdate<T>(
+export const immerMethods = {
+  update<T>(
     this: Store<T>,
     recipe: (
       draft: Draft<T>,

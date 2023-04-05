@@ -1,1 +1,1 @@
-export { immerActions } from './immerActions';
+export { immerMethods } from './immerMethods';

@@ -1,11 +1,13 @@
 import type { Duration, Selector, Use } from './commonTypes';
 import { allResources, type ResourceGroup } from './resourceGroup';
-import { createStore, Store } from './store';
+import { Store, createStore } from './store';
 import type { CacheState, ErrorState, ValueState } from '@lib/cacheState';
 import { calcDuration } from '@lib/calcDuration';
 import { InstanceCache } from '@lib/instanceCache';
 import { makeSelector } from '@lib/makeSelector';
+import { type MaybePromise } from '@lib/maybePromise';
 import type { Path, Value } from '@lib/path';
+import { PromiseWithState } from '@lib/promiseWithState';
 
 export interface CacheGetOptions {
   update?: 'whenMissing' | 'whenStale' | 'force';
@@ -79,6 +81,14 @@ export class Cache<T> extends Store<Promise<T>> {
     return promise;
   }
 
+  update(value: MaybePromise<T>) {
+    this.set(PromiseWithState.resolve(value));
+  }
+
+  updateError(error: unknown) {
+    this.set(PromiseWithState.reject(error));
+  }
+
   invalidate({ invalidateDependencies = true }: { invalidateDependencies?: boolean } = {}) {
     const { clearOnInvalidate = defaultOptions.clearOnInvalidate } = this.options;
 
@@ -148,6 +158,18 @@ export class Cache<T> extends Store<Promise<T>> {
   protected watchPromise() {
     this.subscribe(
       async (promise) => {
+        if (promise instanceof PromiseWithState) {
+          this.state.set({
+            ...promise.state,
+            isStale: false,
+            isUpdating: false,
+          });
+
+          delete this.stalePromise;
+          this.setTimers();
+          return;
+        }
+
         this.state.set((state) => ({
           ...state,
           isUpdating: true,

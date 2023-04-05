@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'vitest';
 import { createStore } from '../../src/core/store';
-import { immerActions } from '../../src/immer';
+import { immerMethods } from '../../src/immer';
 
 describe('store methods', () => {
-  describe('map actions', () => {
+  describe('map methods', () => {
     test('set', () => {
       const state = createStore(new Map([['x', { x: 1 }]]));
 
@@ -31,7 +31,7 @@ describe('store methods', () => {
     });
   });
 
-  describe('set actions', () => {
+  describe('set methods', () => {
     test('add', () => {
       const state = createStore(new Set([{ x: 1 }]));
 
@@ -54,7 +54,7 @@ describe('store methods', () => {
     });
   });
 
-  describe('array actions', () => {
+  describe('array methods', () => {
     test('push', () => {
       const state = createStore([{ x: 1 }]);
 
@@ -105,7 +105,7 @@ describe('store methods', () => {
     });
   });
 
-  describe('record actions', () => {
+  describe('record methods', () => {
     test('set', () => {
       const state = createStore({ x: 1 });
 
@@ -173,7 +173,7 @@ describe('store methods', () => {
     expect(state.get()).toEqual({ x: 4 });
   });
 
-  test('custom reducer and record actions', () => {
+  test('custom reducer and record methods', () => {
     const state = createStore(
       { x: 1 },
       {
@@ -190,14 +190,14 @@ describe('store methods', () => {
     expect(state.get()).toEqual({ x: 3 });
   });
 
-  test('custom reducer and record actions and immer actions', () => {
+  test('custom reducer and immer methods', () => {
     const state = createStore(
       { x: 1 },
       {
         methods: {
-          ...immerActions,
+          ...immerMethods,
           inc() {
-            this.immerUpdate((x) => {
+            this.update((x) => {
               x.x++;
             });
           },
@@ -207,5 +207,25 @@ describe('store methods', () => {
 
     state.inc();
     expect(state.get()).toEqual({ x: 2 });
+  });
+
+  test('combine array and immer methods', () => {
+    const state = createStore([{ x: 1 }], {
+      methods: {
+        ...immerMethods,
+        incAndPush() {
+          this.update((x) => {
+            if (x[0]) {
+              x[0].x++;
+            }
+          });
+
+          this.push({ x: 2 });
+        },
+      },
+    });
+
+    state.incAndPush();
+    expect(state.get()).toEqual([{ x: 2 }, { x: 2 }]);
   });
 });

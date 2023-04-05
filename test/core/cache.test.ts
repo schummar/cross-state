@@ -103,6 +103,20 @@ describe('cache', () => {
     });
   });
 
+  describe('update cache', () => {
+    test('update plain value', async () => {
+      const cache = createCache(async () => 1);
+      cache.update(2);
+
+      expect(cache.state.get()).toStrictEqual({
+        status: 'value',
+        value: 2,
+        isStale: false,
+        isUpdating: false,
+      });
+    });
+  });
+
   describe('sub', () => {
     test('passive', async () => {
       const cache = createCache(async () => 1);
@@ -194,7 +208,7 @@ describe('cache', () => {
       await cache.get();
 
       vi.advanceTimersByTime(1);
-      cache.set(Promise.resolve(2));
+      cache.update(2);
       await flushPromises();
       vi.advanceTimersByTime(1);
 
