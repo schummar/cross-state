@@ -7,6 +7,7 @@ export {
 } from './cache';
 export type { Cancel, Duration, Effect, Listener, SubscribeOptions } from './commonTypes';
 export { ResourceGroup, allResources, createResourceGroup, type Resource } from './resourceGroup';
+export { Scope } from './scope';
 export {
   Store,
   createStore,

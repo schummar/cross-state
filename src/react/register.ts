@@ -1,9 +1,11 @@
 import { reactMethods } from './reactMethods';
-import { type UseCacheOptions, useCache } from './useCache';
-import { Cache, Store } from '@core';
+import { useScope } from './scope';
+import { useCache, type UseCacheOptions } from './useCache';
+import { Cache, Scope, Store } from '@core';
 
 type StoreMethods = typeof reactMethods;
 type CacheMethods = typeof cacheMethods;
+type ScopeMethods = typeof scopeMethods;
 
 declare module '@core' {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -11,6 +13,9 @@ declare module '@core' {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface Cache<T> extends CacheMethods {}
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interface Scope<T> extends ScopeMethods {}
 }
 
 const cacheMethods = {
@@ -19,5 +24,12 @@ const cacheMethods = {
   },
 };
 
+const scopeMethods = {
+  useScope<T>(this: Scope<T>) {
+    return useScope(this);
+  },
+};
+
 Object.assign(Store.prototype, reactMethods);
 Object.assign(Cache.prototype, cacheMethods);
+Object.assign(Scope.prototype, scopeMethods);
