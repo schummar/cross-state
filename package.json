@@ -9,7 +9,12 @@
     "email": "marco@schumacher.dev"
   },
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": [
+    "dist/es/react/register.mjs",
+    "dist/es/immer/register.mjs",
+    "dist/cjs/react/register.cjs",
+    "dist/cjs/immer/register.cjs"
+  ],
   "files": [
     "dist",
     "react.js",
