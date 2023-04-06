@@ -16,11 +16,12 @@ export type UseCacheValue<T> = UseCacheArray<T> & CacheState<T>;
 
 export interface UseCacheOptions extends UseStoreOptions {
   passive?: boolean;
+  updateOnMount?: boolean;
 }
 
 export function useCache<T>(
   cache: Cache<T>,
-  { passive, ...options }: UseCacheOptions = {},
+  { passive, updateOnMount, ...options }: UseCacheOptions = {},
 ): UseCacheValue<T> {
   const mappedState = useMemo(() => {
     const rootCache: Cache<any> = cache.derivedFromCache?.cache ?? cache;
@@ -46,6 +47,12 @@ export function useCache<T>(
   }, [cache]);
 
   useEffect(() => (!passive ? cache.subscribe(() => undefined) : undefined), [cache, passive]);
+
+  useEffect(() => {
+    if (updateOnMount) {
+      cache.invalidate();
+    }
+  }, []);
 
   return useStore(mappedState, options);
 }
