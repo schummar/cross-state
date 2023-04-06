@@ -147,15 +147,6 @@ function create<T, Args extends any[] = []>(
     }
   };
 
-  const groups = Array.isArray(resourceGroup)
-    ? resourceGroup
-    : resourceGroup
-    ? [resourceGroup]
-    : [];
-  for (const group of groups.concat(allResources)) {
-    group.add({ invalidate: invalidateAll, clear: clearAll });
-  }
-
   baseInstance = Object.assign(
     new SubstriptionCache<T>(
       function () {
@@ -170,6 +161,15 @@ function create<T, Args extends any[] = []>(
       clearAll,
     },
   ) as CreateReturnType<T, Args> & SubstriptionCache<T>;
+
+  const groups = Array.isArray(resourceGroup)
+    ? resourceGroup
+    : resourceGroup
+    ? [resourceGroup]
+    : [];
+  for (const group of groups.concat(allResources)) {
+    group.add(baseInstance);
+  }
 
   get(...([] as any));
 

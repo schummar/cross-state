@@ -324,15 +324,6 @@ function create<T, Args extends any[]>(
     }
   };
 
-  const groups = Array.isArray(resourceGroup)
-    ? resourceGroup
-    : resourceGroup
-    ? [resourceGroup]
-    : [];
-  for (const group of groups.concat(allResources)) {
-    group.add({ invalidate: invalidateAll, clear: clearAll });
-  }
-
   baseInstance = Object.assign(
     new Cache(
       function () {
@@ -347,6 +338,15 @@ function create<T, Args extends any[]>(
       clearAll,
     },
   ) as CreateReturnType<T, Args> & Cache<T>;
+
+  const groups = Array.isArray(resourceGroup)
+    ? resourceGroup
+    : resourceGroup
+    ? [resourceGroup]
+    : [];
+  for (const group of groups.concat(allResources)) {
+    group.add(baseInstance);
+  }
 
   get(...([] as any));
 

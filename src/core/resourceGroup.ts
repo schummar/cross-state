@@ -1,6 +1,6 @@
 export interface Resource {
-  invalidate(): void;
-  clear(): void;
+  invalidateAll(): void;
+  clearAll(): void;
 }
 
 export class ResourceGroup {
@@ -33,7 +33,7 @@ export class ResourceGroup {
     for (const ref of this.refSet) {
       const resource = ref.deref();
       if (resource) {
-        resource.invalidate();
+        resource.invalidateAll();
       } else {
         this.refSet.delete(ref);
       }
@@ -44,7 +44,7 @@ export class ResourceGroup {
     for (const ref of this.refSet) {
       const resource = ref.deref();
       if (resource) {
-        resource.clear();
+        resource.clearAll();
       } else {
         this.refSet.delete(ref);
       }
