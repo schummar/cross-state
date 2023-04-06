@@ -16,9 +16,9 @@ export {
   type StoreOptionsWithMethods,
 } from './store';
 export {
-  SubscriptionCacheFunction,
+  SubstriptionCache,
   createSubscriptionCache,
-  type SubstriptionCache,
+  type SubscriptionCacheFunction,
   type SubstriptionCacheOptions,
 } from './subscriptionCache';
 export { createUrlStore, type UrlStore, type UrlStoreOptions } from './urlStore';
