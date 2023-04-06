@@ -58,8 +58,14 @@
       "react": [
         "dist/types/react/index.d.ts"
       ],
+      "react/register": [
+        "dist/types/react/register.d.ts"
+      ],
       "immer": [
         "dist/types/immer/index.d.ts"
+      ],
+      "immer/register": [
+        "dist/types/immer/register.d.ts"
       ]
     }
   },
