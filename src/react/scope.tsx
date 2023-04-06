@@ -1,5 +1,6 @@
 import type { Context, ReactNode } from 'react';
 import { createContext, useContext, useMemo } from 'react';
+import { type UseStoreOptions, useStore } from './useStore';
 import type { Scope } from '@core';
 import type { Store } from '@core/store';
 import { createStore } from '@core/store';
@@ -32,4 +33,9 @@ export function ScopeProvider<T>({ scope, store: inputStore, children }: ScopePr
 export function useScope<T>(scope: Scope<T>): Store<T> {
   const context = getScopeContext(scope);
   return useContext(context);
+}
+
+export function useScopeStore<T>(scope: Scope<T>, options?: UseStoreOptions): T {
+  const store = useScope(scope);
+  return useStore(store, options);
 }
