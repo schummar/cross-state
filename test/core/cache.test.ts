@@ -351,6 +351,17 @@ describe('cache', () => {
     });
   });
 
+  describe('dependencies', () => {
+    test('x', async () => {
+      const cache1 = createCache(async () => 1);
+      const cache2 = createCache(() => async ({ use }) => {
+        return (await use(cache1)) + 1;
+      });
+
+      expect(await cache2.get()).toStrictEqual(2);
+    });
+  });
+
   describe('mapValue', () => {
     test('simple', async () => {
       const cache = createCache(async () => 1);

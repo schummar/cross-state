@@ -12,7 +12,10 @@ import { InstanceCache } from '@lib/instanceCache';
 import { type Path } from '@lib/path';
 
 export interface SubscriptionCacheFunction<T, Args extends any[] = []> {
-  (this: CalculationHelpers<T | undefined>, ...args: Args): Cancel;
+  (this: CalculationHelpers<T | undefined>, ...args: Args):
+    | Cancel
+    | void
+    | ((cache: CalculationHelpers<T | undefined>) => Cancel | void);
 }
 
 export interface SubstriptionCacheOptions {
@@ -42,7 +45,13 @@ export class SubstriptionCache<T> extends Store<T | undefined> {
     this.calculationHelper.options = {
       ...this.calculationHelper.options,
       calculate: (helpers) => {
-        return connectFunction.apply(helpers);
+        let result = connectFunction.apply(helpers);
+
+        if (result instanceof Function && result.length > 0) {
+          result = result(helpers);
+        }
+
+        return result as Cancel | void;
       },
       onValue: (value) => {
         this.set(value);

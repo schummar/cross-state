@@ -114,4 +114,12 @@ describe('subscriptionCache', () => {
       ],
     ]);
   });
+
+  test('inner function', async () => {
+    const subscriptionCache = createSubscriptionCache<number>(() => ({ updateValue }) => {
+      updateValue(1);
+    });
+    await subscriptionCache.once();
+    expect(subscriptionCache.get()).toBe(1);
+  });
 });

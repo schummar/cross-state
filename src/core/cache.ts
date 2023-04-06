@@ -15,7 +15,7 @@ export interface CacheGetOptions {
 }
 
 export interface CacheFunction<T, Args extends any[] = []> {
-  (this: { use: Use }, ...args: Args): Promise<T>;
+  (this: { use: Use }, ...args: Args): Promise<T> | ((cache: { use: Use }) => Promise<T>);
 }
 
 export interface CacheOptions<T> {
@@ -48,7 +48,20 @@ export class Cache<T> extends Store<Promise<T>> {
     },
     _call?: (...args: any[]) => any,
   ) {
-    super(getter, options, undefined, _call);
+    super(
+      function () {
+        let result = getter.apply(this);
+
+        if (result instanceof Function) {
+          result = result(this);
+        }
+
+        return result;
+      },
+      options,
+      undefined,
+      _call,
+    );
     this.invalidate = this.invalidate.bind(this);
     this.clear = this.clear.bind(this);
     this.mapValue = this.mapValue.bind(this);
