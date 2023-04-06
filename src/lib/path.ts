@@ -9,7 +9,7 @@ import type {
   StringToNumber,
 } from './typeHelpers';
 
-export type KeyType = string | number;
+export type KeyType = string | number | symbol;
 
 export type GetKeys<T extends Object_ | Array_> = T extends Array_
   ? T extends readonly [] // special case empty tuple => no keys

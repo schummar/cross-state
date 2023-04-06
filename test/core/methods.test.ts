@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { createStore } from '../../src/core/store';
 import { immerMethods } from '../../src/immer';
+import '../../src/immer/register';
 
 describe('store methods', () => {
   describe('map methods', () => {
@@ -227,5 +228,22 @@ describe('store methods', () => {
 
     state.incAndPush();
     expect(state.get()).toEqual([{ x: 2 }, { x: 2 }]);
+  });
+
+  test('nested immer', () => {
+    const state = createStore({ x: { y: [1] } });
+    state.update(['x', 'y'], (y) => {
+      y.push(2);
+    });
+
+    expect(state.get()).toEqual({ x: { y: [1, 2] } });
+  });
+
+  test('immer inline', () => {
+    const state = createStore({ x: 1 });
+    // eslint-disable-next-line no-return-assign
+    state.update((state) => (state.x = 2));
+
+    expect(state.get()).toEqual({ x: 2 });
   });
 });

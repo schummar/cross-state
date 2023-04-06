@@ -81,7 +81,7 @@ export class Cache<T> extends Store<Promise<T>> {
     return promise;
   }
 
-  update(value: MaybePromise<T>) {
+  updateValue(value: MaybePromise<T>) {
     this.set(PromiseWithState.resolve(value));
   }
 

@@ -27,15 +27,27 @@
     },
     "./react": {
       "types": "./dist/types/react/index.d.ts",
-      "import": "./dist/es/react.mjs",
-      "require": "./dist/cjs/react.cjs",
-      "default": "./dist/es/react.mjs"
+      "import": "./dist/es/react/index.mjs",
+      "require": "./dist/cjs/react/index.cjs",
+      "default": "./dist/es/react/index.mjs"
+    },
+    "./react/register": {
+      "types": "./dist/types/react/register.d.ts",
+      "import": "./dist/es/react/register.mjs",
+      "require": "./dist/cjs/react/register.cjs",
+      "default": "./dist/es/react/register.mjs"
     },
     "./immer": {
       "types": "./dist/types/immer/index.d.ts",
-      "import": "./dist/es/immer.mjs",
-      "require": "./dist/cjs/immer.cjs",
-      "default": "./dist/es/immer.mjs"
+      "import": "./dist/es/immer/index.mjs",
+      "require": "./dist/cjs/immer/index.cjs",
+      "default": "./dist/es/immer/index.mjs"
+    },
+    "./immer/register": {
+      "types": "./dist/types/immer/register.d.ts",
+      "import": "./dist/es/immer/register.mjs",
+      "require": "./dist/cjs/immer/register.cjs",
+      "default": "./dist/es/immer/register.mjs"
     }
   },
   "typesVersions": {
@@ -62,7 +74,7 @@
     "lint:tsc": "tsc --noEmit --emitDeclarationOnly false",
     "lint:tsc:tests": "tsc --noEmit --emitDeclarationOnly false -p test/tsconfig.json",
     "size": "size-limit",
-    "prepublishOnly": "runp lint test build :s size",
+    "prepublishOnly": "runp lint test build :p size publint",
     "test": "pnpm test:watch run --coverage",
     "test:watch": "node --expose-gc node_modules/vitest/vitest.mjs",
     "test:export": "pnpm test:watch run --coverage --reporter=verbose --reporter=junit --outputFile=test/testResults.xml"
@@ -102,6 +114,7 @@
     "immer": "9.0.21",
     "jsdom": "21.1.1",
     "prettier": "2.8.7",
+    "publint": "^0.1.11",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "rimraf": "4.4.1",
@@ -130,7 +143,7 @@
     {
       "name": "core",
       "path": "dist/es/index.mjs",
-      "limit": "5.5 KB"
+      "limit": "7 KB"
     },
     {
       "name": "core: Store",
@@ -164,12 +177,12 @@
     },
     {
       "name": "/react",
-      "path": "dist/es/react.mjs",
+      "path": "dist/es/react/index.mjs",
       "limit": "5 KB"
     },
     {
       "name": "/immer",
-      "path": "dist/es/immer.mjs",
+      "path": "dist/es/immer/index.mjs",
       "limit": "250 B"
     }
   ]

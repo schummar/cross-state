@@ -109,7 +109,7 @@ describe('cache', () => {
   describe('update cache', () => {
     test('update plain value', async () => {
       const cache = createCache(async () => 1);
-      cache.update(2);
+      cache.updateValue(2);
 
       expect(cache.state.get()).toStrictEqual({
         status: 'value',
@@ -211,7 +211,7 @@ describe('cache', () => {
       await cache.get();
 
       vi.advanceTimersByTime(1);
-      cache.update(2);
+      cache.updateValue(2);
       await flushPromises();
       vi.advanceTimersByTime(1);
 

@@ -21,8 +21,10 @@ export default defineConfig({
     lib: {
       entry: {
         index: 'src/index.ts',
-        react: 'src/react/index.ts',
-        immer: 'src/immer/index.ts',
+        'react/index': 'src/react/index.ts',
+        'react/register': 'src/react/register.ts',
+        'immer/index': 'src/immer/index.ts',
+        'immer/register': 'src/immer/register.ts',
       },
     },
 
