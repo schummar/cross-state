@@ -1,6 +1,6 @@
-import { shallowEqual } from 'fast-equals';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createStore } from '../../src';
+import { defaultEqual, shallowEqual } from '../../src/lib/equals';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -155,7 +155,7 @@ describe('static store', () => {
     test('store.subscribe default equals', async () => {
       const state = createStore({ a: 1 });
       const listener = vi.fn();
-      state.subscribe(listener);
+      state.subscribe(listener, { equals: defaultEqual });
       state.set({ a: 1 });
       expect(listener.mock.calls).toMatchObject([
         [{ a: 1 }, undefined],
@@ -246,5 +246,26 @@ describe('static store', () => {
       state.set(2);
       await expect(value).resolves.toBe(2);
     });
+  });
+
+  test('bug: subscribe fires too often for mapped store', () => {
+    const state = createStore(true);
+    const mapped = state.map((x) => [x]);
+    const listener = vi.fn();
+    mapped.subscribe(listener, { equals: defaultEqual });
+    state.set(false);
+    state.set(true);
+    state.set(false);
+    state.set(true);
+    state.set(false);
+
+    expect(listener.mock.calls.map((x) => x[0][0])).toMatchObject([
+      true,
+      false,
+      true,
+      false,
+      true,
+      false,
+    ]);
   });
 });

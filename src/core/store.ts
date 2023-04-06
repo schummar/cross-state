@@ -14,7 +14,7 @@ import { calcDuration } from '@lib/calcDuration';
 import { CalculationHelper } from '@lib/calculationHelper';
 import { Callable } from '@lib/callable';
 import { debounce } from '@lib/debounce';
-import { defaultEquals } from '@lib/equals';
+import { deepEqual } from '@lib/equals';
 import { forwardError } from '@lib/forwardError';
 import { makeSelector } from '@lib/makeSelector';
 import type { Path, Value } from '@lib/path';
@@ -164,7 +164,7 @@ export class Store<T> extends Callable<any, any> {
       runNow = true,
       throttle: throttleOption,
       debounce: debounceOption,
-      equals = defaultEquals,
+      equals = deepEqual,
     } = options ?? {};
 
     let compareToValue = this._value?.v;

@@ -1,12 +1,12 @@
 import { isAncestor } from './persistPathHelpers';
 import {
+  normalizeStorage,
   type PersistStorage,
   type PersistStorageWithKeys,
-  normalizeStorage,
 } from './persistStorage';
 import { type Cancel, type Store } from '@core';
 import { diff } from '@lib/diff';
-import { simpleShallowEquals } from '@lib/equals';
+import { shallowEqual } from '@lib/equals';
 import { maybeAsync, maybeAsyncArray } from '@lib/maybeAsync';
 import type { KeyType, WildcardPath } from '@lib/path';
 import { castArrayPath, get, set } from '@lib/propAccess';
@@ -81,7 +81,7 @@ export class Persist<T> {
         for (const patch of patches) {
           if (
             this.updateInProgress &&
-            simpleShallowEquals(this.updateInProgress[0], patch.path) &&
+            shallowEqual(this.updateInProgress[0], patch.path) &&
             this.updateInProgress[1] === (patch.op === 'remove' ? undefined : patch.value)
           ) {
             continue;

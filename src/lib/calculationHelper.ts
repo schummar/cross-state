@@ -56,10 +56,6 @@ export class CalculationHelper<T> {
       }
 
       return () => {
-        if (isCancled) {
-          return;
-        }
-
         isActive = false;
 
         for (const dep of deps.values()) {

@@ -108,10 +108,6 @@ describe('subscriptionCache', () => {
         { connectionState: 'closed', error: undefined },
         { connectionState: 'open', error: undefined },
       ],
-      [
-        { connectionState: 'closed', error: undefined },
-        { connectionState: 'closed', error: undefined },
-      ],
     ]);
   });
 

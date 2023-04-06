@@ -120,7 +120,6 @@
     "@vitejs/plugin-react": "3.1.0",
     "@vitest/coverage-c8": "0.29.8",
     "eslint": "8.37.0",
-    "fast-equals": "5.0.1",
     "happy-dom": "9.1.7",
     "immer": "9.0.21",
     "jsdom": "21.1.1",
@@ -166,7 +165,7 @@
       "name": "core: Cache",
       "path": "dist/es/index.mjs",
       "import": "{createCache}",
-      "limit": "5 KB"
+      "limit": "5.5 KB"
     },
     {
       "name": "core: InstanceCache",
@@ -184,12 +183,12 @@
       "name": "core: urlStore",
       "path": "dist/es/index.mjs",
       "import": "{createUrlStore}",
-      "limit": "3.5 KB"
+      "limit": "3.7 KB"
     },
     {
       "name": "/react",
       "path": "dist/es/react/index.mjs",
-      "limit": "5 KB"
+      "limit": "5.3 KB"
     },
     {
       "name": "/immer",
