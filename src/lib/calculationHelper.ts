@@ -1,6 +1,7 @@
 import type { MaybePromise } from './maybePromise';
 import { queue } from './queue';
 import { trackingProxy } from './trackingProxy';
+import { deepEqual } from './equals';
 import type { Store } from '@core/store';
 import type {
   CalculationHelpers,
@@ -98,7 +99,7 @@ export class CalculationHelper<T> {
 
       let value = store.get();
       let equals = (newValue: any) => {
-        return newValue === value;
+        return deepEqual(newValue, value);
       };
 
       if (!disableProxy) {
@@ -114,7 +115,7 @@ export class CalculationHelper<T> {
 
           sub = store.subscribe(
             () => {
-              if (!check()) {
+              if (sub && !check()) {
                 cancel();
                 onInvalidate?.();
               }

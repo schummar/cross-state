@@ -1,4 +1,5 @@
 import { afterEach, assert, beforeEach, describe, expect, test, vi } from 'vitest';
+import { createStore } from '../../src/core';
 import { Cache, createCache } from '../../src/core/cache';
 import { flushPromises, sleep } from '../testHelpers';
 
@@ -450,5 +451,30 @@ describe('cache', () => {
       expect(cache.state.get().value).toBe(undefined);
       expect(cache(1).state.get().value).toBe(undefined);
     });
+  });
+
+  test('bug: dependent cache updates increasingly often when cleared', async () => {
+    const store = createStore({ x: 0, y: 1 });
+    const calculate = vi.fn(() => async ({ use }: any) => {
+      const { x, y } = use(store);
+
+      return x + y;
+    });
+    const cache2 = createCache(calculate);
+
+    store.subscribe(() => {
+      cache2.clear();
+    });
+    cache2.subscribe(() => undefined);
+
+    store.set({ x: 1, y: 2 });
+    await flushPromises();
+    store.set({ x: 2, y: 3 });
+    await flushPromises();
+    store.set({ x: 3, y: 4 });
+    await flushPromises();
+
+    expect(cache2.state.get().value).toBe(7);
+    expect(calculate).toHaveBeenCalledTimes(4);
   });
 });

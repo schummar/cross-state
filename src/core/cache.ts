@@ -66,7 +66,8 @@ export class Cache<T> extends Store<Promise<T>> {
     this.clear = this.clear.bind(this);
     this.mapValue = this.mapValue.bind(this);
 
-    this.calculationHelper.options.onInvalidate = () => this.invalidate();
+    this.calculationHelper.options.onInvalidate = () =>
+      this.invalidate({ invalidateDependencies: false });
     this.watchPromise();
     this.watchFocus();
   }
