@@ -86,6 +86,7 @@ export class Store<T> extends Callable<any, any> {
     public readonly derivedFrom?: {
       store: Store<any>;
       selectors: (Selector<any, any> | Path<any>)[];
+      updater: (state: any) => void;
     },
     protected readonly _call: (...args: any[]) => any = () => undefined,
   ) {
@@ -131,19 +132,9 @@ export class Store<T> extends Callable<any, any> {
       update = set(this.get(), path, update);
     }
 
-    if (
-      this.derivedFrom &&
-      this.derivedFrom.selectors.every((selector) => typeof selector === 'string')
-    ) {
-      const derivationPath = this.derivedFrom.selectors.join('.');
-      this.derivedFrom.store.set((before: any) => set<any, any>(before, derivationPath, update));
-      return;
-    }
-
     if (this.derivedFrom) {
-      throw new TypeError(
-        'Can only updated computed stores that are derived from other stores using string selectors',
-      );
+      this.derivedFrom.updater(update);
+      return;
     }
 
     this._value = { v: update };
@@ -241,15 +232,47 @@ export class Store<T> extends Callable<any, any> {
     });
   }
 
-  map<S>(selector: Selector<T, S>, options?: UseOptions): Store<S>;
+  map<S>(
+    selector: Selector<T, S>,
+    updater?: (value: S) => Update<T>,
+    options?: UseOptions,
+  ): Store<S>;
 
   map<P extends Path<T>>(selector: P, options?: UseOptions): Store<Value<T, P>>;
 
-  map(_selector: Selector<T, any> | Path<any>, options?: UseOptions): Store<any> {
+  map(_selector: Selector<T, any> | Path<any>, ...args: any[]): Store<any> {
+    const updater: ((value: any) => Update<T>) | undefined =
+      _selector instanceof Function
+        ? args[0]
+        : (value) => (state) => set(state, _selector as Path<T>, value);
+
+    const options = _selector instanceof Function ? args[1] : args[0];
+
     const selector = makeSelector(_selector);
+
     const derivedFrom = {
       store: this.derivedFrom ? this.derivedFrom.store : this,
       selectors: this.derivedFrom ? [...this.derivedFrom.selectors, _selector] : [_selector],
+
+      updater: (value: any) => {
+        if (!updater) {
+          throw new TypeError(
+            'Can only updated computed stores that either are derived from other stores using string selectors or have an updater function.',
+          );
+        }
+
+        let update = updater(value);
+
+        if (update instanceof Function) {
+          update = update(this.get());
+        }
+
+        if (this.derivedFrom) {
+          this.derivedFrom.updater(update);
+        } else {
+          this.set(update);
+        }
+      },
     };
 
     return new Store(

@@ -48,8 +48,8 @@ describe('useProp', () => {
       act(() => {
         div.click();
       });
-    }).toThrowError(
-      'Can only updated computed stores that are derived from other stores using string selectors',
+    }).toThrowErrorMatchingInlineSnapshot(
+      '"Can only updated computed stores that either are derived from other stores using string selectors or have an updater function."',
     );
   });
 });

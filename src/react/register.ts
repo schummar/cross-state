@@ -1,8 +1,8 @@
+import { Cache, Scope, Store } from '@core';
 import { reactMethods } from './reactMethods';
-import { type ScopeProps, ScopeProvider, useScope, useScopeStore } from './scope';
+import { ScopeProvider, useScope, useScopeProp, useScopeStore, type ScopeProps } from './scope';
 import { useCache, type UseCacheOptions } from './useCache';
 import { type UseStoreOptions } from './useStore';
-import { Cache, Scope, Store } from '@core';
 
 type StoreMethods = typeof reactMethods;
 type CacheMethods = typeof cacheMethods;
@@ -32,6 +32,10 @@ const scopeMethods = {
 
   useStore<T>(this: Scope<T>, options?: UseStoreOptions) {
     return useScopeStore(this, options);
+  },
+
+  useProp<T>(this: Scope<T>, options?: UseStoreOptions) {
+    return useScopeProp(this, options);
   },
 
   Provider<T>(this: Scope<T>, props: Omit<ScopeProps<T>, 'scope'>) {

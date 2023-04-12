@@ -99,8 +99,21 @@ describe('mapped', () => {
     const state = createStore({ x: 1 });
     const mapped = state.map((s) => s.x);
 
-    expect(() => mapped.set(2)).toThrowError(
-      'Can only updated computed stores that are derived from other stores using string selectors',
+    expect(() => mapped.set(2)).toThrowErrorMatchingInlineSnapshot(
+      '"Can only updated computed stores that either are derived from other stores using string selectors or have an updater function."',
     );
+  });
+
+  test('update for non-string selector with updater', () => {
+    const state = createStore({ x: 1 });
+    const mapped = state.map(
+      (s) => s.x,
+      (x) => ({ x }),
+    );
+
+    mapped.set((x) => x + 1);
+
+    expect(state.get()).toEqual({ x: 2 });
+    expect(mapped.get()).toEqual(2);
   });
 });
