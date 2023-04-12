@@ -1,5 +1,5 @@
 import { useCallback, useDebugValue, useLayoutEffect, useMemo, useRef } from 'react';
-import { useSyncExternalStoreWithSelector } from 'use-sync-external-store/with-selector.js';
+import { useSyncExternalStoreWithSelector } from 'use-sync-external-store/shim/with-selector.js';
 import type { SubscribeOptions } from '@core/commonTypes';
 import type { Store } from '@core/store';
 import { hash } from '@lib/hash';

@@ -188,7 +188,7 @@
     {
       "name": "/react",
       "path": "dist/es/react/index.mjs",
-      "limit": "5.4 KB"
+      "limit": "6 KB"
     },
     {
       "name": "/immer",
