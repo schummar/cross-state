@@ -1,8 +1,8 @@
-import { Cache, Scope, Store } from '@core';
 import { reactMethods } from './reactMethods';
 import { ScopeProvider, useScope, useScopeProp, useScopeStore, type ScopeProps } from './scope';
 import { useCache, type UseCacheOptions } from './useCache';
 import { type UseStoreOptions } from './useStore';
+import { Cache, Scope, Store } from '@core';
 
 type StoreMethods = typeof reactMethods;
 type CacheMethods = typeof cacheMethods;

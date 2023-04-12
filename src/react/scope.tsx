@@ -1,10 +1,10 @@
-import type { Scope } from '@core';
-import type { Store } from '@core/store';
-import { createStore } from '@core/store';
 import type { Context, ReactNode } from 'react';
 import { createContext, useContext, useMemo } from 'react';
 import { useProp } from './useProp';
 import { useStore, type UseStoreOptions } from './useStore';
+import { createStore } from '@core/store';
+import type { Store } from '@core/store';
+import type { Scope } from '@core';
 
 export type ScopeProps<T> = { scope: Scope<T>; store?: Store<T>; children?: ReactNode };
 
@@ -41,7 +41,7 @@ export function useScopeStore<T>(scope: Scope<T>, options?: UseStoreOptions): T 
   return useStore(store, options);
 }
 
-export function useScopeProp<T>(scope: Scope<T>, options?:UseStoreOptions){
+export function useScopeProp<T>(scope: Scope<T>, options?: UseStoreOptions) {
   const store = useScope(scope);
   return useProp(store, options);
 }
