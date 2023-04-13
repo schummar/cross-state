@@ -8,7 +8,6 @@ import type {
   SubscribeOptions,
   Update,
   Use,
-  UseOptions,
 } from './commonTypes';
 import { calcDuration } from '@lib/calcDuration';
 import { CalculationHelper } from '@lib/calculationHelper';
@@ -232,21 +231,15 @@ export class Store<T> extends Callable<any, any> {
     });
   }
 
-  map<S>(
-    selector: Selector<T, S>,
-    updater?: (value: S) => Update<T>,
-    options?: UseOptions,
-  ): Store<S>;
+  map<S>(selector: Selector<T, S>, updater?: (value: S) => Update<T>): Store<S>;
 
-  map<P extends Path<T>>(selector: P, options?: UseOptions): Store<Value<T, P>>;
+  map<P extends Path<T>>(selector: P): Store<Value<T, P>>;
 
   map(_selector: Selector<T, any> | Path<any>, ...args: any[]): Store<any> {
     const updater: ((value: any) => Update<T>) | undefined =
       _selector instanceof Function
         ? args[0]
         : (value) => (state) => set(state, _selector as Path<T>, value);
-
-    const options = _selector instanceof Function ? args[1] : args[0];
 
     const selector = makeSelector(_selector);
 
@@ -277,7 +270,7 @@ export class Store<T> extends Callable<any, any> {
 
     return new Store(
       ({ use }) => {
-        return selector(use(this, options));
+        return selector(use(this));
       },
       this.options,
       derivedFrom,

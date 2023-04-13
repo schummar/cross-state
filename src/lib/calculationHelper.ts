@@ -1,7 +1,6 @@
+import { deepEqual } from './equals';
 import type { MaybePromise } from './maybePromise';
 import { queue } from './queue';
-import { trackingProxy } from './trackingProxy';
-import { deepEqual } from './equals';
 import type { Store } from '@core/store';
 import type {
   CalculationHelpers,
@@ -92,19 +91,15 @@ export class CalculationHelper<T> {
       }
     };
 
-    const use: Use = (store, { disableProxy } = {}) => {
+    const use: Use = (store) => {
       if (isCancled) {
         return store.get();
       }
 
-      let value = store.get();
-      let equals = (newValue: any) => {
+      const value = store.get();
+      const equals = (newValue: any) => {
         return deepEqual(newValue, value);
       };
-
-      if (!disableProxy) {
-        [value, equals] = trackingProxy(value);
-      }
 
       const check = () => equals(store.get());
       let sub: Cancel | undefined;

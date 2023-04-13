@@ -55,12 +55,8 @@ export interface UpdateFunction<Value> {
   (update: Update<Value>): void;
 }
 
-export interface UseOptions {
-  disableProxy?: boolean;
-}
-
 export interface Use {
-  <T>(store: Store<T>, options?: UseOptions): T;
+  <T>(store: Store<T>): T;
 }
 
 export type ConnectionState = 'connecting' | 'open' | 'closing' | 'closed';
