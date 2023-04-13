@@ -2,13 +2,19 @@ import { useCallback, useDebugValue, useLayoutEffect, useMemo, useRef } from 're
 import { useSyncExternalStoreWithSelector } from 'use-sync-external-store/shim/with-selector.js';
 import type { SubscribeOptions } from '@core/commonTypes';
 import type { Store } from '@core/store';
+import { deepEqual } from '@lib/equals';
 import { hash } from '@lib/hash';
 import { makeSelector } from '@lib/makeSelector';
 import { trackingProxy } from '@lib/trackingProxy';
 
-export type UseStoreOptions = Omit<SubscribeOptions, 'runNow' | 'passive'>;
+export interface UseStoreOptions extends Omit<SubscribeOptions, 'runNow' | 'passive'> {
+  disableTrackingProxy?: boolean;
+}
 
-export function useStore<T>(store: Store<T>, options?: UseStoreOptions): T {
+export function useStore<T>(
+  store: Store<T>,
+  { disableTrackingProxy, equals = deepEqual, ...options }: UseStoreOptions = {},
+): T {
   const lastEqualsRef = useRef<(newValue: T) => boolean>();
 
   const { rootStore, selector } = useMemo(() => {
@@ -27,7 +33,7 @@ export function useStore<T>(store: Store<T>, options?: UseStoreOptions): T {
     return { rootStore, selector };
   }, [store]);
 
-  const subOptions = { ...options, runNow: false, equals: undefined, passive: false };
+  const subOptions = { ...options, runNow: false, passive: false };
   const subscribe = useCallback(
     (listener: () => void) => {
       return rootStore.subscribe(listener, subOptions);
@@ -35,21 +41,26 @@ export function useStore<T>(store: Store<T>, options?: UseStoreOptions): T {
     [rootStore, hash(subOptions)],
   );
 
-  const value = useSyncExternalStoreWithSelector<unknown, T>(
+  let value = useSyncExternalStoreWithSelector<unknown, T>(
     //
     subscribe,
     rootStore.get,
     undefined,
     selector,
-    options?.equals ?? ((_v, newValue) => lastEqualsRef.current?.(newValue) ?? false),
+    (_v, newValue) => lastEqualsRef.current?.(newValue) ?? false,
   );
-  const [proxiedValue, equals, revoke] = trackingProxy(value);
+  let lastEquals = (newValue: T) => equals(newValue, value);
+  let revoke: (() => void) | undefined;
+
+  if (!disableTrackingProxy) {
+    [value, lastEquals, revoke] = trackingProxy(value, equals);
+  }
 
   useLayoutEffect(() => {
-    lastEqualsRef.current = equals;
+    lastEqualsRef.current = lastEquals;
     revoke?.();
   });
 
   useDebugValue(value);
-  return proxiedValue;
+  return value;
 }
