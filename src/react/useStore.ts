@@ -43,10 +43,11 @@ export function useStore<T>(store: Store<T>, options?: UseStoreOptions): T {
     selector,
     options?.equals ?? ((_v, newValue) => lastEqualsRef.current?.(newValue) ?? false),
   );
-  const [proxiedValue, equals] = trackingProxy(value);
+  const [proxiedValue, equals, revoke] = trackingProxy(value);
 
   useLayoutEffect(() => {
     lastEqualsRef.current = equals;
+    revoke?.();
   });
 
   useDebugValue(value);

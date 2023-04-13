@@ -159,7 +159,7 @@
       "name": "core: Store",
       "path": "dist/es/index.mjs",
       "import": "{createStore}",
-      "limit": "3.6 KB"
+      "limit": "4 KB"
     },
     {
       "name": "core: Cache",
@@ -183,7 +183,7 @@
       "name": "core: urlStore",
       "path": "dist/es/index.mjs",
       "import": "{createUrlStore}",
-      "limit": "3.8 KB"
+      "limit": "4 KB"
     },
     {
       "name": "/react",

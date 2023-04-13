@@ -1,6 +1,8 @@
 import { deepEqual } from './equals';
 
-export type TrackingProxy<T> = [value: T, equals: (newValue: T) => boolean];
+const unwrapProxySymbol = /* @__PURE__ */ Symbol('unwrapProxy');
+
+export type TrackingProxy<T> = [value: T, equals: (newValue: T) => boolean, revoke?: () => void];
 type Object_ = Record<string | symbol, unknown>;
 
 function isPlainObject(value: unknown) {
@@ -14,10 +16,15 @@ export function trackingProxy<T>(value: T, equals = deepEqual): TrackingProxy<T>
     return [value, (other) => equals(value, other)];
   }
 
+  // Unpack proxies, we don't want to nest them
+  value = (value as any)[unwrapProxySymbol] ?? value;
+
   const deps = new Array<TrackingProxy<any>[1]>();
+  const revokations = new Array<() => void>();
+  let revoked = false;
 
   function trackComplexProp(function_: any, ...args: any[]) {
-    const [proxiedValue, equals] = trackingProxy(function_(value, ...args));
+    const [proxiedValue, equals, revoke] = trackingProxy(function_(value, ...args));
 
     deps.push((otherValue) => {
       if (!isPlainObject(otherValue) && !Array.isArray(otherValue)) {
@@ -26,6 +33,10 @@ export function trackingProxy<T>(value: T, equals = deepEqual): TrackingProxy<T>
 
       return equals(function_(otherValue, ...args));
     });
+
+    if (revoke) {
+      revokations.push(revoke);
+    }
 
     return proxiedValue;
   }
@@ -42,6 +53,14 @@ export function trackingProxy<T>(value: T, equals = deepEqual): TrackingProxy<T>
 
   const proxy = new Proxy(value as T & Object_, {
     get(target, p, receiver) {
+      if (p === unwrapProxySymbol) {
+        return value;
+      }
+
+      if (revoked) {
+        return target[p];
+      }
+
       const { writable, configurable } = Object.getOwnPropertyDescriptor(target, p) ?? {};
       if (writable === false && configurable === false) {
         return target[p];
@@ -76,5 +95,12 @@ export function trackingProxy<T>(value: T, equals = deepEqual): TrackingProxy<T>
     },
   });
 
-  return [proxy, (other) => !!other && deps.every((equals) => equals(other))];
+  return [
+    proxy,
+    (other) => !!other && deps.every((equals) => equals(other)),
+    () => {
+      revoked = true;
+      revokations.forEach((revoke) => revoke());
+    },
+  ];
 }
