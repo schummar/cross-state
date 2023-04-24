@@ -67,7 +67,7 @@ describe('useStore', () => {
       const store = createStore(before);
 
       const Component = vi.fn<[], any>(function Component() {
-        const v = useStore(store);
+        const v = useStore(store, { disableTrackingProxy: false });
 
         return <div data-testid="div">{select(v)}</div>;
       });

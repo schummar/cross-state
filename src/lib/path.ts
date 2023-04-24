@@ -19,24 +19,40 @@ export type GetKeys<T extends Object_ | Array_> = T extends Array_
     : number // other array
   : keyof T;
 
-export type PathAsArray<T, Optional = false> = 0 extends 1 & T
+export type _PathAsArray<T, Optional, MaxDepth, Depth extends any[]> = 0 extends 1 & T
   ? KeyType[]
   : T extends never
   ? never
-  : T extends Object_ | Array_
-  ? {
-      [K in GetKeys<T>]:
-        | (Optional extends true ? (K extends OptionalPropertyOf<T> ? [K] : never) : [K])
-        | [K, ...PathAsArray<T[K], Optional>];
-    }[GetKeys<T>]
-  : T extends Map<infer K extends KeyType, infer V>
-  ? [K] | [K, ...PathAsArray<V, Optional>]
-  : T extends Set<any>
-  ? [number]
+  : T extends Object_
+  ? Depth extends {
+      length: MaxDepth;
+    }
+    ? string[]
+    : T extends Map<infer K extends KeyType, infer V>
+    ? [K] | [K, ..._PathAsArray<V, Optional, MaxDepth, [...Depth, 1]>]
+    : T extends Set<any>
+    ? [number]
+    : {
+        [K in GetKeys<T>]:
+          | (Optional extends true ? (K extends OptionalPropertyOf<T> ? [K] : never) : [K])
+          | [K, ..._PathAsArray<T[K], Optional, MaxDepth, [...Depth, 1]>];
+      }[GetKeys<T>]
   : never;
 
-export type PathAsString<T, Optional = false> = ArrayToStringPath<PathAsArray<T, Optional>>;
-export type Path<T, Optional = false> = PathAsString<T, Optional> | PathAsArray<T, Optional>;
+export type PathAsArray<
+  T,
+  Optional extends boolean = false,
+  MaxDepth extends number = 5,
+> = _PathAsArray<T, Optional, MaxDepth, []>;
+
+export type PathAsString<
+  T,
+  Optional extends boolean = false,
+  MaxDepth extends number = 5,
+> = ArrayToStringPath<PathAsArray<T, Optional, MaxDepth>>;
+export type Path<T, Optional extends boolean = false, MaxDepth extends number = 5> =
+  | PathAsString<T, Optional, MaxDepth>
+  | PathAsArray<T, Optional, MaxDepth>;
 
 export type Value<T, P> = true extends IsAny<T> | IsAny<P>
   ? any
@@ -45,16 +61,16 @@ export type Value<T, P> = true extends IsAny<T> | IsAny<P>
   : P extends string
   ? Value<T, StringToArrayPath<P>>
   : P extends [infer First extends KeyType, ...infer Rest extends KeyType[]]
-  ? T extends Object_
-    ? Record<any, any> extends T
-      ? Value<T[First], Rest> | undefined
-      : Value<T[First], Rest>
+  ? T extends Map<any, infer V> | Set<infer V>
+    ? Value<V, Rest> | undefined
     : T extends Array_
     ? any[] extends T
       ? Value<T[First & keyof T], Rest> | undefined
       : Value<T[First & keyof T], Rest>
-    : T extends Map<any, infer V> | Set<infer V>
-    ? Value<V, Rest> | undefined
+    : T extends Object_
+    ? Record<any, any> extends T
+      ? Value<T[First], Rest> | undefined
+      : Value<T[First], Rest>
     : never
   : T;
 

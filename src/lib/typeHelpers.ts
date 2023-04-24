@@ -1,5 +1,5 @@
-export type Object_ = Record<string | number | symbol, unknown>;
-export type Array_ = readonly unknown[];
+export type Object_ = Record<string | number | symbol, any>;
+export type Array_ = readonly any[];
 
 export type StringToNumber<T> = T extends `${infer K extends number}` ? K : never;
 

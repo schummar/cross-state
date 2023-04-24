@@ -13,7 +13,7 @@ export interface UseStoreOptions extends Omit<SubscribeOptions, 'runNow' | 'pass
 
 export function useStore<T>(
   store: Store<T>,
-  { disableTrackingProxy, equals = deepEqual, ...options }: UseStoreOptions = {},
+  { disableTrackingProxy = true, equals = deepEqual, ...options }: UseStoreOptions = {},
 ): T {
   const lastEqualsRef = useRef<(newValue: T) => boolean>();
 

@@ -53,12 +53,16 @@ describe('path', () => {
 
     test('nested', () => {
       expectTypeOf(
-        {} as PathAsArray<{
-          a: number;
-          b: {
-            c: [Map<number, { x: number }>, Set<{ x: number }>][];
-          };
-        }>,
+        {} as PathAsArray<
+          {
+            a: number;
+            b: {
+              c: [Map<number, { x: number }>, Set<{ x: number }>][];
+            };
+          },
+          false,
+          10
+        >,
       ).toEqualTypeOf<
         | ['a']
         | ['b']
@@ -69,6 +73,20 @@ describe('path', () => {
         | ['b', 'c', number, 0, number, 'x']
         | ['b', 'c', number, 1]
         | ['b', 'c', number, 1, number]
+      >();
+    });
+
+    test('path longer than MaxDepth', () => {
+      expectTypeOf(
+        {} as PathAsArray<{ a: { a: { a: 1 } }; b: { b: { b: { b: 1 } } } }, false, 3>,
+      ).toEqualTypeOf<
+        | ['a']
+        | ['a', 'a']
+        | ['a', 'a', 'a']
+        | ['b']
+        | ['b', 'b']
+        | ['b', 'b', 'b']
+        | ['b', 'b', 'b', ...string[]]
       >();
     });
   });
