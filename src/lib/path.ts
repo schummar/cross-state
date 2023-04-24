@@ -19,7 +19,7 @@ export type GetKeys<T extends Object_ | Array_> = T extends Array_
     : number // other array
   : keyof T;
 
-export type _PathAsArray<T, Optional, MaxDepth, Depth extends any[]> = 0 extends 1 & T
+export type _PathAsArray<T, Optional, MaxDepth, Depth extends 1[]> = 0 extends 1 & T
   ? KeyType[]
   : T extends never
   ? never
@@ -74,22 +74,37 @@ export type Value<T, P> = true extends IsAny<T> | IsAny<P>
     : never
   : T;
 
-export type WildcardPathAsArray<T> =
+export type _WildcardPathAsArray<T, MaxDepth, Depth extends 1[]> =
   | []
   | (0 extends 1 & T
       ? KeyType[]
       : T extends never
       ? never
-      : T extends Object_ | Array_
-      ?
-          | {
-              [K in GetKeys<T>]: ['*'] | [K] | [K, ...WildcardPathAsArray<T[K]>];
-            }[GetKeys<T>]
-      : T extends Map<infer K extends KeyType, infer V>
-      ? ['*'] | [K] | [K, ...WildcardPathAsArray<V>]
-      : T extends Set<any>
-      ? ['*'] | [number]
+      : T extends Object_
+      ? Depth extends {
+          length: MaxDepth;
+        }
+        ? string[]
+        : T extends Map<infer K extends KeyType, infer V>
+        ? ['*'] | [K] | [K, ..._WildcardPathAsArray<V, MaxDepth, [...Depth, 1]>]
+        : T extends Set<any>
+        ? ['*'] | [number]
+        : {
+            [K in GetKeys<T>]:
+              | ['*']
+              | [K]
+              | [K, ..._WildcardPathAsArray<T[K], MaxDepth, [...Depth, 1]>];
+          }[GetKeys<T>]
       : never);
 
-export type WildcardPathAsString<T> = ArrayToStringPath<WildcardPathAsArray<T>>;
-export type WildcardPath<T> = WildcardPathAsString<T> | WildcardPathAsArray<T>;
+export type WildcardPathAsArray<T, MaxDepth extends number = 5> = _WildcardPathAsArray<
+  T,
+  MaxDepth,
+  []
+>;
+export type WildcardPathAsString<T, MaxDepth extends number = 5> = ArrayToStringPath<
+  _WildcardPathAsArray<T, MaxDepth, []>
+>;
+export type WildcardPath<T, MaxDepth extends number = 5> =
+  | WildcardPathAsString<T, MaxDepth>
+  | WildcardPathAsArray<T, MaxDepth>;
