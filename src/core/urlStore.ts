@@ -56,9 +56,12 @@ export class UrlStore<T> extends Store<T> {
       this.reset();
     };
 
+    window.addEventListener('popstate', this.reset);
+
     return () => {
       window.history.pushState = originalPushState;
       window.history.replaceState = originalReplaceState;
+      window.removeEventListener('popstate', this.reset);
     };
   }
 

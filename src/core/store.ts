@@ -92,11 +92,13 @@ export class Store<T> extends Callable<any, any> {
     super(_call);
     this.get = this.get.bind(this);
     this.set = this.set.bind(this);
+    this.reset = this.reset.bind(this);
     this.subscribe = this.subscribe.bind(this);
     this.once = this.once.bind(this);
     this.map = this.map.bind(this);
     this.addEffect = this.addEffect.bind(this);
     this.isActive = this.isActive.bind(this);
+    this.notify = this.notify.bind(this);
 
     if (!(getter instanceof Function)) {
       this._value = { v: getter };
