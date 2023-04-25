@@ -5,11 +5,11 @@ export type StringToNumber<T> = T extends `${infer K extends number}` ? K : neve
 
 export type ArrayToStringPath<T> = T extends []
   ? ''
-  : T extends [infer First extends string, ...infer Rest]
+  : T extends [infer First extends string | number, ...infer Rest]
   ? First extends `${string}.${string}`
     ? never
-    : Rest['length'] extends 0
-    ? First
+    : Rest extends []
+    ? `${First}`
     : `${First}.${ArrayToStringPath<Rest>}`
   : never;
 

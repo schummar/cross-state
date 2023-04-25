@@ -1,17 +1,17 @@
 import type { Update } from '../core/commonTypes';
 import { flatClone } from './clone';
-import type { Path, Value } from './path';
+import type { KeyType, Path, Value } from './path';
 
 export function castArrayPath(path: string | KeyType[]): KeyType[] {
   if (Array.isArray(path)) {
-    return path as any;
+    return path;
   }
 
   if (path === '') {
-    return [] as any;
+    return [];
   }
 
-  return (path as string).split('.') as any;
+  return (path as string).split('.');
 }
 
 export function get<T, P extends Path<T>>(object: T, path: P): Value<T, P> {
@@ -23,11 +23,11 @@ export function get<T, P extends Path<T>>(object: T, path: P): Value<T, P> {
   }
 
   if (object instanceof Map) {
-    return get(object.get(first), rest as any);
+    return get(object.get(first), rest);
   }
 
   if (object instanceof Set) {
-    return get(Array.from(object)[Number(first)], rest as any);
+    return get(Array.from(object)[Number(first)], rest);
   }
 
   if (object instanceof Object) {
@@ -54,7 +54,7 @@ export function set<T, P extends Path<T>>(
     if (!child && rest.length > 0) {
       const _rootPath = castArrayPath(rootPath as any);
 
-      const prefix = _rootPath.slice(0, -rest.length) as KeyType[];
+      const prefix = _rootPath.slice(0, -rest.length);
       throw new Error(`Cannot set ${rootPath} because ${prefix.join('.')} is ${child}`);
     }
 

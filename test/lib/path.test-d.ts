@@ -1,5 +1,12 @@
 import { describe, expectTypeOf, test } from 'vitest';
-import type { GetKeys, Path, PathAsArray, Value } from '../../src/lib/path';
+import type {
+  GetKeys,
+  Path,
+  PathAsArray,
+  Value,
+  WildcardMatch,
+  WildcardValue,
+} from '../../src/lib/path';
 
 describe('path', () => {
   describe('GetKeys', () => {
@@ -26,11 +33,11 @@ describe('path', () => {
     });
 
     test('array', () => {
-      expectTypeOf({} as Path<number[]>).toEqualTypeOf<[number]>();
+      expectTypeOf({} as Path<number[]>).toEqualTypeOf<[number] | `${number}`>();
     });
 
     test('tuple', () => {
-      expectTypeOf({} as Path<[number, string]>).toEqualTypeOf<[0] | [1]>();
+      expectTypeOf({} as Path<[number, string]>).toEqualTypeOf<[0] | [1] | '0' | '1'>();
     });
 
     test('map', () => {
@@ -38,11 +45,7 @@ describe('path', () => {
     });
 
     test('set', () => {
-      expectTypeOf({} as Path<Set<number>>).toEqualTypeOf<[number]>();
-    });
-
-    test('no simplified path for non strings', () => {
-      expectTypeOf({} as Path<{ 1: 2 }>).toEqualTypeOf<[1]>();
+      expectTypeOf({} as Path<Set<number>>).toEqualTypeOf<[number] | `${number}`>();
     });
 
     test('no simplified path for string containing dots', () => {
@@ -171,6 +174,43 @@ describe('path', () => {
       expectTypeOf(
         {} as Path<{ a: number; b?: number; c: number | undefined }, true>,
       ).toEqualTypeOf<['b'] | 'b'>();
+    });
+  });
+
+  describe('Wildcard Paths', () => {
+    test('WildcardValue', () => {
+      expectTypeOf({} as WildcardValue<{ a: 1; b: 2 }, 'a'>).toEqualTypeOf<1>();
+      expectTypeOf({} as WildcardValue<{ a: 1; b: 2 }, 'c'>).toEqualTypeOf<unknown>();
+      expectTypeOf({} as WildcardValue<{ a: 1; b: 2 }, '*'>).toEqualTypeOf<1 | 2>();
+
+      expectTypeOf({} as WildcardValue<Record<string, 1>, 'a'>).toEqualTypeOf<1 | undefined>();
+      expectTypeOf({} as WildcardValue<Record<string, 1>, '*'>).toEqualTypeOf<1>();
+
+      expectTypeOf({} as WildcardValue<number[], '0'>).toEqualTypeOf<number | undefined>();
+      expectTypeOf({} as WildcardValue<number[], '*'>).toEqualTypeOf<number>();
+
+      expectTypeOf({} as WildcardValue<[1, 2, 3], '0'>).toEqualTypeOf<1>();
+      expectTypeOf(undefined as WildcardValue<[1, 2, 3], '3'>).toEqualTypeOf<undefined>();
+      expectTypeOf({} as WildcardValue<[1, 2, 3], '*'>).toEqualTypeOf<1 | 2 | 3>();
+
+      expectTypeOf({} as WildcardValue<Map<string, 1>, 'a'>).toEqualTypeOf<1 | undefined>();
+      expectTypeOf({} as WildcardValue<Map<string, 1>, '*'>).toEqualTypeOf<1>();
+
+      expectTypeOf({} as WildcardValue<Set<1>, '0'>).toEqualTypeOf<1 | undefined>();
+      expectTypeOf({} as WildcardValue<Set<1>, '*'>).toEqualTypeOf<1>();
+    });
+
+    test('WildcardMatch', () => {
+      expectTypeOf({} as WildcardMatch<'a', 'a'>).toEqualTypeOf<true>();
+      expectTypeOf({} as WildcardMatch<'a', 'b'>).toEqualTypeOf<false>();
+      expectTypeOf({} as WildcardMatch<'a', '*'>).toEqualTypeOf<true>();
+
+      expectTypeOf({} as WildcardMatch<'a.b.c', 'a.b.c'>).toEqualTypeOf<true>();
+      expectTypeOf({} as WildcardMatch<'a.b.c', 'a.b.d'>).toEqualTypeOf<false>();
+      expectTypeOf({} as WildcardMatch<'a.b.c', 'a.*.c'>).toEqualTypeOf<true>();
+      expectTypeOf({} as WildcardMatch<'a.b.c', 'a.*.d'>).toEqualTypeOf<false>();
+      expectTypeOf({} as WildcardMatch<'a.b.c', 'a.*.*'>).toEqualTypeOf<true>();
+      expectTypeOf({} as WildcardMatch<'a.b.c', '*.*.*'>).toEqualTypeOf<true>();
     });
   });
 });
