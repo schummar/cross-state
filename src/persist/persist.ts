@@ -12,15 +12,17 @@ import type { KeyType, WildcardPath } from '@lib/path';
 import { castArrayPath, get, set } from '@lib/propAccess';
 import { queue } from '@lib/queue';
 
+type PathOption<T> =
+  | WildcardPath<T>
+  | {
+      path: WildcardPath<T>;
+      throttleMs?: number;
+    };
+
 export interface PersistOptions<T> {
   id: string;
   storage: PersistStorage;
-  paths?:
-    | WildcardPath<T>[]
-    | {
-        path: WildcardPath<T>;
-        throttleMs?: number;
-      }[];
+  paths?: PathOption<T>[];
   throttleMs?: number;
 }
 
@@ -50,16 +52,18 @@ export class Persist<T> {
       .map<{
         path: KeyType[];
         throttleMs?: number;
-      }>((p) =>
-        typeof p === 'string' || Array.isArray(p)
-          ? {
-              path: castArrayPath(p as any),
-            }
-          : {
-              path: castArrayPath(p.path as any),
-              throttleMs: p.throttleMs,
-            },
-      )
+      }>((p) => {
+        if (isPlainPath(p)) {
+          return { path: castArrayPath(p) };
+        }
+
+        const _p = p as { path: KeyType[]; throttleMs?: number };
+
+        return {
+          path: castArrayPath(_p.path),
+          throttleMs: _p.throttleMs,
+        };
+      })
       .sort((a, b) => b.path.length - a.path.length);
 
     if (this.paths.length === 0) {
@@ -192,4 +196,8 @@ export class Persist<T> {
 
 export function persist<T>(store: Store<T>, options: PersistOptions<T>): Persist<T> {
   return new Persist<T>(store, options);
+}
+
+function isPlainPath<T>(p: PathOption<T>): p is WildcardPath<T> & (KeyType[] | string) {
+  return typeof p === 'string' || Array.isArray(p);
 }

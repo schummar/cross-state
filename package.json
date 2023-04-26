@@ -186,9 +186,21 @@
       "limit": "4 KB"
     },
     {
-      "name": "/react",
+      "name": "react",
       "path": "dist/es/react/index.mjs",
-      "limit": "6 KB"
+      "limit": "7 KB"
+    },
+    {
+      "name": "react: useStore",
+      "path": "dist/es/react/index.mjs",
+      "import": "{useStore}",
+      "limit": "3 KB"
+    },
+    {
+      "name": "react: useCache",
+      "path": "dist/es/react/index.mjs",
+      "import": "{useCache}",
+      "limit": "3 KB"
     },
     {
       "name": "/immer",

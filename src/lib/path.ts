@@ -19,7 +19,7 @@ export type GetKeys<T extends Object_ | Array_> = T extends Array_
     : number // other array
   : keyof T;
 
-export type _PathAsArray<T, Optional, MaxDepth, Depth extends 1[]> = 0 extends 1 & T
+export type _PathAsArray<T, Optional, MaxDepth, Depth extends 1[]> = true extends IsAny<T>
   ? KeyType[]
   : T extends never
   ? never

@@ -1,3 +1,5 @@
+import { type KeyType } from './path';
+
 export type Object_ = Record<string | number | symbol, any>;
 export type Array_ = readonly any[];
 
@@ -11,6 +13,8 @@ export type ArrayToStringPath<T> = T extends []
     : Rest extends []
     ? `${First}`
     : `${First}.${ArrayToStringPath<Rest>}`
+  : T extends KeyType[]
+  ? string
   : never;
 
 export type StringToArrayPath<T> = T extends ''

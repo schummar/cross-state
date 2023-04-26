@@ -15,7 +15,7 @@ import {
 import { get } from '@lib/propAccess';
 import { getWildCardMatches, wildcardMatch } from '@lib/wildcardMatch';
 
-export interface FormStateOptions<
+export interface FormOptions<
   TDraft,
   TOriginal,
   TValidations extends Validations<TDraft, TOriginal>,
@@ -24,12 +24,12 @@ export interface FormStateOptions<
   validations?: TValidations;
 }
 
-type Validation<TValue, TDraft, TOriginal> = (
+export type Validation<TValue, TDraft, TOriginal> = (
   value: TValue,
-  context: { draft: TDraft; original: TOriginal },
+  context: { draft: TDraft; original: TOriginal; field: PathAsString<TDraft> },
 ) => boolean;
 
-type Validations<TDraft, TOriginal> = {
+export type Validations<TDraft, TOriginal> = {
   [P in WildcardPathAsString<TDraft>]?: Record<
     string,
     Validation<WildcardValue<TDraft, P>, TDraft, TOriginal>
@@ -55,34 +55,48 @@ export interface Field<
   };
 }
 
-export class FormState<
+export class Form<
   TDraft,
   TOriginal extends TDraft = TDraft,
-  TValidations extends Validations<TDraft, TOriginal> = never,
+  TValidations extends Validations<TDraft, TOriginal> = {},
 > {
-  private original = createContext<TOriginal | undefined>(undefined);
+  private context = createContext({
+    original: undefined as TOriginal | undefined,
+    options: this.options,
+  });
 
   private state = new Scope<{
     draft?: TDraft;
     hasTriggeredValidations?: boolean;
   }>({});
 
-  constructor(public readonly options: FormStateOptions<TDraft, TOriginal, TValidations>) {
+  constructor(public readonly options: FormOptions<TDraft, TOriginal, TValidations>) {
     this.Provider = this.Provider.bind(this);
   }
 
-  Provider({ children, original }: { children?: ReactNode; original?: TOriginal }) {
+  Provider({
+    children,
+    original,
+    defaultValue = this.options.defaultValue,
+    validations = this.options.validations,
+  }: { children?: ReactNode; original?: TOriginal } & Partial<
+    FormOptions<TDraft, TOriginal, TValidations>
+  >) {
+    const value = useMemo(
+      () => ({ original, options: { defaultValue, validations } }),
+      [original, defaultValue, validations],
+    );
+
     return (
-      <this.original.Provider value={original}>
+      <this.context.Provider value={value}>
         <this.state.Provider>{children}</this.state.Provider>
-      </this.original.Provider>
+      </this.context.Provider>
     );
   }
 
   useForm() {
-    const original = useContext(this.original);
+    const { original, options } = useContext(this.context);
     const state = useScope(this.state);
-    const { options } = this;
 
     return useMemo(
       () => ({
@@ -125,14 +139,11 @@ export class FormState<
                 .map(([, value]) => value);
 
               const value = this.value;
-              const context = {
-                original,
-                draft: draft.get(),
-              };
+              const draftValue = draft.get();
 
               for (const block of blocks ?? []) {
                 for (const [validationName, validate] of Object.entries(block)) {
-                  if (!validate(value, context)) {
+                  if (!validate(value, { draft: draftValue, original, field: path })) {
                     return validationName as any;
                   }
                 }
@@ -156,25 +167,21 @@ export class FormState<
           }]: 1;
         })[] {
           const draft = this.draft.get();
-          const context = {
-            original,
-            draft,
-          };
-          const errors: string[] = [];
+          const errors = new Set<string>();
 
           for (const [path, block] of Object.entries(options.validations ?? {})) {
             for (const [validationName, validate] of Object.entries(
               block as Record<string, Validation<any, any, any>>,
             )) {
               for (const [field, value] of Object.entries(getWildCardMatches(draft, path))) {
-                if (!validate(value, context)) {
-                  errors.push(`${field}.${validationName}`);
+                if (!validate(value, { draft, original, field })) {
+                  errors.add(`${field}.${validationName}`);
                 }
               }
             }
           }
 
-          return errors as any;
+          return [...errors] as any;
         },
 
         isValid() {
@@ -190,7 +197,7 @@ export class FormState<
           state.set('draft', undefined);
         },
       }),
-      [original, state, options],
+      [original, options, state],
     );
   }
 
@@ -224,43 +231,12 @@ export class FormState<
   }
 }
 
-function createForm<
+export function createForm<
   TDraft,
-  TOriginal extends TDraft,
-  TValidations extends Validations<TDraft, TOriginal>,
->(options: FormStateOptions<TDraft, TOriginal, TValidations>) {
-  return new FormState(options);
+  TOriginal extends TDraft = TDraft,
+  TValidations extends Validations<TDraft, TOriginal> = {},
+>(options: FormOptions<TDraft, TOriginal, TValidations>) {
+  return new Form(options);
 }
-
-const form = createForm({
-  defaultValue: {
-    a: 'b',
-    b: [1, 2, 3] as const,
-    c: { a: 1, b: '2' },
-  },
-
-  validations: {
-    a: {
-      length: (a) => a.length > 0,
-      someThingElse: (a) => a.length > 10,
-    },
-
-    'b.*': {
-      positive: (b) => b > 0,
-      threeDigits: (b) => b > 100 && b < 1000,
-    },
-
-    'b.1': {
-      negative: (b) => b < 0,
-    },
-
-    'c.*': {
-      foo: (c) => typeof c === 'string',
-    },
-  },
-});
-const _x = form.useField('a').error;
-const _y = form.useField('b.1').error;
-const _errors = form.useForm().getErrors();
 
 /* eslint-enable react-hooks/rules-of-hooks */
