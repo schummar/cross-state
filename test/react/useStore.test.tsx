@@ -103,4 +103,24 @@ describe('useStore', () => {
     expect(div.textContent).toBe('"a"');
     expect(Component.mock.calls.length).toBe(2);
   });
+
+  test('inline selector', async () => {
+    const store = createStore({ a: 1, b: 2 });
+
+    const Component = vi.fn<[], any>(function Component() {
+      const value = useStore(store.map((s) => s.a));
+
+      return <div data-testid="div">{value}</div>;
+    });
+
+    render(<Component />);
+    const div = screen.getByTestId('div');
+
+    act(() => {
+      store.set({ a: 2, b: 2 });
+    });
+
+    expect(div.textContent).toBe('2');
+    expect(Component.mock.calls.length).toBe(2);
+  });
 });

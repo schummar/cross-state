@@ -52,4 +52,56 @@ describe('useProp', () => {
       '"Can only updated computed stores that either are derived from other stores using string selectors or have an updater function."',
     );
   });
+
+  test('inline function selector', async () => {
+    const store = createStore({ x: 0 });
+
+    const Component = vi.fn<[], any>(function Component() {
+      const [v, setV] = useProp(
+        store,
+        (state) => state.x,
+        (x) => ({ x }),
+      );
+
+      return (
+        <div data-testid="div" onClick={() => setV(1)}>
+          {v}
+        </div>
+      );
+    });
+
+    render(<Component />);
+    const div = screen.getByTestId('div');
+
+    act(() => {
+      div.click();
+    });
+
+    expect(div.textContent).toBe('1');
+    expect(store.get()).toStrictEqual({ x: 1 });
+  });
+
+  test('inline string selector', async () => {
+    const store = createStore({ x: 0 });
+
+    const Component = vi.fn<[], any>(function Component() {
+      const [v, setV] = useProp(store, 'x');
+
+      return (
+        <div data-testid="div" onClick={() => setV(1)}>
+          {v}
+        </div>
+      );
+    });
+
+    render(<Component />);
+    const div = screen.getByTestId('div');
+
+    act(() => {
+      div.click();
+    });
+
+    expect(div.textContent).toBe('1');
+    expect(store.get()).toStrictEqual({ x: 1 });
+  });
 });
