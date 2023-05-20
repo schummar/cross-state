@@ -1,33 +1,25 @@
 /* eslint-disable react-hooks/rules-of-hooks */
 
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
-import { useScope } from './scope';
+import { FormError, type FormErrorComponent, type FormErrorProps } from './formError';
+import { FormInput, type FormInputComponent, type FormInputProps } from './formInput';
+import { ScopeProvider, useScope } from './scope';
 import { useStore, type UseStoreOptions } from './useStore';
 import { Scope } from '@core';
 import { deepEqual } from '@lib/equals';
 import {
   type PathAsString,
   type Value,
-  type WildcardMatch,
   type WildcardPathAsString,
   type WildcardValue,
 } from '@lib/path';
 import { get } from '@lib/propAccess';
 import { getWildCardMatches, wildcardMatch } from '@lib/wildcardMatch';
 
-export interface FormOptions<
-  TDraft,
-  TOriginal,
-  TValidations extends Validations<TDraft, TOriginal>,
-> {
+export interface FormOptions<TDraft, TOriginal> {
   defaultValue: TDraft;
-  validations?: TValidations;
+  validations?: Validations<TDraft, TOriginal>;
 }
-
-export type Validation<TValue, TDraft, TOriginal> = (
-  value: TValue,
-  context: { draft: TDraft; original: TOriginal; field: PathAsString<TDraft> },
-) => boolean;
 
 export type Validations<TDraft, TOriginal> = {
   [P in WildcardPathAsString<TDraft>]?: Record<
@@ -36,30 +28,22 @@ export type Validations<TDraft, TOriginal> = {
   >;
 };
 
-export interface Field<
-  TDraft,
-  TOriginal,
-  TPath extends PathAsString<TDraft>,
-  TValidations extends Validations<TDraft, TOriginal>,
-> {
+export type Validation<TValue, TDraft, TOriginal> = (
+  value: TValue,
+  context: { draft: TDraft; original: TOriginal; field: PathAsString<TDraft> },
+) => boolean;
+
+export interface Field<TDraft, TOriginal, TPath extends PathAsString<TDraft>> {
   originalValue: Value<TOriginal, TPath> | undefined;
   value: Value<TDraft, TPath>;
   setValue: (
     value: Value<TDraft, TPath> | ((value: Value<TDraft, TPath>) => Value<TDraft, TPath>),
   ) => void;
   isDirty: boolean;
-  error?: keyof {
-    [P in keyof TValidations as WildcardMatch<TPath, P> extends true
-      ? keyof TValidations[P]
-      : never]: 1;
-  };
+  errors: string[];
 }
 
-export class Form<
-  TDraft,
-  TOriginal extends TDraft = TDraft,
-  TValidations extends Validations<TDraft, TOriginal> = {},
-> {
+export class Form<TDraft, TOriginal extends TDraft = TDraft> {
   private context = createContext({
     original: undefined as TOriginal | undefined,
     options: this.options,
@@ -70,26 +54,33 @@ export class Form<
     hasTriggeredValidations?: boolean;
   }>({});
 
-  constructor(public readonly options: FormOptions<TDraft, TOriginal, TValidations>) {
+  constructor(public readonly options: FormOptions<TDraft, TOriginal>) {
     this.Provider = this.Provider.bind(this);
   }
 
   Provider({
     children,
     original,
-    defaultValue = this.options.defaultValue,
-    validations = this.options.validations,
-  }: { children?: ReactNode; original?: TOriginal } & Partial<
-    FormOptions<TDraft, TOriginal, TValidations>
-  >) {
+    defaultValue,
+    validations,
+  }: { children?: ReactNode; original?: TOriginal } & Partial<FormOptions<TDraft, TOriginal>>) {
     const value = useMemo(
-      () => ({ original, options: { defaultValue, validations } }),
+      () => ({
+        original,
+        options: {
+          defaultValue: { ...this.options.defaultValue, ...defaultValue },
+          validations: { ...this.options.validations, ...validations } as Validations<
+            TDraft,
+            TOriginal
+          >,
+        },
+      }),
       [original, defaultValue, validations],
     );
 
     return (
       <this.context.Provider value={value}>
-        <this.state.Provider>{children}</this.state.Provider>
+        <ScopeProvider scope={this.state}>{children}</ScopeProvider>
       </this.context.Provider>
     );
   }
@@ -98,8 +89,8 @@ export class Form<
     const { original, options } = useContext(this.context);
     const state = useScope(this.state);
 
-    return useMemo(
-      () => ({
+    return useMemo(() => {
+      const instance = {
         original,
 
         draft: state.map(
@@ -107,10 +98,10 @@ export class Form<
           (draft) => (state) => ({ ...state, draft }),
         ),
 
-        getField<TPath extends PathAsString<TDraft>>(
+        getField: <TPath extends PathAsString<TDraft>>(
           path: TPath,
-        ): Field<TDraft, TOriginal, TPath, TValidations> {
-          const { draft } = this;
+        ): Field<TDraft, TOriginal, TPath> => {
+          const { draft } = instance;
 
           return {
             get originalValue() {
@@ -126,12 +117,12 @@ export class Form<
             },
 
             get isDirty() {
-              return (
-                state.get().hasTriggeredValidations || !deepEqual(this.originalValue, this.value)
-              );
+              const comparisonValue = this.originalValue ?? get(options.defaultValue, path);
+
+              return state.get().hasTriggeredValidations || !deepEqual(comparisonValue, this.value);
             },
 
-            get error() {
+            get errors() {
               const blocks: Record<string, Validation<any, any, any>>[] = Object.entries(
                 options.validations ?? {},
               )
@@ -140,33 +131,28 @@ export class Form<
 
               const value = this.value;
               const draftValue = draft.get();
+              const errors: string[] = [];
 
               for (const block of blocks ?? []) {
                 for (const [validationName, validate] of Object.entries(block)) {
                   if (!validate(value, { draft: draftValue, original, field: path })) {
-                    return validationName as any;
+                    errors.push(validationName);
                   }
                 }
               }
 
-              return undefined;
+              return errors;
             },
           };
         },
 
-        hasChanges() {
+        get hasChanges() {
           const { draft } = state.get();
-          return !!draft && !deepEqual(draft, original);
+          return !!draft && !deepEqual(draft, original ?? options.defaultValue);
         },
 
-        getErrors(): (keyof {
-          [Field in PathAsString<TDraft> as keyof {
-            [Pattern in keyof TValidations as WildcardMatch<Field, Pattern> extends true
-              ? `${Field}.${keyof TValidations[Pattern] & string}`
-              : never]: 1;
-          }]: 1;
-        })[] {
-          const draft = this.draft.get();
+        get errors(): string[] {
+          const draft = instance.draft.get();
           const errors = new Set<string>();
 
           for (const [path, block] of Object.entries(options.validations ?? {})) {
@@ -184,21 +170,22 @@ export class Form<
           return [...errors] as any;
         },
 
-        isValid() {
-          return this.getErrors().length === 0;
+        get isValid() {
+          return instance.errors.length === 0;
         },
 
-        validate() {
+        validate: () => {
           state.set('hasTriggeredValidations', true);
-          return this.isValid();
+          return instance.isValid;
         },
 
         reset() {
           state.set('draft', undefined);
         },
-      }),
-      [original, options, state],
-    );
+      };
+
+      return instance;
+    }, [original, options, state]);
   }
 
   useField<TPath extends PathAsString<TDraft>>(path: TPath, useStoreOptions?: UseStoreOptions) {
@@ -221,21 +208,38 @@ export class Form<
   useHasChanges() {
     const form = this.useForm();
 
-    return useStore(form.draft.map(() => form.hasChanges()));
+    return useStore(form.draft.map(() => form.hasChanges));
   }
 
   useIsValid() {
     const form = this.useForm();
 
-    return useStore(form.draft.map(() => form.isValid()));
+    return useStore(form.draft.map(() => form.isValid));
   }
+
+  Input = <
+    TPath extends PathAsString<TDraft>,
+    TComponent extends FormInputComponent<any> = FormInputComponent<string>,
+  >(
+    props: Omit<FormInputProps<TDraft, TPath, TComponent>, 'form'>,
+  ) => {
+    return FormInput<TDraft, TPath, TComponent>({ form: this, ...props } as any);
+  };
+
+  Error = <TPath extends PathAsString<TDraft>, TComponent extends FormErrorComponent>(
+    props: Omit<FormErrorProps<TDraft, TPath, TComponent>, 'form'>,
+  ) => {
+    return FormError<TDraft, TPath, TComponent>({ form: this, ...props } as any);
+  };
+
+  // Submit = () => {
+
+  // };
 }
 
-export function createForm<
-  TDraft,
-  TOriginal extends TDraft = TDraft,
-  TValidations extends Validations<TDraft, TOriginal> = {},
->(options: FormOptions<TDraft, TOriginal, TValidations>) {
+export function createForm<TDraft, TOriginal extends TDraft = TDraft>(
+  options: FormOptions<TDraft, TOriginal>,
+) {
   return new Form(options);
 }
 
