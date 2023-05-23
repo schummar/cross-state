@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
-import { createForm } from '../../src/react';
+import { type FormInputComponent, createForm } from '../../src/react';
 
 describe('form', () => {
   test('create form', async () => {
@@ -21,6 +21,16 @@ describe('form', () => {
       return <button onClick={validate}>Validate</button>;
     }
 
+    const DatePicker: FormInputComponent<Date | undefined> = ({ value, onChange }) => {
+      return (
+        <input
+          type="date"
+          value={value?.toISOString() ?? ''}
+          onChange={(event) => onChange?.(new Date(event.target.value))}
+        />
+      );
+    };
+
     function Component() {
       return (
         <form.Provider
@@ -31,34 +41,19 @@ describe('form', () => {
             },
           }}
         >
-          <form.Input
-            name="firstName"
-            data-testid="firstName-input"
-            component="input"
-            // commitOnBlur
-          />
-          <form.Error name="firstName" data-testid="firstName-errors" component="div" />
+          <form.Input name="firstName" type="text" />
+          <div data-testid="firstName-errors">
+            <form.Error name="firstName" />
+          </div>
 
-          <form.Input
-            name="lastName"
-            data-testid="lastName-input"
-            component={(props) => <input {...props} />}
-          ></form.Input>
-          <form.Error name="lastName" data-testid="lastName-errors" component="div" />
+          <form.Input name="lastName" component={(props) => <input {...props} />}></form.Input>
+          <div data-testid="lastName-errors">
+            <form.Error name="lastName" />
+          </div>
 
-          <form.Input
-            component="input"
-            name="age"
-            serialize={(x) => x ?? ''}
-            deserialize={Number}
-          />
+          <form.Input name="age" serialize={(x) => x ?? ''} deserialize={Number} />
 
-          <form.Input
-            component="input"
-            name="birthday"
-            serialize={(x) => x?.toISOString() ?? ''}
-            deserialize={(x) => new Date(x)}
-          />
+          <form.Input name="birthday" component={DatePicker} />
 
           <Button />
         </form.Provider>
@@ -66,9 +61,9 @@ describe('form', () => {
     }
 
     render(<Component />);
-    const firstNameInput = screen.getByTestId<HTMLInputElement>('firstName-input');
+    const firstNameInput = screen.getByRole<HTMLInputElement>('textbox', { name: 'firstName' });
     const firstNameErrors = screen.getByTestId('firstName-errors');
-    const lastNameInput = screen.getByTestId<HTMLInputElement>('lastName-input');
+    const lastNameInput = screen.getByRole<HTMLInputElement>('textbox', { name: 'lastName' });
     const lastNameErrors = screen.getByTestId('lastName-errors');
 
     act(() => {

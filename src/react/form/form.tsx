@@ -1,10 +1,15 @@
 /* eslint-disable react-hooks/rules-of-hooks */
 
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
-import { FormError, type FormErrorComponent, type FormErrorProps } from './formError';
-import { FormInput, type FormInputComponent, type FormInputProps } from './formInput';
-import { ScopeProvider, useScope } from './scope';
-import { useStore, type UseStoreOptions } from './useStore';
+import { ScopeProvider, useScope } from '../scope';
+import { useStore, type UseStoreOptions } from '../useStore';
+import { FormError, type FormErrorProps } from './formError';
+import {
+  FormInput,
+  type FormInputComponent,
+  type FormInputProps,
+  type FormInputPropsWithoutComponent,
+} from './formInput';
 import { Scope } from '@core';
 import { deepEqual } from '@lib/equals';
 import {
@@ -15,6 +20,10 @@ import {
 } from '@lib/path';
 import { get } from '@lib/propAccess';
 import { getWildCardMatches, wildcardMatch } from '@lib/wildcardMatch';
+
+/// /////////////////////////////////////////////////////////////////////////////
+// Form types
+/// /////////////////////////////////////////////////////////////////////////////
 
 export interface FormOptions<TDraft, TOriginal> {
   defaultValue: TDraft;
@@ -43,6 +52,10 @@ export interface Field<TDraft, TOriginal, TPath extends PathAsString<TDraft>> {
   errors: string[];
 }
 
+/// /////////////////////////////////////////////////////////////////////////////
+// Implementation
+/// /////////////////////////////////////////////////////////////////////////////
+
 export class Form<TDraft, TOriginal extends TDraft = TDraft> {
   private context = createContext({
     original: undefined as TOriginal | undefined,
@@ -56,6 +69,12 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
 
   constructor(public readonly options: FormOptions<TDraft, TOriginal>) {
     this.Provider = this.Provider.bind(this);
+    this.useForm = this.useForm.bind(this);
+    this.useField = this.useField.bind(this);
+    this.useHasChanges = this.useHasChanges.bind(this);
+    this.useIsValid = this.useIsValid.bind(this);
+    this.Input = this.Input.bind(this);
+    this.Error = this.Error.bind(this);
   }
 
   Provider({
@@ -217,20 +236,26 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     return useStore(form.draft.map(() => form.isValid));
   }
 
-  Input = <
+  Input<
     TPath extends PathAsString<TDraft>,
     TComponent extends FormInputComponent<any> = FormInputComponent<string>,
-  >(
-    props: Omit<FormInputProps<TDraft, TPath, TComponent>, 'form'>,
-  ) => {
-    return FormInput<TDraft, TPath, TComponent>({ form: this, ...props } as any);
-  };
+  >(props: FormInputProps<TDraft, TPath, TComponent>): JSX.Element;
 
-  Error = <TPath extends PathAsString<TDraft>, TComponent extends FormErrorComponent>(
-    props: Omit<FormErrorProps<TDraft, TPath, TComponent>, 'form'>,
-  ) => {
-    return FormError<TDraft, TPath, TComponent>({ form: this, ...props } as any);
-  };
+  Input<TPath extends PathAsString<TDraft>, TComponent extends 'input'>(
+    props: FormInputPropsWithoutComponent<TDraft, TPath, TComponent>,
+  ): JSX.Element;
+
+  Input<TPath extends PathAsString<TDraft>, TComponent extends FormInputComponent<any>>(
+    props: FormInputPropsWithoutComponent<TDraft, TPath, TComponent> & {
+      component?: TComponent;
+    },
+  ): JSX.Element {
+    return Reflect.apply(FormInput, this, [props]);
+  }
+
+  Error<TPath extends PathAsString<TDraft>>({ name }: FormErrorProps<TDraft, TPath>) {
+    return Reflect.apply(FormError, this, [{ name }]);
+  }
 
   // Submit = () => {
 
