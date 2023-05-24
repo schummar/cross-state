@@ -1,15 +1,16 @@
 /* eslint-disable react-hooks/rules-of-hooks */
 
-import { createContext, useContext, useMemo, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useMemo,
+  type ComponentPropsWithoutRef,
+  type ReactNode,
+} from 'react';
 import { ScopeProvider, useScope } from '../scope';
 import { useStore, type UseStoreOptions } from '../useStore';
 import { FormError, type FormErrorProps } from './formError';
-import {
-  FormInput,
-  type FormInputComponent,
-  type FormInputProps,
-  type FormInputPropsWithoutComponent,
-} from './formInput';
+import { FormInput, type FormInputComponent, type FormInputProps } from './formInput';
 import { Scope } from '@core';
 import { deepEqual } from '@lib/equals';
 import {
@@ -56,6 +57,24 @@ export interface Field<TDraft, TOriginal, TPath extends PathAsString<TDraft>> {
 // Implementation
 /// /////////////////////////////////////////////////////////////////////////////
 
+function FormContainer({ form, children }: { form: Form<any, any>; children?: ReactNode }) {
+  const { validate } = form.useForm();
+
+  return (
+    <form
+      noValidate
+      onSubmit={(event) => {
+        event.preventDefault();
+
+        validate();
+        event.currentTarget.reportValidity();
+      }}
+    >
+      {children}
+    </form>
+  );
+}
+
 export class Form<TDraft, TOriginal extends TDraft = TDraft> {
   private context = createContext({
     original: undefined as TOriginal | undefined,
@@ -99,7 +118,9 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
 
     return (
       <this.context.Provider value={value}>
-        <ScopeProvider scope={this.state}>{children}</ScopeProvider>
+        <ScopeProvider scope={this.state}>
+          <FormContainer form={this}>{children}</FormContainer>
+        </ScopeProvider>
       </this.context.Provider>
     );
   }
@@ -238,28 +259,16 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
 
   Input<
     TPath extends PathAsString<TDraft>,
-    TComponent extends FormInputComponent<any> = FormInputComponent<string>,
-  >(props: FormInputProps<TDraft, TPath, TComponent>): JSX.Element;
-
-  Input<TPath extends PathAsString<TDraft>, TComponent extends 'input'>(
-    props: FormInputPropsWithoutComponent<TDraft, TPath, TComponent>,
-  ): JSX.Element;
-
-  Input<TPath extends PathAsString<TDraft>, TComponent extends FormInputComponent<any>>(
-    props: FormInputPropsWithoutComponent<TDraft, TPath, TComponent> & {
-      component?: TComponent;
-    },
-  ): JSX.Element {
+    TComponent extends FormInputComponent<any> = (
+      props: ComponentPropsWithoutRef<'input'>,
+    ) => JSX.Element,
+  >(props: FormInputProps<TDraft, TPath, TComponent>): JSX.Element {
     return Reflect.apply(FormInput, this, [props]);
   }
 
   Error<TPath extends PathAsString<TDraft>>({ name }: FormErrorProps<TDraft, TPath>) {
     return Reflect.apply(FormError, this, [{ name }]);
   }
-
-  // Submit = () => {
-
-  // };
 }
 
 export function createForm<TDraft, TOriginal extends TDraft = TDraft>(

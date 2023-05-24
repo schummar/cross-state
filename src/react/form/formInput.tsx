@@ -1,35 +1,42 @@
 import {
-  type ComponentPropsWithoutRef,
-  type ElementType,
   createElement,
   useEffect,
+  useMemo,
   useState,
+  type ComponentPropsWithoutRef,
+  type ElementType,
+  type HTMLProps,
 } from 'react';
 import { type Form } from './form';
 import { type PathAsString } from '@index';
 import { type Value } from '@lib/path';
 
 export type FormInputComponent<T> = ElementType<{
-  value?: T;
-  onChange?: (event: { target: { value: T } } | T, ...args: any[]) => void;
-  onBlur?: (...args: any[]) => void;
+  id: string;
+  value: T;
+  onChange: (event: { target: { value: T } } | T | undefined, ...args: any[]) => void;
+  onBlur: (...args: any[]) => void;
 }>;
 
 type InputValue<T extends FormInputComponent<any>> = ComponentPropsWithoutRef<T> extends {
-  value?: infer U;
+  value: infer U;
 }
   ? U
+  : ComponentPropsWithoutRef<T> extends {
+      value?: infer U;
+    }
+  ? U | undefined
   : never;
 
-type InputChangeValue<T extends FormInputComponent<any>> = Parameters<
-  NonNullable<ComponentPropsWithoutRef<T>['onChange']>
->[0] extends infer S
-  ? S extends { target: { value: infer U } }
-    ? U
-    : S
+type InputChangeValue<T extends FormInputComponent<any>> = ComponentPropsWithoutRef<T> extends {
+  onChange?: (update: infer U) => void;
+}
+  ? U extends { target: { value: infer V } }
+    ? V
+    : U
   : never;
 
-export type FormInputPropsWithoutComponent<
+export type FormInputProps<
   TDraft,
   TPath extends PathAsString<TDraft>,
   TComponent extends FormInputComponent<any>,
@@ -37,24 +44,29 @@ export type FormInputPropsWithoutComponent<
   name: TPath;
   commitOnBlur?: boolean;
   commitDebounce?: number;
-} & Omit<
-  ComponentPropsWithoutRef<TComponent>,
-  'form' | 'name' | 'component' | 'commitOnBlur' | 'commitDebounce' | 'value'
-> &
+  inputFilter?: (value: InputChangeValue<TComponent>) => boolean;
+  onChange?: ComponentPropsWithoutRef<TComponent>['onChange'];
+  onBlur?: ComponentPropsWithoutRef<TComponent>['onBlur'];
+} & (TComponent extends 'input' | ((props: HTMLProps<HTMLInputElement>) => JSX.Element)
+  ? { component?: TComponent }
+  : { component: TComponent }) &
+  Omit<
+    ComponentPropsWithoutRef<TComponent>,
+    | 'form'
+    | 'name'
+    | 'component'
+    | 'commitOnBlur'
+    | 'commitDebounce'
+    | 'value'
+    | 'onChange'
+    | 'onBlur'
+  > &
   (Value<TDraft, TPath> extends InputValue<TComponent>
     ? { serialize?: (value: Value<TDraft, TPath>) => InputValue<TComponent> }
     : { serialize: (value: Value<TDraft, TPath>) => InputValue<TComponent> }) &
   (InputChangeValue<TComponent> extends Value<TDraft, TPath>
     ? { deserialize?: (value: InputChangeValue<TComponent>) => Value<TDraft, TPath> }
     : { deserialize: (value: InputChangeValue<TComponent>) => Value<TDraft, TPath> });
-
-export type FormInputProps<
-  TDraft,
-  TPath extends PathAsString<TDraft>,
-  TComponent extends FormInputComponent<any>,
-> = FormInputPropsWithoutComponent<TDraft, TPath, TComponent> & {
-  component: TComponent;
-};
 
 export function FormInput<
   TDraft,
@@ -63,21 +75,28 @@ export function FormInput<
 >(
   this: Form<TDraft, any>,
   {
+    id,
     name,
     component = 'input' as TComponent,
     commitOnBlur,
     commitDebounce,
+    inputFilter,
     serialize = (x) => x as InputValue<TComponent>,
     deserialize = (x) => x as Value<TDraft, TPath>,
     ...restProps
-  }: FormInputPropsWithoutComponent<TDraft, TPath, TComponent> & {
-    component?: TComponent;
-  },
+  }: FormInputProps<TDraft, TPath, TComponent>,
 ): JSX.Element {
   type T = InputChangeValue<TComponent>;
 
-  const { value, setValue } = this.useField(name);
+  const { value, setValue, errors } = this.useField(name);
+  const errorString = useMemo(() => errors.join('\n'), [errors]);
   const [localValue, setLocalValue] = useState<T>();
+  const _id = useMemo(
+    () =>
+      id || `f${Math.random().toString(36).slice(2, 15)}${Math.random().toString(36).slice(2, 15)}`,
+
+    [id],
+  );
 
   useEffect(() => {
     if (localValue === undefined || !commitDebounce) {
@@ -93,14 +112,38 @@ export function FormInput<
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localValue, commitDebounce]);
 
+  useEffect(() => {
+    const element = document.querySelector(
+      [`#${_id} input`, `#${_id} select`, `#${_id} textarea`, `#${_id}`].join(','),
+    );
+
+    if (
+      !(
+        element instanceof HTMLInputElement ||
+        element instanceof HTMLSelectElement ||
+        element instanceof HTMLTextAreaElement
+      )
+    ) {
+      return;
+    }
+
+    element.setCustomValidity(errorString);
+  }, [_id, errorString]);
+
   const props = {
     ...restProps,
+    id: _id,
+    name,
     value: localValue ?? serialize(value),
     onChange: (event: { target: { value: T } } | T, ...moreArgs: any[]) => {
       const value =
         typeof event === 'object' && event !== null && 'target' in event
           ? event.target.value
           : event;
+
+      if (inputFilter && !inputFilter(value)) {
+        return;
+      }
 
       if (commitOnBlur || commitDebounce) {
         setLocalValue(value);

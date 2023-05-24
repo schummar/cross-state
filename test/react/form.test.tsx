@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
-import { type FormInputComponent, createForm } from '../../src/react';
+import { createForm } from '../../src/react';
 
 describe('form', () => {
   test('create form', async () => {
@@ -21,7 +21,7 @@ describe('form', () => {
       return <button onClick={validate}>Validate</button>;
     }
 
-    const DatePicker: FormInputComponent<Date | undefined> = ({ value, onChange }) => {
+    const DatePicker = ({ value, onChange }: { value?: Date; onChange: (value: Date) => void }) => {
       return (
         <input
           type="date"
@@ -41,17 +41,21 @@ describe('form', () => {
             },
           }}
         >
-          <form.Input name="firstName" type="text" />
+          <form.Input name="firstName" aria-label="first name" />
           <div data-testid="firstName-errors">
             <form.Error name="firstName" />
           </div>
 
-          <form.Input name="lastName" component={(props) => <input {...props} />}></form.Input>
+          <form.Input
+            name="lastName"
+            component={(props) => <input {...props} />}
+            aria-label="last name"
+          />
           <div data-testid="lastName-errors">
             <form.Error name="lastName" />
           </div>
 
-          <form.Input name="age" serialize={(x) => x ?? ''} deserialize={Number} />
+          <form.Input name="age" deserialize={Number} />
 
           <form.Input name="birthday" component={DatePicker} />
 
@@ -61,9 +65,9 @@ describe('form', () => {
     }
 
     render(<Component />);
-    const firstNameInput = screen.getByRole<HTMLInputElement>('textbox', { name: 'firstName' });
+    const firstNameInput = screen.getByRole<HTMLInputElement>('textbox', { name: 'first name' });
     const firstNameErrors = screen.getByTestId('firstName-errors');
-    const lastNameInput = screen.getByRole<HTMLInputElement>('textbox', { name: 'lastName' });
+    const lastNameInput = screen.getByRole<HTMLInputElement>('textbox', { name: 'last name' });
     const lastNameErrors = screen.getByTestId('lastName-errors');
 
     act(() => {
