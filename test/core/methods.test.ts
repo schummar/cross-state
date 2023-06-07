@@ -230,9 +230,18 @@ describe('store methods', () => {
     expect(state.get()).toEqual([{ x: 2 }, { x: 2 }]);
   });
 
-  test('nested immer', () => {
+  test('nested immer with array key', () => {
     const state = createStore({ x: { y: [1] } });
     state.update(['x', 'y'], (y) => {
+      y.push(2);
+    });
+
+    expect(state.get()).toEqual({ x: { y: [1, 2] } });
+  });
+
+  test('nested immer with string key', () => {
+    const state = createStore({ x: { y: [1] } });
+    state.update('x.y', (y) => {
       y.push(2);
     });
 

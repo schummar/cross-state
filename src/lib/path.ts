@@ -50,7 +50,7 @@ export type PathAsString<
 > = ArrayToStringPath<PathAsArray<T, Optional, MaxDepth>>;
 
 export type Path<T, Optional extends boolean = false, MaxDepth extends number = 5> =
-  | (PathAsString<T, Optional, MaxDepth> & {})
+  | (PathAsString<T, Optional, MaxDepth> & string)
   | PathAsArray<T, Optional, MaxDepth>;
 
 export type Value<T, P> = true extends IsAny<T> | IsAny<P>
