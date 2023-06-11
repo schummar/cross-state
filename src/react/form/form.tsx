@@ -10,7 +10,7 @@ import {
 import { ScopeProvider, useScope } from '../scope';
 import { useStore, type UseStoreOptions } from '../useStore';
 import { FormError, type FormErrorProps } from './formError';
-import { FormInput, type FormInputComponent, type FormInputProps } from './formInput';
+import { FormField, type FormFieldComponent, type FormFieldProps } from './formField';
 import { Scope } from '@core';
 import { deepEqual } from '@lib/equals';
 import {
@@ -94,12 +94,12 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
   });
 
   constructor(public readonly options: FormOptions<TDraft, TOriginal>) {
-    this.Form = this.Form.bind(this);
     this.useForm = this.useForm.bind(this);
     this.useField = this.useField.bind(this);
     this.useHasChanges = this.useHasChanges.bind(this);
     this.useIsValid = this.useIsValid.bind(this);
-    this.Input = this.Input.bind(this);
+    this.Form = this.Form.bind(this);
+    this.Field = this.Field.bind(this);
     this.Error = this.Error.bind(this);
   }
 
@@ -269,13 +269,13 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     );
   }
 
-  Input<
+  Field<
     TPath extends PathAsString<TDraft>,
-    TComponent extends FormInputComponent<any> = (
+    TComponent extends FormFieldComponent<any> = (
       props: ComponentPropsWithoutRef<'input'>,
     ) => JSX.Element,
-  >(props: FormInputProps<TDraft, TPath, TComponent>): JSX.Element {
-    return Reflect.apply(FormInput, this, [props]);
+  >(props: FormFieldProps<TDraft, TPath, TComponent>): JSX.Element {
+    return Reflect.apply(FormField, this, [props]);
   }
 
   Error<TPath extends PathAsString<TDraft>>({ name }: FormErrorProps<TDraft, TPath>) {

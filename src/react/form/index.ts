@@ -7,4 +7,4 @@ export {
   createForm,
 } from './form';
 export { type FormErrorProps } from './formError';
-export { type FormInputComponent, type FormInputProps } from './formInput';
+export { type FormFieldComponent, type FormFieldProps } from './formField';

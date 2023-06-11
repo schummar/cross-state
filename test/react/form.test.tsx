@@ -35,12 +35,12 @@ describe('form', () => {
             },
           }}
         >
-          <form.Input name="firstName" aria-label="first name" />
+          <form.Field name="firstName" aria-label="first name" />
           <div data-testid="firstName-errors">
             <form.Error name="firstName" />
           </div>
 
-          <form.Input
+          <form.Field
             name="lastName"
             component={(props) => <input {...props} />}
             aria-label="last name"
@@ -49,9 +49,11 @@ describe('form', () => {
             <form.Error name="lastName" />
           </div>
 
-          <form.Input name="age" deserialize={Number} />
+          <form.Field name="age" deserialize={Number}>
+            {(props) => <input {...props} />}
+          </form.Field>
 
-          <form.Input name="birthday" component={DatePicker} />
+          <form.Field name="birthday" component={DatePicker} />
 
           <button />
         </form.Form>
