@@ -1,11 +1,11 @@
 /* eslint-disable react-hooks/rules-of-hooks */
 
 import {
+  type HTMLProps,
   createContext,
   useContext,
   useMemo,
   type ComponentPropsWithoutRef,
-  type ReactNode,
 } from 'react';
 import { ScopeProvider, useScope } from '../scope';
 import { useStore, type UseStoreOptions } from '../useStore';
@@ -57,11 +57,15 @@ export interface Field<TDraft, TOriginal, TPath extends PathAsString<TDraft>> {
 // Implementation
 /// /////////////////////////////////////////////////////////////////////////////
 
-function FormContainer({ form, children }: { form: Form<any, any>; children?: ReactNode }) {
+function FormContainer({
+  form,
+  ...formProps
+}: { form: Form<any, any> } & Omit<HTMLProps<HTMLFormElement>, 'form'>) {
   const { validate } = form.useForm();
 
   return (
     <form
+      {...formProps}
       noValidate
       onSubmit={(event) => {
         event.preventDefault();
@@ -69,9 +73,7 @@ function FormContainer({ form, children }: { form: Form<any, any>; children?: Re
         validate();
         event.currentTarget.reportValidity();
       }}
-    >
-      {children}
-    </form>
+    />
   );
 }
 
@@ -87,42 +89,13 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
   }>({});
 
   constructor(public readonly options: FormOptions<TDraft, TOriginal>) {
-    this.Provider = this.Provider.bind(this);
+    this.Form = this.Form.bind(this);
     this.useForm = this.useForm.bind(this);
     this.useField = this.useField.bind(this);
     this.useHasChanges = this.useHasChanges.bind(this);
     this.useIsValid = this.useIsValid.bind(this);
     this.Input = this.Input.bind(this);
     this.Error = this.Error.bind(this);
-  }
-
-  Provider({
-    children,
-    original,
-    defaultValue,
-    validations,
-  }: { children?: ReactNode; original?: TOriginal } & Partial<FormOptions<TDraft, TOriginal>>) {
-    const value = useMemo(
-      () => ({
-        original,
-        options: {
-          defaultValue: { ...this.options.defaultValue, ...defaultValue },
-          validations: { ...this.options.validations, ...validations } as Validations<
-            TDraft,
-            TOriginal
-          >,
-        },
-      }),
-      [original, defaultValue, validations],
-    );
-
-    return (
-      <this.context.Provider value={value}>
-        <ScopeProvider scope={this.state}>
-          <FormContainer form={this}>{children}</FormContainer>
-        </ScopeProvider>
-      </this.context.Provider>
-    );
   }
 
   useForm() {
@@ -255,6 +228,40 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     const form = this.useForm();
 
     return useStore(form.draft.map(() => form.isValid));
+  }
+
+  // ///////////////////////////////////////////////////////////////////////////
+  // React Components
+  // ///////////////////////////////////////////////////////////////////////////
+
+  Form({
+    original,
+    defaultValue,
+    validations,
+    ...formProps
+  }: { original?: TOriginal } & Partial<FormOptions<TDraft, TOriginal>> &
+    Omit<HTMLProps<HTMLFormElement>, 'defaultValue'>) {
+    const value = useMemo(
+      () => ({
+        original,
+        options: {
+          defaultValue: { ...this.options.defaultValue, ...defaultValue },
+          validations: { ...this.options.validations, ...validations } as Validations<
+            TDraft,
+            TOriginal
+          >,
+        },
+      }),
+      [original, defaultValue, validations],
+    );
+
+    return (
+      <this.context.Provider value={value}>
+        <ScopeProvider scope={this.state}>
+          <FormContainer {...formProps} form={this} />
+        </ScopeProvider>
+      </this.context.Provider>
+    );
   }
 
   Input<

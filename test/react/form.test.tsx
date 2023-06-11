@@ -15,12 +15,6 @@ describe('form', () => {
       },
     );
 
-    function Button() {
-      const { validate } = form.useForm();
-
-      return <button onClick={validate}>Validate</button>;
-    }
-
     const DatePicker = ({ value, onChange }: { value?: Date; onChange: (value: Date) => void }) => {
       return (
         <input
@@ -33,7 +27,7 @@ describe('form', () => {
 
     function Component() {
       return (
-        <form.Provider
+        <form.Form
           validations={{
             lastName: {
               required: (value) => !!value,
@@ -59,8 +53,8 @@ describe('form', () => {
 
           <form.Input name="birthday" component={DatePicker} />
 
-          <Button />
-        </form.Provider>
+          <button />
+        </form.Form>
       );
     }
 
