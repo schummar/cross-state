@@ -118,7 +118,7 @@ export class Store<T> extends Callable<any, any> {
 
   set(update: Update<T>): void;
 
-  set<P extends Path<T>>(path: P, update: Update<Value<T, P>>): void;
+  set<const P extends Path<T>>(path: P, update: Update<Value<T, P>>): void;
 
   set(...args: any[]): void {
     const path: any = args.length > 1 ? args[0] : [];

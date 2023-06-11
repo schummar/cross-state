@@ -10,11 +10,13 @@ import {
 import { type Form } from './form';
 import { type PathAsString } from '@index';
 import { type Value } from '@lib/path';
+import { useScope } from '@react/scope';
 
 export type FormInputComponent<T> = ElementType<{
   id: string;
   value: T;
   onChange: (event: { target: { value: T } } | T | undefined, ...args: any[]) => void;
+  onFocus: (...args: any[]) => void;
   onBlur: (...args: any[]) => void;
 }>;
 
@@ -88,6 +90,7 @@ export function FormInput<
 ): JSX.Element {
   type T = InputChangeValue<TComponent>;
 
+  const state = useScope(this.state);
   const { value, setValue, errors } = this.useField(name);
   const errorString = useMemo(() => errors.join('\n'), [errors]);
   const [localValue, setLocalValue] = useState<T>();
@@ -152,6 +155,13 @@ export function FormInput<
       }
 
       restProps.onChange?.(event, ...moreArgs);
+    },
+    onFocus(...args: any[]) {
+      state.update('touched', (touched) => {
+        touched.add(name);
+      });
+
+      restProps.onFocus?.(...(args as [any]));
     },
     onBlur(...args: any[]) {
       if (localValue !== undefined) {

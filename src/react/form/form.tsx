@@ -78,15 +78,20 @@ function FormContainer({
 }
 
 export class Form<TDraft, TOriginal extends TDraft = TDraft> {
-  private context = createContext({
+  context = createContext({
     original: undefined as TOriginal | undefined,
     options: this.options,
   });
 
-  private state = new Scope<{
+  state = new Scope<{
     draft?: TDraft;
+    touched: Set<string>;
+    // errors: Map<string, string[]>;
     hasTriggeredValidations?: boolean;
-  }>({});
+  }>({
+    // touched: new Set(),
+    // errors: new Map(),
+  });
 
   constructor(public readonly options: FormOptions<TDraft, TOriginal>) {
     this.Form = this.Form.bind(this);

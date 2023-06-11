@@ -63,7 +63,7 @@ export type Value<T, P> = true extends IsAny<T> | IsAny<P>
   ? never
   : P extends string
   ? Value<T, StringToArrayPath<P>>
-  : P extends readonly [infer First extends KeyType, ...infer Rest extends KeyType[]]
+  : P extends readonly [infer First extends KeyType, ...infer Rest extends readonly KeyType[]]
   ? T extends Map<any, infer V> | Set<infer V>
     ? Value<V, Rest> | undefined
     : T extends Array_
