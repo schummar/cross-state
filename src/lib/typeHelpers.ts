@@ -5,23 +5,23 @@ export type Array_ = readonly any[];
 
 export type StringToNumber<T> = T extends `${infer K extends number}` ? K : never;
 
-export type ArrayToStringPath<T> = T extends []
+export type ArrayToStringPath<T> = T extends readonly []
   ? ''
-  : T extends [infer First extends string | number, ...infer Rest]
+  : T extends readonly [infer First extends string | number, ...infer Rest]
   ? First extends `${string}.${string}`
     ? never
-    : Rest extends []
+    : Rest extends readonly []
     ? `${First}`
     : `${First}.${ArrayToStringPath<Rest>}`
-  : T extends KeyType[]
+  : T extends readonly KeyType[]
   ? string
   : never;
 
 export type StringToArrayPath<T> = T extends ''
-  ? []
+  ? readonly []
   : T extends `${infer First}.${infer Rest}`
-  ? [First, ...StringToArrayPath<Rest>]
-  : [T];
+  ? readonly [First, ...StringToArrayPath<Rest>]
+  : readonly [T];
 
 export type OptionalPropertyOf<T> = Exclude<
   {

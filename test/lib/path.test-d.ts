@@ -25,32 +25,36 @@ describe('path', () => {
 
   describe('Path', () => {
     test('object', () => {
-      expectTypeOf({} as Path<{ x: number; y: number }>).toEqualTypeOf<['x'] | ['y'] | 'x' | 'y'>();
+      expectTypeOf({} as Path<{ x: number; y: number }>).toEqualTypeOf<
+        readonly ['x'] | readonly ['y'] | 'x' | 'y'
+      >();
     });
 
     test('record', () => {
-      expectTypeOf({} as Path<Record<string, number>>).toEqualTypeOf<[string] | string>();
+      expectTypeOf({} as Path<Record<string, number>>).toEqualTypeOf<readonly [string] | string>();
     });
 
     test('array', () => {
-      expectTypeOf({} as Path<number[]>).toEqualTypeOf<[number] | `${number}`>();
+      expectTypeOf({} as Path<number[]>).toEqualTypeOf<readonly [number] | `${number}`>();
     });
 
     test('tuple', () => {
-      expectTypeOf({} as Path<[number, string]>).toEqualTypeOf<[0] | [1] | '0' | '1'>();
+      expectTypeOf({} as Path<[number, string]>).toEqualTypeOf<
+        readonly [0] | readonly [1] | '0' | '1'
+      >();
     });
 
     test('map', () => {
-      expectTypeOf({} as Path<Map<string, number>>).toEqualTypeOf<[string] | string>();
+      expectTypeOf({} as Path<Map<string, number>>).toEqualTypeOf<readonly [string] | string>();
     });
 
     test('set', () => {
-      expectTypeOf({} as Path<Set<number>>).toEqualTypeOf<[number] | `${number}`>();
+      expectTypeOf({} as Path<Set<number>>).toEqualTypeOf<readonly [number] | `${number}`>();
     });
 
     test('no simplified path for string containing dots', () => {
       expectTypeOf({} as Path<{ 'a.b': { c: number }; d: number }>).toEqualTypeOf<
-        ['a.b'] | ['a.b', 'c'] | ['d'] | 'd'
+        readonly ['a.b'] | readonly ['a.b', 'c'] | readonly ['d'] | 'd'
       >();
     });
 
@@ -67,15 +71,15 @@ describe('path', () => {
           10
         >,
       ).toEqualTypeOf<
-        | ['a']
-        | ['b']
-        | ['b', 'c']
-        | ['b', 'c', number]
-        | ['b', 'c', number, 0]
-        | ['b', 'c', number, 0, number]
-        | ['b', 'c', number, 0, number, 'x']
-        | ['b', 'c', number, 1]
-        | ['b', 'c', number, 1, number]
+        | readonly ['a']
+        | readonly ['b']
+        | readonly ['b', 'c']
+        | readonly ['b', 'c', number]
+        | readonly ['b', 'c', number, 0]
+        | readonly ['b', 'c', number, 0, number]
+        | readonly ['b', 'c', number, 0, number, 'x']
+        | readonly ['b', 'c', number, 1]
+        | readonly ['b', 'c', number, 1, number]
       >();
     });
 
@@ -83,13 +87,13 @@ describe('path', () => {
       expectTypeOf(
         {} as PathAsArray<{ a: { a: { a: 1 } }; b: { b: { b: { b: 1 } } } }, false, 3>,
       ).toEqualTypeOf<
-        | ['a']
-        | ['a', 'a']
-        | ['a', 'a', 'a']
-        | ['b']
-        | ['b', 'b']
-        | ['b', 'b', 'b']
-        | ['b', 'b', 'b', ...string[]]
+        | readonly ['a']
+        | readonly ['a', 'a']
+        | readonly ['a', 'a', 'a']
+        | readonly ['b']
+        | readonly ['b', 'b']
+        | readonly ['b', 'b', 'b']
+        | readonly ['b', 'b', 'b', ...string[]]
       >();
     });
   });
@@ -173,7 +177,7 @@ describe('path', () => {
     test('optional path', () => {
       expectTypeOf(
         {} as Path<{ a: number; b?: number; c: number | undefined }, true>,
-      ).toEqualTypeOf<['b'] | 'b'>();
+      ).toEqualTypeOf<readonly ['b'] | 'b'>();
     });
   });
 

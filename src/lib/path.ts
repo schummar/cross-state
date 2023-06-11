@@ -20,20 +20,24 @@ export type GetKeys<T extends Object_ | Array_> = T extends Array_
   : keyof T;
 
 export type _PathAsArray<T, Optional, MaxDepth, Depth extends 1[]> = true extends IsAny<T>
-  ? KeyType[]
+  ? readonly KeyType[]
   : T extends never
   ? never
   : T extends Object_
   ? Depth['length'] extends MaxDepth
-    ? string[]
+    ? readonly string[]
     : T extends Map<infer K extends KeyType, infer V>
-    ? [K] | [K, ..._PathAsArray<V, Optional, MaxDepth, [...Depth, 1]>]
+    ? readonly [K] | readonly [K, ..._PathAsArray<V, Optional, MaxDepth, [...Depth, 1]>]
     : T extends Set<any>
-    ? [number]
+    ? readonly [number]
     : {
         [K in GetKeys<T>]:
-          | (Optional extends true ? (K extends OptionalPropertyOf<T> ? [K] : never) : [K])
-          | [K, ..._PathAsArray<T[K], Optional, MaxDepth, [...Depth, 1]>];
+          | (Optional extends true
+              ? K extends OptionalPropertyOf<T>
+                ? readonly [K]
+                : never
+              : readonly [K])
+          | readonly [K, ..._PathAsArray<T[K], Optional, MaxDepth, [...Depth, 1]>];
       }[GetKeys<T>]
   : never;
 
@@ -50,7 +54,7 @@ export type PathAsString<
 > = ArrayToStringPath<PathAsArray<T, Optional, MaxDepth>>;
 
 export type Path<T, Optional extends boolean = false, MaxDepth extends number = 5> =
-  | (PathAsString<T, Optional, MaxDepth> & string)
+  | PathAsString<T, Optional, MaxDepth>
   | PathAsArray<T, Optional, MaxDepth>;
 
 export type Value<T, P> = true extends IsAny<T> | IsAny<P>
@@ -59,7 +63,7 @@ export type Value<T, P> = true extends IsAny<T> | IsAny<P>
   ? never
   : P extends string
   ? Value<T, StringToArrayPath<P>>
-  : P extends [infer First extends KeyType, ...infer Rest extends KeyType[]]
+  : P extends readonly [infer First extends KeyType, ...infer Rest extends KeyType[]]
   ? T extends Map<any, infer V> | Set<infer V>
     ? Value<V, Rest> | undefined
     : T extends Array_
@@ -112,7 +116,7 @@ export type WildcardValue<T, P> = true extends IsAny<T> | IsAny<P>
   ? never
   : P extends string
   ? WildcardValue<T, StringToArrayPath<P>>
-  : P extends [infer First extends KeyType, ...infer Rest extends KeyType[]]
+  : P extends readonly [infer First extends KeyType, ...infer Rest extends KeyType[]]
   ? T extends Map<any, infer V> | Set<infer V>
     ? WildcardValue<V, Rest> | (First extends '*' ? never : undefined)
     : T extends Array_
@@ -136,9 +140,12 @@ export type WildcardMatch<S, W> = S extends string
   ? WildcardMatch<StringToArrayPath<S>, W>
   : W extends string
   ? WildcardMatch<S, StringToArrayPath<W>>
-  : [S, W] extends [[], []]
+  : [S, W] extends [readonly [], readonly []]
   ? true
-  : [S, W] extends [[infer SFirst, ...infer SRest], [infer WFirst, ...infer WRest]]
+  : [S, W] extends [
+      readonly [infer SFirst, ...infer SRest],
+      readonly [infer WFirst, ...infer WRest],
+    ]
   ? [WFirst, WRest['length']] extends ['*' | SFirst, SRest['length']]
     ? WildcardMatch<SRest, WRest>
     : false

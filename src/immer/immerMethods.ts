@@ -7,7 +7,11 @@ type Recipe<T> = (draft: Draft<T>) => void;
 
 function update<T>(this: Store<T>, recipe: Recipe<T>): void;
 
-function update<T, P extends Path<T>>(this: Store<T>, path: P, recipe: Recipe<Value<T, P>>): void;
+function update<T, const P extends Path<T>>(
+  this: Store<T>,
+  path: P,
+  recipe: Recipe<Value<T, P>>,
+): void;
 
 function update<T, P extends Path<T>>(
   this: Store<T>,
