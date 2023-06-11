@@ -57,7 +57,9 @@ export type Path<T, Optional extends boolean = false, MaxDepth extends number = 
   | PathAsString<T, Optional, MaxDepth>
   | PathAsArray<T, Optional, MaxDepth>;
 
-export type Value<T, P> = true extends IsAny<T> | IsAny<P>
+export type Value<T, P> = P extends readonly []
+  ? T
+  : true extends IsAny<T> | IsAny<P>
   ? any
   : true extends IsNever<T> | IsNever<P>
   ? never
@@ -75,7 +77,7 @@ export type Value<T, P> = true extends IsAny<T> | IsAny<P>
       ? Value<T[First], Rest> | undefined
       : Value<T[First], Rest>
     : never
-  : T;
+  : never;
 
 export type _WildcardPathAsArray<T, MaxDepth, Depth extends 1[]> =
   | []

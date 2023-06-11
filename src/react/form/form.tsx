@@ -1,11 +1,11 @@
 /* eslint-disable react-hooks/rules-of-hooks */
 
 import {
-  type HTMLProps,
   createContext,
   useContext,
   useMemo,
   type ComponentPropsWithoutRef,
+  type HTMLProps,
 } from 'react';
 import { ScopeProvider, useScope } from '../scope';
 import { useStore, type UseStoreOptions } from '../useStore';
@@ -86,11 +86,11 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
   state = new Scope<{
     draft?: TDraft;
     touched: Set<string>;
-    // errors: Map<string, string[]>;
+    errors: Map<string, string[]>;
     hasTriggeredValidations?: boolean;
   }>({
-    // touched: new Set(),
-    // errors: new Map(),
+    touched: new Set(),
+    errors: new Map(),
   });
 
   constructor(public readonly options: FormOptions<TDraft, TOriginal>) {
