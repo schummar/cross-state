@@ -1,3 +1,5 @@
+import { autobind } from '@lib/autobind';
+
 export interface Resource {
   invalidateAll(): void;
   clearAll(): void;
@@ -9,10 +11,7 @@ export class ResourceGroup {
   private refSet = new Set<WeakRef<Resource>>();
 
   constructor(public readonly name?: string) {
-    this.add = this.add.bind(this);
-    this.delete = this.delete.bind(this);
-    this.invalidateAll = this.invalidateAll.bind(this);
-    this.clearAll = this.clearAll.bind(this);
+    autobind(ResourceGroup);
   }
 
   add(resource: Resource) {

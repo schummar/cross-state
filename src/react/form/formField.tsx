@@ -120,7 +120,6 @@ export function FormField<
     }, commitDebounce);
 
     return () => clearTimeout(timeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localValue, commitDebounce]);
 
   useEffect(() => {
@@ -167,8 +166,10 @@ export function FormField<
       restProps.onChange?.(event, ...moreArgs);
     },
     onFocus(...args: any[]) {
-      state.update('touched', (touched) => {
-        touched.add(name);
+      state.set('touched', (touched) => {
+        touched = new Set(touched);
+        touched.add(_id);
+        return touched;
       });
 
       restProps.onFocus?.apply(null, args);

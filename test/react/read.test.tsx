@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import React, { Suspense } from 'react';
+import React, { Component, Suspense } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { createCache } from '../../src';
 import { read } from '../../src/react';
@@ -21,7 +21,7 @@ function Container({ children }: { children: ReactNode }) {
   );
 }
 
-class ErrorBoundary extends React.Component<{ children: ReactNode }> {
+class ErrorBoundary extends Component<{ children: ReactNode }> {
   state = { error: null as Error | null };
 
   static getDerivedStateFromError(error: Error) {

@@ -1,8 +1,8 @@
+import { autobind } from '@lib/autobind';
+
 export class Scope<T> {
   constructor(public readonly defaultValue: T) {
-    if ('Provider' in this && this.Provider instanceof Function) {
-      this.Provider = this.Provider.bind(this) as any;
-    }
+    autobind(Scope);
   }
 }
 

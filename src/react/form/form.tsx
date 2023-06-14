@@ -1,8 +1,7 @@
-/* eslint-disable react-hooks/rules-of-hooks */
-
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
   type ComponentPropsWithoutRef,
   type HTMLProps,
@@ -11,8 +10,10 @@ import { ScopeProvider, useScope } from '../scope';
 import { useStore, type UseStoreOptions } from '../useStore';
 import { FormError, type FormErrorProps } from './formError';
 import { FormField, type FormFieldComponent, type FormFieldProps } from './formField';
-import { Scope } from '@core';
+import { Scope, connectUrl, createStore, type UrlStoreOptions } from '@core';
+import { autobind } from '@lib/autobind';
 import { deepEqual } from '@lib/equals';
+import { hash } from '@lib/hash';
 import {
   type PathAsString,
   type Value,
@@ -29,6 +30,7 @@ import { getWildCardMatches, wildcardMatch } from '@lib/wildcardMatch';
 export interface FormOptions<TDraft, TOriginal> {
   defaultValue: TDraft;
   validations?: Validations<TDraft, TOriginal>;
+  urlState?: boolean | UrlStoreOptions<TDraft>;
 }
 
 export type Validations<TDraft, TOriginal> = {
@@ -94,13 +96,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
   });
 
   constructor(public readonly options: FormOptions<TDraft, TOriginal>) {
-    this.useForm = this.useForm.bind(this);
-    this.useField = this.useField.bind(this);
-    this.useHasChanges = this.useHasChanges.bind(this);
-    this.useIsValid = this.useIsValid.bind(this);
-    this.Form = this.Form.bind(this);
-    this.Field = this.Field.bind(this);
-    this.Error = this.Error.bind(this);
+    autobind(Form);
   }
 
   useForm() {
@@ -243,8 +239,11 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     original,
     defaultValue,
     validations,
+    urlState,
     ...formProps
-  }: { original?: TOriginal } & Partial<FormOptions<TDraft, TOriginal>> &
+  }: {
+    original?: TOriginal;
+  } & Partial<FormOptions<TDraft, TOriginal>> &
     Omit<HTMLProps<HTMLFormElement>, 'defaultValue'>) {
     const value = useMemo(
       () => ({
@@ -260,9 +259,24 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
       [original, defaultValue, validations],
     );
 
+    const store = useMemo(() => {
+      return createStore(this.state.defaultValue);
+    }, []);
+
+    useEffect(() => {
+      if (urlState) {
+        return connectUrl(
+          store.map('draft'),
+          typeof urlState === 'object' ? urlState : { key: 'form' },
+        );
+      }
+
+      return undefined;
+    }, [store, hash(urlState)]);
+
     return (
       <this.context.Provider value={value}>
-        <ScopeProvider scope={this.state}>
+        <ScopeProvider scope={this.state} store={store}>
           <FormContainer {...formProps} form={this} />
         </ScopeProvider>
       </this.context.Provider>
@@ -288,5 +302,3 @@ export function createForm<TDraft, TOriginal extends TDraft = TDraft>(
 ) {
   return new Form(options);
 }
-
-/* eslint-enable react-hooks/rules-of-hooks */

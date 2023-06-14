@@ -8,17 +8,15 @@ import type { Scope } from '@core';
 
 export type ScopeProps<T> = { scope: Scope<T>; store?: Store<T>; children?: ReactNode };
 
-const contextMap = new WeakMap<Scope<any>, Context<Store<any>>>();
+declare module '@core' {
+  interface Scope<T> {
+    context?: Context<Store<T>>;
+  }
+}
 
 function getScopeContext<T>(scope: Scope<T>): Context<Store<T>> {
-  let context = contextMap.get(scope);
-
-  if (!context) {
-    context = createContext<Store<T>>(createStore(scope.defaultValue));
-    contextMap.set(scope, context);
-  }
-
-  return context;
+  scope.context ??= createContext<Store<T>>(createStore(scope.defaultValue));
+  return scope.context;
 }
 
 export function ScopeProvider<T>({ scope, store: inputStore, children }: ScopeProps<T>) {

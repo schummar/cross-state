@@ -9,6 +9,7 @@ import type {
   Update,
   Use,
 } from './commonTypes';
+import { autobind } from '@lib/autobind';
 import { calcDuration } from '@lib/calcDuration';
 import { CalculationHelper } from '@lib/calculationHelper';
 import { Callable } from '@lib/callable';
@@ -90,15 +91,7 @@ export class Store<T> extends Callable<any, any> {
     protected readonly _call: (...args: any[]) => any = () => undefined,
   ) {
     super(_call);
-    this.get = this.get.bind(this);
-    this.set = this.set.bind(this);
-    this.reset = this.reset.bind(this);
-    this.subscribe = this.subscribe.bind(this);
-    this.once = this.once.bind(this);
-    this.map = this.map.bind(this);
-    this.addEffect = this.addEffect.bind(this);
-    this.isActive = this.isActive.bind(this);
-    this.notify = this.notify.bind(this);
+    autobind(Store);
 
     if (!(getter instanceof Function)) {
       this._value = { v: getter };

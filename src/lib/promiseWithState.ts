@@ -14,7 +14,6 @@ export class PromiseWithState<T> extends Promise<T> {
   }
 
   static override reject<T = never>(error: unknown) {
-    // eslint-disable-next-line promise/no-promise-in-callback
     return new PromiseWithState<T>(Promise.reject(error), { status: 'error', error });
   }
 

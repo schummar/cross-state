@@ -1,6 +1,5 @@
-import { type Update } from './commonTypes';
-import { Store, type StoreOptions } from './store';
-import { type Path, type Value } from '@lib/path';
+import { type Cancel } from './commonTypes';
+import { createStore, type Store, type StoreOptions } from './store';
 
 export interface UrlStoreOptions<T> extends StoreOptions {
   key: string;
@@ -18,69 +17,82 @@ export interface UrlStoreOptionsWithDefaults<T> extends UrlStoreOptions<T> {
 export type UrlStoreOptionsRequired<T> = UrlStoreOptions<T> &
   Required<Pick<UrlStoreOptions<T>, 'type' | 'serialize' | 'deserialize' | 'defaultValue'>>;
 
-export class UrlStore<T> extends Store<T> {
-  private serializedDefaultValue = this.options.serialize(this.options.defaultValue);
+const urlStore = createStore(() => (typeof window !== 'undefined' ? window.location.href : ''));
 
-  constructor(public readonly options: UrlStoreOptionsRequired<T>) {
-    super(() => {
-      const url = new URL(window.location.href);
-      const parameters = new URLSearchParams(url[options.type].slice(1));
-      const urlValue = parameters.get(options.key);
-      const deserialize: (value: string) => T = options.deserialize ?? defaultDeserializer;
-      return urlValue !== null ? deserialize(urlValue) : options.defaultValue;
-    });
+urlStore.addEffect(() => {
+  const originalPushState = window.history.pushState;
+  const originalReplaceState = window.history.replaceState;
 
-    this.addEffect(() => this.watchUrl());
-  }
+  const update = () => {
+    urlStore.set(window.location.href);
+  };
 
-  override set(update: Update<T>): void;
+  window.history.pushState = (...args) => {
+    originalPushState.apply(window.history, args);
+    update();
+  };
 
-  override set<P extends Path<T>>(path: P, update: Update<Value<T, P>>): void;
+  window.history.replaceState = (...args) => {
+    originalReplaceState.apply(window.history, args);
+    update();
+  };
 
-  override set(...args: any): void {
-    super.set.apply(this, args);
-    this.updateUrl(super.get());
-  }
+  window.addEventListener('popstate', update);
 
-  protected watchUrl() {
-    const originalPushState = window.history.pushState;
-    const originalReplaceState = window.history.replaceState;
+  return () => {
+    window.history.pushState = originalPushState;
+    window.history.replaceState = originalReplaceState;
+    window.removeEventListener('popstate', update);
+  };
+});
 
-    window.history.pushState = (...args) => {
-      originalPushState.apply(window.history, args);
-      this.reset();
-    };
+export function connectUrl<T>(store: Store<T>, options: UrlStoreOptionsWithDefaults<T>): Cancel;
 
-    window.history.replaceState = (...args) => {
-      originalReplaceState.apply(window.history, args);
-      this.reset();
-    };
+export function connectUrl<T>(store: Store<T | undefined>, options: UrlStoreOptions<T>): Cancel;
 
-    window.addEventListener('popstate', this.reset);
+export function connectUrl<T>(
+  store: Store<T>,
+  {
+    key,
+    type = 'search',
+    serialize = defaultSerializer,
+    deserialize = defaultDeserializer,
+    defaultValue = undefined as T,
+    onCommit,
+  }: UrlStoreOptions<T>,
+): Cancel {
+  const serializedDefaultValue = serialize(defaultValue);
 
-    return () => {
-      window.history.pushState = originalPushState;
-      window.history.replaceState = originalReplaceState;
-      window.removeEventListener('popstate', this.reset);
-    };
-  }
+  const cancelUrlListener = urlStore.subscribe((_url) => {
+    const url = new URL(_url);
+    const parameters = new URLSearchParams(url[type].slice(1));
+    const urlValue = parameters.get(key);
 
-  protected updateUrl(value: T | undefined) {
+    store.set(urlValue !== null ? deserialize(urlValue) : defaultValue);
+  });
+
+  const cancelSubscription = store.subscribe((value) => {
     const url = new URL(window.location.href);
-    const parameters = new URLSearchParams(url[this.options.type].slice(1));
-    const serializedValue = value !== undefined ? this.options.serialize(value) : undefined;
+    const parameters = new URLSearchParams(url[type].slice(1));
+    const serializedValue = value !== undefined ? serialize(value) : undefined;
 
-    if (serializedValue === undefined || serializedValue === this.serializedDefaultValue) {
-      parameters.delete(this.options.key);
+    if (serializedValue === undefined || serializedValue === serializedDefaultValue) {
+      parameters.delete(key);
     } else {
-      parameters.set(this.options.key, serializedValue);
+      parameters.set(key, serializedValue);
     }
 
-    url[this.options.type] = parameters.toString();
+    url[type] = parameters.toString();
+
     window.history.replaceState(null, '', url.toString());
 
-    this.options.onCommit?.(value);
-  }
+    onCommit?.(value);
+  });
+
+  return () => {
+    cancelUrlListener();
+    cancelSubscription();
+  };
 }
 
 function defaultDeserializer(value: string): any {
@@ -115,14 +127,12 @@ function defaultSerializer(value: any): string {
   });
 }
 
-export function createUrlStore<T>(options: UrlStoreOptionsWithDefaults<T>): UrlStore<T>;
-export function createUrlStore<T>(options: UrlStoreOptions<T>): UrlStore<T | undefined>;
+export function createUrlStore<T>(options: UrlStoreOptionsWithDefaults<T>): Store<T>;
+
+export function createUrlStore<T>(options: UrlStoreOptions<T>): Store<T | undefined>;
+
 export function createUrlStore<T>(options: UrlStoreOptions<T>) {
-  return new UrlStore({
-    ...options,
-    type: options.type ?? 'search',
-    serialize: options.serialize ?? defaultSerializer,
-    deserialize: options.deserialize ?? defaultDeserializer,
-    defaultValue: options.defaultValue ?? (undefined as T),
-  });
+  const store = createStore(options.defaultValue, options);
+  connectUrl(store, options);
+  return store;
 }

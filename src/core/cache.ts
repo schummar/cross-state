@@ -1,6 +1,7 @@
 import type { Duration, Selector, Use } from './commonTypes';
 import { allResources, type ResourceGroup } from './resourceGroup';
 import { Store, createStore } from './store';
+import { autobind } from '@lib/autobind';
 import type { CacheState, ErrorState, ValueState } from '@lib/cacheState';
 import { calcDuration } from '@lib/calcDuration';
 import { InstanceCache } from '@lib/instanceCache';
@@ -62,9 +63,7 @@ export class Cache<T> extends Store<Promise<T>> {
       undefined,
       _call,
     );
-    this.invalidate = this.invalidate.bind(this);
-    this.clear = this.clear.bind(this);
-    this.mapValue = this.mapValue.bind(this);
+    autobind(Cache);
 
     this.calculationHelper.options.onInvalidate = () =>
       this.invalidate({ invalidateDependencies: false });
