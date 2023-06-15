@@ -85,6 +85,7 @@ export function connectUrl<T>(
     url[type] = parameters.toString();
 
     window.history.replaceState(null, '', url.toString());
+    window.dispatchEvent(new PopStateEvent('popstate'));
 
     onCommit?.(value);
   });
