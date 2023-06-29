@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "(React) state library",
   "license": "ISC",
-  "repository": "schummar/schummar-state",
+  "repository": "schummar/cross-state",
   "author": {
     "name": "Marco Schumacher",
     "email": "marco@schumacher.dev"

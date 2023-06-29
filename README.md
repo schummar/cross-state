@@ -1,63 +1,22 @@
-[![npm badge](https://badgen.net/npm/v/schummar-state)](https://www.npmjs.com/package/schummar-state)
-[![bundlephobia badge](https://badgen.net/bundlephobia/minzip/schummar-state)](https://bundlephobia.com/result?p=schummar-state)
+![npm](https://img.shields.io/npm/v/cross-state)
+[![spring-easing's badge](https://deno.bundlejs.com/?q=cross-state&badge=simple&badge-style=)](https://bundlejs.com/?q=spring-easing)
 
-Lighweight React hooks based state library.
-Heavily inspired by [pullstate](https://github.com/lostpebble/pullstate)
+State library for frontend and backend. With React bindings.
 
 # Getting started
 
 ### Install
 
 ```
-npm install schummar-state
+npm install cross-state
 ```
 
 ### Create a store
 
 ```ts
-import { Store } from 'cross-state';
+import { createStore } from 'cross-state';
 
-export const store = new Store({
+export const store = createStore({
   counter: 0,
 });
-```
-
-You can easily use multiple stores in parallel.
-
-### Use store in a component
-
-```tsx
-import store from './store';
-
-export function App() {
-  const counter = store.useState((state) => state.counter);
-
-  return (
-    <div>
-      <div>Counter: {counter}</div>
-    </div>
-  );
-}
-```
-
-### Update a store
-
-```tsx
-import store from './store';
-
-export function App() {
-  const counter = store.useState((state) => state.counter);
-
-  const increment = () =>
-    store.update((state) => {
-      state.counter++;
-    });
-
-  return (
-    <div>
-      <div>Counter: {counter}</div>
-      <button onClick={increment}>Increment</button>
-    </div>
-  );
-}
 ```
