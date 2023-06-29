@@ -140,8 +140,8 @@
     "vitest": "0.32.0"
   },
   "volta": {
-    "node": "18.16.0",
-    "pnpm": "8.6.1"
+    "node": "18.16.1",
+    "pnpm": "8.6.5"
   },
   "eslintConfig": {
     "extends": [
