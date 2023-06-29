@@ -27,22 +27,26 @@ export interface PersistOptions<T> {
 }
 
 export class Persist<T> {
-  storage: PersistStorageWithKeys;
+  readonly storage: PersistStorageWithKeys;
 
-  paths: {
+  readonly paths: {
     path: KeyType[];
     throttleMs?: number;
   }[];
 
-  channel: BroadcastChannel;
+  readonly initialized: Promise<void>;
 
-  queue = queue();
+  private resolveInitialized?: () => void;
 
-  handles = new Set<Cancel>();
+  private channel: BroadcastChannel;
 
-  stopped = false;
+  private queue = queue();
 
-  updateInProgress?: [any, any];
+  private handles = new Set<Cancel>();
+
+  private stopped = false;
+
+  private updateInProgress?: [any, any];
 
   constructor(public readonly store: Store<T>, public readonly options: PersistOptions<T>) {
     this.storage = normalizeStorage(options.storage);
@@ -70,11 +74,15 @@ export class Persist<T> {
       this.paths.push({ path: ['*'] });
     }
 
+    this.initialized = new Promise((resolve) => {
+      this.resolveInitialized = resolve;
+    });
+
     this.watchStore();
     this.watchStorage();
   }
 
-  watchStore() {
+  private watchStore() {
     let committed = this.store.get();
 
     const cancel = this.store.subscribe(
@@ -107,7 +115,7 @@ export class Persist<T> {
     this.handles.add(cancel);
   }
 
-  async watchStorage() {
+  private async watchStorage() {
     let keys = this.storage.keys();
     if (keys instanceof Promise) {
       keys = await keys;
@@ -122,6 +130,8 @@ export class Persist<T> {
       this.queue(() => this.load(path));
     }
 
+    this.queue(() => this.resolveInitialized?.());
+
     const listener = (event: MessageEvent) => {
       this.queue(() => this.load(event.data));
     };
@@ -130,7 +140,7 @@ export class Persist<T> {
     this.handles.add(() => this.channel.removeEventListener('message', listener));
   }
 
-  load(path: KeyType[]) {
+  private load(path: KeyType[]) {
     const matchingPath = this.paths.find(
       (p) => p.path.length === path.length && isAncestor(p.path, path),
     );
@@ -160,7 +170,7 @@ export class Persist<T> {
     });
   }
 
-  save(path: KeyType[]) {
+  private save(path: KeyType[]) {
     const key = JSON.stringify(path);
     const value = get(this.store.get(), path as any);
     const serializedValue = value === undefined ? 'undefined' : JSON.stringify(value);

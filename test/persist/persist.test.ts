@@ -91,6 +91,22 @@ describe('persist', () => {
     expect(storage.items.size).toBe(0);
   });
 
+  test('wait initialized', async () => {
+    vi.useRealTimers();
+    const storage = new MockStorage({ keys: 1, get: 1 });
+    storage.items.set('["a"]', '1');
+    const s1 = createStore({ a: 0 });
+    const p = persist(s1, {
+      id: 'test',
+      storage,
+    });
+
+    expect(s1.get()).toStrictEqual({ a: 0 });
+
+    await p.initialized;
+    expect(s1.get()).toStrictEqual({ a: 1 });
+  });
+
   describe('save', () => {
     test('save all', async () => {
       const storage = new MockStorage();
