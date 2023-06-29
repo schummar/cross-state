@@ -37,7 +37,7 @@ describe('propAccess', () => {
     });
 
     test('set', async () => {
-      const backup = structuredClone(object);
+      const backup = JSON.parse(JSON.stringify(object));
 
       if (newObject instanceof Error) {
         expect(() => set(object, path as any, newValue)).toThrow(
