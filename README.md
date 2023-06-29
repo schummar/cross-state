@@ -1,5 +1,6 @@
-![npm](https://img.shields.io/npm/v/cross-state)
-[![spring-easing's badge](https://deno.bundlejs.com/?q=cross-state&badge=simple&badge-style=)](https://bundlejs.com/?q=spring-easing)
+![npm badge](https://img.shields.io/npm/v/cross-state)
+[![bundlejs badge](https://deno.bundlejs.com/?badge&q=cross-state)](https://bundlejs.com/?q=cross-state)
+[![bundlejs badge](https://deno.bundlejs.com/?badge&q=cross-state%2Freact)](https://bundlejs.com/?q=cross-state)
 
 State library for frontend and backend. With React bindings.
 
