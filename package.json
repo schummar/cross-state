@@ -88,6 +88,7 @@
     "prepublishOnly": "runp lint test build :p size publint",
     "test": "pnpm test:watch run --coverage",
     "test:watch": "node --expose-gc node_modules/vitest/vitest.mjs",
+    "test:ui": "node --expose-gc node_modules/vitest/vitest.mjs --ui",
     "test:export": "pnpm test:watch run --coverage --reporter=verbose --reporter=junit --outputFile=test/testResults.xml"
   },
   "peerDependencies": {
@@ -119,6 +120,7 @@
     "@types/ws": "8.5.5",
     "@vitejs/plugin-react": "4.0.0",
     "@vitest/coverage-v8": "0.32.0",
+    "@vitest/ui": "^0.32.2",
     "esbuild": "0.18.2",
     "eslint": "8.42.0",
     "happy-dom": "9.20.3",

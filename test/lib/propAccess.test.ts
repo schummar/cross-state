@@ -29,7 +29,7 @@ describe('propAccess', () => {
       1,
       new Error('some error'),
     ),
-  ])('%s', (_name, object: any, path, checkValue, newValue, newObject) => {
+  ])('prop access %s', (_name, object: any, path, checkValue, newValue, newObject) => {
     test('get', async () => {
       const calculatedValue = get(object, path as any);
 

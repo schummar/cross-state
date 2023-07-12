@@ -116,4 +116,32 @@ describe('mapped', () => {
     expect(state.get()).toEqual({ x: 2 });
     expect(mapped.get()).toEqual(2);
   });
+
+  test(`don't make unnecessary recalculation`, () => {
+    const expensiveFn = vi.fn((x: number) => x * 2);
+
+    const state = createStore({ numbers: [1, 2, 3] });
+    const intermediate = state.map(
+      ({ numbers }) => numbers.reduce((acc, x) => acc + x, 0),
+      (sum) => ({ numbers: [sum] }),
+    );
+    const mapped = intermediate.map(expensiveFn);
+    const listener = vi.fn(() => undefined);
+    mapped.subscribe(listener);
+
+    expect(mapped.get()).toBe(12);
+    expect(expensiveFn.mock.calls.length).toBe(1);
+
+    state.set({ numbers: [3, 2, 1] });
+    expect(mapped.get()).toBe(12);
+    expect(expensiveFn.mock.calls.length).toBe(1);
+
+    intermediate.set(6);
+    expect(mapped.get()).toBe(12);
+    expect(expensiveFn.mock.calls.length).toBe(1);
+
+    state.set({ numbers: [1, 2, 3, 4] });
+    expect(mapped.get()).toBe(20);
+    expect(expensiveFn.mock.calls.length).toBe(2);
+  });
 });

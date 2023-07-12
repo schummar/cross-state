@@ -22,7 +22,7 @@ describe('useStore', () => {
     ),
     c('array', [1, 2, 3], [1, 2, 4], [1, 2, 3, 4], (s) => s[2]),
     c('array.length', [1, 2, 3], [1, 2, 3, 4], [1, 2, 4], (s) => s.length),
-  ])('%s', (_name, before, after1, after2, select) => {
+  ])('useStore %s', (_name, before, after1, after2, select) => {
     test('changed', async () => {
       const store = createStore(before);
 
