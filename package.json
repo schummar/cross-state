@@ -16,9 +16,7 @@
     "dist/cjs/immer/register.cjs"
   ],
   "files": [
-    "dist",
-    "react.js",
-    "react.d.ts"
+    "dist"
   ],
   "main": "dist/cjs/index.cjs",
   "module": "dist/es/index.mjs",

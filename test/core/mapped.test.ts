@@ -152,4 +152,14 @@ describe('mapped', () => {
     mapped.subscribe(listener, { runNow: false });
     expect(listener.mock.calls.length).toBe(0);
   });
+
+  test(`don't calculate when inactive`, () => {
+    const state = createStore(1);
+    const calc = vi.fn((x: number) => x * 2);
+    const mapped = state.map(calc);
+
+    state.set(2);
+
+    expect(calc.mock.calls.length).toBe(0);
+  });
 });

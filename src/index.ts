@@ -8,3 +8,4 @@ export { get, set } from './lib/propAccess';
 export { arrayMethods, mapMethods, recordMethods, setMethods } from './lib/standardMethods';
 export * from './lib/updateHelpers';
 export * from './persist';
+export * from './sync';
