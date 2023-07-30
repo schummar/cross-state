@@ -154,7 +154,7 @@ export class Store<T> extends Callable<any, any> {
 
     let compareToValue = this._value?.v;
     let previousValue: T | undefined;
-    let hasRun = false;
+    let isInitializing = true;
 
     let innerListener = (force?: boolean | void) => {
       if (!this._value) {
@@ -163,14 +163,13 @@ export class Store<T> extends Callable<any, any> {
 
       const value = this._value.v;
 
-      if (!force && equals(value, compareToValue)) {
+      if (!force && (isInitializing || equals(value, compareToValue))) {
         return;
       }
 
       compareToValue = value;
       const _previousValue = previousValue;
       previousValue = value;
-      hasRun = true;
 
       try {
         listener(value, _previousValue);
@@ -190,9 +189,11 @@ export class Store<T> extends Callable<any, any> {
       this.onSubscribe();
     }
 
-    if (runNow && !hasRun) {
+    if (runNow) {
       innerListener(true);
     }
+
+    isInitializing = false;
 
     return () => {
       this.listeners.delete(innerListener);

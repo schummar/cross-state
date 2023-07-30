@@ -144,4 +144,12 @@ describe('mapped', () => {
     expect(mapped.get()).toBe(20);
     expect(expensiveFn.mock.calls.length).toBe(2);
   });
+
+  test('runNow=false', () => {
+    const state = createStore(1);
+    const mapped = state.map((x) => x * 2);
+    const listener = vi.fn(() => undefined);
+    mapped.subscribe(listener, { runNow: false });
+    expect(listener.mock.calls.length).toBe(0);
+  });
 });

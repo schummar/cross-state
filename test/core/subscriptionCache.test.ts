@@ -72,7 +72,6 @@ describe('subscriptionCache', () => {
 
       return () => {
         ws.close();
-        this.updateConnectionState('closed');
       };
     });
 

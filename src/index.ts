@@ -1,5 +1,7 @@
 export * from './core';
+export { applyPatches } from './lib/applyPatches';
 export { calcDuration } from './lib/calcDuration';
+export { diff, type Patch } from './lib/diff';
 export { InstanceCache } from './lib/instanceCache';
 export { type Path, type PathAsArray, type PathAsString, type Value } from './lib/path';
 export { get, set } from './lib/propAccess';
