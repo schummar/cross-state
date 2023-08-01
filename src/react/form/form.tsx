@@ -177,9 +177,18 @@ function getFormInstance<TDraft, TOriginal extends TDraft>(
         for (const [validationName, validate] of Object.entries(
           block as Record<string, Validation<any, any, any>>,
         )) {
+          let matched = false;
+
           for (const [field, value] of Object.entries(getWildCardMatches(draft, path))) {
             if (!validate(value, { draft, original, field })) {
+              matched = true;
               errors.add({ field, error: validationName });
+            }
+          }
+
+          if (!matched && !path.includes('*')) {
+            if (!validate(undefined, { draft, original, field: path })) {
+              errors.add({ field: path, error: validationName });
             }
           }
         }

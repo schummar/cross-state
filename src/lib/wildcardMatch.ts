@@ -13,24 +13,34 @@ export function wildcardMatch(s: KeyType[] | string, w: KeyType[] | string): boo
   return s.length === w.length && s.every((s, i) => w[i] === '*' || s === w[i]);
 }
 
-export function getWildCardMatches(object: any, path: KeyType[] | string): Record<KeyType, any> {
+export function getWildCardMatches(
+  object: any,
+  path: [KeyType, ...KeyType[]] | string,
+): Record<KeyType, any> {
   const matches: Record<KeyType, any> = {};
-  const [first, ...rest] = castArrayPath(path);
+  const [first, second, ...rest] = castArrayPath(path);
 
   if (first === undefined) {
-    return object;
+    throw new Error('Path is empty');
   }
 
   if (!(object instanceof Object)) {
-    return {};
+    throw new Error('Object is not an object');
   }
 
-  if (first === '*') {
-    for (const [key, value] of Object.entries(object)) {
-      matches[key] = getWildCardMatches(value, rest);
+  for (const [key, value] of Object.entries(object)) {
+    if (first !== '*' && first !== key) {
+      continue;
     }
-  } else {
-    matches[first] = getWildCardMatches(object[first], rest);
+
+    if (second === undefined) {
+      matches[key] = value;
+      continue;
+    }
+
+    for (const [subKey, subValue] of Object.entries(getWildCardMatches(value, [second, ...rest]))) {
+      matches[`${key}.${subKey}`] = subValue;
+    }
   }
 
   return matches;
