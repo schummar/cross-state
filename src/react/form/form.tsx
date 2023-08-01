@@ -1,16 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  type ComponentPropsWithoutRef,
-  type HTMLProps,
-} from 'react';
-import { ScopeProvider, useScope } from '../scope';
-import { useStore, type UseStoreOptions } from '../useStore';
-import { FormError, type FormErrorProps } from './formError';
-import { FormField, type FormFieldComponent, type FormFieldProps } from './formField';
-import { Scope, connectUrl, createStore, type UrlStoreOptions } from '@core';
+import { Scope, type Store, connectUrl, createStore, type UrlStoreOptions } from '@core';
 import { autobind } from '@lib/autobind';
 import { deepEqual } from '@lib/equals';
 import { hash } from '@lib/hash';
@@ -22,6 +10,19 @@ import {
 } from '@lib/path';
 import { get } from '@lib/propAccess';
 import { getWildCardMatches, wildcardMatch } from '@lib/wildcardMatch';
+import {
+  type ReactNode,
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  type ComponentPropsWithoutRef,
+  type HTMLProps,
+} from 'react';
+import { ScopeProvider, useScope } from '../scope';
+import { useStore, type UseStoreOptions } from '../useStore';
+import { FormError, type FormErrorProps } from './formError';
+import { FormField, type FormFieldComponent, type FormFieldProps } from './formField';
 
 /// /////////////////////////////////////////////////////////////////////////////
 // Form types
@@ -55,6 +56,13 @@ export interface Field<TDraft, TOriginal, TPath extends PathAsString<TDraft>> {
   errors: string[];
 }
 
+interface FormState<TDraft> {
+  draft?: TDraft;
+  touched: Set<string>;
+  errors: Map<string, string[]>;
+  hasTriggeredValidations?: boolean;
+}
+
 /// /////////////////////////////////////////////////////////////////////////////
 // Implementation
 /// /////////////////////////////////////////////////////////////////////////////
@@ -79,18 +87,115 @@ function FormContainer({
   );
 }
 
+function getFormInstance<TDraft, TOriginal extends TDraft>(
+  original: TOriginal | undefined,
+  options: FormOptions<TDraft, TOriginal>,
+  state: Store<FormState<TDraft>>,
+) {
+  const instance = {
+    original,
+
+    draft: state.map(
+      (state) => state.draft ?? original ?? options.defaultValue,
+      (draft) => (state) => ({ ...state, draft }),
+    ),
+
+    getField: <TPath extends PathAsString<TDraft>>(
+      path: TPath,
+    ): Field<TDraft, TOriginal, TPath> => {
+      const { draft } = instance;
+
+      return {
+        get originalValue() {
+          return original !== undefined ? get(original as any, path as any) : undefined;
+        },
+
+        get value() {
+          return get(draft.get(), path);
+        },
+
+        setValue(update) {
+          draft.set(path, update);
+        },
+
+        get isDirty() {
+          const comparisonValue = this.originalValue ?? get(options.defaultValue, path);
+
+          return state.get().hasTriggeredValidations || !deepEqual(comparisonValue, this.value);
+        },
+
+        get errors() {
+          const blocks: Record<string, Validation<any, any, any>>[] = Object.entries(
+            options.validations ?? {},
+          )
+            .filter(([key]) => wildcardMatch(path, key))
+            .map(([, value]) => value);
+
+          const value = this.value;
+          const draftValue = draft.get();
+          const errors: string[] = [];
+
+          for (const block of blocks ?? []) {
+            for (const [validationName, validate] of Object.entries(block)) {
+              if (!validate(value, { draft: draftValue, original, field: path })) {
+                errors.push(validationName);
+              }
+            }
+          }
+
+          return errors;
+        },
+      };
+    },
+
+    get hasChanges() {
+      const { draft } = state.get();
+      return !!draft && !deepEqual(draft, original ?? options.defaultValue);
+    },
+
+    get errors(): string[] {
+      const draft = instance.draft.get();
+      const errors = new Set<string>();
+
+      for (const [path, block] of Object.entries(options.validations ?? {})) {
+        for (const [validationName, validate] of Object.entries(
+          block as Record<string, Validation<any, any, any>>,
+        )) {
+          for (const [field, value] of Object.entries(getWildCardMatches(draft, path))) {
+            if (!validate(value, { draft, original, field })) {
+              errors.add(`${field}.${validationName}`);
+            }
+          }
+        }
+      }
+
+      return [...errors];
+    },
+
+    get isValid() {
+      return instance.errors.length === 0;
+    },
+
+    validate: () => {
+      state.set('hasTriggeredValidations', true);
+      return instance.isValid;
+    },
+
+    reset() {
+      state.set('draft', undefined);
+    },
+  };
+
+  return instance;
+}
+
 export class Form<TDraft, TOriginal extends TDraft = TDraft> {
   context = createContext({
     original: undefined as TOriginal | undefined,
     options: this.options,
   });
 
-  state = new Scope<{
-    draft?: TDraft;
-    touched: Set<string>;
-    errors: Map<string, string[]>;
-    hasTriggeredValidations?: boolean;
-  }>({
+  state = new Scope<FormState<TDraft>>({
     touched: new Set(),
     errors: new Map(),
   });
@@ -103,103 +208,14 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     const { original, options } = useContext(this.context);
     const state = useScope(this.state);
 
-    return useMemo(() => {
-      const instance = {
-        original,
+    return useMemo(() => getFormInstance(original, options, state), [original, options, state]);
+  }
 
-        draft: state.map(
-          (state) => state.draft ?? original ?? options.defaultValue,
-          (draft) => (state) => ({ ...state, draft }),
-        ),
+  useFormState<S>(selector: (state: ReturnType<typeof getFormInstance<TDraft, TOriginal>>) => S) {
+    const { original, options } = useContext(this.context);
+    const state = useScope(this.state);
 
-        getField: <TPath extends PathAsString<TDraft>>(
-          path: TPath,
-        ): Field<TDraft, TOriginal, TPath> => {
-          const { draft } = instance;
-
-          return {
-            get originalValue() {
-              return original !== undefined ? get(original as any, path as any) : undefined;
-            },
-
-            get value() {
-              return get(draft.get(), path);
-            },
-
-            setValue(update) {
-              draft.set(path, update);
-            },
-
-            get isDirty() {
-              const comparisonValue = this.originalValue ?? get(options.defaultValue, path);
-
-              return state.get().hasTriggeredValidations || !deepEqual(comparisonValue, this.value);
-            },
-
-            get errors() {
-              const blocks: Record<string, Validation<any, any, any>>[] = Object.entries(
-                options.validations ?? {},
-              )
-                .filter(([key]) => wildcardMatch(path, key))
-                .map(([, value]) => value);
-
-              const value = this.value;
-              const draftValue = draft.get();
-              const errors: string[] = [];
-
-              for (const block of blocks ?? []) {
-                for (const [validationName, validate] of Object.entries(block)) {
-                  if (!validate(value, { draft: draftValue, original, field: path })) {
-                    errors.push(validationName);
-                  }
-                }
-              }
-
-              return errors;
-            },
-          };
-        },
-
-        get hasChanges() {
-          const { draft } = state.get();
-          return !!draft && !deepEqual(draft, original ?? options.defaultValue);
-        },
-
-        get errors(): string[] {
-          const draft = instance.draft.get();
-          const errors = new Set<string>();
-
-          for (const [path, block] of Object.entries(options.validations ?? {})) {
-            for (const [validationName, validate] of Object.entries(
-              block as Record<string, Validation<any, any, any>>,
-            )) {
-              for (const [field, value] of Object.entries(getWildCardMatches(draft, path))) {
-                if (!validate(value, { draft, original, field })) {
-                  errors.add(`${field}.${validationName}`);
-                }
-              }
-            }
-          }
-
-          return [...errors] as any;
-        },
-
-        get isValid() {
-          return instance.errors.length === 0;
-        },
-
-        validate: () => {
-          state.set('hasTriggeredValidations', true);
-          return instance.isValid;
-        },
-
-        reset() {
-          state.set('draft', undefined);
-        },
-      };
-
-      return instance;
-    }, [original, options, state]);
+    return useStore(state.map(() => selector(getFormInstance(original, options, state))));
   }
 
   useField<TPath extends PathAsString<TDraft>>(path: TPath, useStoreOptions?: UseStoreOptions) {
@@ -234,6 +250,17 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
   // ///////////////////////////////////////////////////////////////////////////
   // React Components
   // ///////////////////////////////////////////////////////////////////////////
+
+  Subscribe<S>({
+    selector,
+    children,
+  }: {
+    selector: (form: ReturnType<typeof getFormInstance<TDraft, TOriginal>>) => S;
+    children: (selectedState: S) => ReactNode;
+  }) {
+    const selectedState = this.useFormState(selector);
+    return <>{children(selectedState)}</>;
+  }
 
   Form({
     original,
