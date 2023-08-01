@@ -31,6 +31,7 @@ import { FormField, type FormFieldComponent, type FormFieldProps } from './formF
 export interface FormOptions<TDraft, TOriginal> {
   defaultValue: TDraft;
   validations?: Validations<TDraft, TOriginal>;
+  localizeError?: (error: string) => string | undefined;
   urlState?: boolean | UrlStoreOptions<TDraft>;
 }
 
@@ -99,6 +100,8 @@ function getFormInstance<TDraft, TOriginal extends TDraft>(
       (state) => state.draft ?? original ?? options.defaultValue,
       (draft) => (state) => ({ ...state, draft }),
     ),
+
+    options,
 
     getField: <TPath extends PathAsString<TDraft>>(
       path: TPath,
@@ -251,21 +254,11 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
   // React Components
   // ///////////////////////////////////////////////////////////////////////////
 
-  Subscribe<S>({
-    selector,
-    children,
-  }: {
-    selector: (form: ReturnType<typeof getFormInstance<TDraft, TOriginal>>) => S;
-    children: (selectedState: S) => ReactNode;
-  }) {
-    const selectedState = this.useFormState(selector);
-    return <>{children(selectedState)}</>;
-  }
-
   Form({
     original,
     defaultValue,
     validations,
+    localizeError,
     urlState,
     ...formProps
   }: {
@@ -281,6 +274,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
             TDraft,
             TOriginal
           >,
+          localizeError: localizeError ?? this.options.localizeError,
         },
       }),
       [original, defaultValue, validations],
@@ -308,6 +302,17 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
         </ScopeProvider>
       </this.context.Provider>
     );
+  }
+
+  Subscribe<S>({
+    selector,
+    children,
+  }: {
+    selector: (form: ReturnType<typeof getFormInstance<TDraft, TOriginal>>) => S;
+    children: (selectedState: S) => ReactNode;
+  }) {
+    const selectedState = this.useFormState(selector);
+    return <>{children(selectedState)}</>;
   }
 
   Field<

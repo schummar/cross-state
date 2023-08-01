@@ -98,9 +98,14 @@ export function FormField<
     ? restProps.children
     : undefined) ?? 'input') as TComponent;
 
+  const form = this.useForm();
   const state = useScope(this.state);
   const { value, setValue, errors } = this.useField(name);
-  const errorString = useMemo(() => errors.join('\n'), [errors]);
+
+  const errorString = useMemo(
+    () => errors.map((error) => form.options.localizeError?.(error) ?? error).join('\n'),
+    [errors, form.options.localizeError],
+  );
   const [localValue, setLocalValue] = useState<T>();
   const _id = useMemo(
     () =>
