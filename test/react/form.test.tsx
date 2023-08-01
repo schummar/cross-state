@@ -113,12 +113,10 @@ describe('form', () => {
     expect(lastNameErrors.textContent).toBe('different');
 
     expect(JSON.parse(allErrors.getAttribute('data-errors')!)).toEqual([
-      { error: 'required', field: 'firstName' },
       { error: 'length', field: 'arr1' },
       { error: 'required', field: 'arr2.0' },
       { error: 'required', field: 'arr2.1' },
       { error: 'stuff', field: 'custom' },
-      { error: 'required', field: 'lastName' },
       { error: 'different', field: 'lastName' },
     ]);
   });

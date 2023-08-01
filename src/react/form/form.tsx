@@ -180,8 +180,8 @@ function getFormInstance<TDraft, TOriginal extends TDraft>(
           let matched = false;
 
           for (const [field, value] of Object.entries(getWildCardMatches(draft, path))) {
+            matched = true;
             if (!validate(value, { draft, original, field })) {
-              matched = true;
               errors.add({ field, error: validationName });
             }
           }
