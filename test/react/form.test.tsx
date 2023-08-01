@@ -58,6 +58,8 @@ describe('form', () => {
 
           <form.Field name="birthday" component={DatePicker} />
 
+          <form.Field name="age" component={CustomInput} />
+
           <button />
         </form.Form>
       );
@@ -92,3 +94,7 @@ describe('form', () => {
     expect(lastNameErrors.textContent).toBe('different');
   });
 });
+
+function CustomInput(_props: { name: 'age'; value?: number; onChange: (value: number) => void }) {
+  return null;
+}

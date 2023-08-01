@@ -330,8 +330,8 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
 
   Field<
     TPath extends PathAsString<TDraft>,
-    TComponent extends FormFieldComponent<any> = (
-      props: ComponentPropsWithoutRef<'input'>,
+    TComponent extends FormFieldComponent<any, TPath> = (
+      props: ComponentPropsWithoutRef<'input'> & { name: TPath },
     ) => JSX.Element,
   >(props: FormFieldProps<TDraft, TPath, TComponent>): JSX.Element {
     return Reflect.apply(FormField, this, [props]);

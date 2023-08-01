@@ -12,17 +12,20 @@ import {
 } from 'react';
 import { type Form } from './form';
 
-interface FormFieldComponentProps<T> {
+interface FormFieldComponentProps<TValue, TPath> {
   id: string;
-  value: T;
-  onChange: (event: { target: { value: T } } | T | undefined, ...args: any[]) => void;
+  name: TPath;
+  value: TValue;
+  onChange: (event: { target: { value: TValue } } | TValue | undefined, ...args: any[]) => void;
   onFocus: (...args: any[]) => void;
   onBlur: (...args: any[]) => void;
 }
 
 type NativeInputType = 'input' | 'select' | 'textarea';
 
-type FieldValue<T extends FormFieldComponent<any>> = ComponentPropsWithoutRef<T & 'input'> extends {
+type FieldValue<T extends FormFieldComponent<any, any>> = ComponentPropsWithoutRef<
+  T & 'input'
+> extends {
   value: infer U;
 }
   ? U
@@ -32,7 +35,7 @@ type FieldValue<T extends FormFieldComponent<any>> = ComponentPropsWithoutRef<T 
   ? U | undefined
   : never;
 
-type FieldChangeValue<T extends FormFieldComponent<any>> = ComponentPropsWithoutRef<
+type FieldChangeValue<T extends FormFieldComponent<any, any>> = ComponentPropsWithoutRef<
   T & 'input'
 > extends {
   onChange?: (update: infer U) => void;
@@ -42,14 +45,16 @@ type FieldChangeValue<T extends FormFieldComponent<any>> = ComponentPropsWithout
     : U
   : never;
 
-export type FormFieldComponent<T> =
-  | (string | number extends T ? NativeInputType : never)
-  | ComponentType<FormFieldComponentProps<T>>;
+type A = FieldChangeValue<'input'>;
+
+export type FormFieldComponent<TValue, TPath> =
+  | (string | number extends TValue ? NativeInputType : never)
+  | ComponentType<FormFieldComponentProps<TValue, TPath>>;
 
 export type FormFieldProps<
   TDraft,
   TPath extends PathAsString<TDraft>,
-  TComponent extends FormFieldComponent<any>,
+  TComponent extends FormFieldComponent<any, TPath>,
 > = {
   name: TPath;
   commitOnBlur?: boolean;
@@ -57,7 +62,9 @@ export type FormFieldProps<
   inputFilter?: (value: FieldChangeValue<TComponent>) => boolean;
   onChange?: ComponentPropsWithoutRef<TComponent>['onChange'];
   onBlur?: ComponentPropsWithoutRef<TComponent>['onBlur'];
-} & (TComponent extends 'input' | ((props: HTMLProps<HTMLInputElement>) => JSX.Element)
+} & (TComponent extends
+  | 'input'
+  | ((props: ComponentPropsWithoutRef<'input'> & { name: TPath }) => JSX.Element)
   ? { component?: TComponent } | { children?: TComponent }
   : { component: TComponent } | { children: TComponent }) &
   Omit<
@@ -82,7 +89,7 @@ export type FormFieldProps<
 export function FormField<
   TDraft,
   TPath extends PathAsString<TDraft>,
-  TComponent extends FormFieldComponent<any>,
+  TComponent extends FormFieldComponent<any, any>,
 >(
   this: Form<TDraft, any>,
   {
