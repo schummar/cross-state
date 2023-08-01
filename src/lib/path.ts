@@ -95,6 +95,14 @@ export type _WildcardPathAsArray<T, MaxDepth, Depth extends 1[]> =
         : {
             [K in GetKeys<T>]:
               | ['*']
+              | [
+                  '*',
+                  ..._WildcardPathAsArray<
+                    T[T extends readonly any[] ? number : keyof T],
+                    MaxDepth,
+                    [...Depth, 1]
+                  >,
+                ]
               | [K]
               | [K, ..._WildcardPathAsArray<T[K], MaxDepth, [...Depth, 1]>];
           }[GetKeys<T>]
@@ -123,7 +131,7 @@ export type WildcardValue<T, P> = true extends IsAny<T> | IsAny<P>
     ? WildcardValue<V, Rest> | (First extends '*' ? never : undefined)
     : T extends Array_
     ? First extends '*'
-      ? T[number]
+      ? WildcardValue<T[number], Rest>
       : any[] extends T
       ? WildcardValue<T[First & keyof T], Rest> | undefined
       : First extends keyof T
@@ -131,7 +139,7 @@ export type WildcardValue<T, P> = true extends IsAny<T> | IsAny<P>
       : undefined
     : T extends Object_
     ? First extends '*'
-      ? T[keyof T]
+      ? WildcardValue<T[keyof T], Rest>
       : Record<any, any> extends T
       ? WildcardValue<T[First], Rest> | undefined
       : WildcardValue<T[First], Rest>
