@@ -11,6 +11,9 @@ describe('form', () => {
           firstName: {
             required: (value) => !!value,
           },
+          custom: {
+            stuff: (_value, { draft }) => (draft.age ?? 0) >= 16,
+          },
         },
       },
     );

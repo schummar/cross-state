@@ -1,24 +1,26 @@
+import { type PathAsString } from '@index';
+import { type Value } from '@lib/path';
+import { useScope } from '@react/scope';
 import {
   createElement,
   useEffect,
   useMemo,
   useState,
   type ComponentPropsWithoutRef,
-  type ElementType,
+  type ComponentType,
   type HTMLProps,
 } from 'react';
 import { type Form } from './form';
-import { type PathAsString } from '@index';
-import { type Value } from '@lib/path';
-import { useScope } from '@react/scope';
 
-export type FormFieldComponent<T> = ElementType<{
+interface FormFieldComponentProps<T> {
   id: string;
   value: T;
   onChange: (event: { target: { value: T } } | T | undefined, ...args: any[]) => void;
   onFocus: (...args: any[]) => void;
   onBlur: (...args: any[]) => void;
-}>;
+}
+
+type NativeInputType = 'input' | 'select' | 'textarea';
 
 type FieldValue<T extends FormFieldComponent<any>> = ComponentPropsWithoutRef<T & 'input'> extends {
   value: infer U;
@@ -39,6 +41,10 @@ type FieldChangeValue<T extends FormFieldComponent<any>> = ComponentPropsWithout
     ? V
     : U
   : never;
+
+export type FormFieldComponent<T> =
+  | (string | number extends T ? NativeInputType : never)
+  | ComponentType<FormFieldComponentProps<T>>;
 
 export type FormFieldProps<
   TDraft,
@@ -103,7 +109,7 @@ export function FormField<
   const { value, setValue, errors } = this.useField(name);
 
   const errorString = useMemo(
-    () => errors.map((error) => form.options.localizeError?.(error) ?? error).join('\n'),
+    () => errors.map((error) => form.options.localizeError?.(error, name) ?? error).join('\n'),
     [errors, form.options.localizeError],
   );
   const [localValue, setLocalValue] = useState<T>();

@@ -31,7 +31,7 @@ import { FormField, type FormFieldComponent, type FormFieldProps } from './formF
 export interface FormOptions<TDraft, TOriginal> {
   defaultValue: TDraft;
   validations?: Validations<TDraft, TOriginal>;
-  localizeError?: (error: string) => string | undefined;
+  localizeError?: (error: string, field: string) => string | undefined;
   urlState?: boolean | UrlStoreOptions<TDraft>;
 }
 
@@ -40,7 +40,7 @@ export type Validations<TDraft, TOriginal> = {
     string,
     Validation<WildcardValue<TDraft, P>, TDraft, TOriginal>
   >;
-};
+} & Record<string, Record<string, Validation<any, TDraft, TOriginal>>>;
 
 export type Validation<TValue, TDraft, TOriginal> = (
   value: TValue,
@@ -72,7 +72,7 @@ function FormContainer({
   form,
   ...formProps
 }: { form: Form<any, any> } & Omit<HTMLProps<HTMLFormElement>, 'form'>) {
-  const { validate } = form.useForm();
+  const _form = form.useForm();
 
   return (
     <form
@@ -81,7 +81,21 @@ function FormContainer({
       onSubmit={(event) => {
         event.preventDefault();
 
-        validate();
+        _form.validate();
+
+        let button;
+
+        if (
+          event.nativeEvent instanceof SubmitEvent &&
+          (button = event.nativeEvent.submitter) &&
+          (button instanceof HTMLButtonElement || button instanceof HTMLInputElement) &&
+          button.setCustomValidity
+        ) {
+          const errors = _form.errors.map(
+            ({ field, error }) => _form.options.localizeError?.(error, field) ?? error,
+          );
+          button.setCustomValidity(errors.join('\n'));
+        }
         event.currentTarget.reportValidity();
       }}
     />
@@ -128,11 +142,10 @@ function getFormInstance<TDraft, TOriginal extends TDraft>(
         },
 
         get errors() {
-          const blocks: Record<string, Validation<any, any, any>>[] = Object.entries(
-            options.validations ?? {},
-          )
-            .filter(([key]) => wildcardMatch(path, key))
-            .map(([, value]) => value);
+          const blocks: (Validation<any, any, any> | Record<string, Validation<any, any, any>>)[] =
+            Object.entries(options.validations ?? {})
+              .filter(([key]) => wildcardMatch(path, key))
+              .map(([, value]) => value);
 
           const value = this.value;
           const draftValue = draft.get();
@@ -156,9 +169,9 @@ function getFormInstance<TDraft, TOriginal extends TDraft>(
       return !!draft && !deepEqual(draft, original ?? options.defaultValue);
     },
 
-    get errors(): string[] {
+    get errors() {
       const draft = instance.draft.get();
-      const errors = new Set<string>();
+      const errors = new Set<{ field: string; error: string }>();
 
       for (const [path, block] of Object.entries(options.validations ?? {})) {
         for (const [validationName, validate] of Object.entries(
@@ -166,7 +179,7 @@ function getFormInstance<TDraft, TOriginal extends TDraft>(
         )) {
           for (const [field, value] of Object.entries(getWildCardMatches(draft, path))) {
             if (!validate(value, { draft, original, field })) {
-              errors.add(`${field}.${validationName}`);
+              errors.add({ field, error: validationName });
             }
           }
         }
