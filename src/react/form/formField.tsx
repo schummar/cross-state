@@ -13,7 +13,7 @@ import {
 import { type Form } from './form';
 
 interface FormFieldComponentProps<TValue, TPath> {
-  id: string;
+  id?: string;
   name: TPath;
   value: TValue;
   onChange: (event: { target: { value: TValue } } | TValue | undefined, ...args: any[]) => void;
