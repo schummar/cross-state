@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import { forwardRef } from 'react';
 import { describe, expect, test } from 'vitest';
 import { createForm } from '../../src/react';
 
@@ -122,6 +123,14 @@ describe('form', () => {
   });
 });
 
-function CustomInput(_props: { name: 'age'; value?: number; onChange: (value: number) => void }) {
+const CustomInput = forwardRef(function CustomInput(
+  _props: {
+    id?: string;
+    name: 'age';
+    value?: number;
+    onChange: (value: number) => void;
+  },
+  ref,
+) {
   return null;
-}
+});

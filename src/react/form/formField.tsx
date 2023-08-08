@@ -6,14 +6,14 @@ import {
   useEffect,
   useMemo,
   useState,
+  type Component,
   type ComponentPropsWithoutRef,
-  type ComponentType,
-  type HTMLProps,
+  type ReactNode,
 } from 'react';
 import { type Form } from './form';
 
 interface FormFieldComponentProps<TValue, TPath> {
-  id?: string;
+  id: string;
   name: TPath;
   value: TValue;
   onChange: (event: { target: { value: TValue } } | TValue | undefined, ...args: any[]) => void;
@@ -22,6 +22,14 @@ interface FormFieldComponentProps<TValue, TPath> {
 }
 
 type NativeInputType = 'input' | 'select' | 'textarea';
+
+type PartialComponentType<P> =
+  | (new (props: P, context?: any) => Component<P, any>)
+  | ((props: P, context?: any) => ReactNode);
+
+export type FormFieldComponent<TValue, TPath> =
+  | (string | number extends TValue ? NativeInputType : never)
+  | PartialComponentType<FormFieldComponentProps<TValue, TPath>>;
 
 type FieldValue<T extends FormFieldComponent<any, any>> = ComponentPropsWithoutRef<
   T & 'input'
@@ -44,12 +52,6 @@ type FieldChangeValue<T extends FormFieldComponent<any, any>> = ComponentPropsWi
     ? V
     : U
   : never;
-
-type A = FieldChangeValue<'input'>;
-
-export type FormFieldComponent<TValue, TPath> =
-  | (string | number extends TValue ? NativeInputType : never)
-  | ComponentType<FormFieldComponentProps<TValue, TPath>>;
 
 export type FormFieldProps<
   TDraft,
