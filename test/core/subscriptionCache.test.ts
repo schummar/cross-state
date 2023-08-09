@@ -52,7 +52,7 @@ beforeEach(() => {
 
 describe('subscriptionCache', () => {
   test('websocket', async () => {
-    const subscriptionCache = createSubscriptionCache<any[]>(function () {
+    const subscriptionCache = createSubscriptionCache<any[] | undefined>(function () {
       this.updateConnectionState('connecting');
 
       const ws = new WebSocket('');
@@ -111,9 +111,24 @@ describe('subscriptionCache', () => {
   });
 
   test('inner function', async () => {
-    const subscriptionCache = createSubscriptionCache<number>(() => ({ updateValue }) => {
-      updateValue(1);
-    });
+    const subscriptionCache = createSubscriptionCache<number | undefined>(
+      () =>
+        ({ updateValue }) => {
+          updateValue(1);
+        },
+    );
+    await subscriptionCache.once();
+    expect(subscriptionCache.get()).toBe(1);
+  });
+
+  test('with default value', async () => {
+    const subscriptionCache = createSubscriptionCache<number>(
+      function () {
+        this.updateValue((x) => x + 1);
+      },
+      { default: 0 },
+    );
+
     await subscriptionCache.once();
     expect(subscriptionCache.get()).toBe(1);
   });

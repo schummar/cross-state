@@ -209,6 +209,12 @@
       "name": "/immer",
       "path": "dist/es/immer/index.mjs",
       "limit": "250 B"
+    },
+    {
+      "name": "empty",
+      "path": "dist/es/index.mjs",
+      "import": "{}",
+      "limit": "0"
     }
   ]
 }

@@ -12,20 +12,20 @@ import { InstanceCache } from '@lib/instanceCache';
 import { type Path } from '@lib/path';
 
 export interface SubscriptionCacheFunction<T, Args extends any[] = []> {
-  (this: CalculationHelpers<T | undefined>, ...args: Args):
-    | Cancel
-    | void
-    | ((cache: CalculationHelpers<T | undefined>) => Cancel | void);
+  (
+    this: CalculationHelpers<T>,
+    ...args: Args
+  ): Cancel | void | ((cache: CalculationHelpers<T>) => Cancel | void);
 }
 
-export interface SubstriptionCacheOptions {
+export type SubstriptionCacheOptions<T> = {
   clearOnInvalidate?: boolean;
   clearUnusedAfter?: Duration | null;
   resourceGroup?: ResourceGroup | ResourceGroup[];
   retain?: Duration;
-}
+} & (T extends undefined ? { default?: T } : { default: T });
 
-export class SubstriptionCache<T> extends Store<T | undefined> {
+export class SubstriptionCache<T> extends Store<T> {
   readonly state = createStore({
     connectionState: 'closed' as ConnectionState,
     error: undefined as unknown | undefined,
@@ -33,14 +33,14 @@ export class SubstriptionCache<T> extends Store<T | undefined> {
 
   constructor(
     public readonly connectFunction: SubscriptionCacheFunction<T>,
-    public readonly options: SubstriptionCacheOptions = {},
+    public readonly options: SubstriptionCacheOptions<T>,
     public readonly derivedFromSubscriptionCache?: {
       subscriptionCache: SubstriptionCache<any>;
       selectors: (Selector<any, any> | Path<any>)[];
     },
     _call?: (...args: any[]) => any,
   ) {
-    super(undefined, options, undefined, _call);
+    super(options.default as T, options, undefined, _call);
 
     this.calculationHelper.options = {
       ...this.calculationHelper.options,
@@ -99,7 +99,7 @@ export class SubstriptionCache<T> extends Store<T | undefined> {
   }
 }
 
-const defaultOptions: SubstriptionCacheOptions = {
+const defaultOptions: SubstriptionCacheOptions<any> = {
   clearUnusedAfter: { days: 1 },
   retain: { seconds: 1 },
 };
@@ -112,9 +112,11 @@ type CreateReturnType<T, Args extends any[]> = {
 
 function create<T, Args extends any[] = []>(
   cacheFunction: SubscriptionCacheFunction<T, Args>,
-  options?: SubstriptionCacheOptions,
+  ...[options = {} as SubstriptionCacheOptions<T>]: undefined extends T
+    ? [options?: SubstriptionCacheOptions<T>]
+    : [options: SubstriptionCacheOptions<T>]
 ): CreateReturnType<T, Args> {
-  const { clearUnusedAfter = defaultOptions.clearUnusedAfter, resourceGroup } = options ?? {};
+  const { clearUnusedAfter = defaultOptions.clearUnusedAfter, resourceGroup } = options;
 
   let baseInstance: CreateReturnType<T, Args> & SubstriptionCache<T>;
 
@@ -124,7 +126,7 @@ function create<T, Args extends any[] = []>(
         return baseInstance;
       }
 
-      return new SubstriptionCache(function () {
+      return new SubstriptionCache<T>(function () {
         return cacheFunction.apply(this, args);
       }, options);
     },

@@ -76,7 +76,7 @@ export class Store<T> extends Callable<any, any> {
       }
     },
     addEffect: (effect) => this.addEffect(effect, this.options.retain),
-    getValue: () => this._value?.v,
+    getValue: () => this._value?.v as T,
     onInvalidate: () => this.reset(),
   });
 

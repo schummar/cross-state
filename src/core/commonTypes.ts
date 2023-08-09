@@ -63,7 +63,7 @@ export type ConnectionState = 'connecting' | 'open' | 'closing' | 'closed';
 
 export interface CalculationHelpers<T> {
   use: Use;
-  updateValue: (update: UpdateFrom<MaybePromise<T>, [T | undefined]>) => void;
+  updateValue: (update: UpdateFrom<MaybePromise<T>, [T]>) => void;
   updateError: (error: unknown) => void;
   updateConnectionState: (state: ConnectionState) => void;
 }

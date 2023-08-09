@@ -1,18 +1,13 @@
-const processedClasses = new Set<any>();
-
 export const autobind = <
   TClass extends abstract new (...args: any) => any = abstract new (...args: any) => any,
 >(
   _class: TClass,
   _context?: ClassDecoratorContext<TClass>,
 ) => {
-  if (_class.prototype.__autobind_done__) {
+  if (Reflect.getOwnPropertyDescriptor(_class.prototype, '__autobind_done__')) {
     return _class;
   }
-  if (processedClasses.has(_class)) {
-    return _class;
-  }
-  processedClasses.add(_class);
+  Reflect.defineProperty(_class.prototype, '__autobind_done__', { value: true });
 
   for (const key of Reflect.ownKeys(_class.prototype)) {
     if (key === 'constructor') {

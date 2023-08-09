@@ -21,7 +21,7 @@ export class CalculationHelper<T> {
     public options: {
       calculate: (helpers: CalculationHelpers<T>) => Cancel | void;
       addEffect: (effect: () => Cancel | void) => Cancel;
-      getValue?: () => T | undefined;
+      getValue: () => T;
       onValue?: (value: T) => void;
       onError?: (error: unknown) => void;
       onConnectionState?: (state: ConnectionState) => void;
@@ -139,7 +139,7 @@ export class CalculationHelper<T> {
       return value;
     };
 
-    const updateValue = (update: UpdateFrom<MaybePromise<T>, [T | undefined]>) =>
+    const updateValue = (update: UpdateFrom<MaybePromise<T>, [T]>) =>
       q(async () => {
         if (isCancled) {
           return;
@@ -147,7 +147,7 @@ export class CalculationHelper<T> {
 
         if (update instanceof Function) {
           try {
-            update = update(getValue?.());
+            update = update(getValue());
           } catch (error) {
             onError?.(error);
             return;
