@@ -64,14 +64,13 @@ describe('form', () => {
             name="lastName"
             component={(props) => <input {...props} />}
             aria-label="last name"
+            deserialize={(x) => x}
           />
           <div data-testid="lastName-errors">
             <form.Error name="lastName" />
           </div>
 
-          <form.Field name="birthday" component={DatePicker} />
-
-          <form.Field name="age" component={CustomInput} />
+          <form.Field name="age" component={CustomInput} additionalProp="" />
 
           <form.Field name="firstName" component={MUITextField} size="small" variant="standard" />
           <form.Field name="firstName" component={MantineTextInput} />
@@ -93,6 +92,12 @@ describe('form', () => {
         </form.Form>
       );
     }
+
+    // @ts-expect-error incompatible types => needs serializer/deserilizer
+    <form.Field name="firstName" component={DatePicker} />;
+
+    // @ts-expect-error needs additional props
+    <form.Field name="age" component={CustomInput} />;
 
     render(<Component />);
     const firstNameInput = screen.getByRole<HTMLInputElement>('textbox', { name: 'first name' });
@@ -139,6 +144,7 @@ const CustomInput = forwardRef(function CustomInput(
     name: 'age';
     value?: number;
     onChange: (value: number) => void;
+    additionalProp: string;
   },
   ref,
 ) {

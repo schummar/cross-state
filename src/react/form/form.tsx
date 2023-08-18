@@ -84,15 +84,15 @@ function FormContainer({
 
   return (
     <form
+      noValidate
       {...formProps}
       className={[formProps.className, hasTriggeredValidations ? 'validated' : undefined]
         .filter(Boolean)
         .join(' ')}
-      noValidate
       onSubmit={(event) => {
         event.preventDefault();
 
-        _form.validate();
+        const isValid = _form.validate();
 
         let button;
 
@@ -107,7 +107,12 @@ function FormContainer({
           );
           button.setCustomValidity(errors.join('\n'));
         }
+
         event.currentTarget.reportValidity();
+
+        if (isValid) {
+          formProps.onSubmit?.(event);
+        }
       }}
     />
   );
@@ -373,15 +378,17 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     return <>{children(selectedState)}</>;
   }
 
-  Field<TPath extends PathAsString<TDraft>>(
-    props: Omit<FormFieldProps<TDraft, TPath, 'input'>, 'component'>,
-  ): JSX.Element;
   Field<
     TPath extends PathAsString<TDraft>,
-    TComponent extends FormFieldComponent<any, TPath> = (
+    TComponent extends FormFieldComponent = (
       props: ComponentPropsWithoutRef<'input'> & { name: TPath },
     ) => JSX.Element,
   >(props: FormFieldProps<TDraft, TPath, TComponent>): JSX.Element;
+
+  Field<TPath extends PathAsString<TDraft>>(
+    props: Omit<FormFieldProps<TDraft, TPath, 'input'>, 'component'>,
+  ): JSX.Element;
+
   Field(props: any): JSX.Element {
     return Reflect.apply(FormField, this, [{ component: 'input', ...props }]);
   }

@@ -12,7 +12,7 @@ import {
 } from 'react';
 import { type Form } from './form';
 
-interface FormFieldComponentProps<TValue, TPath> {
+export interface FormFieldComponentProps<TValue, TPath> {
   id: string;
   name: TPath;
   value: TValue;
@@ -27,41 +27,29 @@ type PartialComponentType<P> =
   | (new (props: P, context?: any) => Component<P, any>)
   | ((props: P, context?: any) => ReactNode);
 
-export type FormFieldComponent<TValue, TPath> =
-  | (string | number extends TValue ? NativeInputType : never)
-  | PartialComponentType<FormFieldComponentProps<TValue, TPath>>;
+export type FormFieldComponent = NativeInputType | PartialComponentType<any>;
 
-type FieldValue<T extends FormFieldComponent<any, any>> = ComponentPropsWithoutRef<T>['value'];
+type FieldValue<T extends FormFieldComponent> = ComponentPropsWithoutRef<T>['value'];
 
-type FieldChangeValue<T extends FormFieldComponent<any, any>> =
-  ComponentPropsWithoutRef<T> extends {
-    onChange?: (update: infer U) => void;
-  }
-    ? U extends { target: { value: infer V } }
-      ? V
-      : U
-    : never;
+type FieldChangeValue<T extends FormFieldComponent> = ComponentPropsWithoutRef<T> extends {
+  onChange?: (update: infer U) => void;
+}
+  ? U extends { target: { value: infer V } }
+    ? V
+    : U
+  : never;
 
 export type FormFieldProps<
   TDraft,
   TPath extends PathAsString<TDraft>,
-  TComponent extends FormFieldComponent<any, TPath>,
+  TComponent extends FormFieldComponent,
 > = {
   name: TPath;
   component: TComponent;
   commitOnBlur?: boolean;
   commitDebounce?: number;
   inputFilter?: (value: FieldChangeValue<TComponent>) => boolean;
-} & Omit<
-  ComponentPropsWithoutRef<TComponent>,
-  | 'name'
-  | 'component'
-  | 'commitOnBlur'
-  | 'commitDebounce'
-  | 'inputFilter'
-  | keyof FormFieldComponentProps<any, any>
-> &
-  Partial<Pick<ComponentPropsWithoutRef<TComponent>, keyof FormFieldComponentProps<any, any>>> &
+} & Omit<ComponentPropsWithoutRef<TComponent>, keyof FormFieldComponentProps<any, any>> &
   (Value<TDraft, TPath> extends FieldValue<TComponent>
     ? { serialize?: (value: Value<TDraft, TPath>) => FieldValue<TComponent> }
     : { serialize: (value: Value<TDraft, TPath>) => FieldValue<TComponent> }) &
@@ -72,7 +60,7 @@ export type FormFieldProps<
 export function FormField<
   TDraft,
   TPath extends PathAsString<TDraft>,
-  TComponent extends FormFieldComponent<any, any>,
+  TComponent extends FormFieldComponent,
 >(
   this: Form<TDraft, any>,
   {
