@@ -21,6 +21,7 @@
     "types": ["vite/client"],
     "skipLibCheck": true,
     "useDefineForClassFields": false,
+    "verbatimModuleSyntax": true,
 
     "paths": {
       "@*": ["./src/*"]

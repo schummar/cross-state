@@ -1,4 +1,4 @@
-import { Scope, type Store, connectUrl, createStore, type UrlStoreOptions } from '@core';
+import { Scope, connectUrl, createStore, type Store, type UrlStoreOptions } from '@core';
 import { autobind } from '@lib/autobind';
 import { deepEqual } from '@lib/equals';
 import { hash } from '@lib/hash';
@@ -11,16 +11,17 @@ import {
 import { get } from '@lib/propAccess';
 import { getWildCardMatches, wildcardMatch } from '@lib/wildcardMatch';
 import {
-  type ReactNode,
   createContext,
   useContext,
   useEffect,
   useMemo,
   type ComponentPropsWithoutRef,
   type HTMLProps,
+  type ReactNode,
 } from 'react';
 import { ScopeProvider, useScope } from '../scope';
 import { useStore, type UseStoreOptions } from '../useStore';
+import { FormArray, type ArrayPath, type FormArrayProps } from './formArray';
 import { FormError, type FormErrorProps } from './formError';
 import { FormField, type FormFieldComponent, type FormFieldProps } from './formField';
 
@@ -47,7 +48,7 @@ export type Validation<TValue, TDraft, TOriginal> = (
   context: { draft: TDraft; original: TOriginal; field: PathAsString<TDraft> },
 ) => boolean;
 
-export interface Field<TDraft, TOriginal, TPath extends PathAsString<TDraft>> {
+export type Field<TDraft, TOriginal, TPath extends PathAsString<TDraft>> = {
   originalValue: Value<TOriginal, TPath> | undefined;
   value: Value<TDraft, TPath>;
   setValue: (
@@ -55,7 +56,13 @@ export interface Field<TDraft, TOriginal, TPath extends PathAsString<TDraft>> {
   ) => void;
   isDirty: boolean;
   errors: string[];
-}
+} & (Value<TDraft, TPath> extends Array<any> ? ArrayFieldMethods<TDraft, TPath> : {});
+
+export type ArrayFieldMethods<TPath, TValue> = {
+  names: TPath[];
+  append: (...elements: TValue[]) => void;
+  remove: (index: number) => void;
+};
 
 interface FormState<TDraft> {
   draft?: TDraft;
@@ -73,10 +80,14 @@ function FormContainer({
   ...formProps
 }: { form: Form<any, any> } & Omit<HTMLProps<HTMLFormElement>, 'form'>) {
   const _form = form.useForm();
+  const hasTriggeredValidations = form.useFormState((state) => state.hasTriggeredValidations);
 
   return (
     <form
       {...formProps}
+      className={[formProps.className, hasTriggeredValidations ? 'validated' : undefined]
+        .filter(Boolean)
+        .join(' ')}
       noValidate
       onSubmit={(event) => {
         event.preventDefault();
@@ -161,6 +172,26 @@ function getFormInstance<TDraft, TOriginal extends TDraft>(
 
           return errors;
         },
+
+        get names() {
+          const { value } = this;
+          return (Array.isArray(value) ? value.map((_, index) => `${path}.${index}`) : []) as any;
+        },
+
+        append(...elements: any[]) {
+          this.setValue(
+            (value) => (Array.isArray(value) ? [...value, ...elements] : elements) as any,
+          );
+        },
+
+        remove(index) {
+          this.setValue(
+            (value) =>
+              (Array.isArray(value)
+                ? [...value.slice(0, index), ...value.slice(index + 1)]
+                : value) as any,
+          );
+        },
       };
     },
 
@@ -206,8 +237,13 @@ function getFormInstance<TDraft, TOriginal extends TDraft>(
       return instance.isValid;
     },
 
+    get hasTriggeredValidations() {
+      return state.get().hasTriggeredValidations;
+    },
+
     reset() {
       state.set('draft', undefined);
+      state.set('hasTriggeredValidations', false);
     },
   };
 
@@ -337,13 +373,21 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     return <>{children(selectedState)}</>;
   }
 
+  Field<TPath extends PathAsString<TDraft>>(
+    props: Omit<FormFieldProps<TDraft, TPath, 'input'>, 'component'>,
+  ): JSX.Element;
   Field<
     TPath extends PathAsString<TDraft>,
     TComponent extends FormFieldComponent<any, TPath> = (
       props: ComponentPropsWithoutRef<'input'> & { name: TPath },
     ) => JSX.Element,
-  >(props: FormFieldProps<TDraft, TPath, TComponent>): JSX.Element {
-    return Reflect.apply(FormField, this, [props]);
+  >(props: FormFieldProps<TDraft, TPath, TComponent>): JSX.Element;
+  Field(props: any): JSX.Element {
+    return Reflect.apply(FormField, this, [{ component: 'input', ...props }]);
+  }
+
+  Array<TPath extends ArrayPath<TDraft>>(props: FormArrayProps<TDraft, TPath>) {
+    return Reflect.apply(FormArray, this, [props]);
   }
 
   Error<TPath extends PathAsString<TDraft>>({ name }: FormErrorProps<TDraft, TPath>) {

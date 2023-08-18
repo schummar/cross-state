@@ -1,3 +1,5 @@
+import { TextInput as MantineTextInput } from '@mantine/core';
+import { TextField as MUITextField } from '@mui/material';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { forwardRef } from 'react';
 import { describe, expect, test } from 'vitest';
@@ -53,7 +55,7 @@ describe('form', () => {
             },
           }}
         >
-          <form.Field name="firstName" aria-label="first name" />
+          <form.Field name="firstName" aria-label="first name" inputFilter={(x) => true} />
           <div data-testid="firstName-errors">
             <form.Error name="firstName" />
           </div>
@@ -67,13 +69,21 @@ describe('form', () => {
             <form.Error name="lastName" />
           </div>
 
-          <form.Field name="age" deserialize={Number}>
-            {(props) => <input {...props} />}
-          </form.Field>
-
           <form.Field name="birthday" component={DatePicker} />
 
           <form.Field name="age" component={CustomInput} />
+
+          <form.Field name="firstName" component={MUITextField} size="small" variant="standard" />
+          <form.Field name="firstName" component={MantineTextInput} />
+          <form.Field name="firstName" component="input" />
+          <form.Field name="firstName" component="textarea" />
+
+          <form.Array
+            name="arr1"
+            renderElement={({ name }) => <form.Field name={name} component={MUITextField} />}
+          >
+            {({ names }) => names.join(',')}
+          </form.Array>
 
           <button />
 

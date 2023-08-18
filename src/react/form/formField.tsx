@@ -31,27 +31,16 @@ export type FormFieldComponent<TValue, TPath> =
   | (string | number extends TValue ? NativeInputType : never)
   | PartialComponentType<FormFieldComponentProps<TValue, TPath>>;
 
-type FieldValue<T extends FormFieldComponent<any, any>> = ComponentPropsWithoutRef<
-  T & 'input'
-> extends {
-  value: infer U;
-}
-  ? U
-  : ComponentPropsWithoutRef<T & 'input'> extends {
-      value?: infer U;
-    }
-  ? U | undefined
-  : never;
+type FieldValue<T extends FormFieldComponent<any, any>> = ComponentPropsWithoutRef<T>['value'];
 
-type FieldChangeValue<T extends FormFieldComponent<any, any>> = ComponentPropsWithoutRef<
-  T & 'input'
-> extends {
-  onChange?: (update: infer U) => void;
-}
-  ? U extends { target: { value: infer V } }
-    ? V
-    : U
-  : never;
+type FieldChangeValue<T extends FormFieldComponent<any, any>> =
+  ComponentPropsWithoutRef<T> extends {
+    onChange?: (update: infer U) => void;
+  }
+    ? U extends { target: { value: infer V } }
+      ? V
+      : U
+    : never;
 
 export type FormFieldProps<
   TDraft,
@@ -59,28 +48,20 @@ export type FormFieldProps<
   TComponent extends FormFieldComponent<any, TPath>,
 > = {
   name: TPath;
+  component: TComponent;
   commitOnBlur?: boolean;
   commitDebounce?: number;
   inputFilter?: (value: FieldChangeValue<TComponent>) => boolean;
-  onChange?: ComponentPropsWithoutRef<TComponent>['onChange'];
-  onBlur?: ComponentPropsWithoutRef<TComponent>['onBlur'];
-} & (TComponent extends
-  | 'input'
-  | ((props: ComponentPropsWithoutRef<'input'> & { name: TPath }) => JSX.Element)
-  ? { component?: TComponent } | { children?: TComponent }
-  : { component: TComponent } | { children: TComponent }) &
-  Omit<
-    ComponentPropsWithoutRef<TComponent>,
-    | 'form'
-    | 'name'
-    | 'component'
-    | 'commitOnBlur'
-    | 'commitDebounce'
-    | 'value'
-    | 'onChange'
-    | 'onBlur'
-    | 'children'
-  > &
+} & Omit<
+  ComponentPropsWithoutRef<TComponent>,
+  | 'name'
+  | 'component'
+  | 'commitOnBlur'
+  | 'commitDebounce'
+  | 'inputFilter'
+  | keyof FormFieldComponentProps<any, any>
+> &
+  Partial<Pick<ComponentPropsWithoutRef<TComponent>, keyof FormFieldComponentProps<any, any>>> &
   (Value<TDraft, TPath> extends FieldValue<TComponent>
     ? { serialize?: (value: Value<TDraft, TPath>) => FieldValue<TComponent> }
     : { serialize: (value: Value<TDraft, TPath>) => FieldValue<TComponent> }) &
@@ -97,6 +78,7 @@ export function FormField<
   {
     // id,
     name,
+    component,
     commitOnBlur,
     commitDebounce,
     inputFilter,
@@ -107,11 +89,6 @@ export function FormField<
 ): JSX.Element {
   type T = FieldChangeValue<TComponent>;
   const id = '';
-  const component = (('component' in restProps
-    ? restProps.component
-    : 'children' in restProps
-    ? restProps.children
-    : undefined) ?? 'input') as TComponent;
 
   const form = this.useForm();
   const state = useScope(this.state);
@@ -162,11 +139,9 @@ export function FormField<
 
   const props = {
     ...restProps,
-    component: undefined,
-    children: undefined,
     id: _id,
     name,
-    value: localValue ?? serialize(value),
+    value: localValue ?? serialize(value as Value<TDraft, TPath>),
     onChange: (event: { target: { value: T } } | T, ...moreArgs: any[]) => {
       const value =
         typeof event === 'object' && event !== null && 'target' in event
