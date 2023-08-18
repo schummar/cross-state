@@ -36,22 +36,28 @@ export function FormArray<TDraft, TPath extends ArrayPath<TDraft>>(
     return field.names;
   });
 
-  const append = useCallback((...newEntries: Value<TDraft, `${TPath}.${number}`>[]) => {
-    const field = form.getField(name) as Field<any, any, any> & ArrayFieldMethods<any, any>;
-    field.append(...newEntries);
-  }, []);
+  const append = useCallback(
+    (...newEntries: Value<TDraft, `${TPath}.${number}`>[]) => {
+      const field = form.getField(name) as Field<any, any, any> & ArrayFieldMethods<any, any>;
+      field.append(...newEntries);
+    },
+    [form],
+  );
 
-  const remove = useCallback((index: number) => {
-    const field = form.getField(name) as Field<any, any, any> & ArrayFieldMethods<any, any>;
-    field.remove(index);
-  }, []);
+  const remove = useCallback(
+    (index: number) => {
+      const field = form.getField(name) as Field<any, any, any> & ArrayFieldMethods<any, any>;
+      field.remove(index);
+    },
+    [form],
+  );
 
   const setValue = useCallback(
     (value: Value<TDraft, TPath> | ((value: Value<TDraft, TPath>) => Value<TDraft, TPath>)) => {
       const field = form.getField(name) as Field<any, any, any> & ArrayFieldMethods<any, any>;
       field.setValue(value);
     },
-    [],
+    [form],
   );
 
   return (
