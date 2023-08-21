@@ -380,13 +380,14 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
 
   Field<
     TPath extends PathAsString<TDraft>,
+    TDefault = undefined,
     TComponent extends FormFieldComponent = (
       props: ComponentPropsWithoutRef<'input'> & { name: TPath },
     ) => JSX.Element,
-  >(props: FormFieldProps<TDraft, TPath, TComponent>): JSX.Element;
+  >(props: FormFieldProps<TDraft, TPath, TDefault, TComponent>): JSX.Element;
 
-  Field<TPath extends PathAsString<TDraft>>(
-    props: Omit<FormFieldProps<TDraft, TPath, 'input'>, 'component'>,
+  Field<TPath extends PathAsString<TDraft>, TDefault = undefined>(
+    props: Omit<FormFieldProps<TDraft, TPath, TDefault, 'input'>, 'component'>,
   ): JSX.Element;
 
   Field(props: any): JSX.Element {

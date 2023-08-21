@@ -42,6 +42,7 @@ type FieldChangeValue<T extends FormFieldComponent> = ComponentPropsWithoutRef<T
 export type FormFieldProps<
   TDraft,
   TPath extends PathAsString<TDraft>,
+  TDefault,
   TComponent extends FormFieldComponent,
 > = {
   name: TPath;
@@ -50,9 +51,14 @@ export type FormFieldProps<
   commitDebounce?: number;
   inputFilter?: (value: FieldChangeValue<TComponent>) => boolean;
 } & Omit<ComponentPropsWithoutRef<TComponent>, keyof FormFieldComponentProps<any, any>> &
-  (Value<TDraft, TPath> extends FieldValue<TComponent>
-    ? { serialize?: (value: Value<TDraft, TPath>) => FieldValue<TComponent> }
-    : { serialize: (value: Value<TDraft, TPath>) => FieldValue<TComponent> }) &
+  (undefined extends TDefault ? { defaultValue?: TDefault } : { defaultValue: TDefault }) &
+  (NonNullable<Value<TDraft, TPath>> | TDefault extends FieldValue<TComponent>
+    ? {
+        serialize?: (value: NonNullable<Value<TDraft, TPath>> | TDefault) => FieldValue<TComponent>;
+      }
+    : {
+        serialize: (value: NonNullable<Value<TDraft, TPath>> | TDefault) => FieldValue<TComponent>;
+      }) &
   (FieldChangeValue<TComponent> extends Value<TDraft, TPath>
     ? { deserialize?: (value: FieldChangeValue<TComponent>) => Value<TDraft, TPath> }
     : { deserialize: (value: FieldChangeValue<TComponent>) => Value<TDraft, TPath> });
@@ -60,6 +66,7 @@ export type FormFieldProps<
 export function FormField<
   TDraft,
   TPath extends PathAsString<TDraft>,
+  TDefault,
   TComponent extends FormFieldComponent,
 >(
   this: Form<TDraft, any>,
@@ -72,8 +79,9 @@ export function FormField<
     inputFilter,
     serialize = (x) => x as FieldValue<TComponent>,
     deserialize = (x) => x as Value<TDraft, TPath>,
+    defaultValue,
     ...restProps
-  }: FormFieldProps<TDraft, TPath, TComponent>,
+  }: FormFieldProps<TDraft, TPath, TDefault, TComponent>,
 ): JSX.Element {
   type T = FieldChangeValue<TComponent>;
   const id = '';
@@ -129,7 +137,9 @@ export function FormField<
     ...restProps,
     id: _id,
     name,
-    value: localValue ?? serialize(value as Value<TDraft, TPath>),
+    value:
+      localValue ??
+      serialize((value ?? defaultValue) as NonNullable<Value<TDraft, TPath>> | TDefault),
     onChange: (event: { target: { value: T } } | T, ...moreArgs: any[]) => {
       const value =
         typeof event === 'object' && event !== null && 'target' in event

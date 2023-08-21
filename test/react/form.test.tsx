@@ -70,7 +70,7 @@ describe('form', () => {
             <form.Error name="lastName" />
           </div>
 
-          <form.Field name="age" component={CustomInput} additionalProp="" />
+          <form.Field name="age" component={CustomInput} defaultValue={1} additionalProp="" />
 
           <form.Field name="firstName" component={MUITextField} size="small" variant="standard" />
           <form.Field name="firstName" component={MantineTextInput} />
@@ -97,7 +97,10 @@ describe('form', () => {
     <form.Field name="firstName" component={DatePicker} />;
 
     // @ts-expect-error needs additional props
-    <form.Field name="age" component={CustomInput} />;
+    <form.Field name="age" component={CustomInput} defaultValue={1} />;
+
+    // @ts-expect-error needs default value
+    <form.Field name="age" component={CustomInput} additionalProp="" />;
 
     render(<Component />);
     const firstNameInput = screen.getByRole<HTMLInputElement>('textbox', { name: 'first name' });
@@ -142,7 +145,7 @@ const CustomInput = forwardRef(function CustomInput(
   _props: {
     id?: string;
     name: 'age';
-    value?: number;
+    value: number;
     onChange: (value: number) => void;
     additionalProp: string;
   },
