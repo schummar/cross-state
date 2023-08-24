@@ -62,7 +62,7 @@ describe('form', () => {
 
           <form.Field
             name="lastName"
-            component={(props) => <input {...props} />}
+            render={(props) => <input {...props} />}
             aria-label="last name"
             deserialize={(x) => x}
           />
