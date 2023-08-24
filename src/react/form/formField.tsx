@@ -49,7 +49,7 @@ export type FormFieldProps<
   commitOnBlur?: boolean;
   commitDebounce?: number;
   inputFilter?: (value: FieldChangeValue<TComponent>) => boolean;
-  render?: (props: ComponentPropsWithoutRef<TComponent>) => ReactNode;
+  render?: (props: FormFieldComponentProps<Value<TDraft, TPath>, TPath>) => ReactNode;
 } & Omit<ComponentPropsWithoutRef<TComponent>, keyof FormFieldComponentProps<any, any>> &
   (Value<TDraft, TPath> extends FieldValue<TComponent>
     ? {
@@ -171,10 +171,10 @@ export function FormField<
 
       restProps.onBlur?.apply(null, args);
     },
-  } as ComponentPropsWithoutRef<TComponent>;
+  };
 
   if (render) {
-    return render(props) ?? null;
+    return render(props as FormFieldComponentProps<Value<TDraft, TPath>, TPath>) ?? null;
   }
 
   return createElement(component, props);

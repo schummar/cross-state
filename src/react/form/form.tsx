@@ -386,7 +386,11 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
   >(props: FormFieldProps<TDraft, TPath, TComponent>): JSX.Element;
 
   Field<TPath extends PathAsString<TDraft>>(
-    props: Omit<FormFieldProps<TDraft, TPath, 'input'>, 'component'>,
+    props: Omit<FormFieldProps<TDraft, TPath, () => ReactNode>, 'component'>,
+  ): JSX.Element;
+
+  Field<TPath extends PathAsString<TDraft>>(
+    props: Omit<FormFieldProps<TDraft, TPath, 'input'>, 'component' | 'render'>,
   ): JSX.Element;
 
   Field(props: any): JSX.Element {
