@@ -90,4 +90,36 @@ describe('diff', () => {
       [{ op: 'replace', path: ['x', 0], value: 1 }],
     ]);
   });
+
+  test('stop at function', () => {
+    const a = { a: 1, b: { c: { d: 2 } } };
+    const b = { a: 1, b: { c: { d: 3 } } };
+    const result = diff(a, b, {
+      stopAt: 2,
+    });
+
+    expect(result[0]).toEqual([
+      {
+        op: 'replace',
+        path: ['b', 'c'],
+        value: { d: 3 },
+      },
+    ]);
+  });
+
+  test('stop at function', () => {
+    const a = { a: 1, b: { c: { d: 2 } } };
+    const b = { a: 1, b: { c: { d: 3 } } };
+    const result = diff(a, b, {
+      stopAt: (key) => key[0] === 'b' && key.length === 2,
+    });
+
+    expect(result[0]).toEqual([
+      {
+        op: 'replace',
+        path: ['b', 'c'],
+        value: { d: 3 },
+      },
+    ]);
+  });
 });

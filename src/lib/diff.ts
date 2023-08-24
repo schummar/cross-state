@@ -1,3 +1,4 @@
+import { deepEqual } from './equals';
 import type { KeyType } from './path';
 
 export type Patch =
@@ -5,8 +6,12 @@ export type Patch =
   | { op: 'remove'; path: KeyType[] }
   | { op: 'replace'; path: KeyType[]; value: any };
 
-export function diff(a: any, b: any): [patches: Patch[], reversePatches: Patch[]] {
-  const result = [..._diff(a, b)];
+export function diff(
+  a: any,
+  b: any,
+  options: { stopAt?: number | ((path: KeyType[]) => boolean) } = {},
+): [patches: Patch[], reversePatches: Patch[]] {
+  const result = [..._diff(a, b, options)];
   const patches = result.map(([patch]) => patch);
   const reversePatches = result.map(([, reversePatch]) => reversePatch);
 
@@ -16,14 +21,29 @@ export function diff(a: any, b: any): [patches: Patch[], reversePatches: Patch[]
 function* _diff(
   a: any,
   b: any,
+  options: { stopAt?: number | ((path: KeyType[]) => boolean) },
   prefix: KeyType[] = [],
 ): Iterable<[patch: Patch, reversePatch: Patch]> {
   if (a === b) {
     return;
   }
 
+  if (
+    (typeof options.stopAt === 'number' && prefix.length >= options.stopAt) ||
+    (typeof options.stopAt === 'function' && options.stopAt(prefix))
+  ) {
+    if (deepEqual(a, b)) {
+      return;
+    }
+
+    return yield [
+      { op: 'replace', path: prefix, value: b },
+      { op: 'replace', path: prefix, value: a },
+    ];
+  }
+
   if (a instanceof Map && b instanceof Map) {
-    return yield* mapDiff(a, b, prefix);
+    return yield* mapDiff(a, b, options, prefix);
   }
 
   if (a instanceof Set && b instanceof Set) {
@@ -32,7 +52,7 @@ function* _diff(
   }
 
   if (a instanceof Object && b instanceof Object && Array.isArray(a) === Array.isArray(b)) {
-    return yield* objectDiff(a, b, prefix);
+    return yield* objectDiff(a, b, options, prefix);
   }
 
   yield [
@@ -44,6 +64,7 @@ function* _diff(
 function* mapDiff(
   a: Map<any, any>,
   b: Map<any, any>,
+  options: { stopAt?: number | ((path: KeyType[]) => boolean) },
   prefix: KeyType[],
 ): Iterable<[patch: Patch, reversePatch: Patch]> {
   for (const [key, value] of a) {
@@ -53,7 +74,7 @@ function* mapDiff(
         { op: 'add', path: [...prefix, key], value },
       ];
     } else {
-      yield* _diff(value, b.get(key), [...prefix, key]);
+      yield* _diff(value, b.get(key), options, [...prefix, key]);
     }
   }
 
@@ -70,6 +91,7 @@ function* mapDiff(
 function* objectDiff(
   a: any,
   b: any,
+  options: { stopAt?: number | ((path: KeyType[]) => boolean) },
   prefix: KeyType[],
 ): Iterable<[patch: Patch, reversePatch: Patch]> {
   const castKey = (key: string) => (Array.isArray(a) ? Number(key) : key);
@@ -81,7 +103,7 @@ function* objectDiff(
         { op: 'add', path: [...prefix, castKey(key)], value },
       ];
     } else {
-      yield* _diff(value, b[key], [...prefix, castKey(key)]);
+      yield* _diff(value, b[key], options, [...prefix, castKey(key)]);
     }
   }
 
