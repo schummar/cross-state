@@ -69,7 +69,7 @@ export class SubstriptionCache<T> extends Store<T> {
   }
 
   invalidate({ invalidateDependencies = true }: { invalidateDependencies?: boolean } = {}) {
-    const { clearOnInvalidate = defaultOptions.clearOnInvalidate } = this.options;
+    const { clearOnInvalidate } = this.options;
 
     if (clearOnInvalidate) {
       return this.clear({ invalidateDependencies });
@@ -116,7 +116,8 @@ function create<T, Args extends any[] = []>(
     ? [options?: SubstriptionCacheOptions<T>]
     : [options: SubstriptionCacheOptions<T>]
 ): CreateReturnType<T, Args> {
-  const { clearUnusedAfter = defaultOptions.clearUnusedAfter, resourceGroup } = options;
+  options = Object.assign({}, defaultOptions, options);
+  const { clearUnusedAfter, resourceGroup } = options;
 
   let baseInstance: CreateReturnType<T, Args> & SubstriptionCache<T>;
 

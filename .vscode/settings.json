@@ -1,5 +1,5 @@
 {
   "typescript.tsdk": "node_modules/typescript/lib",
-  "vitest.commandLine": "node --expose-gc node_modules/vitest/vitest.mjs",
+  "vitest.commandLine": "pnpm test --",
   "testing.automaticallyOpenPeekView": "never"
 }

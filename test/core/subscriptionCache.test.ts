@@ -97,6 +97,11 @@ describe('subscriptionCache', () => {
 
     cancel();
 
+    expect(subscriptionCache.state.get().connectionState).toBe('open');
+
+    vi.advanceTimersByTime(1000);
+    await flushPromises();
+
     expect(stateListener.mock.calls).toEqual([
       [{ connectionState: 'connecting', error: undefined }, undefined],
       [
@@ -131,5 +136,32 @@ describe('subscriptionCache', () => {
 
     await subscriptionCache.once();
     expect(subscriptionCache.get()).toBe(1);
+  });
+
+  test('reopen', async () => {
+    let open = false;
+
+    const subscriptionCache = createSubscriptionCache<number | undefined>(
+      () =>
+        ({ updateValue }) => {
+          open = true;
+          updateValue(1);
+
+          return () => {
+            open = false;
+          };
+        },
+    );
+
+    let cancel = subscriptionCache.subscribe(() => undefined);
+    cancel();
+    expect(open).toBe(true);
+
+    vi.advanceTimersByTime(2000);
+    await flushPromises();
+    expect(open).toBe(false);
+
+    cancel = subscriptionCache.subscribe(() => undefined);
+    expect(open).toBe(true);
   });
 });

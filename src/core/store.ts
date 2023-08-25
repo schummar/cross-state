@@ -1,14 +1,3 @@
-import type {
-  CalculationHelpers,
-  Cancel,
-  Duration,
-  Effect,
-  Listener,
-  Selector,
-  SubscribeOptions,
-  Update,
-  Use,
-} from './commonTypes';
 import { autobind } from '@lib/autobind';
 import { calcDuration } from '@lib/calcDuration';
 import { CalculationHelper } from '@lib/calculationHelper';
@@ -21,6 +10,17 @@ import type { Path, Value } from '@lib/path';
 import { get, set } from '@lib/propAccess';
 import { arrayMethods, mapMethods, recordMethods, setMethods } from '@lib/standardMethods';
 import { throttle } from '@lib/throttle';
+import type {
+  CalculationHelpers,
+  Cancel,
+  Duration,
+  Effect,
+  Listener,
+  Selector,
+  SubscribeOptions,
+  Update,
+  Use,
+} from './commonTypes';
 
 export type StoreMethods = Record<string, (...args: any[]) => any>;
 
@@ -328,16 +328,37 @@ export class Store<T> extends Callable<any, any> {
     for (const [effect, { handle, retain, timeout }] of this.effects.entries()) {
       if (!retain) {
         handle?.();
+
+        if (timeout !== undefined) {
+          clearTimeout(timeout);
+        }
+
+        this.effects.set(effect, {
+          handle: undefined,
+          retain,
+          timeout: undefined,
+        });
+
+        continue;
       }
 
-      if (timeout !== undefined) {
-        clearTimeout(timeout);
-      }
+      const newTimeout =
+        timeout ??
+        (handle
+          ? setTimeout(() => {
+              handle();
+              this.effects.set(effect, {
+                handle: undefined,
+                retain,
+                timeout: undefined,
+              });
+            }, retain)
+          : undefined);
 
       this.effects.set(effect, {
-        handle: retain ? handle : undefined,
+        handle,
         retain,
-        timeout: retain && handle ? setTimeout(handle, retain) : undefined,
+        timeout: newTimeout,
       });
     }
   }
