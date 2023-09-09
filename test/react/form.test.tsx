@@ -1,4 +1,4 @@
-import { TextInput as MantineTextInput } from '@mantine/core';
+import { TextInput as MantineTextInput, SegmentedControl } from '@mantine/core';
 import { TextField as MUITextField } from '@mui/material';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { forwardRef } from 'react';
@@ -14,8 +14,9 @@ describe('form', () => {
       birthday?: Date;
       arr1: string[];
       arr2: string[];
+      type: 'a' | 'b';
     }>({
-      defaultValue: { firstName: '', lastName: '', arr1: [], arr2: ['', ''] },
+      defaultValue: { firstName: '', lastName: '', arr1: [], arr2: ['', ''], type: 'a' },
       validations: {
         firstName: {
           required: (value) => !!value,
@@ -76,6 +77,13 @@ describe('form', () => {
           <form.Field name="firstName" component="input" />
           <form.Field name="firstName" component="textarea" />
 
+          <form.Field
+            name="type"
+            component={SegmentedControl}
+            data={['a', 'b']}
+            deserialize={(x) => x as 'a' | 'b'}
+          />
+
           <form.Array
             name="arr1"
             renderElement={({ name }) => <form.Field name={name} component={MUITextField} />}
@@ -85,9 +93,9 @@ describe('form', () => {
 
           <button />
 
-          <form.Subscribe selector={(form) => form.errors}>
-            {(errors) => <div data-testid="all-errors" data-errors={JSON.stringify(errors)} />}
-          </form.Subscribe>
+          <form.FormState selector={(form) => form.errors}>
+            {(errors) => <div data-testid="all-errors" data-errors={JSON.stringify([...errors])} />}
+          </form.FormState>
         </form.Form>
       );
     }
@@ -130,11 +138,11 @@ describe('form', () => {
     expect(lastNameErrors.textContent).toBe('different');
 
     expect(JSON.parse(allErrors.getAttribute('data-errors')!)).toEqual([
-      { error: 'length', field: 'arr1' },
-      { error: 'required', field: 'arr2.0' },
-      { error: 'required', field: 'arr2.1' },
-      { error: 'stuff', field: 'custom' },
-      { error: 'different', field: 'lastName' },
+      ['arr1', ['length']],
+      ['arr2.0', ['required']],
+      ['arr2.1', ['required']],
+      ['custom', ['stuff']],
+      ['lastName', ['different']],
     ]);
   });
 });

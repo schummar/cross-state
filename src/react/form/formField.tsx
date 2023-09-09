@@ -1,6 +1,6 @@
 import { type PathAsString } from '@index';
 import { type Value } from '@lib/path';
-import { useScope } from '@react/scope';
+import { useStore } from '@react/useStore';
 import {
   createElement,
   useEffect,
@@ -17,7 +17,6 @@ export interface FormFieldComponentProps<TValue, TPath> {
   name: TPath;
   value: TValue;
   onChange: (event: { target: { value: TValue } } | TValue | undefined, ...args: any[]) => void;
-  onFocus: (...args: any[]) => void;
   onBlur: (...args: any[]) => void;
 }
 
@@ -38,6 +37,9 @@ type FieldChangeValue<T extends FormFieldComponent> = ComponentPropsWithoutRef<T
     ? V
     : U
   : never;
+
+type A = { onChange?(value: string): void };
+type B = FieldChangeValue<React.ForwardRefExoticComponent<A & React.RefAttributes<HTMLDivElement>>>;
 
 export type FormFieldProps<
   TDraft,
@@ -84,14 +86,12 @@ export function FormField<
   type T = FieldChangeValue<TComponent>;
   const id = '';
 
-  const form = this.useForm();
-  const state = useScope(this.state);
+  const { formState, options } = this.useForm();
   const { value, setValue, errors } = this.useField(name);
+  const errorString = errors
+    .map((error) => options.localizeError?.(error, name) ?? error)
+    .join('\n');
 
-  const errorString = useMemo(
-    () => errors.map((error) => form.options.localizeError?.(error, name) ?? error).join('\n'),
-    [errors, form.options.localizeError],
-  );
   const [localValue, setLocalValue] = useState<T>();
   const _id = useMemo(
     () =>
@@ -153,15 +153,6 @@ export function FormField<
       }
 
       restProps.onChange?.(event, ...moreArgs);
-    },
-    onFocus(...args: any[]) {
-      state.set('touched', (touched) => {
-        touched = new Set(touched);
-        touched.add(_id);
-        return touched;
-      });
-
-      restProps.onFocus?.apply(null, args);
     },
     onBlur(...args: any[]) {
       if (localValue !== undefined) {

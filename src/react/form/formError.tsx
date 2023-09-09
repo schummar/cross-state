@@ -9,7 +9,8 @@ export function FormError<TDraft, TPath extends PathAsString<TDraft>>(
   this: Form<TDraft, any>,
   { name }: FormErrorProps<TDraft, TPath>,
 ) {
-  const { errors, isDirty } = this.useField(name);
+  const hasTriggeredValidations = this.useFormState((form) => form.hasTriggeredValidations);
+  const { errors } = this.useField(name);
 
-  return isDirty ? <>{errors.join(', ')}</> : null;
+  return hasTriggeredValidations ? <>{errors.join(', ')}</> : null;
 }
