@@ -67,8 +67,12 @@ export type ArrayFieldMethods<TPath, TValue> = {
 };
 
 export interface FormState<TDraft> {
-  draft: TDraft;
+  draft: TDraft | undefined;
   hasTriggeredValidations: boolean;
+}
+
+export interface FormDerivedState<TDraft> extends FormState<TDraft> {
+  draft: TDraft;
   hasChanges: boolean;
   errors: Map<string, string[]>;
   isValid: boolean;
