@@ -24,6 +24,7 @@ import { useStore, type UseStoreOptions } from '../useStore';
 import { FormArray, type ArrayPath, type FormArrayProps } from './formArray';
 import { FormError, type FormErrorProps } from './formError';
 import { FormField, type FormFieldComponent, type FormFieldProps } from './formField';
+import type { FormAutosaveOptions } from './useFormAutosave';
 
 /// /////////////////////////////////////////////////////////////////////////////
 // Form types
@@ -34,10 +35,7 @@ export interface FormOptions<TDraft, TOriginal> {
   validations?: Validations<TDraft, TOriginal>;
   localizeError?: (error: string, field: string) => string | undefined;
   urlState?: boolean | UrlStoreOptions<TDraft>;
-  autoSave?: {
-    save: (draft: TDraft, form: FormContext<TDraft, TOriginal>) => Promise<void>;
-    debounce?: Duration;
-  };
+  autoSave?: FormAutosaveOptions<TDraft, TOriginal>;
 }
 
 export type Validations<TDraft, TOriginal> = {
@@ -68,7 +66,7 @@ export type ArrayFieldMethods<TPath, TValue> = {
   remove: (index: number) => void;
 };
 
-interface FormState<TDraft> {
+export interface FormState<TDraft> {
   draft: TDraft;
   hasTriggeredValidations: boolean;
   hasChanges: boolean;
@@ -76,7 +74,7 @@ interface FormState<TDraft> {
   isValid: boolean;
 }
 
-interface FormContext<TDraft, TOriginal> {
+export interface FormContext<TDraft, TOriginal> {
   formState: Store<FormState<TDraft>>;
   options: FormOptions<TDraft, TOriginal>;
   original: TOriginal | undefined;
@@ -90,7 +88,7 @@ interface FormContext<TDraft, TOriginal> {
   reset: () => void;
 }
 
-interface FormInstance<TDraft, TOriginal>
+export interface FormInstance<TDraft, TOriginal>
   extends Readonly<FormState<TDraft>>,
     Pick<FormContext<TDraft, TOriginal>, 'options' | 'original' | 'getField'> {}
 
