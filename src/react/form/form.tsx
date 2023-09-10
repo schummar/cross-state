@@ -1,15 +1,16 @@
-import { connectUrl, createStore, type Store, type UrlStoreOptions, type Duration } from '@core';
+import { connectUrl, createStore, type Store, type UrlStoreOptions } from '@core';
 import { autobind } from '@lib/autobind';
 import { deepEqual } from '@lib/equals';
 import { hash } from '@lib/hash';
 import {
+  type Path,
   type PathAsString,
   type Value,
   type WildcardPathAsString,
   type WildcardValue,
 } from '@lib/path';
 import { get } from '@lib/propAccess';
-import { getWildCardMatches, wildcardMatch } from '@lib/wildcardMatch';
+import { getWildCardMatches } from '@lib/wildcardMatch';
 import {
   createContext,
   useContext,
@@ -18,7 +19,6 @@ import {
   type ComponentPropsWithoutRef,
   type HTMLProps,
   type ReactNode,
-  type Context,
 } from 'react';
 import { useStore, type UseStoreOptions } from '../useStore';
 import { FormArray, type ArrayPath, type FormArrayProps } from './formArray';
@@ -30,12 +30,21 @@ import { useFormAutosave, type FormAutosaveOptions } from './useFormAutosave';
 // Form types
 /// /////////////////////////////////////////////////////////////////////////////
 
+export type Transform<TDraft> = Path<TDraft> | '' extends infer TPath
+  ? TPath extends TPath
+    ? {
+        update: (value: Value<TDraft, TPath>, store: Store<TDraft>) => void | TDraft;
+      } & (TPath extends '' ? { trigger?: '' } : { trigger: TPath })
+    : never
+  : never;
+
 export interface FormOptions<TDraft, TOriginal> {
   defaultValue: TDraft;
   validations?: Validations<TDraft, TOriginal>;
   localizeError?: (error: string, field: string) => string | undefined;
   urlState?: boolean | UrlStoreOptions<TDraft>;
   autoSave?: FormAutosaveOptions<TDraft, TOriginal>;
+  transform?: Transform<TDraft>[];
 }
 
 export type Validations<TDraft, TOriginal> = {
@@ -283,6 +292,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     localizeError,
     urlState,
     autoSave,
+    transform,
     ...formProps
   }: {
     original?: TOriginal;
@@ -296,6 +306,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
       >,
       localizeError: localizeError ?? this.options.localizeError,
       autoSave: autoSave ?? this.options.autoSave,
+      transform: transform ?? this.options.transform,
     };
 
     const formState = useMemo(() => {
@@ -379,6 +390,26 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
 
       return undefined;
     }, [formState, hash(urlState)]);
+
+    useEffect(() => {
+      const handles = options.transform?.map(({ trigger, update }) => {
+        const draft = derivedState.map('draft');
+        const triggerStore = trigger ? draft.map(trigger as any) : draft;
+
+        return triggerStore.subscribe(() => {
+          const value = trigger ? get(draft.get(), trigger as any) : draft.get();
+          const result = update(value as any, draft);
+
+          if (result !== undefined) {
+            draft.set(result);
+          }
+        });
+      });
+
+      return () => {
+        handles?.forEach((handle) => handle());
+      };
+    }, [options.transform]);
 
     useFormAutosave(context);
 

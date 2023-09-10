@@ -270,16 +270,22 @@ describe('static store', () => {
   });
 
   test('reactions', () => {
-    const state = createStore({ x: 1, y: 0 });
-    const reaction = vi.fn((x) => {
+    const state = createStore({ x: 1, y: 0, z: 0 });
+    const reaction1 = vi.fn(({ x }) => {
       state.set('y', x * 2);
     });
-    state.map('x').subscribe(reaction);
+    state.subscribe(reaction1);
 
-    expect(state.get()).toMatchObject({ x: 1, y: 2 });
+    const reaction2 = vi.fn(({ y }) => {
+      state.set('z', y * 2);
+    });
+    state.subscribe(reaction2);
+
+    expect(state.get()).toMatchObject({ x: 1, y: 2, z: 4 });
 
     state.set('x', 2);
-    expect(state.get()).toMatchObject({ x: 2, y: 4 });
-    expect(reaction).toHaveBeenCalledTimes(2);
+    expect(state.get()).toMatchObject({ x: 2, y: 4, z: 8 });
+    expect(reaction1).toHaveBeenCalledTimes(3);
+    expect(reaction2).toHaveBeenCalledTimes(2);
   });
 });
