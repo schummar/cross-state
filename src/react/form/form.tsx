@@ -78,11 +78,15 @@ export type ArrayFieldMethods<TPath, TValue> = {
 export interface FormState<TDraft> {
   draft: TDraft | undefined;
   hasTriggeredValidations: boolean;
+  saveScheduled: boolean;
+  saveInProgress: boolean;
 }
 
 export interface FormDerivedState<TDraft> {
   draft: TDraft;
   hasTriggeredValidations: boolean;
+  saveScheduled: boolean;
+  saveInProgress: boolean;
   hasChanges: boolean;
   errors: Map<string, string[]>;
   isValid: boolean;
@@ -313,18 +317,27 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
       return createStore<FormState<TDraft>>({
         draft: undefined,
         hasTriggeredValidations: false,
+        saveScheduled: false,
+        saveInProgress: false,
       });
     }, []);
 
     const derivedState = useMemo(() => {
       return formState.map<FormDerivedState<TDraft>>(
         (state) => {
-          const { draft = original ?? options.defaultValue, hasTriggeredValidations } = state;
+          const {
+            draft = original ?? options.defaultValue,
+            hasTriggeredValidations,
+            saveScheduled,
+            saveInProgress,
+          } = state;
           const errors = getErrors(draft, original, options.validations);
 
           return {
             draft,
             hasTriggeredValidations,
+            saveScheduled,
+            saveInProgress,
             hasChanges: !!draft && !deepEqual(draft, original),
             errors,
             isValid: errors.size === 0,
@@ -333,6 +346,8 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
         (newState) => ({
           draft: newState.draft,
           hasTriggeredValidations: newState.hasTriggeredValidations,
+          saveScheduled: newState.saveScheduled,
+          saveInProgress: newState.saveInProgress,
         }),
       );
     }, [formState, original, options.validations, options.defaultValue]);
