@@ -86,7 +86,7 @@ export function FormField<
   type T = FieldChangeValue<TComponent>;
   const id = '';
 
-  const { formState, options } = this.useForm();
+  const { options } = this.useForm();
   const { value, setValue, errors } = this.useField(name);
   const errorString = errors
     .map((error) => options.localizeError?.(error, name) ?? error)

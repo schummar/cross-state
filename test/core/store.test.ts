@@ -268,4 +268,18 @@ describe('static store', () => {
       false,
     ]);
   });
+
+  test('reactions', () => {
+    const state = createStore({ x: 1, y: 0 });
+    const reaction = vi.fn((x) => {
+      state.set('y', x * 2);
+    });
+    state.map('x').subscribe(reaction);
+
+    expect(state.get()).toMatchObject({ x: 1, y: 2 });
+
+    state.set('x', 2);
+    expect(state.get()).toMatchObject({ x: 2, y: 4 });
+    expect(reaction).toHaveBeenCalledTimes(2);
+  });
 });
