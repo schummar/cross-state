@@ -301,7 +301,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
   }: {
     original?: TOriginal;
   } & Partial<FormOptions<TDraft, TOriginal>> &
-    Omit<HTMLProps<HTMLFormElement>, 'defaultValue'>) {
+    Omit<HTMLProps<HTMLFormElement>, 'defaultValue' | 'autoSave'>) {
     const options: FormOptions<TDraft, TOriginal> = {
       defaultValue: { ...this.options.defaultValue, ...defaultValue },
       validations: { ...this.options.validations, ...validations } as Validations<

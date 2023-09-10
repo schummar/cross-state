@@ -29,10 +29,6 @@ export function useFormAutosave<TDraft, TOriginal extends TDraft>(
         const save = options.autoSave?.save;
         const draft = getDraft();
 
-        if (deepEqual(draft, lastValue.current)) {
-          return;
-        }
-
         lastValue.current = draft;
 
         q.clear();
@@ -40,15 +36,15 @@ export function useFormAutosave<TDraft, TOriginal extends TDraft>(
         q(async () => {
           try {
             formState.set('saveInProgress', true);
-            await save?.(getDraft(), form);
+            await save?.(draft, form);
 
-            if (q.length === 0 && options.autoSave?.resetAfterSave) {
+            if (q.size === 0 && options.autoSave?.resetAfterSave) {
               form.reset();
             }
           } finally {
             formState.set('saveInProgress', false);
 
-            if (q.length === 0) {
+            if (q.size === 0) {
               formState.set('saveScheduled', false);
             }
           }
@@ -66,6 +62,10 @@ export function useFormAutosave<TDraft, TOriginal extends TDraft>(
       .map((state) => state.draft)
       .subscribe(
         () => {
+          if (deepEqual(getDraft(), lastValue.current)) {
+            return;
+          }
+
           run();
           formState.set('saveScheduled', true);
         },
