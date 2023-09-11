@@ -246,7 +246,7 @@ export class Store<T> extends Callable<any, any> {
       updater: (value: any) => {
         if (!updater) {
           throw new TypeError(
-            'Can only updated computed stores that either are derived from other stores using string selectors or have an updater function.',
+            'Can only update computed stores that either are derived from other stores using string selectors or have an updater function.',
           );
         }
 

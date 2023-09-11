@@ -35,7 +35,16 @@ describe('useProp', () => {
       const [v, setV] = useProp(store.map((state) => state.x));
 
       return (
-        <div data-testid="div" onClick={() => setV(1)}>
+        <div
+          data-testid="div"
+          onClick={() => {
+            expect(() => {
+              setV(1);
+            }).toThrowErrorMatchingInlineSnapshot(
+              '"Can only update computed stores that either are derived from other stores using string selectors or have an updater function."',
+            );
+          }}
+        >
           {v}
         </div>
       );
@@ -44,13 +53,9 @@ describe('useProp', () => {
     render(<Component />);
     const div = screen.getByTestId('div');
 
-    expect(() => {
-      act(() => {
-        div.click();
-      });
-    }).toThrowErrorMatchingInlineSnapshot(
-      '"Can only updated computed stores that either are derived from other stores using string selectors or have an updater function."',
-    );
+    act(() => {
+      div.click();
+    });
   });
 
   test('inline function selector', async () => {

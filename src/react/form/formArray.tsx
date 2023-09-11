@@ -31,7 +31,7 @@ export function FormArray<TDraft, TPath extends ArrayPath<TDraft>>(
 ) {
   const form = this.useForm();
 
-  const names = this.useFormState((form) => {
+  const names = this.useFormState(() => {
     const field = form.getField(name) as Field<any, any, any> & ArrayFieldMethods<any, any>;
     return field.names;
   });

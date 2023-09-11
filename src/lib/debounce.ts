@@ -11,7 +11,7 @@ export type DebounceOptions =
 export function debounce<Args extends any[]>(
   action: (...args: Args) => void,
   options: Duration | DebounceOptions,
-): (...args: Args) => void {
+) {
   const wait =
     typeof options === 'object' && 'wait' in options
       ? calcDuration(options.wait)
@@ -22,10 +22,33 @@ export function debounce<Args extends any[]>(
       ? calcDuration(options.maxWait)
       : undefined;
 
+  let run: (() => void) | undefined;
   let timeout: ReturnType<typeof setTimeout> | undefined;
   let timeoutStarted: number | undefined;
 
-  return (...args: Args) => {
+  function flush() {
+    if (timeout !== undefined) {
+      clearTimeout(timeout);
+    }
+
+    run?.();
+  }
+
+  function cancel() {
+    if (timeout !== undefined) {
+      clearTimeout(timeout);
+    }
+
+    run = undefined;
+    timeout = undefined;
+    timeoutStarted = undefined;
+  }
+
+  function isScheduled() {
+    return timeout !== undefined;
+  }
+
+  function debounce(...args: Args) {
     const now = Date.now();
     timeoutStarted ??= now;
 
@@ -39,10 +62,16 @@ export function debounce<Args extends any[]>(
       clearTimeout(timeout);
     }
 
-    timeout = setTimeout(() => {
+    run = () => {
+      run = undefined;
       timeout = undefined;
       timeoutStarted = undefined;
+
       action(...args);
-    }, deadline - now);
-  };
+    };
+
+    timeout = setTimeout(run, deadline - now);
+  }
+
+  return Object.assign(debounce, { flush, cancel, isScheduled });
 }
