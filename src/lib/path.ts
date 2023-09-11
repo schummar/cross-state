@@ -19,27 +19,29 @@ export type GetKeys<T extends Object_ | Array_> = T extends Array_
     : number // other array
   : keyof T;
 
-export type _PathAsArray<T, Optional, MaxDepth, Depth extends 1[]> = true extends IsAny<T>
-  ? readonly KeyType[]
-  : T extends never
-  ? never
-  : T extends Object_
-  ? Depth['length'] extends MaxDepth
-    ? readonly string[]
-    : T extends Map<infer K extends KeyType, infer V>
-    ? readonly [K] | readonly [K, ..._PathAsArray<V, Optional, MaxDepth, [...Depth, 1]>]
-    : T extends Set<any>
-    ? readonly [number]
-    : {
-        [K in GetKeys<T>]:
-          | (Optional extends true
-              ? K extends OptionalPropertyOf<T>
-                ? readonly [K]
-                : never
-              : readonly [K])
-          | readonly [K, ..._PathAsArray<T[K], Optional, MaxDepth, [...Depth, 1]>];
-      }[GetKeys<T>]
-  : never;
+export type _PathAsArray<T, Optional, MaxDepth, Depth extends 1[]> =
+  | (Optional extends false ? readonly [] : never)
+  | (true extends IsAny<T>
+      ? readonly KeyType[]
+      : T extends never
+      ? never
+      : T extends Object_
+      ? Depth['length'] extends MaxDepth
+        ? readonly string[]
+        : T extends Map<infer K extends KeyType, infer V>
+        ? readonly [K] | readonly [K, ..._PathAsArray<V, Optional, MaxDepth, [...Depth, 1]>]
+        : T extends Set<any>
+        ? readonly [number]
+        : {
+            [K in GetKeys<T>]:
+              | (Optional extends true
+                  ? K extends OptionalPropertyOf<T>
+                    ? readonly [K]
+                    : never
+                  : readonly [K])
+              | readonly [K, ..._PathAsArray<T[K], Optional, MaxDepth, [...Depth, 1]>];
+          }[GetKeys<T>]
+      : never);
 
 export type PathAsArray<
   T,

@@ -8,7 +8,7 @@ export type ArrayPath<T> = keyof {
   PathAsString<T> &
   string;
 
-export interface FormArrayProps<TDraft, TPath extends ArrayPath<TDraft>> {
+export interface FormArrayFieldProps<TDraft, TPath extends ArrayPath<TDraft>> {
   name: TPath;
   renderElement?: (props: {
     name: `${TPath}.${number}`;
@@ -25,9 +25,9 @@ export interface FormArrayProps<TDraft, TPath extends ArrayPath<TDraft>> {
   }) => ReactNode;
 }
 
-export function FormArray<TDraft, TPath extends ArrayPath<TDraft>>(
+export function FormArrayField<TDraft, TPath extends ArrayPath<TDraft>>(
   this: Form<TDraft, any>,
-  { name, renderElement, children }: FormArrayProps<TDraft, TPath>,
+  { name, renderElement, children }: FormArrayFieldProps<TDraft, TPath>,
 ) {
   const form = this.useForm();
 

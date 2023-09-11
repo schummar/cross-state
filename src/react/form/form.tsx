@@ -21,7 +21,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useStore, type UseStoreOptions } from '../useStore';
-import { FormArray, type ArrayPath, type FormArrayProps } from './formArray';
+import { FormArrayField, type ArrayPath, type FormArrayFieldProps } from './formArrayField';
 import { FormError, type FormErrorProps } from './formError';
 import { FormField, type FormFieldComponent, type FormFieldProps } from './formField';
 import { useFormAutosave, type FormAutosaveOptions } from './useFormAutosave';
@@ -48,15 +48,16 @@ export interface FormOptions<TDraft, TOriginal> {
 }
 
 export type Validations<TDraft, TOriginal> = {
-  [P in WildcardPathAsString<TDraft>]?: Record<
-    string,
-    Validation<WildcardValue<TDraft, P>, TDraft, TOriginal>
-  >;
-} & Record<string, Record<string, Validation<any, TDraft, TOriginal>>>;
+  [TPath in WildcardPathAsString<TDraft>]?: Record<string, Validation<TDraft, TOriginal, TPath>>;
+} & Record<string, Record<string, Validation<TDraft, TOriginal, any>>>;
 
-export type Validation<TValue, TDraft, TOriginal> = (
-  value: TValue,
-  context: { draft: TDraft; original: TOriginal; field: PathAsString<TDraft> },
+export type Validation<TDraft, TOriginal, TPath> = (
+  value: WildcardValue<TDraft, TPath>,
+  context: {
+    draft: TDraft;
+    original: TOriginal;
+    field: PathAsString<TDraft> | '';
+  },
 ) => boolean;
 
 export type Field<TDraft, TOriginal, TPath extends PathAsString<TDraft>> = {
@@ -465,8 +466,8 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     return Reflect.apply(FormField, this, [{ component: 'input', ...props }]);
   }
 
-  Array<TPath extends ArrayPath<TDraft>>(props: FormArrayProps<TDraft, TPath>) {
-    return Reflect.apply(FormArray, this, [props]);
+  ArrayField<TPath extends ArrayPath<TDraft>>(props: FormArrayFieldProps<TDraft, TPath>) {
+    return Reflect.apply(FormArrayField, this, [props]);
   }
 
   Error<TPath extends PathAsString<TDraft>>({ name }: FormErrorProps<TDraft, TPath>) {

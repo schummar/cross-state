@@ -1,6 +1,5 @@
 import { type PathAsString } from '@index';
 import { type Value } from '@lib/path';
-import { useStore } from '@react/useStore';
 import {
   createElement,
   useEffect,

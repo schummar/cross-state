@@ -84,12 +84,12 @@ describe('form', () => {
             deserialize={(x) => x as 'a' | 'b'}
           />
 
-          <form.Array
+          <form.ArrayField
             name="arr1"
             renderElement={({ name }) => <form.Field name={name} component={MUITextField} />}
           >
             {({ names }) => names.join(',')}
-          </form.Array>
+          </form.ArrayField>
 
           <button />
 

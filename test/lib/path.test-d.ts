@@ -8,6 +8,8 @@ import type {
   WildcardValue,
 } from '../../src/lib/path';
 
+type EmptyPath = readonly [] | '';
+
 describe('path', () => {
   describe('GetKeys', () => {
     test('object', () => {
@@ -26,35 +28,43 @@ describe('path', () => {
   describe('Path', () => {
     test('object', () => {
       expectTypeOf({} as Path<{ x: number; y: number }>).toEqualTypeOf<
-        readonly ['x'] | readonly ['y'] | 'x' | 'y'
+        EmptyPath | readonly ['x'] | readonly ['y'] | 'x' | 'y'
       >();
     });
 
     test('record', () => {
-      expectTypeOf({} as Path<Record<string, number>>).toEqualTypeOf<readonly [string] | string>();
+      expectTypeOf({} as Path<Record<string, number>>).toEqualTypeOf<
+        EmptyPath | readonly [string] | string
+      >();
     });
 
     test('array', () => {
-      expectTypeOf({} as Path<number[]>).toEqualTypeOf<readonly [number] | `${number}`>();
+      expectTypeOf({} as Path<number[]>).toEqualTypeOf<
+        EmptyPath | readonly [number] | `${number}`
+      >();
     });
 
     test('tuple', () => {
       expectTypeOf({} as Path<[number, string]>).toEqualTypeOf<
-        readonly [0] | readonly [1] | '0' | '1'
+        EmptyPath | readonly [0] | readonly [1] | '0' | '1'
       >();
     });
 
     test('map', () => {
-      expectTypeOf({} as Path<Map<string, number>>).toEqualTypeOf<readonly [string] | string>();
+      expectTypeOf({} as Path<Map<string, number>>).toEqualTypeOf<
+        EmptyPath | readonly [string] | string
+      >();
     });
 
     test('set', () => {
-      expectTypeOf({} as Path<Set<number>>).toEqualTypeOf<readonly [number] | `${number}`>();
+      expectTypeOf({} as Path<Set<number>>).toEqualTypeOf<
+        EmptyPath | readonly [number] | `${number}`
+      >();
     });
 
     test('no simplified path for string containing dots', () => {
       expectTypeOf({} as Path<{ 'a.b': { c: number }; d: number }>).toEqualTypeOf<
-        readonly ['a.b'] | readonly ['a.b', 'c'] | readonly ['d'] | 'd'
+        EmptyPath | readonly ['a.b'] | readonly ['a.b', 'c'] | readonly ['d'] | 'd'
       >();
     });
 
@@ -71,6 +81,7 @@ describe('path', () => {
           10
         >,
       ).toEqualTypeOf<
+        | readonly []
         | readonly ['a']
         | readonly ['b']
         | readonly ['b', 'c']
@@ -87,6 +98,7 @@ describe('path', () => {
       expectTypeOf(
         {} as PathAsArray<{ a: { a: { a: 1 } }; b: { b: { b: { b: 1 } } } }, false, 3>,
       ).toEqualTypeOf<
+        | readonly []
         | readonly ['a']
         | readonly ['a', 'a']
         | readonly ['a', 'a', 'a']
