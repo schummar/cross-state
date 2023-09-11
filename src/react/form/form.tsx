@@ -9,7 +9,7 @@ import {
   type WildcardPathAsString,
   type WildcardValue,
 } from '@lib/path';
-import { get } from '@lib/propAccess';
+import { get, join } from '@lib/propAccess';
 import { getWildCardMatches } from '@lib/wildcardMatch';
 import {
   createContext,
@@ -181,7 +181,7 @@ function getField<TDraft, TOriginal extends TDraft, TPath extends PathAsString<T
     },
 
     setValue(update) {
-      derivedState.set(`draft.${path}` as any, update);
+      derivedState.set(join('draft', path) as any, update);
     },
 
     get hasChange() {
@@ -195,7 +195,9 @@ function getField<TDraft, TOriginal extends TDraft, TPath extends PathAsString<T
 
     get names() {
       const { value } = this;
-      return (Array.isArray(value) ? value.map((_, index) => `${path}.${index}`) : []) as any;
+      return (
+        Array.isArray(value) ? value.map((_, index) => join(path, String(index))) : []
+      ) as any;
     },
 
     append(...elements: any[]) {

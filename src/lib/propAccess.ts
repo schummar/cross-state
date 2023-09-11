@@ -107,3 +107,7 @@ export function remove<T, P extends Path<T, true>>(object: T, path: P): T {
 
   return set(object, parentPath as any, parent);
 }
+
+export function join(a: string, b: string) {
+  return [a, b].filter(Boolean).join('.');
+}
