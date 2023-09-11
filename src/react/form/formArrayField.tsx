@@ -8,16 +8,18 @@ export type ArrayPath<T> = keyof {
   PathAsString<T> &
   string;
 
+type ElementName<P extends string> = P extends '' ? `${number}` : `${P}.${number}`;
+
 export interface FormArrayFieldProps<TDraft, TPath extends ArrayPath<TDraft>> {
   name: TPath;
   renderElement?: (props: {
-    name: `${TPath}.${number}`;
+    name: ElementName<TPath>;
     index: number;
     remove: () => void;
   }) => ReactNode;
   children?: (props: {
-    names: `${TPath}.${number}`[];
-    append: (...elements: Value<TDraft, `${TPath}.${number}`>[]) => void;
+    names: ElementName<TPath>[];
+    append: (...elements: Value<TDraft, ElementName<TPath>>[]) => void;
     remove: (index: number) => void;
     setValue: (
       value: Value<TDraft, TPath> | ((value: Value<TDraft, TPath>) => Value<TDraft, TPath>),
@@ -37,7 +39,7 @@ export function FormArrayField<TDraft, TPath extends ArrayPath<TDraft>>(
   });
 
   const append = useCallback(
-    (...newEntries: Value<TDraft, `${TPath}.${number}`>[]) => {
+    (...newEntries: Value<TDraft, ElementName<TPath>>[]) => {
       const field = form.getField(name) as Field<any, any, any> & ArrayFieldMethods<any, any>;
       field.append(...newEntries);
     },
