@@ -64,8 +64,8 @@ describe('form', () => {
           <form.Field
             name="lastName"
             render={(props) => <input {...props} aria-label="last name" />}
-            deserialize={(x) => x}
           />
+
           <div data-testid="lastName-errors">
             <form.Error name="lastName" />
           </div>

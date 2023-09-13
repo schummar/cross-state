@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitReturns": true,
+    "noImplicitOverride": true,
+    "skipLibCheck": true,
+
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "allowJs": true,
+
+    "outDir": "dist/es",
+    "sourceMap": true,
+    "useDefineForClassFields": false,
+
+    "types": ["vite/client"],
+    "experimentalDecorators": true,
+    "module": "ESNext",
+    "target": "ESNext",
+    "lib": ["ESNext", "DOM", "WebWorker"],
+    "paths": {
+      "@whiz-cart/node-shared/*": ["../nodeShared/src/*"],
+      "@whiz-cart/ui-shared/*": ["../uiShared/src/*"],
+      "@*": ["./src/*"]
+    },
+    "jsx": "react-jsx",
+    "jsxImportSource": "@emotion/react"
+  },
+  "include": ["."]
+}

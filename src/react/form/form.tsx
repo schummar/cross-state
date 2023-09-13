@@ -16,14 +16,18 @@ import {
   useContext,
   useEffect,
   useMemo,
-  type ComponentPropsWithoutRef,
   type HTMLProps,
   type ReactNode,
 } from 'react';
 import { useStore, type UseStoreOptions } from '../useStore';
 import { FormArrayField, type ArrayPath, type FormArrayFieldProps } from './formArrayField';
 import { FormError, type FormErrorProps } from './formError';
-import { FormField, type FormFieldComponent, type FormFieldProps } from './formField';
+import {
+  FormField,
+  type FormFieldComponent,
+  type FormFieldPropsWithComponent,
+  type FormFieldPropsWithRender,
+} from './formField';
 import { useFormAutosave, type FormAutosaveOptions } from './useFormAutosave';
 
 /// /////////////////////////////////////////////////////////////////////////////
@@ -449,20 +453,14 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     return <>{children(selectedState)}</>;
   }
 
+  Field<TPath extends PathAsString<TDraft>>(
+    props: FormFieldPropsWithRender<TDraft, TPath>,
+  ): JSX.Element;
+
   Field<
     const TPath extends PathAsString<TDraft>,
-    const TComponent extends FormFieldComponent = (
-      props: ComponentPropsWithoutRef<'input'> & { name: TPath },
-    ) => JSX.Element,
-  >(props: FormFieldProps<TDraft, TPath, TComponent>): JSX.Element;
-
-  Field<TPath extends PathAsString<TDraft>>(
-    props: Omit<FormFieldProps<TDraft, TPath, () => ReactNode>, 'component'>,
-  ): JSX.Element;
-
-  Field<TPath extends PathAsString<TDraft>>(
-    props: Omit<FormFieldProps<TDraft, TPath, 'input'>, 'component' | 'render'>,
-  ): JSX.Element;
+    const TComponent extends FormFieldComponent = 'input',
+  >(props: FormFieldPropsWithComponent<TDraft, TPath, TComponent>): JSX.Element;
 
   Field(props: any): JSX.Element {
     return Reflect.apply(FormField, this, [{ component: 'input', ...props }]);

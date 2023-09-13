@@ -37,28 +37,42 @@ type FieldChangeValue<T extends FormFieldComponent> = ComponentPropsWithoutRef<T
     : U
   : never;
 
-type A = { onChange?(value: string): void };
-type B = FieldChangeValue<React.ForwardRefExoticComponent<A & React.RefAttributes<HTMLDivElement>>>;
+type MakeOptional<T, Keys extends string> = Omit<T, Keys> & Partial<Pick<T, Keys & keyof T>>;
 
-export type FormFieldProps<
+export type FormFieldProps<TDraft, TPath extends PathAsString<TDraft>> = {
+  name: TPath;
+  commitOnBlur?: boolean;
+  commitDebounce?: number;
+};
+
+export type FormFieldPropsWithRender<TDraft, TPath extends PathAsString<TDraft>> = FormFieldProps<
+  TDraft,
+  TPath
+> & {
+  component?: undefined;
+  render: (props: FormFieldComponentProps<Value<TDraft, TPath>, TPath>) => ReactNode;
+  inputFilter?: undefined;
+  serialize?: undefined;
+  deserialize?: undefined;
+  onChange?: undefined;
+  onBlur?: undefined;
+};
+
+export type FormFieldPropsWithComponent<
   TDraft,
   TPath extends PathAsString<TDraft>,
   TComponent extends FormFieldComponent,
-> = {
-  name: TPath;
-  component: TComponent;
-  commitOnBlur?: boolean;
-  commitDebounce?: number;
+> = FormFieldProps<TDraft, TPath> & {
+  component?: TComponent;
+  render?: undefined;
   inputFilter?: (value: FieldChangeValue<TComponent>) => boolean;
-  render?: (props: FormFieldComponentProps<Value<TDraft, TPath>, TPath>) => ReactNode;
-} & Omit<ComponentPropsWithoutRef<TComponent>, keyof FormFieldComponentProps<any, any>> &
+} & MakeOptional<
+    Omit<ComponentPropsWithoutRef<TComponent>, 'id' | 'name' | 'value'>,
+    'onChange' | 'onBlur'
+  > &
   (Value<TDraft, TPath> extends FieldValue<TComponent>
-    ? {
-        serialize?: (value: Value<TDraft, TPath>) => FieldValue<TComponent>;
-      }
-    : {
-        serialize: (value: Value<TDraft, TPath>) => FieldValue<TComponent>;
-      }) &
+    ? { serialize?: (value: Value<TDraft, TPath>) => FieldValue<TComponent> }
+    : { serialize: (value: Value<TDraft, TPath>) => FieldValue<TComponent> }) &
   (FieldChangeValue<TComponent> extends Value<TDraft, TPath>
     ? { deserialize?: (value: FieldChangeValue<TComponent>) => Value<TDraft, TPath> }
     : { deserialize: (value: FieldChangeValue<TComponent>) => Value<TDraft, TPath> });
@@ -75,12 +89,14 @@ export function FormField<
     component,
     commitOnBlur,
     commitDebounce,
-    inputFilter,
     render,
+    inputFilter,
     serialize = (x) => x as FieldValue<TComponent>,
     deserialize = (x) => x as Value<TDraft, TPath>,
     ...restProps
-  }: FormFieldProps<TDraft, TPath, TComponent>,
+  }:
+    | FormFieldPropsWithRender<TDraft, TPath>
+    | FormFieldPropsWithComponent<TDraft, TPath, TComponent>,
 ) {
   type T = FieldChangeValue<TComponent>;
   const id = '';
@@ -167,5 +183,9 @@ export function FormField<
     return render(props as FormFieldComponentProps<Value<TDraft, TPath>, TPath>) ?? null;
   }
 
-  return createElement(component, props);
+  if (component) {
+    return createElement(component, props);
+  }
+
+  return null;
 }
