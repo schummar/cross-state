@@ -82,9 +82,11 @@ export type Field<TDraft, TOriginal, TPath extends PathAsString<TDraft>> = {
 
 export type FieldHelperMethods<TDraft, TPath extends PathAsString<TDraft>> = {
   names: ElementName<TDraft, TPath>[];
-  add: Value<TDraft, TPath> extends readonly (infer T)[]
+  add: NonNullable<Value<TDraft, TPath>> extends readonly (infer T)[]
     ? (element: T) => void
-    : (key: string, value: keyof Value<TDraft, TPath>) => void;
+    : NonNullable<Value<TDraft, TPath>> extends Record<infer K, infer V>
+    ? (key: K, value: V) => void
+    : never;
   remove: Value<TDraft, TPath> extends readonly any[]
     ? (index: number) => void
     : (key: string) => void;

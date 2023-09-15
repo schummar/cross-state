@@ -15,7 +15,7 @@ describe('form', () => {
       arr1: string[];
       arr2: string[];
       type: 'a' | 'b';
-      record: Record<string, { x: string }>;
+      record: Record<string, { arr: { x: 1 }[] }>;
     }>({
       defaultValue: {
         firstName: '',

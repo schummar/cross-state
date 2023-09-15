@@ -13,14 +13,14 @@ export type ForEachPath<T> = keyof {
 
 export type ElementName<TDraft, TPath extends PathAsString<TDraft>> = Join<
   TPath,
-  GetKeys<Value<TDraft, TPath> & (Object_ | Array_)> & (string | number)
+  GetKeys<NonNullable<Value<TDraft, TPath>>> & (string | number)
 >;
 
 export interface FormForEachProps<TDraft, TPath extends ForEachPath<TDraft>> {
   name: TPath;
   renderElement?: (props: {
     name: ElementName<TDraft, TPath>;
-    key: `${GetKeys<Value<TDraft, TPath> & (Object_ | Array_)> & (string | number)}`;
+    key: `${GetKeys<NonNullable<Value<TDraft, TPath>>> & (string | number)}`;
     index: number;
     remove: () => void;
   }) => ReactNode;
