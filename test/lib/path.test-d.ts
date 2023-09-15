@@ -5,6 +5,8 @@ import type {
   PathAsArray,
   Value,
   WildcardMatch,
+  WildcardPath,
+  WildcardPathAsString,
   WildcardValue,
 } from '../../src/lib/path';
 
@@ -194,6 +196,18 @@ describe('path', () => {
   });
 
   describe('Wildcard Paths', () => {
+    test('WildcardPath', () => {
+      type A = WildcardPathAsString<{ a: { b: string } }>;
+
+      expectTypeOf({} as WildcardPathAsString<{ a: { x: string } }>).toEqualTypeOf<
+        '' | '*' | '*.*' | '*.x' | 'a' | 'a.*' | 'a.x'
+      >();
+
+      expectTypeOf({} as WildcardPathAsString<Record<string, { x: string }>>).toEqualTypeOf<
+        '' | '*' | '*.*' | '*.x'
+      >();
+    });
+
     test('WildcardValue', () => {
       expectTypeOf({} as WildcardValue<{ a: 1; b: 2 }, 'a'>).toEqualTypeOf<1>();
       expectTypeOf({} as WildcardValue<{ a: 1; b: 2 }, 'c'>).toEqualTypeOf<unknown>();
@@ -214,6 +228,10 @@ describe('path', () => {
 
       expectTypeOf({} as WildcardValue<Set<1>, '0'>).toEqualTypeOf<1 | undefined>();
       expectTypeOf({} as WildcardValue<Set<1>, '*'>).toEqualTypeOf<1>();
+
+      expectTypeOf(
+        {} as WildcardValue<{ a: Record<string, { b: { c: string }[] }> }, 'a.*.b.*.c'>,
+      ).toEqualTypeOf<string>();
     });
 
     test('WildcardMatch', () => {

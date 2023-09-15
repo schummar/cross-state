@@ -94,6 +94,8 @@ export type _WildcardPathAsArray<T, MaxDepth, Depth extends 1[]> =
         ? ['*'] | [K] | [K, ..._WildcardPathAsArray<V, MaxDepth, [...Depth, 1]>]
         : T extends Set<any>
         ? ['*'] | [number]
+        : Record<string, any> extends T
+        ? ['*'] | ['*', ..._WildcardPathAsArray<T[string], MaxDepth, [...Depth, 1]>]
         : {
             [K in GetKeys<T>]:
               | ['*']
@@ -162,3 +164,9 @@ export type WildcardMatch<S, W> = S extends string
     ? WildcardMatch<SRest, WRest>
     : false
   : false;
+
+export type Join<A extends string | number, B extends string | number> = A extends ''
+  ? B
+  : B extends ''
+  ? A
+  : `${A}.${B}`;

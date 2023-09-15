@@ -20,7 +20,12 @@ import {
   type ReactNode,
 } from 'react';
 import { useStore, type UseStoreOptions } from '../useStore';
-import { FormArrayField, type ArrayPath, type FormArrayFieldProps } from './formArrayField';
+import {
+  FormForEach,
+  type ForEachPath,
+  type FormForEachProps,
+  type ElementName,
+} from './formForEach';
 import { FormError, type FormErrorProps } from './formError';
 import {
   FormField,
@@ -29,6 +34,7 @@ import {
   type FormFieldPropsWithRender,
 } from './formField';
 import { useFormAutosave, type FormAutosaveOptions } from './useFormAutosave';
+import type { Object_ } from '@lib/typeHelpers';
 
 /// /////////////////////////////////////////////////////////////////////////////
 // Form types
@@ -72,12 +78,16 @@ export type Field<TDraft, TOriginal, TPath extends PathAsString<TDraft>> = {
   ) => void;
   hasChange: boolean;
   errors: string[];
-} & (Value<TDraft, TPath> extends Array<any> ? ArrayFieldMethods<TDraft, TPath> : {});
+} & (Value<TDraft, TPath> extends Object_ ? FieldHelperMethods<TDraft, TPath> : {});
 
-export type ArrayFieldMethods<TPath, TValue> = {
-  names: TPath[];
-  append: (...elements: TValue[]) => void;
-  remove: (index: number) => void;
+export type FieldHelperMethods<TDraft, TPath extends PathAsString<TDraft>> = {
+  names: ElementName<TDraft, TPath>[];
+  add: Value<TDraft, TPath> extends readonly (infer T)[]
+    ? (element: T) => void
+    : (key: string, value: keyof Value<TDraft, TPath>) => void;
+  remove: Value<TDraft, TPath> extends readonly any[]
+    ? (index: number) => void
+    : (key: string) => void;
 };
 
 export interface FormState<TDraft> {
@@ -184,7 +194,7 @@ function getField<TDraft, TOriginal extends TDraft, TPath extends PathAsString<T
       return get(draft, path);
     },
 
-    setValue(update) {
+    setValue(update: any) {
       derivedState.set(join('draft', path) as any, update);
     },
 
@@ -197,26 +207,52 @@ function getField<TDraft, TOriginal extends TDraft, TPath extends PathAsString<T
       return errors.get(path) ?? [];
     },
 
-    get names() {
+    get names(): any {
       const { value } = this;
-      return (
-        Array.isArray(value) ? value.map((_, index) => join(path, String(index))) : []
-      ) as any;
+
+      if (Array.isArray(value)) {
+        return value.map((_, index) => join(path, String(index)));
+      }
+
+      if (value instanceof Object) {
+        return Object.keys(value);
+      }
+
+      return [];
     },
 
-    append(...elements: any[]) {
-      this.setValue((value) => (Array.isArray(value) ? [...value, ...elements] : elements) as any);
+    add(...args: any[]) {
+      this.setValue((value: any) => {
+        if (args.length === 1) {
+          return [...(value ?? []), args[0]];
+        }
+
+        return {
+          ...value,
+          [args[0]]: args[1],
+        };
+      });
     },
 
-    remove(index) {
-      this.setValue(
-        (value) =>
-          (Array.isArray(value)
-            ? [...value.slice(0, index), ...value.slice(index + 1)]
-            : value) as any,
-      );
+    remove(key: any) {
+      this.setValue((value: any) => {
+        if (!value) {
+          return value;
+        }
+
+        if (Array.isArray(value)) {
+          return value.filter((_, index) => index !== key);
+        }
+
+        if (value instanceof Object) {
+          const { [key]: _, ...rest } = value;
+          return rest;
+        }
+
+        return value;
+      });
     },
-  };
+  } as any;
 }
 
 function getErrors<TDraft, TOriginal>(
@@ -466,8 +502,8 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     return Reflect.apply(FormField, this, [{ component: 'input', ...props }]);
   }
 
-  ArrayField<TPath extends ArrayPath<TDraft>>(props: FormArrayFieldProps<TDraft, TPath>) {
-    return Reflect.apply(FormArrayField, this, [props]);
+  ForEach<TPath extends ForEachPath<TDraft>>(props: FormForEachProps<TDraft, TPath>) {
+    return Reflect.apply(FormForEach, this, [props]);
   }
 
   Error<TPath extends PathAsString<TDraft>>({ name }: FormErrorProps<TDraft, TPath>) {

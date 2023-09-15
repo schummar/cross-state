@@ -15,8 +15,16 @@ describe('form', () => {
       arr1: string[];
       arr2: string[];
       type: 'a' | 'b';
+      record: Record<string, { x: string }>;
     }>({
-      defaultValue: { firstName: '', lastName: '', arr1: [], arr2: ['', ''], type: 'a' },
+      defaultValue: {
+        firstName: '',
+        lastName: '',
+        arr1: [],
+        arr2: ['', ''],
+        type: 'a',
+        record: {},
+      },
       validations: {
         firstName: {
           required: (value) => !!value,
@@ -84,12 +92,19 @@ describe('form', () => {
             deserialize={(x) => x as 'a' | 'b'}
           />
 
-          <form.ArrayField
+          <form.ForEach
             name="arr1"
             renderElement={({ name }) => <form.Field name={name} component={MUITextField} />}
           >
             {({ names }) => names.join(',')}
-          </form.ArrayField>
+          </form.ForEach>
+
+          <form.ForEach
+            name="record"
+            renderElement={({ name }) => <form.Field name={`${name}.x`} component={MUITextField} />}
+          >
+            {({ names }) => names.join(',')}
+          </form.ForEach>
 
           <button />
 
