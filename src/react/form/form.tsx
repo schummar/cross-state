@@ -217,7 +217,7 @@ function getField<TDraft, TOriginal extends TDraft, TPath extends PathAsString<T
       }
 
       if (value instanceof Object) {
-        return Object.keys(value);
+        return Object.keys(value).map((key) => join(path, key));
       }
 
       return [];
