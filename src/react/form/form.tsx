@@ -18,6 +18,7 @@ import {
   useMemo,
   type HTMLProps,
   type ReactNode,
+  type FormEvent,
 } from 'react';
 import { useStore, type UseStoreOptions } from '../useStore';
 import {
@@ -135,9 +136,12 @@ export interface FormInstance<TDraft, TOriginal>
 function FormContainer({
   form,
   ...formProps
-}: { form: Form<any, any> } & Omit<HTMLProps<HTMLFormElement>, 'form'>) {
-  const { validate, options, getErrors } = form.useForm();
-  const errors = getErrors();
+}: {
+  form: Form<any, any>;
+  onSubmit?: (event: FormEvent<HTMLFormElement>, form: FormInstance<any, any>) => void;
+} & Omit<HTMLProps<HTMLFormElement>, 'form' | 'onSubmit'>) {
+  const formInstance = form.useForm();
+  const errors = formInstance.getErrors();
   const hasTriggeredValidations = form.useFormState((state) => state.hasTriggeredValidations);
 
   return (
@@ -150,7 +154,7 @@ function FormContainer({
       onSubmit={(event) => {
         event.preventDefault();
 
-        const isValid = validate();
+        const isValid = formInstance.validate();
 
         let button;
 
@@ -163,7 +167,7 @@ function FormContainer({
           const errorString = [...errors.entries()]
             .flatMap(([field, errors]) =>
               errors.map((error) => {
-                return options.localizeError?.(error, field) ?? error;
+                return formInstance.options.localizeError?.(error, field) ?? error;
               }),
             )
             .join('\n');
@@ -174,7 +178,10 @@ function FormContainer({
         event.currentTarget.reportValidity();
 
         if (isValid) {
-          formProps.onSubmit?.(event);
+          formProps.onSubmit?.(event, {
+            ...formInstance,
+            ...formInstance.derivedState.get(),
+          });
         }
       }}
     />
@@ -345,8 +352,9 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     ...formProps
   }: {
     original?: TOriginal;
+    onSubmit?: (event: FormEvent<HTMLFormElement>, form: FormInstance<TDraft, TOriginal>) => void;
   } & Partial<FormOptions<TDraft, TOriginal>> &
-    Omit<HTMLProps<HTMLFormElement>, 'defaultValue' | 'autoSave'>) {
+    Omit<HTMLProps<HTMLFormElement>, 'defaultValue' | 'autoSave' | 'onSubmit'>) {
     const options: FormOptions<TDraft, TOriginal> = {
       defaultValue: { ...this.options.defaultValue, ...defaultValue },
       validations: { ...this.options.validations, ...validations } as Validations<
