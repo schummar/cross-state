@@ -154,7 +154,12 @@ function FormContainer({
         event.preventDefault();
 
         const isValid = formInstance.validate();
-        const errors = formInstance.getErrors();
+        const errors = new Map(
+          [...formInstance.getErrors().entries()].map(([field, errors]) => [
+            field,
+            errors.map((error) => formInstance.options.localizeError?.(error, field) ?? error),
+          ]),
+        );
 
         for (const element of Array.from(event.currentTarget.elements)) {
           if ('name' in element && 'setCustomValidity' in element) {
@@ -172,13 +177,7 @@ function FormContainer({
           (button instanceof HTMLButtonElement || button instanceof HTMLInputElement) &&
           button.setCustomValidity
         ) {
-          const errorString = [...errors.entries()]
-            .flatMap(([field, errors]) =>
-              errors.map((error) => {
-                return formInstance.options.localizeError?.(error, field) ?? error;
-              }),
-            )
-            .join('\n');
+          const errorString = [...errors.values()].flat().join('\n');
 
           button.setCustomValidity(errorString);
         }
