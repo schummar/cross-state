@@ -10,32 +10,31 @@ import {
   type WildcardValue,
 } from '@lib/path';
 import { get, join } from '@lib/propAccess';
+import type { Object_ } from '@lib/typeHelpers';
 import { getWildCardMatches } from '@lib/wildcardMatch';
 import {
   createContext,
   useContext,
   useEffect,
   useMemo,
+  type FormEvent,
   type HTMLProps,
   type ReactNode,
-  type FormEvent,
 } from 'react';
 import { useStore, type UseStoreOptions } from '../useStore';
-import {
-  FormForEach,
-  type ForEachPath,
-  type FormForEachProps,
-  type ElementName,
-} from './formForEach';
-import { FormError, type FormErrorProps } from './formError';
 import {
   FormField,
   type FormFieldComponent,
   type FormFieldPropsWithComponent,
   type FormFieldPropsWithRender,
 } from './formField';
+import {
+  FormForEach,
+  type ElementName,
+  type ForEachPath,
+  type FormForEachProps,
+} from './formForEach';
 import { useFormAutosave, type FormAutosaveOptions } from './useFormAutosave';
-import type { Object_ } from '@lib/typeHelpers';
 
 /// /////////////////////////////////////////////////////////////////////////////
 // Form types
@@ -141,7 +140,7 @@ function FormContainer({
   onSubmit?: (event: FormEvent<HTMLFormElement>, form: FormInstance<any, any>) => void;
 } & Omit<HTMLProps<HTMLFormElement>, 'form' | 'onSubmit'>) {
   const formInstance = form.useForm();
-  const errors = formInstance.getErrors();
+
   const hasTriggeredValidations = form.useFormState((state) => state.hasTriggeredValidations);
 
   return (
@@ -155,6 +154,15 @@ function FormContainer({
         event.preventDefault();
 
         const isValid = formInstance.validate();
+        const errors = formInstance.getErrors();
+
+        for (const element of Array.from(event.currentTarget.elements)) {
+          if ('name' in element && 'setCustomValidity' in element) {
+            (element as HTMLObjectElement).setCustomValidity(
+              errors.get((element as HTMLObjectElement).name)?.join('\n') ?? '',
+            );
+          }
+        }
 
         let button;
 
@@ -514,10 +522,6 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
 
   ForEach<TPath extends ForEachPath<TDraft>>(props: FormForEachProps<TDraft, TPath>) {
     return Reflect.apply(FormForEach, this, [props]);
-  }
-
-  Error<TPath extends PathAsString<TDraft>>({ name }: FormErrorProps<TDraft, TPath>) {
-    return Reflect.apply(FormError, this, [{ name }]);
   }
 }
 

@@ -1,3 +1,4 @@
+export { CustomInput, type CustomInputProps } from './customInput';
 export {
   Form,
   createForm,
@@ -11,5 +12,4 @@ export {
   type Validation,
   type Validations,
 } from './form';
-export { type FormErrorProps } from './formError';
 export { type FormFieldComponent, type FormFieldProps } from './formField';

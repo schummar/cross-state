@@ -12,7 +12,6 @@ import {
 import { type Form } from './form';
 
 export interface FormFieldComponentProps<TValue, TPath> {
-  id: string;
   name: TPath;
   value: TValue;
   onChange: (event: { target: { value: TValue } } | TValue | undefined, ...args: any[]) => void;
@@ -99,21 +98,9 @@ export function FormField<
     | FormFieldPropsWithComponent<TDraft, TPath, TComponent>,
 ) {
   type T = FieldChangeValue<TComponent>;
-  const id = '';
 
-  const { options } = this.useForm();
-  const { value, setValue, errors } = this.useField(name);
-  const errorString = errors
-    .map((error) => options.localizeError?.(error, name) ?? error)
-    .join('\n');
-
+  const { value, setValue } = this.useField(name);
   const [localValue, setLocalValue] = useState<T>();
-  const _id = useMemo(
-    () =>
-      id || `f${Math.random().toString(36).slice(2, 15)}${Math.random().toString(36).slice(2, 15)}`,
-
-    [id],
-  );
 
   useEffect(() => {
     if (localValue === undefined || !commitDebounce) {
@@ -128,27 +115,8 @@ export function FormField<
     return () => clearTimeout(timeout);
   }, [localValue, commitDebounce]);
 
-  useEffect(() => {
-    const element = document.querySelector(
-      [`#${_id} input`, `#${_id} select`, `#${_id} textarea`, `#${_id}`].join(','),
-    );
-
-    if (
-      !(
-        element instanceof HTMLInputElement ||
-        element instanceof HTMLSelectElement ||
-        element instanceof HTMLTextAreaElement
-      )
-    ) {
-      return;
-    }
-
-    element.setCustomValidity(errorString);
-  }, [_id, errorString]);
-
   const props = {
     ...restProps,
-    id: _id,
     name,
     value: localValue ?? serialize(value as Value<TDraft, TPath>),
     onChange: (event: { target: { value: T } } | T, ...moreArgs: any[]) => {
