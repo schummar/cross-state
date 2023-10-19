@@ -66,7 +66,13 @@ describe('form', () => {
         >
           <form.Field name="firstName" aria-label="first name" inputFilter={(x) => true} />
           <div data-testid="firstName-errors">
-            <form.Error name="firstName" />
+            <form.FormState
+              selector={(form) =>
+                form.hasTriggeredValidations ? form.errors.get('firstName') : undefined
+              }
+            >
+              {(errors) => errors?.join(',')}
+            </form.FormState>
           </div>
 
           <form.Field
@@ -75,7 +81,13 @@ describe('form', () => {
           />
 
           <div data-testid="lastName-errors">
-            <form.Error name="lastName" />
+            <form.FormState
+              selector={(form) =>
+                form.hasTriggeredValidations ? form.errors.get('lastName') : undefined
+              }
+            >
+              {(errors) => errors?.join(',')}
+            </form.FormState>
           </div>
 
           <form.Field name="age" component={CustomInput} additionalProp="" />
