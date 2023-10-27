@@ -1,9 +1,9 @@
-import { useEffect, useMemo } from 'react';
-import type { UseStoreOptions } from './useStore';
-import { useStore } from './useStore';
 import type { Cache } from '@core';
 import type { CacheState } from '@lib/cacheState';
 import { makeSelector } from '@lib/makeSelector';
+import { useEffect, useMemo } from 'react';
+import type { UseStoreOptions } from './useStore';
+import { useStore } from './useStore';
 
 export type UseCacheArray<T> = [
   value: T | undefined,
@@ -14,15 +14,19 @@ export type UseCacheArray<T> = [
 
 export type UseCacheValue<T> = UseCacheArray<T> & CacheState<T>;
 
-export interface UseCacheOptions extends UseStoreOptions {
+export interface UseCacheOptions<T> extends UseStoreOptions<UseCacheArray<T> & CacheState<T>> {
   passive?: boolean;
   updateOnMount?: boolean;
 }
 
 export function useCache<T>(
   cache: Cache<T>,
-  { passive, updateOnMount, ...options }: UseCacheOptions = {},
+  { passive, updateOnMount, withViewTransition, ...options }: UseCacheOptions<T> = {},
 ): UseCacheValue<T> {
+  if (withViewTransition === true) {
+    withViewTransition = (state) => state.value;
+  }
+
   const mappedState = useMemo(() => {
     const rootCache: Cache<any> = cache.derivedFromCache?.cache ?? cache;
     let selector = (x: any) => x;
@@ -54,5 +58,5 @@ export function useCache<T>(
     }
   }, []);
 
-  return useStore(mappedState, options);
+  return useStore(mappedState, { ...options, withViewTransition });
 }

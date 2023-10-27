@@ -34,12 +34,12 @@ export function useScope<T>(scope: Scope<T>): Store<T> {
   return useContext(context);
 }
 
-export function useScopeStore<T>(scope: Scope<T>, options?: UseStoreOptions): T {
+export function useScopeStore<T>(scope: Scope<T>, options?: UseStoreOptions<T>): T {
   const store = useScope(scope);
   return useStore(store, options);
 }
 
-export function useScopeProp<T>(scope: Scope<T>, options?: UseStoreOptions) {
+export function useScopeProp<T>(scope: Scope<T>, options?: UseStoreOptions<T>) {
   const store = useScope(scope);
   return useProp(store, options);
 }

@@ -325,7 +325,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
 
   useFormState<S>(
     selector: (state: FormInstance<TDraft, TOriginal>) => S,
-    useStoreOptions?: UseStoreOptions,
+    useStoreOptions?: UseStoreOptions<S>,
   ) {
     const form = this.useForm();
 
@@ -340,7 +340,10 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     );
   }
 
-  useField<TPath extends PathAsString<TDraft>>(path: TPath, useStoreOptions?: UseStoreOptions) {
+  useField<TPath extends PathAsString<TDraft>>(
+    path: TPath,
+    useStoreOptions?: UseStoreOptions<Field<TDraft, TOriginal, TPath>>,
+  ) {
     return this.useFormState((form) => form.getField(path), useStoreOptions);
   }
 

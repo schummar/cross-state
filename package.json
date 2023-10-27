@@ -193,7 +193,7 @@
     {
       "name": "react",
       "path": "dist/es/react/index.mjs",
-      "limit": "9 KB"
+      "limit": "10 KB"
     },
     {
       "name": "react: useStore",

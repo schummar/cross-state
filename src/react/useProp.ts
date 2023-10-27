@@ -8,18 +8,18 @@ export function useProp<T, S>(
   store: Store<T>,
   selector: Selector<T, S>,
   updater: (value: S) => Update<T>,
-  options?: UseStoreOptions,
+  options?: UseStoreOptions<S>,
 ): [value: S, setValue: Store<S>['set']];
 
 export function useProp<T, P extends Path<T>>(
   store: Store<T>,
   selector: P,
-  options?: UseStoreOptions,
+  options?: UseStoreOptions<Value<T, P>>,
 ): [value: Value<T, P>, setValue: Store<Value<T, P>>['set']];
 
 export function useProp<T>(
   store: Store<T>,
-  options?: UseStoreOptions,
+  options?: UseStoreOptions<T>,
 ): [value: T, setValue: Store<T>['set']];
 
 export function useProp<T, S>(

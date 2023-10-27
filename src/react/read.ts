@@ -1,8 +1,7 @@
-import { useCache } from './useCache';
-import type { UseStoreOptions } from './useStore';
 import type { Cache } from '@core';
+import { useCache, type UseCacheOptions } from './useCache';
 
-export function read<T>(cache: Cache<T>, options?: UseStoreOptions): T {
+export function read<T>(cache: Cache<T>, options?: UseCacheOptions<T>): T {
   const { status, value, error } = useCache(cache, options);
 
   if (status === 'value') {
