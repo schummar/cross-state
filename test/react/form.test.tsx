@@ -138,6 +138,8 @@ describe('form', () => {
     <form.Field name="age" component={CustomInput} />;
 
     <form.Field defaultValue="" name="optional" />;
+    <form.Field serialize={(x) => x ?? ''} name="optional" />;
+    <form.Field defaultValue="" serialize={(x) => x ?? ''} name="optional" />;
     // @ts-expect-error needs default value
     <form.Field name="optional" />;
 

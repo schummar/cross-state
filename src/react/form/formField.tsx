@@ -71,10 +71,20 @@ export type FormFieldPropsWithComponent<
     'onChange' | 'onBlur'
   > &
   (Value<TDraft, TPath> extends Exclude<FieldValue<TComponent>, undefined>
-    ? { defaultValue?: FieldValue<TComponent> }
-    : { defaultValue: FieldValue<TComponent> }) &
-  (Value<TDraft, TPath> extends FieldValue<TComponent>
-    ? { serialize?: (value: Value<TDraft, TPath>) => FieldValue<TComponent> }
+    ? {
+        defaultValue?: FieldValue<TComponent>;
+        serialize?: (value: Value<TDraft, TPath>) => FieldValue<TComponent>;
+      }
+    : Value<TDraft, TPath> extends FieldValue<TComponent>
+    ?
+        | {
+            defaultValue: FieldValue<TComponent>;
+            serialize?: (value: Value<TDraft, TPath>) => FieldValue<TComponent>;
+          }
+        | {
+            defaultValue?: FieldValue<TComponent>;
+            serialize: (value: Value<TDraft, TPath>) => FieldValue<TComponent>;
+          }
     : { serialize: (value: Value<TDraft, TPath>) => FieldValue<TComponent> }) &
   (FieldChangeValue<TComponent> extends Value<TDraft, TPath>
     ? { deserialize?: (value: FieldChangeValue<TComponent>) => Value<TDraft, TPath> }
