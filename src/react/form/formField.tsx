@@ -51,6 +51,7 @@ export type FormFieldPropsWithRender<TDraft, TPath extends PathAsString<TDraft>>
   component?: undefined;
   render: (props: FormFieldComponentProps<Value<TDraft, TPath>, TPath>) => ReactNode;
   inputFilter?: undefined;
+  defaultValue?: undefined;
   serialize?: undefined;
   deserialize?: undefined;
   onChange?: undefined;
@@ -66,9 +67,12 @@ export type FormFieldPropsWithComponent<
   render?: undefined;
   inputFilter?: (value: FieldChangeValue<TComponent>) => boolean;
 } & MakeOptional<
-    Omit<ComponentPropsWithoutRef<TComponent>, 'id' | 'name' | 'value'>,
+    Omit<ComponentPropsWithoutRef<TComponent>, 'id' | 'name' | 'value' | 'defaultValue'>,
     'onChange' | 'onBlur'
   > &
+  (Value<TDraft, TPath> extends Exclude<FieldValue<TComponent>, undefined>
+    ? { defaultValue?: FieldValue<TComponent> }
+    : { defaultValue: FieldValue<TComponent> }) &
   (Value<TDraft, TPath> extends FieldValue<TComponent>
     ? { serialize?: (value: Value<TDraft, TPath>) => FieldValue<TComponent> }
     : { serialize: (value: Value<TDraft, TPath>) => FieldValue<TComponent> }) &
@@ -90,7 +94,8 @@ export function FormField<
     commitDebounce,
     render,
     inputFilter,
-    serialize = (x) => x as FieldValue<TComponent>,
+    defaultValue,
+    serialize,
     deserialize = (x) => x as Value<TDraft, TPath>,
     ...restProps
   }:
@@ -118,7 +123,8 @@ export function FormField<
   const props = {
     ...restProps,
     name,
-    value: localValue ?? serialize(value as Value<TDraft, TPath>),
+    value:
+      localValue ?? (serialize ? serialize(value) : value !== undefined ? value : defaultValue),
     onChange: (event: { target: { value: T } } | T, ...moreArgs: any[]) => {
       const value =
         typeof event === 'object' && event !== null && 'target' in event

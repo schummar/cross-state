@@ -1,5 +1,5 @@
 import { TextInput as MantineTextInput, SegmentedControl } from '@mantine/core';
-import { TextField as MUITextField } from '@mui/material';
+import { TextField as MUITextField, TextField } from '@mui/material';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { forwardRef } from 'react';
 import { describe, expect, test } from 'vitest';
@@ -16,6 +16,8 @@ describe('form', () => {
       arr2: string[];
       type: 'a' | 'b';
       record: Record<string, { arr: { x: 1 }[] }>;
+      optional?: string;
+      nullish?: string | null;
     }>({
       defaultValue: {
         firstName: '',
@@ -90,7 +92,7 @@ describe('form', () => {
             </form.FormState>
           </div>
 
-          <form.Field name="age" component={CustomInput} additionalProp="" />
+          <form.Field name="age" defaultValue={0} component={CustomInput} additionalProp="" />
 
           <form.Field name="firstName" component={MUITextField} size="small" variant="standard" />
           <form.Field name="firstName" component={MantineTextInput} />
@@ -134,6 +136,10 @@ describe('form', () => {
 
     // @ts-expect-error needs additional props
     <form.Field name="age" component={CustomInput} />;
+
+    <form.Field defaultValue="" name="optional" />;
+    // @ts-expect-error needs default value
+    <form.Field name="optional" />;
 
     render(<Component />);
     const firstNameInput = screen.getByRole<HTMLInputElement>('textbox', { name: 'first name' });
