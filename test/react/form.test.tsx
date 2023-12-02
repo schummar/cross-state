@@ -1,4 +1,4 @@
-import { TextInput as MantineTextInput, SegmentedControl } from '@mantine/core';
+import { MantineProvider, TextInput as MantineTextInput, SegmentedControl } from '@mantine/core';
 import { TextField as MUITextField, TextField } from '@mui/material';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { forwardRef } from 'react';
@@ -141,7 +141,11 @@ describe('form', () => {
     // @ts-expect-error needs default value
     <form.Field name="optional" />;
 
-    render(<Component />);
+    render(
+      <MantineProvider>
+        <Component />
+      </MantineProvider>,
+    );
     const firstNameInput = screen.getByRole<HTMLInputElement>('textbox', { name: 'first name' });
     const firstNameErrors = screen.getByTestId('firstName-errors');
     const lastNameInput = screen.getByRole<HTMLInputElement>('textbox', { name: 'last name' });
