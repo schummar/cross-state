@@ -85,8 +85,8 @@ export type FieldHelperMethods<TDraft, TPath extends PathAsString<TDraft>> = {
   add: NonNullable<Value<TDraft, TPath>> extends readonly (infer T)[]
     ? (element: T) => void
     : NonNullable<Value<TDraft, TPath>> extends Record<infer K, infer V>
-    ? (key: K, value: V) => void
-    : never;
+      ? (key: K, value: V) => void
+      : never;
   remove: Value<TDraft, TPath> extends readonly any[]
     ? (index: number) => void
     : (key: string) => void;
@@ -153,6 +153,13 @@ function FormContainer({
       onSubmit={(event) => {
         event.preventDefault();
 
+        const formElement = event.currentTarget;
+        const buttonElement =
+          event.nativeEvent instanceof SubmitEvent &&
+          event.nativeEvent.submitter instanceof HTMLButtonElement
+            ? event.nativeEvent.submitter
+            : undefined;
+
         const isValid = formInstance.validate();
         const errors = new Map(
           [...formInstance.getErrors().entries()].map(([field, errors]) => [
@@ -161,7 +168,7 @@ function FormContainer({
           ]),
         );
 
-        for (const element of Array.from(event.currentTarget.elements)) {
+        for (const element of Array.from(formElement.elements)) {
           if ('name' in element && 'setCustomValidity' in element) {
             (element as HTMLObjectElement).setCustomValidity(
               errors.get((element as HTMLObjectElement).name)?.join('\n') ?? '',
@@ -169,20 +176,28 @@ function FormContainer({
           }
         }
 
-        let button;
-
-        if (
-          event.nativeEvent instanceof SubmitEvent &&
-          (button = event.nativeEvent.submitter) &&
-          (button instanceof HTMLButtonElement || button instanceof HTMLInputElement) &&
-          button.setCustomValidity
-        ) {
+        if (buttonElement && 'setCustomValidity' in buttonElement) {
           const errorString = [...errors.values()].flat().join('\n');
 
-          button.setCustomValidity(errorString);
+          buttonElement.setCustomValidity(errorString);
         }
 
-        event.currentTarget.reportValidity();
+        formElement.reportValidity();
+
+        function reset() {
+          for (const element of Array.from(formElement.elements)) {
+            if ('name' in element && 'setCustomValidity' in element) {
+              (element as HTMLObjectElement).setCustomValidity('');
+            }
+          }
+
+          if (buttonElement && 'setCustomValidity' in buttonElement) {
+            buttonElement.setCustomValidity('');
+          }
+
+          formElement.removeEventListener('input', reset);
+        }
+        formElement.addEventListener('input', reset);
 
         if (isValid) {
           formProps.onSubmit?.(event, {
