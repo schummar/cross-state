@@ -541,11 +541,14 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     return Reflect.apply(FormForEach, this, [props]);
   }
 
-  withForm<TProps extends Record<string, unknown>>(Component: React.ComponentType<TProps>) {
+  withForm<TProps extends Record<string, unknown>>(
+    Component: React.ComponentType<TProps>,
+    formProps?: Parameters<this['Form']>[0],
+  ) {
     const { Form } = this;
     return function FormWrapper(props: TProps) {
       return (
-        <Form>
+        <Form {...formProps}>
           <Component {...props} />
         </Form>
       );
