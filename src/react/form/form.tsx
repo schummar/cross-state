@@ -540,6 +540,17 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
   ForEach<TPath extends ForEachPath<TDraft>>(props: FormForEachProps<TDraft, TPath>) {
     return Reflect.apply(FormForEach, this, [props]);
   }
+
+  withForm<TProps extends Record<string, unknown>>(Component: React.ComponentType<TProps>) {
+    const { Form } = this;
+    return function FormWrapper(props: TProps) {
+      return (
+        <Form>
+          <Component {...props} />
+        </Form>
+      );
+    };
+  }
 }
 
 export function createForm<TDraft, TOriginal extends TDraft = TDraft>(
