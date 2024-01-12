@@ -1,3 +1,5 @@
+import { autobind } from '@lib/autobind';
+
 export class PromiseCancelError extends Error {
   constructor() {
     super('cancelled');
@@ -14,6 +16,7 @@ export class PromiseWithCancel<T> extends Promise<T> {
       signal: AbortSignal,
     ) => void,
   ) {
+    autobind(PromiseWithCancel);
     const abortController = new AbortController();
 
     super((resolve, reject) => {
