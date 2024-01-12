@@ -254,6 +254,41 @@ describe('static store', () => {
       value.cancel();
       await expect(value).rejects.toThrow('cancelled');
     });
+
+    test('store.once cancel with reason', async () => {
+      const state = createStore(0);
+      const value = state.once();
+
+      value.cancel('reason');
+      await expect(value).rejects.toThrow('reason');
+    });
+
+    test('store.once with signal', async () => {
+      const state = createStore(0);
+      const controller = new AbortController();
+      const value = state.once({ signal: controller.signal });
+
+      value.cancel();
+      await expect(value).rejects.toThrow('cancelled');
+    });
+
+    test('store.once with signal and reason', async () => {
+      const state = createStore(0);
+      const controller = new AbortController();
+      const value = state.once({ signal: controller.signal });
+
+      value.cancel('reason');
+      await expect(value).rejects.toThrow('reason');
+    });
+
+    test('store.once with timeout', async () => {
+      vi.useRealTimers();
+
+      const state = createStore(0);
+      const value = state.once({ timeout: { milliseconds: 1 } });
+
+      await expect(value).rejects.toThrow('timeout');
+    });
   });
 
   test('bug: subscribe fires too often for mapped store', () => {

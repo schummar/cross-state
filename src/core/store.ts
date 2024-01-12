@@ -52,6 +52,11 @@ type StoreWithMethods<T, Methods extends StoreMethods> = Store<T> &
   Omit<BoundStoreMethods<T, Methods>, keyof Store<T>> &
   StandardMethods<T>;
 
+export interface OnceOptions {
+  signal?: AbortSignal;
+  timeout?: Duration;
+}
+
 function noop() {
   return undefined;
 }
@@ -204,21 +209,34 @@ export class Store<T> extends Callable<any, any> {
     };
   }
 
-  once<S extends T>(condition: (value: T) => value is S): PromiseWithCancel<S>;
+  once<S extends T>(
+    condition: (value: T) => value is S,
+    options?: OnceOptions,
+  ): PromiseWithCancel<S>;
 
-  once(condition?: (value: T) => boolean): PromiseWithCancel<T>;
+  once(condition: (value: T) => boolean, options?: OnceOptions): PromiseWithCancel<T>;
 
-  once(condition: (value: T) => boolean = (value) => !!value): PromiseWithCancel<any> {
+  once(options?: OnceOptions): PromiseWithCancel<T>;
+
+  once(
+    ...args: [condition: (value: any) => boolean, options?: OnceOptions] | [options?: OnceOptions]
+  ): PromiseWithCancel<any> {
+    const condition = args[0] instanceof Function ? args[0] : Boolean;
+    const options = args[0] instanceof Function ? args[1] : args[0];
+
     return new PromiseWithCancel<T>((resolve, reject, signal) => {
       let stopped = false;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+
       const cancel = this.subscribe(
         (value) => {
-          if (stopped || (condition && !condition(value))) {
+          if (stopped || !condition(value)) {
             return;
           }
 
           resolve(value);
           stopped = true;
+          clearTimeout(timer);
           setTimeout(() => cancel());
         },
         {
@@ -226,7 +244,23 @@ export class Store<T> extends Callable<any, any> {
         },
       );
 
+      if (stopped) {
+        return;
+      }
+
       signal.addEventListener('abort', cancel);
+
+      options?.signal?.addEventListener('abort', () => {
+        cancel();
+        reject(options.signal?.reason ?? new Error('cancelled'));
+      });
+
+      if (options?.timeout !== undefined) {
+        timer = setTimeout(() => {
+          cancel();
+          reject(new Error('timeout'));
+        }, calcDuration(options.timeout));
+      }
     });
   }
 
