@@ -246,6 +246,14 @@ describe('static store', () => {
       state.set(2);
       await expect(value).resolves.toBe(2);
     });
+
+    test('store.once cancel', async () => {
+      const state = createStore(0);
+      const value = state.once();
+
+      value.cancel();
+      await expect(value).rejects.toThrow('cancelled');
+    });
   });
 
   test('bug: subscribe fires too often for mapped store', () => {

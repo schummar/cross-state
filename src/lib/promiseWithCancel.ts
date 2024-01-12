@@ -1,5 +1,11 @@
+export class PromiseCancelError extends Error {
+  constructor() {
+    super('cancelled');
+  }
+}
+
 export class PromiseWithCancel<T> extends Promise<T> {
-  private abortController = new AbortController();
+  private abortController;
 
   constructor(
     executor: (
@@ -8,9 +14,17 @@ export class PromiseWithCancel<T> extends Promise<T> {
       signal: AbortSignal,
     ) => void,
   ) {
+    const abortController = new AbortController();
+
     super((resolve, reject) => {
-      executor(resolve, reject, this.abortController.signal);
+      executor(resolve, reject, abortController.signal);
+
+      abortController.signal.addEventListener('abort', () => {
+        reject(new PromiseCancelError());
+      });
     });
+
+    this.abortController = abortController;
   }
 
   cancel() {

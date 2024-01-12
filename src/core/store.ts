@@ -226,10 +226,7 @@ export class Store<T> extends Callable<any, any> {
         },
       );
 
-      signal.addEventListener('abort', () => {
-        cancel();
-        reject(new Error('Aborted'));
-      });
+      signal.addEventListener('abort', cancel);
     });
   }
 
