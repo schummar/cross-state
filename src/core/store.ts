@@ -21,6 +21,7 @@ import type {
   Update,
   Use,
 } from './commonTypes';
+import { PromiseWithCancel } from '@lib/promiseWithCancel';
 
 export type StoreMethods = Record<string, (...args: any[]) => any>;
 
@@ -203,12 +204,12 @@ export class Store<T> extends Callable<any, any> {
     };
   }
 
-  once<S extends T>(condition: (value: T) => value is S): Promise<S>;
+  once<S extends T>(condition: (value: T) => value is S): PromiseWithCancel<S>;
 
-  once(condition?: (value: T) => boolean): Promise<T>;
+  once(condition?: (value: T) => boolean): PromiseWithCancel<T>;
 
-  once(condition: (value: T) => boolean = (value) => !!value): Promise<any> {
-    return new Promise<T>((resolve) => {
+  once(condition: (value: T) => boolean = (value) => !!value): PromiseWithCancel<any> {
+    return new PromiseWithCancel<T>((resolve, reject, signal) => {
       let stopped = false;
       const cancel = this.subscribe(
         (value) => {
@@ -224,6 +225,11 @@ export class Store<T> extends Callable<any, any> {
           runNow: !!condition,
         },
       );
+
+      signal.addEventListener('abort', () => {
+        cancel();
+        reject(new Error('Aborted'));
+      });
     });
   }
 
