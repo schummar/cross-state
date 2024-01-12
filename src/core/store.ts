@@ -40,12 +40,12 @@ export type Calculate<T> = (this: CalculationHelpers<T>, helpers: CalculationHel
 type StandardMethods<T> = T extends Map<any, any>
   ? typeof mapMethods
   : T extends Set<any>
-  ? typeof setMethods
-  : T extends Array<any>
-  ? typeof arrayMethods
-  : T extends Record<any, any>
-  ? typeof recordMethods
-  : Record<string, never>;
+    ? typeof setMethods
+    : T extends Array<any>
+      ? typeof arrayMethods
+      : T extends Record<any, any>
+        ? typeof recordMethods
+        : Record<string, never>;
 
 type StoreWithMethods<T, Methods extends StoreMethods> = Store<T> &
   Omit<BoundStoreMethods<T, Methods>, keyof Store<T>> &
@@ -135,7 +135,7 @@ export class Store<T> extends Callable<any, any> {
     this.notify();
   }
 
-  protected reset() {
+  reset() {
     this._value = undefined;
 
     if (this.isActive()) {
