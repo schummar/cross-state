@@ -384,6 +384,15 @@ describe('cache', () => {
         isUpdating: false,
       });
     });
+
+    test('mapValue throws', async () => {
+      const cache = createCache(async () => 1);
+      const mapped = cache.mapValue(() => {
+        throw new Error('mapValue throws');
+      });
+
+      await expect(() => mapped.get()).rejects.toThrow('mapValue throws');
+    });
   });
 
   describe('args', () => {

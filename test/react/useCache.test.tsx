@@ -162,5 +162,25 @@ describe('useCache', () => {
 
       expect(div.textContent).toBe('2');
     });
+
+    test('mapValue throws', async () => {
+      const cache = createCache(async () => 1);
+
+      const Component = vi.fn<[], any>(function Component() {
+        const [, error] = useCache(
+          cache.mapValue((value) => {
+            throw Error('mapValue throws');
+          }),
+        );
+
+        return <div data-testid="div">{error instanceof Error ? error.message : null}</div>;
+      });
+
+      render(<Component />);
+      const div = screen.getByTestId('div');
+
+      await act(() => flushPromises(2));
+      expect(div.textContent).toBe('mapValue throws');
+    });
   });
 });
