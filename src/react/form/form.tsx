@@ -416,7 +416,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
             hasTriggeredValidations,
             saveScheduled,
             saveInProgress,
-            hasChanges: !!draft && !deepEqual(draft, original),
+            hasChanges: !deepEqual(draft, original ?? options.defaultValue),
             errors,
             isValid: errors.size === 0,
           };
