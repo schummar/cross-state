@@ -4,6 +4,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { forwardRef } from 'react';
 import { describe, expect, test } from 'vitest';
 import { createForm } from '../../src/react';
+import type { Value } from '@index';
 
 describe('form', () => {
   test('create form', async () => {
@@ -17,6 +18,7 @@ describe('form', () => {
       type: 'a' | 'b';
       record: Record<string, { arr: { x: 1 }[] }>;
       optional?: string;
+      optionalNested?: { nested: string };
       nullish?: string | null;
     }>({
       defaultValue: {
@@ -142,6 +144,9 @@ describe('form', () => {
     <form.Field defaultValue="" serialize={(x) => x ?? ''} name="optional" />;
     // @ts-expect-error needs default value
     <form.Field name="optional" />;
+
+    // @ts-expect-error needs default value
+    <form.Field name="optionalNested.nested" />;
 
     render(
       <MantineProvider>

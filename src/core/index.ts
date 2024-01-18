@@ -22,4 +22,4 @@ export {
   type SubscriptionCacheFunction,
   type SubstriptionCacheOptions,
 } from './subscriptionCache';
-export { connectUrl, createUrlStore, type UrlStoreOptions } from './urlStore';
+export { connectUrl, createUrlStore, updateUrlStore, type UrlStoreOptions } from './urlStore';
