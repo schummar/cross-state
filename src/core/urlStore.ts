@@ -46,6 +46,10 @@ urlStore.addEffect(() => {
   };
 });
 
+export function updateUrlStore() {
+  urlStore.set(window.location.href);
+}
+
 export function connectUrl<T>(store: Store<T>, options: UrlStoreOptionsWithDefaults<T>): Cancel;
 
 export function connectUrl<T>(store: Store<T | undefined>, options: UrlStoreOptions<T>): Cancel;
