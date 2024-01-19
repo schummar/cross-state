@@ -18,11 +18,19 @@ export interface UseCacheOptions<T> extends UseStoreOptions<UseCacheArray<T> & C
   passive?: boolean;
   disabled?: boolean;
   updateOnMount?: boolean;
+  suspense?: boolean;
 }
 
 export function useCache<T>(
   cache: Cache<T>,
-  { passive, disabled, updateOnMount, withViewTransition, ...options }: UseCacheOptions<T> = {},
+  {
+    passive,
+    disabled,
+    updateOnMount,
+    withViewTransition,
+    suspense,
+    ...options
+  }: UseCacheOptions<T> = {},
 ): UseCacheValue<T> {
   if (withViewTransition === true) {
     withViewTransition = (state) => state.value;
@@ -79,5 +87,11 @@ export function useCache<T>(
     return cache.subscribe(() => undefined);
   }, [cache, passive, disabled]);
 
-  return useStore(mappedState, { ...options, withViewTransition });
+  const result = useStore(mappedState, { ...options, withViewTransition });
+
+  if (suspense && result.status === 'pending') {
+    throw cache.get();
+  }
+
+  return result;
 }
