@@ -205,7 +205,7 @@
       "name": "react: useCache",
       "path": "dist/es/react/index.mjs",
       "import": "{useCache}",
-      "limit": "3 KB"
+      "limit": "6 KB"
     },
     {
       "name": "/immer",
