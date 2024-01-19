@@ -4,6 +4,7 @@ import { makeSelector } from '@lib/makeSelector';
 import { useEffect, useMemo } from 'react';
 import type { UseStoreOptions } from './useStore';
 import { useStore } from './useStore';
+import { useLoadingBoundary } from '@react/loadingBoundary';
 
 export type UseCacheArray<T> = [
   value: T | undefined,
@@ -15,10 +16,36 @@ export type UseCacheArray<T> = [
 export type UseCacheValue<T> = UseCacheArray<T> & CacheState<T>;
 
 export interface UseCacheOptions<T> extends UseStoreOptions<UseCacheArray<T> & CacheState<T>> {
+  /**
+   * If true, the cache content can be consumed but no fetch will be triggered.
+   * @default false
+   */
   passive?: boolean;
+
+  /**
+   * If true, will always return undefined as value and no fetch will be triggered.
+   * @default false
+   */
   disabled?: boolean;
+
+  /**
+   * If true, the cache will be invalidated when the component mounts.
+   * @default false
+   */
   updateOnMount?: boolean;
+
+  /**
+   * If true, `useCache` will throw a promise when the cache is pending. This can be used with React Suspense.
+   * @see https://react.dev/reference/react/Suspense
+   * @default false
+   */
   suspense?: boolean;
+
+  /**
+   * If true, `useCache` will register its loading state with the nearest `LoadingBoundary`.
+   * @default true
+   */
+  loadingBoundary?: boolean;
 }
 
 export function useCache<T>(
@@ -29,6 +56,7 @@ export function useCache<T>(
     updateOnMount,
     withViewTransition,
     suspense,
+    loadingBoundary = true,
     ...options
   }: UseCacheOptions<T> = {},
 ): UseCacheValue<T> {
@@ -88,6 +116,8 @@ export function useCache<T>(
   }, [cache, passive, disabled]);
 
   const result = useStore(mappedState, { ...options, withViewTransition });
+
+  useLoadingBoundary(loadingBoundary && result.status === 'pending');
 
   if (suspense && result.status === 'pending') {
     throw cache.get();
