@@ -40,12 +40,18 @@ export function LoadingBoundary({
     ? typeof fallback === 'function'
       ? fallback([...entries])
       : fallback
-    : null;
+    : undefined;
 
   return (
     <ScopeProvider scope={LoadingBoundaryContext} store={store}>
-      {fallbackNode}
-      {isLoading ? <div style={{ display: 'none' }}>{children}</div> : children}
+      {fallbackNode !== undefined ? (
+        <>
+          {fallbackNode}
+          <div style={{ display: 'none' }}>{children}</div>
+        </>
+      ) : (
+        children
+      )}
     </ScopeProvider>
   );
 }

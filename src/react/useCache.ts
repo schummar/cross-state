@@ -117,7 +117,7 @@ export function useCache<T>(
 
   const result = useStore(mappedState, { ...options, withViewTransition });
 
-  useLoadingBoundary(loadingBoundary && result.status === 'pending');
+  useLoadingBoundary(loadingBoundary && !disabled && result.status === 'pending');
 
   if (suspense && result.status === 'pending') {
     throw cache.get();
