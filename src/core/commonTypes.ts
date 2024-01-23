@@ -54,6 +54,10 @@ export interface UpdateFunction<Value> {
   (update: Update<Value>): void;
 }
 
+export interface AsyncUpdateFunction<Value> {
+  (update: UpdateFrom<MaybePromise<Value>, [Value]>): void;
+}
+
 export interface Use {
   <T>(store: Store<T>): T;
 }
@@ -62,7 +66,7 @@ export type ConnectionState = 'connecting' | 'open' | 'closing' | 'closed';
 
 export interface CalculationHelpers<T> {
   use: Use;
-  updateValue: (update: UpdateFrom<MaybePromise<T>, [T]>) => void;
+  updateValue: AsyncUpdateFunction<T>;
   updateError: (error: unknown) => void;
   updateConnectionState: (state: ConnectionState) => void;
 }

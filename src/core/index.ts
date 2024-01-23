@@ -5,7 +5,19 @@ export {
   type CacheGetOptions,
   type CacheOptions,
 } from './cache';
-export type { Cancel, Duration, Effect, Listener, SubscribeOptions } from './commonTypes';
+export type {
+  Cancel,
+  Duration,
+  Effect,
+  Listener,
+  SubscribeOptions,
+  AsyncUpdateFunction,
+  ConnectionState,
+  Selector,
+  Update,
+  UpdateFrom,
+  UpdateFunction,
+} from './commonTypes';
 export { ResourceGroup, allResources, createResourceGroup, type Resource } from './resourceGroup';
 export { Scope, createScope } from './scope';
 export {
