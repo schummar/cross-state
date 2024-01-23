@@ -17,6 +17,8 @@ export type {
   Update,
   UpdateFrom,
   UpdateFunction,
+  CalculationHelpers,
+  Use,
 } from './commonTypes';
 export { ResourceGroup, allResources, createResourceGroup, type Resource } from './resourceGroup';
 export { Scope, createScope } from './scope';
