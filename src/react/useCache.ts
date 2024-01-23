@@ -64,7 +64,7 @@ export function useCache<T>(
     withViewTransition = (state) => state.value;
   }
 
-  const mappedState = useMemo(() => {
+  const { rootCache, selector } = useMemo(() => {
     const rootCache: Cache<any> = cache.derivedFromCache?.cache ?? cache;
     let selector = (x: any) => x;
 
@@ -77,7 +77,26 @@ export function useCache<T>(
       };
     }
 
-    return rootCache.state.map((state) => {
+    return { rootCache, selector };
+  }, [cache]);
+
+  useEffect(() => {
+    if (updateOnMount) {
+      rootCache.invalidate();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (passive || disabled) {
+      return;
+    }
+
+    return rootCache.subscribe(() => undefined);
+  }, [rootCache, passive, disabled]);
+
+  const result = useStore(
+    rootCache.state,
+    (state) => {
       if (disabled) {
         return Object.assign<UseCacheArray<T>, CacheState<T>>(
           [undefined, undefined, false, false],
@@ -98,29 +117,14 @@ export function useCache<T>(
           { status: 'error', error, isUpdating: state.isUpdating, isStale: state.isStale },
         );
       }
-    });
-  }, [cache]);
-
-  useEffect(() => {
-    if (updateOnMount) {
-      cache.invalidate();
-    }
-  }, []);
-
-  useEffect(() => {
-    if (passive || disabled) {
-      return;
-    }
-
-    return cache.subscribe(() => undefined);
-  }, [cache, passive, disabled]);
-
-  const result = useStore(mappedState, { ...options, withViewTransition });
+    },
+    { ...options, withViewTransition },
+  );
 
   useLoadingBoundary(loadingBoundary && !disabled && result.status === 'pending');
 
   if (suspense && result.status === 'pending') {
-    throw cache.get();
+    throw rootCache.get();
   }
 
   return result;
