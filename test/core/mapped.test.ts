@@ -100,7 +100,7 @@ describe('mapped', () => {
     const mapped = state.map((s) => s.x);
 
     expect(() => mapped.set(2)).toThrowErrorMatchingInlineSnapshot(
-      '"Can only update computed stores that either are derived from other stores using string selectors or have an updater function."',
+      `[TypeError: Can only update computed stores that either are derived from other stores using string selectors or have an updater function.]`,
     );
   });
 
