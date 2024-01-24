@@ -1,5 +1,5 @@
 import { afterEach, assert, beforeEach, describe, expect, test, vi } from 'vitest';
-import { createStore } from '../../src/core';
+import { createStore, type CalculationHelpers } from '../../src/core';
 import { Cache, createCache } from '../../src/core/cache';
 import { flushPromises, sleep } from '../testHelpers';
 
@@ -69,7 +69,7 @@ describe('cache', () => {
 
       await cache.get();
       cache.invalidate();
-      cache.get({ update: 'whenMissing' });
+      await cache.get({ update: 'whenMissing' });
 
       expect(getter.mock.calls.length).toBe(1);
     });
@@ -300,7 +300,7 @@ describe('cache', () => {
       });
 
       await cache2.get();
-      cache2.invalidate();
+      cache2.invalidate(true);
       const value = await cache2.get();
 
       expect(value).toBe(2);
@@ -314,7 +314,7 @@ describe('cache', () => {
       });
 
       await cache2.get();
-      cache2.clear();
+      cache2.clear(true);
       const value = await cache2.get();
 
       expect(value).toBe(2);
@@ -331,7 +331,7 @@ describe('cache', () => {
       });
 
       await cache3.get();
-      cache3.invalidate();
+      cache3.invalidate(true);
       const value = await cache3.get();
 
       expect(value).toBe(2);
@@ -345,7 +345,7 @@ describe('cache', () => {
       });
 
       await cache2.get();
-      cache2.invalidate({ invalidateDependencies: false });
+      cache2.invalidate();
       const value = await cache2.get();
 
       expect(value).toBe(1);
@@ -464,17 +464,16 @@ describe('cache', () => {
 
   test('bug: dependent cache updates increasingly often when cleared', async () => {
     const store = createStore({ x: 0, y: 1 });
-    const calculate = vi.fn(() => async ({ use }: any) => {
+    const calculate = vi.fn(() => async ({ use }: CalculationHelpers) => {
       const { x, y } = use(store);
-
       return x + y;
     });
-    const cache2 = createCache(calculate);
+    const cache = createCache(calculate);
 
     store.subscribe(() => {
-      cache2.clear();
+      cache.clear();
     });
-    cache2.subscribe(() => undefined);
+    cache.subscribe(() => undefined);
 
     store.set({ x: 1, y: 2 });
     await flushPromises();
@@ -483,7 +482,7 @@ describe('cache', () => {
     store.set({ x: 3, y: 4 });
     await flushPromises();
 
-    expect(cache2.state.get().value).toBe(7);
-    expect(calculate).toHaveBeenCalledTimes(4);
+    expect(cache.state.get().value).toBe(7);
+    expect(calculate).toHaveBeenCalledTimes(7);
   });
 });

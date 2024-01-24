@@ -108,7 +108,7 @@ describe('static store', () => {
       state.subscribe(listener, { runNow: false });
 
       state.set(2);
-      expect(listener.mock.calls).toMatchObject([[2, undefined]]);
+      expect(listener.mock.calls).toMatchObject([[2, 1]]);
     });
 
     test('store.subscribe throttle', async () => {

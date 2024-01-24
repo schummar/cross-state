@@ -64,9 +64,9 @@ export interface Use {
 
 export type ConnectionState = 'connecting' | 'open' | 'closing' | 'closed';
 
-export interface CalculationHelpers<T> {
+export interface CalculationHelpers {
   use: Use;
-  updateValue: AsyncUpdateFunction<T>;
-  updateError: (error: unknown) => void;
-  updateConnectionState: (state: ConnectionState) => void;
+  // updateValue: AsyncUpdateFunction<T>;
+  // updateError: (error: unknown) => void;
+  // updateConnectionState: (state: ConnectionState) => void;
 }

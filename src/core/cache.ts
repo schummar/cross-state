@@ -1,14 +1,15 @@
-import type { Duration, Selector, Use } from './commonTypes';
-import { allResources, type ResourceGroup } from './resourceGroup';
-import { Store, createStore } from './store';
 import { autobind } from '@lib/autobind';
 import type { CacheState, ErrorState, ValueState } from '@lib/cacheState';
 import { calcDuration } from '@lib/calcDuration';
+import { calculatedValue } from '@lib/calculatedValue';
 import { InstanceCache } from '@lib/instanceCache';
 import { makeSelector } from '@lib/makeSelector';
 import { type MaybePromise } from '@lib/maybePromise';
 import type { Path, Value } from '@lib/path';
 import { PromiseWithState } from '@lib/promiseWithState';
+import type { CalculationHelpers, Duration, Selector } from './commonTypes';
+import { allResources, type ResourceGroup } from './resourceGroup';
+import { Store, createStore, type Calculate } from './store';
 
 export interface CacheGetOptions {
   update?: 'whenMissing' | 'whenStale' | 'force';
@@ -16,7 +17,7 @@ export interface CacheGetOptions {
 }
 
 export interface CacheFunction<T, Args extends any[] = []> {
-  (this: { use: Use }, ...args: Args): Promise<T> | ((cache: { use: Use }) => Promise<T>);
+  (this: CalculationHelpers, ...args: Args): Promise<T> | Calculate<Promise<T>>;
 }
 
 export interface CacheOptions<T> {
@@ -41,7 +42,7 @@ export class Cache<T> extends Store<Promise<T>> {
   protected invalidationTimer?: ReturnType<typeof setTimeout>;
 
   constructor(
-    getter: CacheFunction<T>,
+    getter: Calculate<Promise<T>>,
     public readonly options: CacheOptions<T> = {},
     public readonly derivedFromCache?: {
       cache: Cache<any>;
@@ -49,30 +50,15 @@ export class Cache<T> extends Store<Promise<T>> {
     },
     _call?: (...args: any[]) => any,
   ) {
-    super(
-      function () {
-        let result = getter.apply(this);
-
-        if (result instanceof Function) {
-          result = result(this);
-        }
-
-        return result;
-      },
-      options,
-      undefined,
-      _call,
-    );
+    super(getter, options, undefined, _call);
     autobind(Cache);
 
-    this.calculationHelper.options.onInvalidate = () =>
-      this.invalidate({ invalidateDependencies: false });
     this.watchPromise();
     this.watchFocus();
   }
 
   get({ update = 'whenStale', backgroundUpdate = false }: CacheGetOptions = {}) {
-    const promise = this._value?.v;
+    const promise = this.calculatedValue?.value;
     const stalePromise = this.stalePromise;
 
     if (
@@ -80,7 +66,9 @@ export class Cache<T> extends Store<Promise<T>> {
       (update === 'whenStale' && !promise) ||
       update === 'force'
     ) {
-      this.calculationHelper.execute();
+      this.calculatedValue?.stop();
+      this.calculatedValue = calculatedValue(this);
+      this.notify();
 
       if ((!promise && !stalePromise) || !backgroundUpdate) {
         return super.get();
@@ -102,20 +90,16 @@ export class Cache<T> extends Store<Promise<T>> {
     this.set(PromiseWithState.reject(error));
   }
 
-  invalidate({ invalidateDependencies = true }: { invalidateDependencies?: boolean } = {}) {
+  invalidate(recursive?: boolean) {
     const { clearOnInvalidate = createCache.defaultOptions.clearOnInvalidate } = this.options;
 
     if (clearOnInvalidate) {
-      return this.clear({ invalidateDependencies });
-    }
-
-    if (invalidateDependencies) {
-      this.calculationHelper.invalidateDependencies();
+      return this.clear(recursive);
     }
 
     const { status, isStale, isUpdating } = this.state.get();
     if (status !== 'pending' && !isStale && !isUpdating) {
-      this.stalePromise = this._value?.v;
+      this.stalePromise = this.calculatedValue?.value;
     }
 
     this.state.set((state) => ({
@@ -124,15 +108,10 @@ export class Cache<T> extends Store<Promise<T>> {
       isUpdating: false,
     }));
 
-    this.calculationHelper.stop();
-    super.reset();
+    super.invalidate(recursive);
   }
 
-  clear({ invalidateDependencies = true }: { invalidateDependencies?: boolean } = {}): void {
-    if (invalidateDependencies) {
-      this.calculationHelper.invalidateDependencies();
-    }
-
+  clear(recursive?: boolean): void {
     this.state.set({
       status: 'pending',
       isStale: true,
@@ -140,8 +119,7 @@ export class Cache<T> extends Store<Promise<T>> {
     });
     delete this.stalePromise;
 
-    this.calculationHelper.stop();
-    super.reset();
+    super.invalidate(recursive);
   }
 
   mapValue<S>(selector: Selector<T, S>): Cache<S>;
@@ -156,11 +134,10 @@ export class Cache<T> extends Store<Promise<T>> {
         ? [...this.derivedFromCache.selectors, _selector]
         : [_selector],
     };
-    const that = this;
 
     return new Cache(
-      async function () {
-        const value = await this.use(that);
+      async ({ use }) => {
+        const value = await use(this);
         return selector(value);
       },
       {},
@@ -193,7 +170,7 @@ export class Cache<T> extends Store<Promise<T>> {
         try {
           const value = await promise;
 
-          if (promise !== this._value?.v) {
+          if (promise !== this.calculatedValue?.value) {
             return;
           }
 
@@ -206,7 +183,7 @@ export class Cache<T> extends Store<Promise<T>> {
           delete this.stalePromise;
           this.setTimers();
         } catch (error) {
-          if (promise !== this._value?.v) {
+          if (promise !== this.calculatedValue?.value) {
             return;
           }
 
@@ -301,8 +278,14 @@ function create<T, Args extends any[]>(
         return baseInstance;
       }
 
-      return new Cache(function () {
-        return cacheFunction.apply(this, args);
+      return new Cache((helpers) => {
+        const result = cacheFunction.apply(helpers, args);
+
+        if (result instanceof Function) {
+          return result(helpers);
+        }
+
+        return result;
       }, options);
     },
     clearUnusedAfter ? calcDuration(clearUnusedAfter) : undefined,
@@ -326,8 +309,14 @@ function create<T, Args extends any[]>(
 
   baseInstance = Object.assign(
     new Cache(
-      function () {
-        return cacheFunction.apply(this);
+      (helpers) => {
+        const result = cacheFunction.apply(helpers);
+
+        if (result instanceof Function) {
+          return result(helpers);
+        }
+
+        return result;
       },
       options,
       undefined,
@@ -342,8 +331,8 @@ function create<T, Args extends any[]>(
   const groups = Array.isArray(resourceGroup)
     ? resourceGroup
     : resourceGroup
-    ? [resourceGroup]
-    : [];
+      ? [resourceGroup]
+      : [];
   for (const group of groups.concat(allResources)) {
     group.add(baseInstance);
   }

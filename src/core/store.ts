@@ -1,12 +1,13 @@
 import { autobind } from '@lib/autobind';
 import { calcDuration } from '@lib/calcDuration';
-import { CalculationHelper } from '@lib/calculationHelper';
+import { calculatedValue, staticValue, type CalculatedValue } from '@lib/calculatedValue';
 import { Callable } from '@lib/callable';
 import { debounce } from '@lib/debounce';
 import { deepEqual } from '@lib/equals';
 import { forwardError } from '@lib/forwardError';
 import { makeSelector } from '@lib/makeSelector';
 import type { Path, Value } from '@lib/path';
+import { PromiseWithCancel } from '@lib/promiseWithCancel';
 import { get, set } from '@lib/propAccess';
 import { arrayMethods, mapMethods, recordMethods, setMethods } from '@lib/standardMethods';
 import { throttle } from '@lib/throttle';
@@ -19,9 +20,7 @@ import type {
   Selector,
   SubscribeOptions,
   Update,
-  Use,
 } from './commonTypes';
-import { PromiseWithCancel } from '@lib/promiseWithCancel';
 
 export type StoreMethods = Record<string, (...args: any[]) => any>;
 
@@ -36,7 +35,7 @@ export interface StoreOptionsWithMethods<T, Methods extends StoreMethods> extend
   methods?: Methods & ThisType<Store<T> & Methods & StandardMethods<T>>;
 }
 
-export type Calculate<T> = (this: CalculationHelpers<T>, helpers: CalculationHelpers<T>) => T;
+export type Calculate<T> = (helpers: CalculationHelpers) => T;
 
 type StandardMethods<T> = T extends Map<any, any>
   ? typeof mapMethods
@@ -62,7 +61,7 @@ function noop() {
 }
 
 export class Store<T> extends Callable<any, any> {
-  protected _value?: { v: T };
+  protected calculatedValue?: CalculatedValue<T>;
 
   protected listeners = new Map<Listener, boolean>();
 
@@ -72,19 +71,6 @@ export class Store<T> extends Callable<any, any> {
   >();
 
   protected notifyId = {};
-
-  protected calculationHelper = new CalculationHelper<T>({
-    calculate: (helpers) => {
-      if (this.getter instanceof Function) {
-        const value = this.getter.apply(helpers, [helpers]);
-        this._value = { v: value };
-        this.notify();
-      }
-    },
-    addEffect: (effect) => this.addEffect(effect, this.options.retain),
-    getValue: () => this._value?.v as T,
-    onInvalidate: () => this.reset(),
-  });
 
   constructor(
     public readonly getter: T | Calculate<T>,
@@ -98,21 +84,16 @@ export class Store<T> extends Callable<any, any> {
   ) {
     super(_call);
     autobind(Store);
-
-    if (!(getter instanceof Function)) {
-      this._value = { v: getter };
-    }
   }
 
   get(): T {
-    this.calculationHelper.check();
+    this.calculatedValue?.check();
 
-    if (!this._value) {
-      this.calculationHelper.execute();
-      return this.get();
+    if (!this.calculatedValue) {
+      this.calculatedValue = calculatedValue(this);
     }
 
-    return this._value.v;
+    return this.calculatedValue.value;
   }
 
   set(update: Update<T>): void;
@@ -137,16 +118,19 @@ export class Store<T> extends Callable<any, any> {
       return;
     }
 
-    this._value = { v: update };
+    this.calculatedValue?.stop();
+    this.calculatedValue = staticValue(update);
     this.notify();
   }
 
-  reset() {
-    this._value = undefined;
-
-    if (this.isActive()) {
-      this.calculationHelper.execute();
+  invalidate(recursive?: boolean) {
+    if (recursive) {
+      this.calculatedValue?.invalidateDependencies(recursive);
     }
+
+    this.calculatedValue?.stop();
+    this.calculatedValue = undefined;
+    this.notify();
   }
 
   subscribe(listener: Listener<T>, options?: SubscribeOptions): Cancel {
@@ -158,27 +142,24 @@ export class Store<T> extends Callable<any, any> {
       equals = deepEqual,
     } = options ?? {};
 
-    let compareToValue = this._value?.v;
-    let previousValue: T | undefined;
-    let isInitializing = true;
+    let previousValue: { value: T } | undefined;
 
-    let innerListener = (force?: boolean | void) => {
-      if (!this._value) {
+    let innerListener = () => {
+      const value = passive ? this.calculatedValue : { value: this.get() };
+
+      if (!value) {
         return;
       }
 
-      const value = this._value.v;
-
-      if (!force && (isInitializing || equals(value, compareToValue))) {
+      if (previousValue && equals(value.value, previousValue.value)) {
         return;
       }
 
-      compareToValue = value;
-      const _previousValue = previousValue;
-      previousValue = value;
+      const _previousValue = previousValue?.value;
+      previousValue = this.calculatedValue;
 
       try {
-        listener(value, _previousValue);
+        listener(value.value, _previousValue);
       } catch (error) {
         forwardError(error);
       }
@@ -196,10 +177,10 @@ export class Store<T> extends Callable<any, any> {
     }
 
     if (runNow) {
-      innerListener(true);
+      innerListener();
+    } else {
+      previousValue = passive ? this.calculatedValue : { value: this.get() };
     }
-
-    isInitializing = false;
 
     return () => {
       this.listeners.delete(innerListener);
@@ -414,16 +395,13 @@ export class Store<T> extends Callable<any, any> {
 
 const defaultOptions: StoreOptions = {};
 
-function create<T>(
-  calculate: (this: { use: Use }, fns: { use: Use }) => T,
-  options?: StoreOptions,
-): Store<T>;
+function create<T>(calculate: Calculate<T>, options?: StoreOptions): Store<T>;
 function create<T, Methods extends StoreMethods = {}>(
   initialState: T,
   options?: StoreOptionsWithMethods<T, Methods>,
 ): StoreWithMethods<T, Methods>;
 function create<T, Methods extends StoreMethods>(
-  initialState: T | ((this: { use: Use }, fns: { use: Use }) => T),
+  initialState: T | Calculate<T>,
   options?: StoreOptionsWithMethods<T, Methods>,
 ): StoreWithMethods<T, Methods> | Store<T> {
   const store = new Store(initialState, options);

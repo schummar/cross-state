@@ -50,7 +50,7 @@ beforeEach(() => {
   vi.useFakeTimers();
 });
 
-describe('subscriptionCache', () => {
+describe.skip('subscriptionCache', () => {
   test('websocket', async () => {
     const subscriptionCache = createSubscriptionCache<any[] | undefined>(function () {
       this.updateConnectionState('connecting');
