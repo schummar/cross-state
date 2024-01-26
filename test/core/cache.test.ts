@@ -98,7 +98,7 @@ describe('cache', () => {
       expect(promise1).toBe(promise2);
     });
 
-    test.only('with error', async () => {
+    test('with error', async () => {
       const cache = createCache(async () => {
         throw new Error('error');
       });
@@ -117,6 +117,7 @@ describe('cache', () => {
         value: 2,
         isStale: false,
         isUpdating: false,
+        isConnected: false,
       });
     });
   });
@@ -142,6 +143,7 @@ describe('cache', () => {
       value: 1,
       isStale: true,
       isUpdating: false,
+      isConnected: false,
     });
 
     const promise2 = cache.get();
@@ -151,6 +153,7 @@ describe('cache', () => {
       value: 1,
       isStale: true,
       isUpdating: true,
+      isConnected: false,
     });
     expect(promise1).not.toBe(promise2);
 
@@ -161,6 +164,7 @@ describe('cache', () => {
       value: 2,
       isStale: false,
       isUpdating: false,
+      isConnected: false,
     });
   });
 
@@ -174,6 +178,7 @@ describe('cache', () => {
       status: 'pending',
       isStale: true,
       isUpdating: false,
+      isConnected: false,
     });
 
     const promise2 = cache.get();
@@ -182,6 +187,7 @@ describe('cache', () => {
       status: 'pending',
       isStale: true,
       isUpdating: true,
+      isConnected: false,
     });
     expect(promise1).not.toBe(promise2);
 
@@ -192,6 +198,7 @@ describe('cache', () => {
       value: 2,
       isStale: false,
       isUpdating: false,
+      isConnected: false,
     });
   });
 
@@ -382,6 +389,7 @@ describe('cache', () => {
         value,
         isStale: false,
         isUpdating: false,
+        isConnected: false,
       });
     });
 
