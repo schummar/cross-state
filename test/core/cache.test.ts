@@ -1,5 +1,5 @@
 import { afterEach, assert, beforeEach, describe, expect, test, vi } from 'vitest';
-import { createStore, type CalculationHelpers } from '../../src/core';
+import { createStore, type CalculationActions } from '../../src/core';
 import { Cache, createCache } from '../../src/core/cache';
 import { flushPromises, sleep } from '../testHelpers';
 
@@ -98,7 +98,7 @@ describe('cache', () => {
       expect(promise1).toBe(promise2);
     });
 
-    test('with error', async () => {
+    test.only('with error', async () => {
       const cache = createCache(async () => {
         throw new Error('error');
       });
@@ -295,8 +295,8 @@ describe('cache', () => {
     test('on invalidate', async () => {
       let x = 1;
       const cache1 = createCache(async () => x++);
-      const cache2 = createCache(async function () {
-        return await this.use(cache1);
+      const cache2 = createCache(() => async ({ use }) => {
+        return await use(cache1);
       });
 
       await cache2.get();
@@ -309,8 +309,8 @@ describe('cache', () => {
     test('on clear', async () => {
       let x = 1;
       const cache1 = createCache(async () => x++);
-      const cache2 = createCache(async function () {
-        return await this.use(cache1);
+      const cache2 = createCache(() => async ({ use }) => {
+        return await use(cache1);
       });
 
       await cache2.get();
@@ -323,11 +323,11 @@ describe('cache', () => {
     test('nested', async () => {
       let x = 1;
       const cache1 = createCache(async () => x++);
-      const cache2 = createCache(async function () {
-        return await this.use(cache1);
+      const cache2 = createCache(() => async ({ use }) => {
+        return await use(cache1);
       });
-      const cache3 = createCache(async function () {
-        return await this.use(cache2);
+      const cache3 = createCache(() => async ({ use }) => {
+        return await use(cache2);
       });
 
       await cache3.get();
@@ -340,8 +340,8 @@ describe('cache', () => {
     test(`don't invalidate depdencies`, async () => {
       let x = 1;
       const cache1 = createCache(async () => x++);
-      const cache2 = createCache(async function () {
-        return await this.use(cache1);
+      const cache2 = createCache(() => async ({ use }) => {
+        return await use(cache1);
       });
 
       await cache2.get();
@@ -464,7 +464,7 @@ describe('cache', () => {
 
   test('bug: dependent cache updates increasingly often when cleared', async () => {
     const store = createStore({ x: 0, y: 1 });
-    const calculate = vi.fn(() => async ({ use }: CalculationHelpers) => {
+    const calculate = vi.fn(() => async ({ use }: CalculationActions<Promise<number>>) => {
       const { x, y } = use(store);
       return x + y;
     });

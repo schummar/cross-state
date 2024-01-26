@@ -100,7 +100,7 @@ export function useCache<T>(
       if (disabled) {
         return Object.assign<UseCacheArray<T>, CacheState<T>>(
           [undefined, undefined, false, false],
-          { status: 'pending', isUpdating: false, isStale: false },
+          { status: 'pending', isUpdating: false, isStale: false, isConnected: false },
         );
       }
 
@@ -114,7 +114,13 @@ export function useCache<T>(
       } catch (error) {
         return Object.assign<UseCacheArray<T>, CacheState<T>>(
           [undefined, error, state.isUpdating, state.isStale],
-          { status: 'error', error, isUpdating: state.isUpdating, isStale: state.isStale },
+          {
+            status: 'error',
+            error,
+            isUpdating: state.isUpdating,
+            isStale: state.isStale,
+            isConnected: state.isConnected,
+          },
         );
       }
     },

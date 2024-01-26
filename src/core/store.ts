@@ -12,7 +12,7 @@ import { get, set } from '@lib/propAccess';
 import { arrayMethods, mapMethods, recordMethods, setMethods } from '@lib/standardMethods';
 import { throttle } from '@lib/throttle';
 import type {
-  CalculationHelpers,
+  CalculationActions,
   Cancel,
   Duration,
   Effect,
@@ -35,17 +35,18 @@ export interface StoreOptionsWithMethods<T, Methods extends StoreMethods> extend
   methods?: Methods & ThisType<Store<T> & Methods & StandardMethods<T>>;
 }
 
-export type Calculate<T> = (helpers: CalculationHelpers) => T;
+export type Calculate<T> = (helpers: CalculationActions<T>) => T;
 
-type StandardMethods<T> = T extends Map<any, any>
-  ? typeof mapMethods
-  : T extends Set<any>
-    ? typeof setMethods
-    : T extends Array<any>
-      ? typeof arrayMethods
-      : T extends Record<any, any>
-        ? typeof recordMethods
-        : Record<string, never>;
+type StandardMethods<T> =
+  T extends Map<any, any>
+    ? typeof mapMethods
+    : T extends Set<any>
+      ? typeof setMethods
+      : T extends Array<any>
+        ? typeof arrayMethods
+        : T extends Record<any, any>
+          ? typeof recordMethods
+          : Record<string, never>;
 
 type StoreWithMethods<T, Methods extends StoreMethods> = Store<T> &
   Omit<BoundStoreMethods<T, Methods>, keyof Store<T>> &
@@ -90,7 +91,7 @@ export class Store<T> extends Callable<any, any> {
     this.calculatedValue?.check();
 
     if (!this.calculatedValue) {
-      this.calculatedValue = calculatedValue(this);
+      this.calculatedValue = calculatedValue(this, this.notify);
     }
 
     return this.calculatedValue.value;
@@ -156,7 +157,7 @@ export class Store<T> extends Callable<any, any> {
       }
 
       const _previousValue = previousValue?.value;
-      previousValue = this.calculatedValue;
+      previousValue = this.calculatedValue && { value: this.calculatedValue?.value };
 
       try {
         listener(value.value, _previousValue);
@@ -179,7 +180,9 @@ export class Store<T> extends Callable<any, any> {
     if (runNow) {
       innerListener();
     } else {
-      previousValue = passive ? this.calculatedValue : { value: this.get() };
+      previousValue = passive
+        ? this.calculatedValue && { value: this.calculatedValue.value }
+        : { value: this.get() };
     }
 
     return () => {
@@ -301,7 +304,7 @@ export class Store<T> extends Callable<any, any> {
    * @returns
    * The effect can return a teardown callback, which will be executed when the last subscription is removed and potentially the ratain time has passed.
    */
-  addEffect(effect: Effect, retain?: Duration) {
+  addEffect(effect: Effect, retain = this.options.retain) {
     this.effects.set(effect, {
       handle: this.isActive() ? effect() ?? noop : undefined,
       retain: retain !== undefined ? calcDuration(retain) : undefined,
@@ -393,8 +396,6 @@ export class Store<T> extends Callable<any, any> {
   }
 }
 
-const defaultOptions: StoreOptions = {};
-
 function create<T>(calculate: Calculate<T>, options?: StoreOptions): Store<T>;
 function create<T, Methods extends StoreMethods = {}>(
   initialState: T,
@@ -404,6 +405,8 @@ function create<T, Methods extends StoreMethods>(
   initialState: T | Calculate<T>,
   options?: StoreOptionsWithMethods<T, Methods>,
 ): StoreWithMethods<T, Methods> | Store<T> {
+  options = { ...createStore.defaultOptions, ...options };
+
   const store = new Store(initialState, options);
 
   if (initialState instanceof Function) {
@@ -431,4 +434,8 @@ function create<T, Methods extends StoreMethods>(
   return Object.assign(store, boundMethods);
 }
 
-export const createStore = /* @__PURE__ */ Object.assign(create, { defaultOptions });
+export const createStore = /* @__PURE__ */ Object.assign(create, {
+  defaultOptions: {
+    retain: { seconds: 1 },
+  } as StoreOptions,
+});

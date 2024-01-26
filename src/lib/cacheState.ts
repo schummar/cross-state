@@ -19,4 +19,5 @@ export type PendingState = {
 export type CacheState<T> = (ValueState<T> | ErrorState | PendingState) & {
   isStale: boolean;
   isUpdating: boolean;
+  isConnected: boolean;
 };

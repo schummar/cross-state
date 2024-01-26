@@ -54,7 +54,7 @@ describe('static store', () => {
     });
 
     test('store.addEffect resubscribed', () => {
-      const state = createStore(1);
+      const state = createStore(1, { retain: 0 });
       const effect = vi.fn();
       state.addEffect(effect);
 
@@ -79,7 +79,7 @@ describe('static store', () => {
     });
 
     test('store.addEffect cancel while off', () => {
-      const state = createStore(1);
+      const state = createStore(1, { retain: 0 });
       const cancelFunction = vi.fn();
       const effect = vi.fn(() => cancelFunction);
       const cancelEffect = state.addEffect(effect);

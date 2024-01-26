@@ -62,11 +62,25 @@ export interface Use {
   <T>(store: Store<T>): T;
 }
 
-export type ConnectionState = 'connecting' | 'open' | 'closing' | 'closed';
+export interface BaseConnectionActions<T> {
+  set: UpdateFunction<T>;
+}
 
-export interface CalculationHelpers {
+export interface AsyncConnectionActions<T> extends BaseConnectionActions<T> {
+  updateValue: AsyncUpdateFunction<T>;
+  updateError: (error: unknown) => void;
+  updateIsConnected: (isConnected: boolean) => void;
+  close: () => void;
+}
+
+export type ConnectionActions<T> = BaseConnectionActions<T> &
+  (T extends Promise<infer S> ? AsyncConnectionActions<S> : {});
+
+export interface Connection<T> {
+  (actions: ConnectionActions<T>): Cancel;
+}
+
+export interface CalculationActions<T> {
   use: Use;
-  // updateValue: AsyncUpdateFunction<T>;
-  // updateError: (error: unknown) => void;
-  // updateConnectionState: (state: ConnectionState) => void;
+  connect(connection: Connection<T>): Promise<void>;
 }

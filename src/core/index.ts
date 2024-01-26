@@ -12,12 +12,11 @@ export type {
   Listener,
   SubscribeOptions,
   AsyncUpdateFunction,
-  ConnectionState,
   Selector,
   Update,
   UpdateFrom,
   UpdateFunction,
-  CalculationHelpers,
+  CalculationActions,
   Use,
 } from './commonTypes';
 export { ResourceGroup, allResources, createResourceGroup, type Resource } from './resourceGroup';
@@ -30,10 +29,4 @@ export {
   type StoreOptions,
   type StoreOptionsWithMethods,
 } from './store';
-export {
-  SubstriptionCache,
-  createSubscriptionCache,
-  type SubscriptionCacheFunction,
-  type SubstriptionCacheOptions,
-} from './subscriptionCache';
 export { connectUrl, createUrlStore, updateUrlStore, type UrlStoreOptions } from './urlStore';

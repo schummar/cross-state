@@ -7,9 +7,9 @@ import { makeSelector } from '@lib/makeSelector';
 import { type MaybePromise } from '@lib/maybePromise';
 import type { Path, Value } from '@lib/path';
 import { PromiseWithState } from '@lib/promiseWithState';
-import type { CalculationHelpers, Duration, Selector } from './commonTypes';
+import type { Duration, Selector } from './commonTypes';
 import { allResources, type ResourceGroup } from './resourceGroup';
-import { Store, createStore, type Calculate } from './store';
+import { Store, createStore, type Calculate, type StoreOptions } from './store';
 
 export interface CacheGetOptions {
   update?: 'whenMissing' | 'whenStale' | 'force';
@@ -17,17 +17,16 @@ export interface CacheGetOptions {
 }
 
 export interface CacheFunction<T, Args extends any[] = []> {
-  (this: CalculationHelpers, ...args: Args): Promise<T> | Calculate<Promise<T>>;
+  (...args: Args): Promise<T> | Calculate<Promise<T>>;
 }
 
-export interface CacheOptions<T> {
+export interface CacheOptions<T> extends StoreOptions {
   invalidateAfter?: Duration | ((state: ValueState<T> | ErrorState) => Duration | null) | null;
   invalidateOnWindowFocus?: boolean;
   invalidateOnActivation?: boolean;
   clearOnInvalidate?: boolean;
   clearUnusedAfter?: Duration | null;
   resourceGroup?: ResourceGroup | ResourceGroup[];
-  retain?: number;
 }
 
 export class Cache<T> extends Store<Promise<T>> {
@@ -35,6 +34,7 @@ export class Cache<T> extends Store<Promise<T>> {
     status: 'pending',
     isStale: true,
     isUpdating: false,
+    isConnected: false,
   });
 
   protected stalePromise?: Promise<T>;
@@ -67,7 +67,7 @@ export class Cache<T> extends Store<Promise<T>> {
       update === 'force'
     ) {
       this.calculatedValue?.stop();
-      this.calculatedValue = calculatedValue(this);
+      this.calculatedValue = calculatedValue(this, this.notify);
       this.notify();
 
       if ((!promise && !stalePromise) || !backgroundUpdate) {
@@ -91,7 +91,7 @@ export class Cache<T> extends Store<Promise<T>> {
   }
 
   invalidate(recursive?: boolean) {
-    const { clearOnInvalidate = createCache.defaultOptions.clearOnInvalidate } = this.options;
+    const { clearOnInvalidate } = this.options;
 
     if (clearOnInvalidate) {
       return this.clear(recursive);
@@ -116,6 +116,7 @@ export class Cache<T> extends Store<Promise<T>> {
       status: 'pending',
       isStale: true,
       isUpdating: false,
+      isConnected: false,
     });
     delete this.stalePromise;
 
@@ -153,6 +154,7 @@ export class Cache<T> extends Store<Promise<T>> {
             ...promise.state,
             isStale: false,
             isUpdating: false,
+            isConnected: false,
           });
 
           delete this.stalePromise;
@@ -179,6 +181,7 @@ export class Cache<T> extends Store<Promise<T>> {
             value,
             isStale: false,
             isUpdating: false,
+            isConnected: false,
           });
           delete this.stalePromise;
           this.setTimers();
@@ -192,6 +195,7 @@ export class Cache<T> extends Store<Promise<T>> {
             error,
             isStale: false,
             isUpdating: false,
+            isConnected: false,
           });
           delete this.stalePromise;
           this.setTimers();
@@ -208,7 +212,7 @@ export class Cache<T> extends Store<Promise<T>> {
     this.invalidationTimer = undefined;
 
     const state = this.state.get();
-    let { invalidateAfter = createCache.defaultOptions.invalidateAfter } = this.options;
+    let { invalidateAfter } = this.options;
     const ref = new WeakRef(this);
 
     if (state.status === 'pending') {
@@ -228,8 +232,7 @@ export class Cache<T> extends Store<Promise<T>> {
   }
 
   protected watchFocus() {
-    const { invalidateOnWindowFocus = createCache.defaultOptions.invalidateOnWindowFocus } =
-      this.options;
+    const { invalidateOnWindowFocus } = this.options;
 
     if (
       !invalidateOnWindowFocus ||
@@ -263,12 +266,12 @@ type CreateReturnType<T, Args extends any[]> = {
   clearAll: () => void;
 } & ([] extends Args ? Cache<T> : {});
 
-function create<T, Args extends any[]>(
+function create<T, Args extends any[] = []>(
   cacheFunction: CacheFunction<T, Args>,
   options?: CacheOptions<T>,
 ): CreateReturnType<T, Args> {
-  const { clearUnusedAfter = createCache.defaultOptions.clearUnusedAfter, resourceGroup } =
-    options ?? {};
+  options = { ...createCache.defaultOptions, ...options };
+  const { clearUnusedAfter, resourceGroup } = options ?? {};
 
   let baseInstance: CreateReturnType<T, Args> & Cache<T>;
 
@@ -347,5 +350,6 @@ export const createCache = /* @__PURE__ */ Object.assign(create, {
     invalidateOnWindowFocus: true,
     invalidateOnActivation: true,
     clearUnusedAfter: { days: 1 },
+    retain: { seconds: 1 },
   } as CacheOptions<unknown>,
 });
