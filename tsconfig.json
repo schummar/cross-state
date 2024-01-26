@@ -12,7 +12,7 @@
     "noImplicitReturns": true,
     "noImplicitAny": true,
     "target": "ES2020",
-    "lib": ["ES2019", "ESNext.WeakRef", "DOM"],
+    "lib": ["ESNext", "ESNext.WeakRef", "DOM"],
     "allowJs": true,
     "downlevelIteration": true,
     "allowSyntheticDefaultImports": true,
@@ -24,8 +24,8 @@
     "verbatimModuleSyntax": true,
 
     "paths": {
-      "@*": ["./src/*"]
-    }
+      "@*": ["./src/*"],
+    },
   },
-  "include": ["src"]
+  "include": ["src"],
 }

@@ -107,7 +107,7 @@
   },
   "devDependencies": {
     "@emotion/styled": "11.11.0",
-    "@mantine/core": "7.4.2",
+    "@mantine/core": "7.5.0",
     "@mui/material": "5.15.6",
     "@schummar/eslint-config": "github:schummar/eslint-config",
     "@schummar/prettier-config": "github:schummar/prettier-config",

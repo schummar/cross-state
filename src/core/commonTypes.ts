@@ -1,6 +1,6 @@
-import type { Store } from './store';
 import type { DebounceOptions } from '@lib/debounce';
 import { type MaybePromise } from '@lib/maybePromise';
+import type { Store } from './store';
 
 export interface Listener<T = void> {
   (value: T, previouseValue?: T): void;
@@ -35,6 +35,11 @@ export interface SubscribeOptions {
 
 export interface Cancel {
   (): void;
+}
+
+export interface DisposableCancel {
+  (): void;
+  [Symbol.dispose](): void;
 }
 
 export type Duration =

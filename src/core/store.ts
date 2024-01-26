@@ -14,6 +14,7 @@ import { throttle } from '@lib/throttle';
 import type {
   CalculationActions,
   Cancel,
+  DisposableCancel,
   Duration,
   Effect,
   Listener,
@@ -21,6 +22,7 @@ import type {
   SubscribeOptions,
   Update,
 } from './commonTypes';
+import disposable from '@lib/disposable';
 
 export type StoreMethods = Record<string, (...args: any[]) => any>;
 
@@ -134,7 +136,7 @@ export class Store<T> extends Callable<any, any> {
     this.notify();
   }
 
-  subscribe(listener: Listener<T>, options?: SubscribeOptions): Cancel {
+  subscribe(listener: Listener<T>, options?: SubscribeOptions): DisposableCancel {
     const {
       passive,
       runNow = true,
@@ -185,12 +187,12 @@ export class Store<T> extends Callable<any, any> {
         : { value: this.get() };
     }
 
-    return () => {
+    return disposable(() => {
       this.listeners.delete(innerListener);
       if (!passive) {
         this.onUnsubscribe();
       }
-    };
+    });
   }
 
   once<S extends T>(

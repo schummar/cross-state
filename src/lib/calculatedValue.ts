@@ -4,6 +4,7 @@ import { Deferred } from '@lib/deferred';
 import { queue } from '@lib/queue';
 import { deepEqual } from './equals';
 import { PromiseWithState } from '@lib/promiseWithState';
+import type { Cache } from '@core';
 
 export interface CalculatedValue<T> {
   value: T;
@@ -42,6 +43,10 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
       }
 
       cancelConnection?.();
+
+      if ('state' in store) {
+        (store as unknown as Cache<any>).state.set('isConnected', false);
+      }
     };
   });
 
@@ -84,6 +89,10 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
             update = update(await value);
           }
 
+          if (update instanceof Promise) {
+            update = await update;
+          }
+
           value = PromiseWithState.resolve(update) as T;
           notify();
         });
@@ -97,6 +106,12 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
         if (isConnected) {
           whenConnected.resolve();
         }
+
+        q(() => {
+          if ('state' in store) {
+            (store as unknown as Cache<any>).state.set('isConnected', isConnected);
+          }
+        });
       },
       close() {
         store.invalidate();

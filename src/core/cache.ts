@@ -150,12 +150,12 @@ export class Cache<T> extends Store<Promise<T>> {
     this.subscribe(
       async (promise) => {
         if (promise instanceof PromiseWithState) {
-          this.state.set({
+          this.state.set((state) => ({
             ...promise.state,
             isStale: false,
             isUpdating: false,
-            isConnected: false,
-          });
+            isConnected: state.isConnected,
+          }));
 
           delete this.stalePromise;
           this.setTimers();
@@ -176,13 +176,13 @@ export class Cache<T> extends Store<Promise<T>> {
             return;
           }
 
-          this.state.set({
+          this.state.set((state) => ({
             status: 'value',
             value,
             isStale: false,
             isUpdating: false,
-            isConnected: false,
-          });
+            isConnected: state.isConnected,
+          }));
           delete this.stalePromise;
           this.setTimers();
         } catch (error) {
@@ -190,13 +190,13 @@ export class Cache<T> extends Store<Promise<T>> {
             return;
           }
 
-          this.state.set({
+          this.state.set((state) => ({
             status: 'error',
             error,
             isStale: false,
             isUpdating: false,
-            isConnected: false,
-          });
+            isConnected: state.isConnected,
+          }));
           delete this.stalePromise;
           this.setTimers();
         }
