@@ -18,6 +18,11 @@ export type {
   UpdateFunction,
   CalculationActions,
   Use,
+  AsyncConnectionActions,
+  BaseConnectionActions,
+  Connection,
+  ConnectionActions,
+  DisposableCancel,
 } from './commonTypes';
 export { ResourceGroup, allResources, createResourceGroup, type Resource } from './resourceGroup';
 export { Scope, createScope } from './scope';
