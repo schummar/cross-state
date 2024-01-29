@@ -19,12 +19,12 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
   let value: T | undefined;
   const whenConnected = new Deferred();
   const whenExecuted = new Deferred();
-  let cancelConnection: Cancel | undefined;
+  let connection: { active: boolean; cancel?: Cancel } | undefined;
   const q = queue();
   q(() => whenExecuted);
 
   const cancelEffect = store.addEffect(() => {
-    if (cancelConnection) {
+    if (connection) {
       store.invalidate();
       return;
     }
@@ -42,10 +42,14 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
         dep.off();
       }
 
-      cancelConnection?.();
+      if (connection) {
+        connection.active = false;
+        connection.cancel?.();
+        q.clear();
 
-      if ('state' in store) {
-        (store as unknown as Cache<any>).state.set('isConnected', false);
+        if ('state' in store) {
+          (store as unknown as Cache<any>).state.set('isConnected', false);
+        }
       }
     };
   });
@@ -72,37 +76,48 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
     return value;
   }
 
-  async function connect(connection: Connection<T>) {
+  async function connect(createConnection: Connection<T>) {
     if (!active) {
       return;
     }
 
     const actions: AsyncConnectionActions<any> = {
       set(value) {
-        q(() => {
-          store.set(value);
-        });
+        connection?.active &&
+          q(() => {
+            store.set(value);
+          });
       },
       updateValue(update) {
-        q(async () => {
-          if (update instanceof Function) {
-            update = update(await value);
-          }
+        connection?.active &&
+          q(async () => {
+            if (update instanceof Function) {
+              update = update(await value);
+            }
 
-          if (update instanceof Promise) {
-            update = await update;
-          }
+            if (update instanceof Promise) {
+              update = await update;
+            }
 
-          value = PromiseWithState.resolve(update) as T;
-          notify();
-        });
+            if (!connection?.active) {
+              return;
+            }
+
+            value = PromiseWithState.resolve(update) as T;
+            notify();
+          });
       },
       updateError(error) {
-        q(() => {
-          (store as unknown as Store<Promise<any>>).set(Promise.reject(error));
-        });
+        connection?.active &&
+          q(() => {
+            (store as unknown as Store<Promise<any>>).set(Promise.reject(error));
+          });
       },
       updateIsConnected(isConnected) {
+        if (!connection?.active) {
+          return;
+        }
+
         if (isConnected) {
           whenConnected.resolve();
         }
@@ -114,11 +129,17 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
         });
       },
       close() {
-        store.invalidate();
+        connection?.active && store.invalidate();
       },
     };
 
-    cancelConnection = connection(actions as any);
+    connection = { active: true };
+    connection.cancel = createConnection(actions as any);
+
+    if (!connection.active) {
+      connection.cancel();
+    }
+
     return whenConnected;
   }
 
@@ -143,8 +164,12 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
 
   function stop() {
     cancelEffect();
-    cancelConnection?.();
-    if (cancelConnection) {
+
+    if (connection) {
+      connection.active = false;
+      connection.cancel?.();
+      q.clear();
+
       whenConnected.reject();
       whenExecuted.reject();
     } else {

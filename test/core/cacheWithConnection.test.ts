@@ -218,7 +218,8 @@ describe('cache with connection', () => {
     vi.advanceTimersByTime(1);
     await flushPromises();
 
-    expect(subscriber.mock.calls.slice(7).map((x) => x[0])).toMatchObject([
+    expect(subscriber.mock.calls.slice(6).map((x) => x[0])).toMatchObject([
+      { status: 'value', value: 2, isStale: true, isUpdating: false, isConnected: false },
       { status: 'value', value: 2, isStale: true, isUpdating: true, isConnected: false },
       { status: 'value', value: 0, isStale: false, isUpdating: false, isConnected: false },
       { status: 'value', value: 0, isStale: false, isUpdating: false, isConnected: true },
