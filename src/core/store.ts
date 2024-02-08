@@ -145,9 +145,14 @@ export class Store<T> extends Callable<any, any> {
       equals = deepEqual,
     } = options ?? {};
 
+    let isSetup = false;
     let previousValue: { value: T } | undefined;
 
     let innerListener = () => {
+      if (!isSetup) {
+        return;
+      }
+
       const value = passive ? this.calculatedValue : { value: this.get() };
 
       if (!value) {
@@ -178,6 +183,8 @@ export class Store<T> extends Callable<any, any> {
     if (!passive) {
       this.onSubscribe();
     }
+
+    isSetup = true;
 
     if (runNow) {
       innerListener();

@@ -55,6 +55,8 @@ export class Cache<T> extends Store<Promise<T>> {
 
     this.watchPromise();
     this.watchFocus();
+
+    this.state.addEffect(() => this.subscribe(() => undefined));
   }
 
   get({ update = 'whenStale', backgroundUpdate = false }: CacheGetOptions = {}) {
@@ -251,7 +253,7 @@ export class Cache<T> extends Store<Promise<T>> {
         return;
       }
 
-      if (!document.hidden) {
+      if (!document.hidden && !that.state.get().isConnected) {
         that.invalidate();
       }
     };

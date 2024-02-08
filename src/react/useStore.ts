@@ -9,7 +9,14 @@ import { useCallback, useDebugValue, useLayoutEffect, useMemo, useRef } from 're
 import { useSyncExternalStoreWithSelector } from 'use-sync-external-store/shim/with-selector.js';
 
 export interface UseStoreOptions<S> extends Omit<SubscribeOptions, 'runNow' | 'passive'> {
+  /**
+   * If true, the cache content can be consumed but no fetch will be triggered.
+   * @default false
+   */
+  passive?: boolean;
+
   disableTrackingProxy?: boolean;
+
   withViewTransition?: boolean | ((value: S) => unknown);
 }
 
@@ -56,7 +63,7 @@ export function useStore<T, S>(store: Store<T>, argument1?: any, argument2?: any
     return { rootStore, mappingSelector };
   }, [store]);
 
-  const subOptions = { ...options, runNow: false, passive: false };
+  const subOptions = { ...options, runNow: false };
   const subscribe = useCallback(
     (listener: () => void) => {
       let _listener: (value: any) => void = listener;

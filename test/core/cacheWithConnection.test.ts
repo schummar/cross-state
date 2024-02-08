@@ -179,7 +179,7 @@ describe('cache with connection', () => {
 
     const subscriber = vi.fn();
     const cancel = cache.subscribe(() => undefined);
-    cache.state.subscribe(subscriber);
+    cache.state.subscribe(subscriber, { passive: true });
 
     await flushPromises();
 

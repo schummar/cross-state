@@ -17,12 +17,6 @@ export type UseCacheValue<T> = UseCacheArray<T> & CacheState<T>;
 
 export interface UseCacheOptions<T> extends UseStoreOptions<UseCacheArray<T> & CacheState<T>> {
   /**
-   * If true, the cache content can be consumed but no fetch will be triggered.
-   * @default false
-   */
-  passive?: boolean;
-
-  /**
    * If true, will always return undefined as value and no fetch will be triggered.
    * @default false
    */
@@ -86,14 +80,6 @@ export function useCache<T>(
     }
   }, []);
 
-  useEffect(() => {
-    if (passive || disabled) {
-      return;
-    }
-
-    return rootCache.subscribe(() => undefined);
-  }, [rootCache, passive, disabled]);
-
   const result = useStore(
     rootCache.state,
     (state) => {
@@ -124,7 +110,7 @@ export function useCache<T>(
         );
       }
     },
-    { ...options, withViewTransition },
+    { ...options, withViewTransition, passive: passive || disabled },
   );
 
   useLoadingBoundary(loadingBoundary && !disabled && result.status === 'pending');
