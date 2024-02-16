@@ -48,9 +48,15 @@ export class Persist<T> {
 
   private updateInProgress?: [any, any];
 
-  constructor(public readonly store: Store<T>, public readonly options: PersistOptions<T>) {
+  private prefix;
+
+  constructor(
+    public readonly store: Store<T>,
+    public readonly options: PersistOptions<T>,
+  ) {
     this.storage = normalizeStorage(options.storage);
     this.channel = new BroadcastChannel(`cross-state-persist_${options.id}`);
+    this.prefix = `${options.id}:`;
 
     this.paths = (options.paths ?? [])
       .map<{
@@ -126,7 +132,11 @@ export class Persist<T> {
     }
 
     for (const key of keys) {
-      const path = JSON.parse(key);
+      const path = this.parseKey(key);
+      if (!path) {
+        continue;
+      }
+
       this.queue(() => this.load(path));
     }
 
@@ -140,6 +150,18 @@ export class Persist<T> {
     this.handles.add(() => this.channel.removeEventListener('message', listener));
   }
 
+  private buildKey(path: KeyType[]) {
+    return `${this.prefix}${JSON.stringify(path)}`;
+  }
+
+  private parseKey(key: string) {
+    if (!key.startsWith(this.prefix)) {
+      return;
+    }
+
+    return JSON.parse(key.slice(this.prefix.length)) as KeyType[];
+  }
+
   private load(path: KeyType[]) {
     const matchingPath = this.paths.find(
       (p) => p.path.length === path.length && isAncestor(p.path, path),
@@ -148,7 +170,7 @@ export class Persist<T> {
       return;
     }
 
-    const key = JSON.stringify(path);
+    const key = this.buildKey(path);
 
     return maybeAsync(this.storage.getItem(key), (value) => {
       if (this.stopped || !value) {
@@ -171,7 +193,7 @@ export class Persist<T> {
   }
 
   private save(path: KeyType[]) {
-    const key = JSON.stringify(path);
+    const key = this.buildKey(path);
     const value = get(this.store.get(), path as any);
     const serializedValue = value === undefined ? 'undefined' : JSON.stringify(value);
 
@@ -180,9 +202,9 @@ export class Persist<T> {
 
       return maybeAsync(this.storage.keys(), (keys) => {
         const toRemove = keys.filter((k) => {
-          const parsedKey = JSON.parse(k);
+          const parsedKey = this.parseKey(k);
           return (
-            parsedKey.length > path.length && isAncestor(path, parsedKey)
+            parsedKey && parsedKey.length > path.length && isAncestor(path, parsedKey)
             // !this.queue.getRefs().find((ref) => isAncestor(ref, parsedKey))
           );
         });

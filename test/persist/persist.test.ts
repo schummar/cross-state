@@ -94,7 +94,7 @@ describe('persist', () => {
   test('wait initialized', async () => {
     vi.useRealTimers();
     const storage = new MockStorage({ keys: 1, get: 1 });
-    storage.items.set('["a"]', '1');
+    storage.items.set('test:["a"]', '1');
     const s1 = createStore({ a: 0 });
     const p = persist(s1, {
       id: 'test',
@@ -118,7 +118,7 @@ describe('persist', () => {
 
       s1.set({ a: { b: 2 } });
 
-      expect(storage.items).toStrictEqual(new Map([['["a"]', '{"b":2}']]));
+      expect(storage.items).toStrictEqual(new Map([['test:["a"]', '{"b":2}']]));
     });
 
     test('save path', async () => {
@@ -134,8 +134,8 @@ describe('persist', () => {
 
       expect(storage.items).toStrictEqual(
         new Map([
-          ['["a"]', '4'],
-          ['["c"]', '6'],
+          ['test:["a"]', '4'],
+          ['test:["c"]', '6'],
         ]),
       );
     });
@@ -153,8 +153,8 @@ describe('persist', () => {
 
       expect(storage.items).toStrictEqual(
         new Map([
-          ['["a","x"]', '4'],
-          ['["a","z"]', '5'],
+          ['test:["a","x"]', '4'],
+          ['test:["a","z"]', '5'],
         ]),
       );
     });
@@ -170,7 +170,7 @@ describe('persist', () => {
 
       s1.set({ a: [1, 4, 3] });
 
-      expect(storage.items).toStrictEqual(new Map([['["a",1]', '4']]));
+      expect(storage.items).toStrictEqual(new Map([['test:["a",1]', '4']]));
     });
 
     test('save wildcard path with map', async () => {
@@ -198,8 +198,8 @@ describe('persist', () => {
 
       expect(storage.items).toStrictEqual(
         new Map([
-          ['["a","x"]', '4'],
-          ['["a","z"]', '5'],
+          ['test:["a","x"]', '4'],
+          ['test:["a","z"]', '5'],
         ]),
       );
     });
@@ -219,7 +219,7 @@ describe('persist', () => {
         a: new Set([1, 4, 3]),
       });
 
-      expect(storage.items).toStrictEqual(new Map([['["a",1]', '4']]));
+      expect(storage.items).toStrictEqual(new Map([['test:["a",1]', '4']]));
     });
 
     test('save removal', async () => {
@@ -232,14 +232,14 @@ describe('persist', () => {
 
       s1.set({});
 
-      expect(storage.items).toStrictEqual(new Map([['["a"]', 'undefined']]));
+      expect(storage.items).toStrictEqual(new Map([['test:["a"]', 'undefined']]));
     });
   });
 
   describe('load', () => {
     test('load all', async () => {
       const storage = new MockStorage();
-      storage.items.set('["a"]', '{"b":2}');
+      storage.items.set('test:["a"]', '{"b":2}');
 
       const s1 = createStore({ a: { b: 1 } });
       persist(s1, {
@@ -252,8 +252,8 @@ describe('persist', () => {
 
     test('load path', async () => {
       const storage = new MockStorage();
-      storage.items.set('["a"]', '4');
-      storage.items.set('["c"]', '6');
+      storage.items.set('test:["a"]', '4');
+      storage.items.set('test:["c"]', '6');
 
       const s1 = createStore({ a: 1, b: 2, c: 3 });
       persist(s1, {
@@ -267,8 +267,8 @@ describe('persist', () => {
 
     test('load wildcard path', async () => {
       const storage = new MockStorage();
-      storage.items.set('["a","x"]', '4');
-      storage.items.set('["a","z"]', '5');
+      storage.items.set('test:["a","x"]', '4');
+      storage.items.set('test:["a","z"]', '5');
 
       const s1 = createStore({ a: { x: 1, y: 2, z: 3 } });
       persist(s1, {
@@ -282,8 +282,8 @@ describe('persist', () => {
 
     test(`doesn't load item whose path is not persisted anymore`, () => {
       const storage = new MockStorage();
-      storage.items.set('["a"]', '3');
-      storage.items.set('["b"]', '4');
+      storage.items.set('test:["a"]', '3');
+      storage.items.set('test:["b"]', '4');
 
       const s1 = createStore({ a: 1, b: 2 });
       persist(s1, {
@@ -297,7 +297,7 @@ describe('persist', () => {
 
     test('load removal', async () => {
       const storage = new MockStorage();
-      storage.items.set('["a"]', 'undefined');
+      storage.items.set('test:["a"]', 'undefined');
 
       const s1 = createStore<any>({ a: { b: 1 } });
       persist(s1, {
@@ -312,7 +312,7 @@ describe('persist', () => {
   describe('change something wile loading', () => {
     test('changed same path', async () => {
       const storage = new MockStorage({ get: 1 });
-      storage.items.set('["a"]', '2');
+      storage.items.set('test:["a"]', '2');
 
       const s1 = createStore({ a: 1 });
       persist(s1, {
@@ -324,13 +324,13 @@ describe('persist', () => {
       vi.runAllTimers();
       await flushPromises();
 
-      expect(storage.items).toStrictEqual(new Map([['["a"]', '3']]));
+      expect(storage.items).toStrictEqual(new Map([['test:["a"]', '3']]));
       expect(s1.get()).toStrictEqual({ a: 3 });
     });
 
     test('changed ancestor path', async () => {
       const storage = new MockStorage({ get: 1 });
-      storage.items.set('["a"]', '2');
+      storage.items.set('test:["a"]', '2');
 
       const s1 = createStore<any>({ a: 1 });
       persist(s1, {
@@ -343,13 +343,13 @@ describe('persist', () => {
       vi.runAllTimers();
       await flushPromises();
 
-      expect(storage.items).toStrictEqual(new Map([['[]', '{"b":3}']]));
+      expect(storage.items).toStrictEqual(new Map([['test:[]', '{"b":3}']]));
       expect(s1.get()).toStrictEqual({ b: 3 });
     });
 
     test('changed descendant path', async () => {
       const storage = new MockStorage({ get: 1 });
-      storage.items.set('[]', '{"a":2}');
+      storage.items.set('test:[]', '{"a":2}');
 
       const s1 = createStore({ a: 1 });
       persist(s1, {
@@ -364,8 +364,8 @@ describe('persist', () => {
 
       expect(storage.items).toStrictEqual(
         new Map([
-          ['[]', '{"a":2}'],
-          ['["a"]', '3'],
+          ['test:[]', '{"a":2}'],
+          ['test:["a"]', '3'],
         ]),
       );
       expect(s1.get()).toStrictEqual({ a: 3 });
@@ -425,7 +425,7 @@ describe('persist', () => {
 
       expect(s1.get()).toStrictEqual({ a: 2 });
       expect(s2.get()).toStrictEqual({ a: 3 });
-      expect(storage.items).toStrictEqual(new Map([[`["a"]`, '3']]));
+      expect(storage.items).toStrictEqual(new Map([[`test:["a"]`, '3']]));
 
       vi.runAllTimers();
       await flushPromises();
@@ -434,7 +434,7 @@ describe('persist', () => {
 
       expect(s1.get()).toStrictEqual({ a: 3 });
       expect(s2.get()).toStrictEqual({ a: 3 });
-      expect(storage.items).toStrictEqual(new Map([[`["a"]`, '3']]));
+      expect(storage.items).toStrictEqual(new Map([[`test:["a"]`, '3']]));
     });
 
     test.skip('sync avoids conflicts when updating ancestors or descendants', async () => {
