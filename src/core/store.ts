@@ -444,7 +444,5 @@ function create<T, Methods extends StoreMethods>(
 }
 
 export const createStore = /* @__PURE__ */ Object.assign(create, {
-  defaultOptions: {
-    retain: { seconds: 1 },
-  } as StoreOptions,
+  defaultOptions: {} as StoreOptions,
 });

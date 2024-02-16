@@ -352,6 +352,6 @@ export const createCache = /* @__PURE__ */ Object.assign(create, {
     invalidateOnWindowFocus: true,
     invalidateOnActivation: true,
     clearUnusedAfter: { days: 1 },
-    retain: { seconds: 1 },
+    retain: { milliseconds: 1 },
   } as CacheOptions<unknown>,
 });
