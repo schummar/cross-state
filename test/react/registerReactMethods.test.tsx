@@ -1,7 +1,8 @@
 import { act, render, screen } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
-import { createStore } from '../../src';
+import { createScope, createStore } from '../../src';
 import '../../src/react/register';
+import { useMemo } from 'react';
 
 describe('register react methods', () => {
   test('useStore', async () => {
@@ -41,5 +42,29 @@ describe('register react methods', () => {
 
     expect(div.textContent).toBe('1');
     expect(store.get()).toStrictEqual({ x: 1 });
+  });
+
+  test('ScopeProvider', () => {
+    const scope = createScope(1);
+
+    function Child() {
+      const value = scope.useStore();
+      return <div data-testid="div">{value}</div>;
+    }
+
+    function Parent() {
+      const store = useMemo(() => createStore(2), []);
+
+      return (
+        <scope.Provider store={store}>
+          <Child />
+        </scope.Provider>
+      );
+    }
+
+    render(<Parent />);
+    const div = screen.getByTestId('div');
+
+    expect(div.textContent).toBe('2');
   });
 });

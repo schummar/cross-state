@@ -1,7 +1,6 @@
-import { createScope, createStore } from '@core';
-import { ScopeProvider, useScope } from '@react/scope';
+import { createStore } from '@core';
 import { useStore } from '@react/useStore';
-import { useLayoutEffect, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useLayoutEffect, useMemo, type ReactNode } from 'react';
 
 export interface LoadingBoundaryEntry {
   label?: ReactNode;
@@ -25,7 +24,7 @@ export interface LoadingBoundaryProps {
   isLoading?: boolean;
 }
 
-export const LoadingBoundaryContext = createScope(new Set<LoadingBoundaryEntry>());
+const LoadingBoundaryContext = createContext(createStore(new Set<LoadingBoundaryEntry>()));
 
 export function LoadingBoundary({
   fallback,
@@ -43,7 +42,7 @@ export function LoadingBoundary({
     : undefined;
 
   return (
-    <ScopeProvider scope={LoadingBoundaryContext} store={store}>
+    <LoadingBoundaryContext.Provider value={store}>
       {fallbackNode !== undefined ? (
         <>
           {fallbackNode}
@@ -52,12 +51,12 @@ export function LoadingBoundary({
       ) : (
         children
       )}
-    </ScopeProvider>
+    </LoadingBoundaryContext.Provider>
   );
 }
 
 export function useLoadingBoundary(isLoading: boolean | undefined, label?: ReactNode) {
-  const store = useScope(LoadingBoundaryContext);
+  const store = useContext(LoadingBoundaryContext);
 
   useLayoutEffect(() => {
     if (!isLoading) {
