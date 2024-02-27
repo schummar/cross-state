@@ -78,14 +78,16 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
 
   async function connect(createConnection: Connection<T>) {
     if (!active) {
+      connection = { active: false };
       return;
     }
 
     const actions: AsyncConnectionActions<any> = {
-      set(value) {
+      set(_value) {
         connection?.active &&
           q(() => {
-            store.set(value);
+            value = _value;
+            notify();
           });
       },
       updateValue(update) {
@@ -147,6 +149,8 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
 
   if (value instanceof Promise) {
     value.finally(() => whenExecuted.resolve()).catch(() => undefined);
+  } else {
+    whenExecuted.resolve();
   }
 
   function check() {
@@ -164,17 +168,13 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
 
   function stop() {
     cancelEffect();
+    whenExecuted.resolve();
+    whenConnected.resolve();
 
     if (connection) {
       connection.active = false;
       connection.cancel?.();
       q.clear();
-
-      whenConnected.reject();
-      whenExecuted.reject();
-    } else {
-      whenConnected.resolve();
-      whenExecuted.resolve();
     }
   }
 

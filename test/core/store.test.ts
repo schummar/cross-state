@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { createStore } from '../../src';
+import { createStore, set } from '../../src';
 import { defaultEqual, shallowEqual } from '../../src/lib/equals';
+import { flushPromises } from '../testHelpers';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -330,5 +331,23 @@ describe('static store', () => {
     expect(state.get()).toMatchObject({ x: 2, y: 4, z: 8 });
     expect(reaction1).toHaveBeenCalledTimes(2);
     expect(reaction2).toHaveBeenCalledTimes(2);
+  });
+
+  test('connect', async () => {
+    const state = createStore(({ connect }) => {
+      connect(({ set }) => {
+        set(2);
+        return () => undefined;
+      });
+
+      return 1;
+    });
+
+    expect(state.get()).toBe(1);
+
+    state.subscribe(() => undefined);
+    await flushPromises();
+
+    expect(state.get()).toBe(2);
   });
 });
