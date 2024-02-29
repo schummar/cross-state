@@ -138,6 +138,6 @@ export function createUrlStore<T>(options: UrlStoreOptions<T>): Store<T | undefi
 
 export function createUrlStore<T>(options: UrlStoreOptions<T>) {
   const store = createStore(options.defaultValue, options);
-  connectUrl(store, options);
+  store.addEffect(() => connectUrl(store, options));
   return store;
 }
