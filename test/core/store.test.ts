@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createStore, set } from '../../src';
-import { defaultEqual, shallowEqual } from '../../src/lib/equals';
+import { strictEqual, shallowEqual } from '../../src/lib/equals';
 import { flushPromises } from '../testHelpers';
 
 beforeEach(() => {
@@ -156,7 +156,7 @@ describe('static store', () => {
     test('store.subscribe default equals', async () => {
       const state = createStore({ a: 1 });
       const listener = vi.fn();
-      state.subscribe(listener, { equals: defaultEqual });
+      state.subscribe(listener, { equals: strictEqual });
       state.set({ a: 1 });
       expect(listener.mock.calls).toMatchObject([
         [{ a: 1 }, undefined],
@@ -296,7 +296,7 @@ describe('static store', () => {
     const state = createStore(true);
     const mapped = state.map((x) => [x]);
     const listener = vi.fn();
-    mapped.subscribe(listener, { equals: defaultEqual });
+    mapped.subscribe(listener, { equals: strictEqual });
     state.set(false);
     state.set(true);
     state.set(false);

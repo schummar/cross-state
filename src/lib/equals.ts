@@ -1,9 +1,9 @@
-export function defaultEqual(a: any, b: any) {
+export function strictEqual(a: any, b: any) {
   return a === b;
 }
 
 export function shallowEqual(a: any, b: any): boolean {
-  return internalEqual(defaultEqual)(a, b);
+  return internalEqual(strictEqual)(a, b);
 }
 
 export function deepEqual(a: any, b: any): boolean {
