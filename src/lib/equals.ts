@@ -24,16 +24,12 @@ const internalEqual = (comp: (a: any, b: any) => boolean) => (a: any, b: any) =>
     return false;
   }
 
-  if (a.constructor === Object) {
+  if (a.constructor === Object || Array.isArray(a)) {
     const entries1 = Object.entries(a);
     const entries2 = Object.entries(b);
     return (
       entries1.length === entries2.length && entries1.every(([key, value]) => comp(value, b[key]))
     );
-  }
-
-  if (Array.isArray(a)) {
-    return a.length === b.length && a.every((value, i) => comp(value, b[i]));
   }
 
   if (a instanceof Date) {
