@@ -40,7 +40,7 @@ export function useStore<T, S>(store: Store<T>, argument1?: any, argument2?: any
   );
   const {
     disableTrackingProxy = true,
-    equals = deepEqual,
+    equals = store.options.equals ?? deepEqual,
     withViewTransition,
     ...options
   } = (typeof argument1 === 'object' ? argument1 : argument2 ?? {}) as UseStoreOptions<S>;

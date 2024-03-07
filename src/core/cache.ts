@@ -10,6 +10,7 @@ import { PromiseWithState } from '@lib/promiseWithState';
 import type { Duration, Selector } from './commonTypes';
 import { allResources, type ResourceGroup } from './resourceGroup';
 import { Store, createStore, type Calculate, type StoreOptions } from './store';
+import { deepEqual } from '@lib/equals';
 
 export interface CacheGetOptions {
   update?: 'whenMissing' | 'whenStale' | 'force';
@@ -353,5 +354,6 @@ export const createCache = /* @__PURE__ */ Object.assign(create, {
     invalidateOnActivation: true,
     clearUnusedAfter: { days: 1 },
     retain: { milliseconds: 1 },
+    equals: deepEqual,
   } as CacheOptions<unknown>,
 });

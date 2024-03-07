@@ -31,6 +31,7 @@ export type BoundStoreMethods<T, Methods extends StoreMethods> = Methods &
 
 export interface StoreOptions {
   retain?: Duration;
+  equals?: SubscribeOptions['equals'];
 }
 
 export interface StoreOptionsWithMethods<T, Methods extends StoreMethods> extends StoreOptions {
@@ -444,5 +445,7 @@ function create<T, Methods extends StoreMethods>(
 }
 
 export const createStore = /* @__PURE__ */ Object.assign(create, {
-  defaultOptions: {} as StoreOptions,
+  defaultOptions: {
+    equals: deepEqual,
+  } as StoreOptions,
 });
