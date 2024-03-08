@@ -144,7 +144,9 @@ export class Cache<T> extends Store<Promise<T>> {
         const value = await use(this);
         return selector(value);
       },
-      {},
+      {
+        equals: this.options.equals,
+      },
       derivedFromCache,
     );
   }
