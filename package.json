@@ -11,9 +11,11 @@
   "type": "module",
   "sideEffects": [
     "dist/es/react/register.mjs",
-    "dist/es/immer/register.mjs",
+    "dist/es/mutative/register.mjs",
     "dist/cjs/react/register.cjs",
-    "dist/cjs/immer/register.cjs"
+    "dist/cjs/mutative/register.cjs",
+    "dist/es/patches/register.mjs",
+    "dist/cjs/patches/register.cjs"
   ],
   "files": [
     "dist"
@@ -40,17 +42,29 @@
       "require": "./dist/cjs/react/register.cjs",
       "default": "./dist/es/react/register.mjs"
     },
-    "./immer": {
-      "types": "./dist/types/immer/index.d.ts",
-      "import": "./dist/es/immer/index.mjs",
-      "require": "./dist/cjs/immer/index.cjs",
-      "default": "./dist/es/immer/index.mjs"
+    "./mutative": {
+      "types": "./dist/types/mutative/index.d.ts",
+      "import": "./dist/es/mutative/index.mjs",
+      "require": "./dist/cjs/mutative/index.cjs",
+      "default": "./dist/es/mutative/index.mjs"
     },
-    "./immer/register": {
-      "types": "./dist/types/immer/register.d.ts",
-      "import": "./dist/es/immer/register.mjs",
-      "require": "./dist/cjs/immer/register.cjs",
-      "default": "./dist/es/immer/register.mjs"
+    "./mutative/register": {
+      "types": "./dist/types/mutative/register.d.ts",
+      "import": "./dist/es/mutative/register.mjs",
+      "require": "./dist/cjs/mutative/register.cjs",
+      "default": "./dist/es/mutative/register.mjs"
+    },
+    "./patches": {
+      "types": "./dist/types/patches/index.d.ts",
+      "import": "./dist/es/patches/index.mjs",
+      "require": "./dist/cjs/patches/index.cjs",
+      "default": "./dist/es/patches/index.mjs"
+    },
+    "./patches/register": {
+      "types": "./dist/types/patches/register.d.ts",
+      "import": "./dist/es/patches/register.mjs",
+      "require": "./dist/cjs/patches/register.cjs",
+      "default": "./dist/es/patches/register.mjs"
     }
   },
   "typesVersions": {
@@ -64,11 +78,17 @@
       "react/register": [
         "dist/types/react/register.d.ts"
       ],
-      "immer": [
-        "dist/types/immer/index.d.ts"
+      "mutative": [
+        "dist/types/mutative/index.d.ts"
       ],
-      "immer/register": [
-        "dist/types/immer/register.d.ts"
+      "mutative/register": [
+        "dist/types/mutative/register.d.ts"
+      ],
+      "patches": [
+        "dist/types/patches/index.d.ts"
+      ],
+      "patches/register": [
+        "dist/types/patches/register.d.ts"
       ]
     }
   },
@@ -91,14 +111,14 @@
   },
   "peerDependencies": {
     "@types/react": ">=16.8.0",
-    "immer": ">=9.0.0",
+    "mutative": ">=1.0.3",
     "react": ">=16.8.0"
   },
   "peerDependenciesMeta": {
     "@types/react": {
       "optional": true
     },
-    "immer": {
+    "mutative": {
       "optional": true
     },
     "react": {
@@ -124,8 +144,8 @@
     "esbuild": "0.20.1",
     "eslint": "8.57.0",
     "happy-dom": "13.8.2",
-    "immer": "10.0.4",
     "jsdom": "24.0.0",
+    "mutative": "1.0.3",
     "prettier": "3.2.5",
     "publint": "0.2.7",
     "react": "18.2.0",
@@ -208,9 +228,14 @@
       "limit": "6 KB"
     },
     {
-      "name": "/immer",
-      "path": "dist/es/immer/index.mjs",
+      "name": "/mutative",
+      "path": "dist/es/mutative/index.mjs",
       "limit": "250 B"
+    },
+    {
+      "name": "/patches",
+      "path": "dist/es/patches/index.mjs",
+      "limit": "2 KB"
     },
     {
       "name": "empty",

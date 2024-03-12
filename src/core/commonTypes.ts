@@ -15,6 +15,9 @@ export interface Effect {
 }
 
 export interface SubscribeOptions {
+  /** If set, this listener does not activate the store.
+   * @default false
+   */
   passive?: boolean;
   /** Whether to execute the callback immediately with the current store value.
    * @default true

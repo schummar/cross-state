@@ -66,6 +66,7 @@ function noop() {
 
 export class Store<T> extends Callable<any, any> {
   protected calculatedValue?: CalculatedValue<T>;
+  protected defaultValue?: CalculatedValue<T>;
 
   protected listeners = new Map<Listener, boolean>();
 
@@ -88,6 +89,10 @@ export class Store<T> extends Callable<any, any> {
   ) {
     super(_call);
     autobind(Store);
+
+    if (typeof getter !== 'function') {
+      this.calculatedValue = this.defaultValue = staticValue(getter);
+    }
   }
 
   get(): T {
@@ -133,7 +138,7 @@ export class Store<T> extends Callable<any, any> {
     }
 
     this.calculatedValue?.stop();
-    this.calculatedValue = undefined;
+    this.calculatedValue = this.defaultValue;
     this.notify();
   }
 

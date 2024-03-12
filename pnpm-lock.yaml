@@ -68,6 +68,9 @@ importers:
       jsdom:
         specifier: 24.0.0
         version: 24.0.0
+      mutative:
+        specifier: 1.0.3
+        version: 1.0.3
       prettier:
         specifier: 3.2.5
         version: 3.2.5
@@ -4453,6 +4456,11 @@ packages:
 
   /ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
+    dev: true
+
+  /mutative@1.0.3:
+    resolution: {integrity: sha512-2DW6gxEtV+6108QajMBVZZd9OGb0sxih8GvM+SWT71qSLTU1UNCAUWGgRw5T7+i2xGN48WDJcQpPitp5SWqM8Q==}
+    engines: {node: '>=14.0'}
     dev: true
 
   /mylas@2.1.13:

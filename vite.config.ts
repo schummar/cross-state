@@ -27,8 +27,10 @@ export default defineConfig({
         index: 'src/index.ts',
         'react/index': 'src/react/index.ts',
         'react/register': 'src/react/register.ts',
-        'immer/index': 'src/immer/index.ts',
-        'immer/register': 'src/immer/register.ts',
+        'mutative/index': 'src/mutative/index.ts',
+        'mutative/register': 'src/mutative/register.ts',
+        'patches/index': 'src/patches/index.ts',
+        'patches/register': 'src/patches/register.ts',
       },
     },
 
@@ -49,7 +51,7 @@ export default defineConfig({
         //
         'react',
         'react/jsx-runtime',
-        'immer',
+        'mutative',
       ],
     },
   },

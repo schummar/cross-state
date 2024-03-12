@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { createStore } from '../../src/core/store';
-import { immerMethods } from '../../src/immer';
-import '../../src/immer/register';
+import { mutativeMethods } from '../../src/mutative';
+import '../../src/mutative/register';
 
 describe('store methods', () => {
   describe('map methods', () => {
@@ -191,12 +191,12 @@ describe('store methods', () => {
     expect(state.get()).toEqual({ x: 3 });
   });
 
-  test('custom reducer and immer methods', () => {
+  test('custom reducer and mutative methods', () => {
     const state = createStore(
       { x: 1 },
       {
         methods: {
-          ...immerMethods,
+          ...mutativeMethods,
           inc() {
             this.update((x) => {
               x.x++;
@@ -210,10 +210,10 @@ describe('store methods', () => {
     expect(state.get()).toEqual({ x: 2 });
   });
 
-  test('combine array and immer methods', () => {
+  test('combine array and mutative methods', () => {
     const state = createStore([{ x: 1 }], {
       methods: {
-        ...immerMethods,
+        ...mutativeMethods,
         incAndPush() {
           this.update((x) => {
             if (x[0]) {
@@ -230,7 +230,7 @@ describe('store methods', () => {
     expect(state.get()).toEqual([{ x: 2 }, { x: 2 }]);
   });
 
-  test('nested immer with array key', () => {
+  test('nested mutative with array key', () => {
     const state = createStore({ x: { y: [1] } });
     state.update(['x', 'y'], (y) => {
       y.push(2);
@@ -239,7 +239,7 @@ describe('store methods', () => {
     expect(state.get()).toEqual({ x: { y: [1, 2] } });
   });
 
-  test('nested immer with string key', () => {
+  test('nested mutative with string key', () => {
     const state = createStore({ x: { y: [1] } });
     state.update('x.y', (y) => {
       y.push(2);
@@ -248,7 +248,7 @@ describe('store methods', () => {
     expect(state.get()).toEqual({ x: { y: [1, 2] } });
   });
 
-  test('immer inline', () => {
+  test('mutative inline', () => {
     const state = createStore({ x: 1 });
     // eslint-disable-next-line no-return-assign
     state.update((state) => (state.x = 2));

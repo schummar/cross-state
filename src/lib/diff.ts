@@ -6,10 +6,14 @@ export type Patch =
   | { op: 'remove'; path: KeyType[] }
   | { op: 'replace'; path: KeyType[]; value: any };
 
+export interface DiffOptions {
+  stopAt?: number | ((path: KeyType[]) => boolean);
+}
+
 export function diff(
   a: any,
   b: any,
-  options: { stopAt?: number | ((path: KeyType[]) => boolean) } = {},
+  options: DiffOptions = {},
 ): [patches: Patch[], reversePatches: Patch[]] {
   const result = [..._diff(a, b, options)];
   const patches = result.map(([patch]) => patch);
@@ -21,7 +25,7 @@ export function diff(
 function* _diff(
   a: any,
   b: any,
-  options: { stopAt?: number | ((path: KeyType[]) => boolean) },
+  options: DiffOptions,
   prefix: KeyType[] = [],
 ): Iterable<[patch: Patch, reversePatch: Patch]> {
   if (a === b) {
