@@ -235,7 +235,7 @@ export class Store<T> extends Callable<any, any> {
 
           resolve(value);
           stopped = true;
-          clearTimeout(timer);
+          timer && clearTimeout(timer);
           setTimeout(() => cancel());
         },
         {

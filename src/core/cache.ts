@@ -85,8 +85,12 @@ export class Cache<T> extends Store<Promise<T>> {
     return promise;
   }
 
-  updateValue(value: MaybePromise<T>) {
-    this.set(PromiseWithState.resolve(value));
+  updateValue(value: MaybePromise<T> | ((value: T) => T)) {
+    if (value instanceof Function) {
+      this.set(this.get().then((v) => value(v)));
+    } else {
+      this.set(PromiseWithState.resolve(value));
+    }
   }
 
   updateError(error: unknown) {
@@ -154,7 +158,7 @@ export class Cache<T> extends Store<Promise<T>> {
   protected watchPromise() {
     this.subscribe(
       async (promise) => {
-        if (promise instanceof PromiseWithState) {
+        if (promise instanceof PromiseWithState && promise.state.status !== 'pending') {
           this.state.set((state) => ({
             ...promise.state,
             isStale: false,
