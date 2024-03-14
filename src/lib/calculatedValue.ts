@@ -136,7 +136,12 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
     };
 
     connection = { active: true };
-    connection.cancel = createConnection(actions as any);
+    let _cancel: Cancel | undefined = createConnection(actions as any);
+
+    connection.cancel = () => {
+      _cancel?.();
+      _cancel = undefined;
+    };
 
     if (!connection.active) {
       connection.cancel();
