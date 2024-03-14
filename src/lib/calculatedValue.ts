@@ -19,6 +19,7 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
   let value: T | undefined;
   const whenConnected = new Deferred();
   const whenExecuted = new Deferred();
+  const ac = new AbortController();
   let connection: { active: boolean; cancel?: Cancel } | undefined;
   const q = queue();
   q(() => whenExecuted);
@@ -150,7 +151,10 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
     return whenConnected;
   }
 
-  value = store.getter instanceof Function ? store.getter({ use, connect }) : store.getter;
+  value =
+    store.getter instanceof Function
+      ? store.getter({ signal: ac.signal, use, connect })
+      : store.getter;
 
   if (value instanceof Promise) {
     value.finally(() => whenExecuted.resolve()).catch(() => undefined);
@@ -175,6 +179,7 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
     cancelEffect();
     whenExecuted.resolve();
     whenConnected.resolve();
+    ac.abort();
 
     if (connection) {
       connection.active = false;

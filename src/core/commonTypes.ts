@@ -89,6 +89,7 @@ export interface Connection<T> {
 }
 
 export interface CalculationActions<T> {
+  signal: AbortSignal;
   use: Use;
   connect(connection: Connection<T>): Promise<void>;
 }
