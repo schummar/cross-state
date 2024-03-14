@@ -23,7 +23,6 @@
     "useDefineForClassFields": false,
     "verbatimModuleSyntax": true,
 
-    "baseUrl": ".",
     "paths": {
       "@*": ["./src/*"]
     }
