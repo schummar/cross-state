@@ -1,7 +1,7 @@
 import type { Cache } from '@core';
 import type { CacheState } from '@lib/cacheState';
 import { makeSelector } from '@lib/makeSelector';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import type { UseStoreOptions } from './useStore';
 import { useStore } from './useStore';
 import { useLoadingBoundary } from '@react/loadingBoundary';
@@ -74,7 +74,11 @@ export function useCache<T>(
     return { rootCache, selector };
   }, [cache]);
 
+  const hasMounted = useRef(false);
+
   useEffect(() => {
+    hasMounted.current = true;
+
     if (updateOnMount) {
       rootCache.invalidate();
     }
@@ -90,21 +94,22 @@ export function useCache<T>(
         );
       }
 
+      const isStale = updateOnMount && !hasMounted.current ? true : state.isStale;
       try {
         const value = state.status === 'value' ? selector(state.value) : undefined;
 
         return Object.assign<UseCacheArray<T>, CacheState<T>>(
-          [value, state.error, state.isUpdating, state.isStale],
-          { ...state, value },
+          [value, state.error, state.isUpdating, isStale],
+          { ...state, value, isStale },
         );
       } catch (error) {
         return Object.assign<UseCacheArray<T>, CacheState<T>>(
-          [undefined, error, state.isUpdating, state.isStale],
+          [undefined, error, state.isUpdating, isStale],
           {
             status: 'error',
             error,
             isUpdating: state.isUpdating,
-            isStale: state.isStale,
+            isStale: isStale,
             isConnected: state.isConnected,
           },
         );

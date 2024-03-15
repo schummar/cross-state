@@ -49,7 +49,11 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
         q.clear();
 
         if ('state' in store) {
-          (store as unknown as Cache<any>).state.set('isConnected', false);
+          (store as unknown as Cache<any>).state.set((state) => ({
+            ...state,
+            isConnected: false,
+            isStale: true,
+          }));
         }
       }
     };

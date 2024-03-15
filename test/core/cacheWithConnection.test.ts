@@ -205,7 +205,7 @@ describe('cache with connection', () => {
     // Second update still happens despite cancel because of retain
     expect(subscriber.mock.calls.slice(4).map((x) => x[0])).toMatchObject([
       { status: 'value', value: 2, isStale: false, isUpdating: false, isConnected: true },
-      { status: 'value', value: 2, isStale: false, isUpdating: false, isConnected: false },
+      { status: 'value', value: 2, isStale: true, isUpdating: false, isConnected: false },
     ]);
 
     vi.advanceTimersByTime(1);
@@ -219,7 +219,6 @@ describe('cache with connection', () => {
     await flushPromises();
 
     expect(subscriber.mock.calls.slice(6).map((x) => x[0])).toMatchObject([
-      { status: 'value', value: 2, isStale: true, isUpdating: false, isConnected: false },
       { status: 'value', value: 2, isStale: true, isUpdating: true, isConnected: false },
       { status: 'value', value: 0, isStale: false, isUpdating: false, isConnected: false },
       { status: 'value', value: 0, isStale: false, isUpdating: false, isConnected: true },
