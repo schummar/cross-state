@@ -1,15 +1,10 @@
+import { isPlainObject } from '@lib/helpers';
 import { deepEqual } from './equals';
 
 const unwrapProxySymbol = /* @__PURE__ */ Symbol('unwrapProxy');
 
 export type TrackingProxy<T> = [value: T, equals: (newValue: T) => boolean, revoke?: () => void];
 type Object_ = Record<string | symbol, unknown>;
-
-function isPlainObject(value: unknown) {
-  return (
-    typeof value === 'object' && value !== null && Object.getPrototypeOf(value) === Object.prototype
-  );
-}
 
 export function trackingProxy<T>(value: T, equals = deepEqual): TrackingProxy<T> {
   if (!isPlainObject(value) && !Array.isArray(value)) {

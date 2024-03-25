@@ -1,3 +1,5 @@
+import { isPlainObject } from '@lib/helpers';
+
 export function hash(value: unknown): string {
   if (value instanceof Set) {
     return `s[${[...value].map(hash).sort().join(',')}]`;
@@ -11,7 +13,7 @@ export function hash(value: unknown): string {
     return `[${value.map(hash).join(',')}]`;
   }
 
-  if (value instanceof Object) {
+  if (isPlainObject(value)) {
     return `o[${Object.entries(value).map(hash).sort().join(',')}]`;
   }
 

@@ -35,4 +35,9 @@ describe('hash', () => {
       'o[["a",s[1]],["b",m[["a",1]]]]',
     );
   });
+
+  test('with dates', () => {
+    expect(hash(new Date(0))).toBe('"1970-01-01T00:00:00.000Z"');
+    expect(hash(new Date(0))).not.toBe(hash(new Date(1)));
+  });
 });
