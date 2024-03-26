@@ -1,3 +1,4 @@
+import { isObject } from '@lib/helpers';
 import type { Update } from '../core/commonTypes';
 import { flatClone } from './clone';
 import type { KeyType, Path, Value } from './path';
@@ -30,7 +31,7 @@ export function get<T, P extends Path<T>>(object: T, path: P): Value<T, P> {
     return get(Array.from(object)[Number(first)], rest);
   }
 
-  if (object instanceof Object) {
+  if (isObject(object)) {
     return get(object[first as keyof T], rest as any) as Value<T, P>;
   }
 
@@ -75,7 +76,7 @@ export function set<T, P extends Path<T>>(
     return new Set(copy) as any;
   }
 
-  if (object instanceof Object || object === undefined) {
+  if (isObject(object) || object === undefined) {
     const copy = flatClone(object ?? ({} as T));
     copy[first as keyof T] = updateChild(copy[first as keyof T]);
     return copy;

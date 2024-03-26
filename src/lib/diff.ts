@@ -1,3 +1,4 @@
+import { isObject } from '@lib/helpers';
 import { deepEqual } from './equals';
 import type { KeyType } from './path';
 
@@ -55,7 +56,7 @@ function* _diff(
     b = [...b];
   }
 
-  if (a instanceof Object && b instanceof Object && Array.isArray(a) === Array.isArray(b)) {
+  if (isObject(a) && isObject(b) && Array.isArray(a) === Array.isArray(b)) {
     return yield* objectDiff(a, b, options, prefix);
   }
 

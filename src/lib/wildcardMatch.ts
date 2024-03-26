@@ -1,3 +1,4 @@
+import { isObject } from '@lib/helpers';
 import { type KeyType } from './path';
 import { castArrayPath } from './propAccess';
 
@@ -24,7 +25,7 @@ export function getWildCardMatches(
     throw new Error('Path is empty');
   }
 
-  if (!(object instanceof Object)) {
+  if (!isObject(object) && !Array.isArray(object)) {
     throw new Error('Object is not an object');
   }
 

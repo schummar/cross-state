@@ -11,8 +11,8 @@
   "type": "module",
   "sideEffects": [
     "dist/es/react/register.mjs",
-    "dist/es/mutative/register.mjs",
     "dist/cjs/react/register.cjs",
+    "dist/es/mutative/register.mjs",
     "dist/cjs/mutative/register.cjs",
     "dist/es/patches/register.mjs",
     "dist/cjs/patches/register.cjs"

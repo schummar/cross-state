@@ -1,3 +1,4 @@
+import { isObject } from '@lib/helpers';
 import type { KeyType } from '@lib/path';
 
 export const isAncestor = (ancestor: KeyType[], path: KeyType[]): boolean => {
@@ -25,7 +26,7 @@ export const split = (
   const newValue = { ...value };
   const subValues = new Array<{ path: KeyType[]; value: unknown }>();
   for (const key of first === '*' ? Object.keys(value) : [first]) {
-    if (!(newValue[key] instanceof Object)) return [value, []];
+    if (!isObject(newValue[key])) return [value, []];
     const result = split(newValue[key], rest);
     newValue[key] = result[0];
     subValues.push(...result[1].map((s) => ({ path: [key, ...s.path], value: s.value })));

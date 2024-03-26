@@ -3,8 +3,10 @@ import { calcDuration } from '@lib/calcDuration';
 import { calculatedValue, staticValue, type CalculatedValue } from '@lib/calculatedValue';
 import { Callable } from '@lib/callable';
 import { debounce } from '@lib/debounce';
+import disposable from '@lib/disposable';
 import { deepEqual } from '@lib/equals';
 import { forwardError } from '@lib/forwardError';
+import { isObject } from '@lib/helpers';
 import { makeSelector } from '@lib/makeSelector';
 import type { Path, Value } from '@lib/path';
 import { PromiseWithCancel } from '@lib/promiseWithCancel';
@@ -22,7 +24,6 @@ import type {
   SubscribeOptions,
   Update,
 } from './commonTypes';
-import disposable from '@lib/disposable';
 
 export type StoreMethods = Record<string, (...args: any[]) => any>;
 
@@ -436,7 +437,7 @@ function create<T, Methods extends StoreMethods>(
     methods = { ...setMethods, ...methods };
   } else if (Array.isArray(initialState)) {
     methods = { ...arrayMethods, ...methods };
-  } else if (initialState instanceof Object) {
+  } else if (isObject(initialState)) {
     methods = { ...recordMethods, ...methods };
   }
 

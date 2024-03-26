@@ -2,6 +2,7 @@ import { connectUrl, createStore, type Store, type UrlStoreOptions } from '@core
 import { autobind } from '@lib/autobind';
 import { deepEqual } from '@lib/equals';
 import { hash } from '@lib/hash';
+import { isObject } from '@lib/helpers';
 import {
   type Path,
   type PathAsString,
@@ -245,7 +246,7 @@ function getField<TDraft, TOriginal extends TDraft, TPath extends PathAsString<T
         return value.map((_, index) => join(path, String(index)));
       }
 
-      if (value instanceof Object) {
+      if (isObject(value)) {
         return Object.keys(value).map((key) => join(path, key));
       }
 
@@ -275,7 +276,7 @@ function getField<TDraft, TOriginal extends TDraft, TPath extends PathAsString<T
           return value.filter((_, index) => index !== key);
         }
 
-        if (value instanceof Object) {
+        if (isObject(value)) {
           const { [key]: _, ...rest } = value;
           return rest;
         }

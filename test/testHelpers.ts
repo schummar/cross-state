@@ -1,3 +1,5 @@
+import { isObject } from '@lib/helpers';
+
 const noopPromise = Promise.resolve();
 
 export async function flushPromises(n = 100) {
@@ -13,6 +15,4 @@ export async function sleep(ms: number) {
 }
 
 export const getValues = (function_: any) =>
-  function_.mock.calls.map(([x]: any) =>
-    x instanceof Object && 'status' in x ? x?.error ?? x?.value : x,
-  );
+  function_.mock.calls.map(([x]: any) => (isObject(x) && 'status' in x ? x?.error ?? x?.value : x));

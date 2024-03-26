@@ -1,3 +1,5 @@
+import { isObject } from '@lib/helpers';
+
 export function flatClone<T>(object: T): T {
   if (object instanceof Map) {
     return new Map(object) as any;
@@ -11,7 +13,7 @@ export function flatClone<T>(object: T): T {
     return [...object] as any;
   }
 
-  if (object instanceof Object) {
+  if (isObject(object)) {
     return { ...object };
   }
 
