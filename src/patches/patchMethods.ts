@@ -1,4 +1,4 @@
-import type { SubscribeOptions } from '@core';
+import type { Cancel, SubscribeOptions } from '@core/commonTypes';
 import type { Store } from '@core/store';
 import { applyPatches as _applyPatches } from '@lib/applyPatches';
 import { diff, type DiffOptions, type Patch } from '@lib/diff';
@@ -29,7 +29,7 @@ function subscribePatches<T>(
   this: Store<T>,
   listener: (patches: Patch[], reversePatches: Patch[]) => void,
   options?: SubscribePatchOptions,
-) {
+): Cancel {
   if (!this.__patches) {
     let previousValue = this.get();
 
@@ -61,7 +61,7 @@ function sync<T>(
   this: Store<T>,
   listener: (syncMessage: SyncMessage) => void,
   options?: Omit<SubscribePatchOptions, 'runNow'>,
-) {
+): Cancel {
   let previousId: string | undefined;
 
   return this.subscribePatches(
@@ -76,10 +76,10 @@ function sync<T>(
   );
 }
 
-function acceptSync<T>(this: Store<T>) {
+function acceptSync<T>(this: Store<T>): (message: SyncMessage) => void {
   let previousId: string | undefined;
 
-  return (message: SyncMessage) => {
+  return (message) => {
     if (message.previousId && message.previousId !== previousId) {
       throw new Error('previousId mismatch');
     }
