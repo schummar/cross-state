@@ -42,7 +42,10 @@ function subscribePatches<T>(
 
   const { stopAt, runNow, ...subscribeOptions } = options ?? {};
 
-  const cancel = this.__patches.subscribe((p) => listener(...p), subscribeOptions);
+  const cancel = this.__patches.subscribe((p) => listener(...p), {
+    ...subscribeOptions,
+    runNow: false,
+  });
 
   if (runNow) {
     listener(...diff(undefined, this.get(), options));
