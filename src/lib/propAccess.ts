@@ -56,7 +56,7 @@ export function set<T, P extends Path<T>>(
       const _rootPath = castArrayPath(rootPath as any);
 
       const prefix = _rootPath.slice(0, -rest.length);
-      throw new Error(`Cannot set ${rootPath} because ${prefix.join('.')} is ${child}`);
+      throw new Error(`Cannot set ${_rootPath.join('.')} because ${prefix.join('.')} is ${child}`);
     }
 
     return set(child, rest as any, value, rootPath);
