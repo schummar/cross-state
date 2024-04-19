@@ -5,6 +5,7 @@ import { queue } from '@lib/queue';
 import { deepEqual } from './equals';
 import { PromiseWithState } from '@lib/promiseWithState';
 import type { Cache } from '@core';
+import isPromise from '@lib/isPromise';
 
 export interface CalculatedValue<T> {
   value: T;
@@ -102,7 +103,7 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
               update = update(await value);
             }
 
-            if (update instanceof Promise) {
+            if (isPromise(update)) {
               update = await update;
             }
 
@@ -117,7 +118,8 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
       updateError(error) {
         connection?.active &&
           q(() => {
-            (store as unknown as Store<Promise<any>>).set(Promise.reject(error));
+            value = PromiseWithState.reject(error) as T;
+            notify();
           });
       },
       updateIsConnected(isConnected) {
@@ -160,7 +162,7 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
       ? store.getter({ signal: ac.signal, use, connect })
       : store.getter;
 
-  if (value instanceof Promise) {
+  if (isPromise(value)) {
     value.finally(() => whenExecuted.resolve()).catch(() => undefined);
   } else {
     whenExecuted.resolve();

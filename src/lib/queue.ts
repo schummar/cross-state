@@ -1,3 +1,4 @@
+import isPromise from '@lib/isPromise';
 import type { MaybePromise } from './maybePromise';
 import type { Listener } from '@core';
 
@@ -37,7 +38,7 @@ export function queue(): Queue {
       while ((next = q.shift())) {
         try {
           let result = next.action();
-          if (result instanceof Promise) {
+          if (isPromise(result)) {
             result = await result;
           }
 

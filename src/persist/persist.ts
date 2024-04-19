@@ -7,6 +7,7 @@ import {
 import { type Cancel, type Store } from '@core';
 import { diff } from '@lib/diff';
 import { shallowEqual } from '@lib/equals';
+import isPromise from '@lib/isPromise';
 import { maybeAsync, maybeAsyncArray } from '@lib/maybeAsync';
 import type { KeyType, WildcardPath } from '@lib/path';
 import { castArrayPath, get, set } from '@lib/propAccess';
@@ -123,7 +124,7 @@ export class Persist<T> {
 
   private async watchStorage() {
     let keys = this.storage.keys();
-    if (keys instanceof Promise) {
+    if (isPromise(keys)) {
       keys = await keys;
     }
 

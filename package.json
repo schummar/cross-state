@@ -141,6 +141,7 @@
     "@types/ws": "8.5.10",
     "@vitejs/plugin-react": "4.2.1",
     "@vitest/coverage-v8": "1.4.0",
+    "@vitest/ui": "^1.4.0",
     "esbuild": "0.20.2",
     "eslint": "8.57.0",
     "happy-dom": "14.5.1",

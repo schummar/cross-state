@@ -1,10 +1,11 @@
+import isPromise from '@lib/isPromise';
 import type { MaybePromise } from './maybePromise';
 
 export function maybeAsync<T, R>(
   value: MaybePromise<T>,
   action: (value: T) => MaybePromise<R>,
 ): MaybePromise<R> {
-  if (value instanceof Promise) {
+  if (isPromise(value)) {
     return value.then(action);
   }
   return action(value);
