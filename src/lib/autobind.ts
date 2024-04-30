@@ -3,7 +3,7 @@ export const autobind = <
 >(
   _class: TClass,
   _context?: ClassDecoratorContext<TClass>,
-) => {
+): TClass => {
   if (Reflect.getOwnPropertyDescriptor(_class.prototype, '__autobind_done__')) {
     return _class;
   }

@@ -1,6 +1,6 @@
 import type { Duration } from '../core/commonTypes';
 
-export function calcDuration(t: Duration) {
+export function calcDuration(t: Duration): number {
   if (typeof t === 'number') return t;
   return (
     (t.milliseconds ?? 0) +

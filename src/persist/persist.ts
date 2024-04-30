@@ -215,7 +215,7 @@ export class Persist<T> {
     });
   }
 
-  async stop() {
+  async stop(): Promise<void> {
     this.stopped = true;
 
     for (const handle of this.handles) {

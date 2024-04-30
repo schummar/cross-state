@@ -18,7 +18,10 @@ import {
   useContext,
   useEffect,
   useMemo,
+  type Context,
+  type ElementType,
   type FormEvent,
+  type FunctionComponent,
   type HTMLProps,
   type ReactNode,
 } from 'react';
@@ -323,7 +326,10 @@ function getErrors<TDraft, TOriginal>(
 }
 
 export class Form<TDraft, TOriginal extends TDraft = TDraft> {
-  context = createContext<FormContext<TDraft, TOriginal> | null>(null);
+  context: Context<FormContext<TDraft, TOriginal> | null> = createContext<FormContext<
+    TDraft,
+    TOriginal
+  > | null>(null);
 
   constructor(public readonly options: FormOptions<TDraft, TOriginal>) {
     autobind(Form);
@@ -342,7 +348,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
   useFormState<S>(
     selector: (state: FormInstance<TDraft, TOriginal>) => S,
     useStoreOptions?: UseStoreOptions<S>,
-  ) {
+  ): S {
     const form = this.useForm();
 
     return useStore(
@@ -359,7 +365,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
   useField<TPath extends PathAsString<TDraft>>(
     path: TPath,
     useStoreOptions?: UseStoreOptions<Field<TDraft, TOriginal, TPath>>,
-  ) {
+  ): Field<TDraft, TOriginal, TPath> {
     return this.useFormState((form) => form.getField(path), useStoreOptions);
   }
 
@@ -380,7 +386,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     original?: TOriginal;
     onSubmit?: (event: FormEvent<HTMLFormElement>, form: FormInstance<TDraft, TOriginal>) => void;
   } & Partial<FormOptions<TDraft, TOriginal>> &
-    Omit<HTMLProps<HTMLFormElement>, 'defaultValue' | 'autoSave' | 'onSubmit'>) {
+    Omit<HTMLProps<HTMLFormElement>, 'defaultValue' | 'autoSave' | 'onSubmit'>): JSX.Element {
     const options: FormOptions<TDraft, TOriginal> = {
       defaultValue: { ...this.options.defaultValue, ...defaultValue },
       validations: { ...this.options.validations, ...validations } as Validations<
@@ -520,7 +526,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
   }: {
     selector: (form: FormInstance<TDraft, TOriginal>) => S;
     children: (selectedState: S) => ReactNode;
-  }) {
+  }): JSX.Element {
     const selectedState = this.useFormState(selector);
     return <>{children(selectedState)}</>;
   }
@@ -538,14 +544,14 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     return Reflect.apply(FormField, this, [{ component: 'input', ...props }]);
   }
 
-  ForEach<TPath extends ForEachPath<TDraft>>(props: FormForEachProps<TDraft, TPath>) {
+  ForEach<TPath extends ForEachPath<TDraft>>(props: FormForEachProps<TDraft, TPath>): JSX.Element {
     return Reflect.apply(FormForEach, this, [props]);
   }
 
   withForm<TProps extends Record<string, unknown>>(
     Component: React.ComponentType<TProps>,
     formProps?: Parameters<this['Form']>[0],
-  ) {
+  ): FunctionComponent<TProps> {
     const { Form } = this;
     return function FormWrapper(props: TProps) {
       return (
@@ -559,6 +565,6 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
 
 export function createForm<TDraft, TOriginal extends TDraft = TDraft>(
   options: FormOptions<TDraft, TOriginal>,
-) {
+): Form<TDraft, TOriginal> {
   return new Form(options);
 }

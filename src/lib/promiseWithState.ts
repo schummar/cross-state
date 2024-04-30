@@ -3,7 +3,7 @@ import { type ErrorState, type PendingState, type ValueState } from './cacheStat
 import { type MaybePromise } from './maybePromise';
 
 export class PromiseWithState<T> extends Promise<T> {
-  static get [Symbol.species]() {
+  static get [Symbol.species](): typeof Promise {
     return Promise;
   }
 
@@ -15,7 +15,7 @@ export class PromiseWithState<T> extends Promise<T> {
     return new PromiseWithState<T>(value as MaybePromise<T>);
   }
 
-  static override reject<T = never>(error: unknown) {
+  static override reject<T = never>(error: unknown): PromiseWithState<T> {
     return new PromiseWithState<T>(Promise.reject(error), { status: 'error', error });
   }
 

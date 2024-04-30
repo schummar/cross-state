@@ -69,12 +69,12 @@ export class Store<T> extends Callable<any, any> {
   protected calculatedValue?: CalculatedValue<T>;
   protected defaultValue?: CalculatedValue<T>;
 
-  protected listeners = new Map<Listener, boolean>();
+  protected listeners: Map<Listener, boolean> = new Map();
 
-  protected effects = new Map<
+  protected effects: Map<
     Effect,
     { handle?: Cancel; retain?: number; timeout?: ReturnType<typeof setTimeout> }
-  >();
+  > = new Map();
 
   protected notifyId = {};
 
@@ -133,7 +133,7 @@ export class Store<T> extends Callable<any, any> {
     this.notify();
   }
 
-  invalidate(recursive?: boolean) {
+  invalidate(recursive?: boolean): void {
     if (recursive) {
       this.calculatedValue?.invalidateDependencies(recursive);
     }
@@ -320,7 +320,7 @@ export class Store<T> extends Callable<any, any> {
    * @returns
    * The effect can return a teardown callback, which will be executed when the last subscription is removed and potentially the ratain time has passed.
    */
-  addEffect(effect: Effect, retain = this.options.retain) {
+  addEffect(effect: Effect, retain: Duration | undefined = this.options.retain): Cancel {
     this.effects.set(effect, {
       handle: this.isActive() ? effect() ?? noop : undefined,
       retain: retain !== undefined ? calcDuration(retain) : undefined,
@@ -339,11 +339,11 @@ export class Store<T> extends Callable<any, any> {
   }
 
   /** Return whether the store is currently active, which means whether it has at least one subscriber. */
-  isActive() {
+  isActive(): boolean {
     return [...this.listeners.values()].some(Boolean);
   }
 
-  protected onSubscribe() {
+  protected onSubscribe(): void {
     if ([...this.listeners.values()].filter(Boolean).length > 1) return;
 
     for (const [effect, { handle, retain, timeout }] of this.effects.entries()) {
@@ -359,7 +359,7 @@ export class Store<T> extends Callable<any, any> {
     }
   }
 
-  protected onUnsubscribe() {
+  protected onUnsubscribe(): void {
     if ([...this.listeners.values()].some(Boolean)) return;
 
     for (const [effect, { handle, retain, timeout }] of this.effects.entries()) {
@@ -400,7 +400,7 @@ export class Store<T> extends Callable<any, any> {
     }
   }
 
-  protected notify() {
+  protected notify(): void {
     const n = {};
     this.notifyId = n;
 
@@ -450,8 +450,9 @@ function create<T, Methods extends StoreMethods>(
   return Object.assign(store, boundMethods);
 }
 
-export const createStore = /* @__PURE__ */ Object.assign(create, {
-  defaultOptions: {
-    equals: deepEqual,
-  } as StoreOptions,
-});
+export const createStore: typeof create & { defaultOptions: StoreOptions } =
+  /* @__PURE__ */ Object.assign(create, {
+    defaultOptions: {
+      equals: deepEqual,
+    } as StoreOptions,
+  });

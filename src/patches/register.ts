@@ -10,7 +10,7 @@ declare module '@core' {
 
 let backup: any;
 
-export function register() {
+export function register(): void {
   if (backup) {
     return;
   }
@@ -26,7 +26,7 @@ export function register() {
   }
 }
 
-export function unregister() {
+export function unregister(): void {
   if (!backup) {
     return;
   }

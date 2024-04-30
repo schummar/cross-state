@@ -19,7 +19,11 @@ function getScopeContext<T>(scope: Scope<T>): Context<Store<T>> {
   return scope.context;
 }
 
-export function ScopeProvider<T>({ scope, store: inputStore, children }: ScopeProps<T>) {
+export function ScopeProvider<T>({
+  scope,
+  store: inputStore,
+  children,
+}: ScopeProps<T>): JSX.Element {
   const context = getScopeContext(scope);
   const currentStore = useMemo(
     () => inputStore ?? createStore(scope.defaultValue),
@@ -39,7 +43,10 @@ export function useScopeStore<T>(scope: Scope<T>, options?: UseStoreOptions<T>):
   return useStore(store, options);
 }
 
-export function useScopeProp<T>(scope: Scope<T>, options?: UseStoreOptions<T>) {
+export function useScopeProp<T>(
+  scope: Scope<T>,
+  options?: UseStoreOptions<T>,
+): [value: T, setValue: Store<T>['set']] {
   const store = useScope(scope);
   return useProp(store, options);
 }

@@ -1,7 +1,7 @@
 import { Cache, Scope, Store } from '@core';
 import { reactMethods } from './reactMethods';
 import { ScopeProvider, useScope, useScopeProp, useScopeStore, type ScopeProps } from './scope';
-import { useCache, type UseCacheOptions } from './useCache';
+import { useCache, type UseCacheOptions, type UseCacheValue } from './useCache';
 import { type UseStoreOptions } from './useStore';
 
 type StoreMethods = typeof reactMethods;
@@ -20,25 +20,25 @@ declare module '@core' {
 }
 
 const cacheMethods = {
-  useCache<T>(this: Cache<T>, options?: UseCacheOptions<T>) {
+  useCache<T>(this: Cache<T>, options?: UseCacheOptions<T>): UseCacheValue<T> {
     return useCache(this, options);
   },
 };
 
 const scopeMethods = {
-  useScope<T>(this: Scope<T>) {
+  useScope<T>(this: Scope<T>): Store<T> {
     return useScope(this);
   },
 
-  useStore<T>(this: Scope<T>, options?: UseStoreOptions<T>) {
+  useStore<T>(this: Scope<T>, options?: UseStoreOptions<T>): T {
     return useScopeStore(this, options);
   },
 
-  useProp<T>(this: Scope<T>, options?: UseStoreOptions<T>) {
+  useProp<T>(this: Scope<T>, options?: UseStoreOptions<T>): [value: T, setValue: Store<T>['set']] {
     return useScopeProp(this, options);
   },
 
-  Provider<T>(this: Scope<T>, props: Omit<ScopeProps<T>, 'scope'>) {
+  Provider<T>(this: Scope<T>, props: Omit<ScopeProps<T>, 'scope'>): JSX.Element {
     return ScopeProvider({ ...props, scope: this });
   },
 };

@@ -14,13 +14,13 @@ export class ResourceGroup {
     autobind(ResourceGroup);
   }
 
-  add(resource: Resource) {
+  add(resource: Resource): void {
     const ref = new WeakRef(resource);
     this.refMap.set(resource, ref);
     this.refSet.add(ref);
   }
 
-  delete(resource: Resource) {
+  delete(resource: Resource): void {
     const ref = this.refMap.get(resource);
     if (ref) {
       this.refMap.delete(resource);
@@ -28,7 +28,7 @@ export class ResourceGroup {
     }
   }
 
-  invalidateAll() {
+  invalidateAll(): void {
     for (const ref of this.refSet) {
       const resource = ref.deref();
       if (resource) {
@@ -39,7 +39,7 @@ export class ResourceGroup {
     }
   }
 
-  clearAll() {
+  clearAll(): void {
     for (const ref of this.refSet) {
       const resource = ref.deref();
       if (resource) {
@@ -51,8 +51,8 @@ export class ResourceGroup {
   }
 }
 
-export const allResources = /* @__PURE__ */ new ResourceGroup();
+export const allResources: ResourceGroup = /* @__PURE__ */ new ResourceGroup();
 
-export function createResourceGroup(name?: string) {
+export function createResourceGroup(name?: string): ResourceGroup {
   return new ResourceGroup(name);
 }

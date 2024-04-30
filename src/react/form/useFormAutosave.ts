@@ -15,7 +15,7 @@ export interface FormAutosaveOptions<TDraft, TOriginal> {
 
 export function useFormAutosave<TDraft, TOriginal extends TDraft>(
   form: FormContext<TDraft, TOriginal>,
-) {
+): void {
   const { formState, options, getDraft } = form;
   const debounceTime = calcDuration(options.autoSave?.debounce ?? 2_000);
   const latestRef = useRef({ options });

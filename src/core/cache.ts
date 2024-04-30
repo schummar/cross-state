@@ -31,7 +31,7 @@ export interface CacheOptions<T> extends StoreOptions {
 }
 
 export class Cache<T> extends Store<Promise<T>> {
-  readonly state = createStore<CacheState<T>>({
+  readonly state: Store<CacheState<T>> = createStore<CacheState<T>>({
     status: 'pending',
     isStale: true,
     isUpdating: false,
@@ -60,7 +60,7 @@ export class Cache<T> extends Store<Promise<T>> {
     this.state.addEffect(() => this.subscribe(() => undefined));
   }
 
-  get({ update = 'whenStale', backgroundUpdate = false }: CacheGetOptions = {}) {
+  get({ update = 'whenStale', backgroundUpdate = false }: CacheGetOptions = {}): Promise<T> {
     const promise = this.calculatedValue?.value;
     const stalePromise = this.stalePromise;
 
@@ -85,7 +85,7 @@ export class Cache<T> extends Store<Promise<T>> {
     return promise;
   }
 
-  updateValue(value: MaybePromise<T> | ((value: T) => T)) {
+  updateValue(value: MaybePromise<T> | ((value: T) => T)): void {
     if (value instanceof Function) {
       this.set(this.get().then((v) => value(v)));
     } else {
@@ -93,11 +93,11 @@ export class Cache<T> extends Store<Promise<T>> {
     }
   }
 
-  updateError(error: unknown) {
+  updateError(error: unknown): void {
     this.set(PromiseWithState.reject(error));
   }
 
-  invalidate(recursive?: boolean) {
+  invalidate(recursive?: boolean): void {
     const { clearOnInvalidate } = this.options;
 
     if (clearOnInvalidate) {
@@ -155,7 +155,7 @@ export class Cache<T> extends Store<Promise<T>> {
     );
   }
 
-  protected watchPromise() {
+  protected watchPromise(): void {
     this.subscribe(
       async (promise) => {
         if (promise instanceof PromiseWithState && promise.state.status !== 'pending') {
@@ -214,7 +214,7 @@ export class Cache<T> extends Store<Promise<T>> {
     );
   }
 
-  protected setTimers() {
+  protected setTimers(): void {
     if (this.invalidationTimer) {
       clearTimeout(this.invalidationTimer);
     }
@@ -240,7 +240,7 @@ export class Cache<T> extends Store<Promise<T>> {
     }
   }
 
-  protected watchFocus() {
+  protected watchFocus(): void {
     const { invalidateOnWindowFocus } = this.options;
 
     if (
@@ -354,12 +354,13 @@ function create<T, Args extends any[] = []>(
   return baseInstance;
 }
 
-export const createCache = /* @__PURE__ */ Object.assign(create, {
-  defaultOptions: {
-    invalidateOnWindowFocus: true,
-    invalidateOnActivation: true,
-    clearUnusedAfter: { days: 1 },
-    retain: { milliseconds: 1 },
-    equals: deepEqual,
-  } as CacheOptions<unknown>,
-});
+export const createCache: typeof create & { defaultOptions: CacheOptions<unknown> } =
+  /* @__PURE__ */ Object.assign(create, {
+    defaultOptions: {
+      invalidateOnWindowFocus: true,
+      invalidateOnActivation: true,
+      clearUnusedAfter: { days: 1 },
+      retain: { milliseconds: 1 },
+      equals: deepEqual,
+    } as CacheOptions<unknown>,
+  });

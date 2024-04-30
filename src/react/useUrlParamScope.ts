@@ -8,7 +8,7 @@ export function useUrlParamScope({
 }: {
   key: string | string[];
   type?: 'search' | 'hash';
-}) {
+}): void {
   useEffect(
     () => () => {
       const url = new URL(window.location.href);

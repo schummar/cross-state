@@ -30,7 +30,7 @@ export function LoadingBoundary({
   fallback,
   children,
   isLoading: isLoadingExternal,
-}: LoadingBoundaryProps) {
+}: LoadingBoundaryProps): JSX.Element {
   const store = useMemo(() => createStore(new Set<LoadingBoundaryEntry>()), []);
   const entries = useStore(store);
   const isLoading = entries.size > 0 || isLoadingExternal;
@@ -55,7 +55,7 @@ export function LoadingBoundary({
   );
 }
 
-export function useLoadingBoundary(isLoading: boolean | undefined, label?: ReactNode) {
+export function useLoadingBoundary(isLoading: boolean | undefined, label?: ReactNode): void {
   const store = useContext(LoadingBoundaryContext);
 
   useLayoutEffect(() => {

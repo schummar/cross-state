@@ -7,9 +7,12 @@ export class InstanceCache<Args extends any[], T extends object> {
     ? setInterval(() => this.cleanup(), Math.max(this.cacheTime / 10, 1))
     : undefined;
 
-  constructor(public readonly factory: (...args: Args) => T, public readonly cacheTime?: number) {}
+  constructor(
+    public readonly factory: (...args: Args) => T,
+    public readonly cacheTime?: number,
+  ) {}
 
-  cleanup() {
+  cleanup(): void {
     const cutoff = this.now() - (this.cacheTime ?? 0);
 
     for (const [key, entry] of this.cache.entries()) {
@@ -23,7 +26,7 @@ export class InstanceCache<Args extends any[], T extends object> {
     }
   }
 
-  get(...args: Args) {
+  get(...args: Args): T {
     const key = hash(args);
     let entry = this.cache.get(key);
     let value = entry?.ref ?? entry?.weakRef?.deref();
@@ -45,19 +48,19 @@ export class InstanceCache<Args extends any[], T extends object> {
     return value;
   }
 
-  values() {
+  values(): T[] {
     return [...this.cache.values()]
       .map((entry) => entry.ref ?? entry.weakRef?.deref())
       .filter((value): value is T => !!value);
   }
 
-  stop() {
+  stop(): void {
     if (this.interval) {
       clearInterval(this.interval);
     }
   }
 
-  stats() {
+  stats(): { count: number; withRef: number; withWeakRef: number } {
     return {
       count: this.cache.size,
       withRef: [...this.cache.values()].filter((x) => !!x.ref).length,

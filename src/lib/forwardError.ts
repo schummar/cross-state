@@ -1,4 +1,4 @@
-export function forwardError(error: unknown) {
+export function forwardError(error: unknown): void {
   setTimeout(() => {
     throw error;
   });

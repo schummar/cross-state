@@ -38,7 +38,10 @@ function boundUseProp(this: Store<any>, ...args: any[]) {
   return useProp(this, ...args);
 }
 
-export const reactMethods = {
+export const reactMethods: {
+  useStore: typeof boundUseStore;
+  useProp: typeof boundUseProp;
+} = {
   useStore: boundUseStore,
   useProp: boundUseProp,
 };

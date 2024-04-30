@@ -28,13 +28,14 @@ export type FormFieldComponent = NativeInputType | PartialComponentType<any>;
 
 type FieldValue<T extends FormFieldComponent> = ComponentPropsWithoutRef<T>['value'];
 
-type FieldChangeValue<T extends FormFieldComponent> = ComponentPropsWithoutRef<T> extends {
-  onChange?: (update: infer U) => void;
-}
-  ? U extends { target: { value: infer V } }
-    ? V
-    : U
-  : never;
+type FieldChangeValue<T extends FormFieldComponent> =
+  ComponentPropsWithoutRef<T> extends {
+    onChange?: (update: infer U) => void;
+  }
+    ? U extends { target: { value: infer V } }
+      ? V
+      : U
+    : never;
 
 type MakeOptional<T, Keys extends string> = Omit<T, Keys> & Partial<Pick<T, Keys & keyof T>>;
 
@@ -76,16 +77,16 @@ export type FormFieldPropsWithComponent<
         serialize?: (value: Value<TDraft, TPath>) => FieldValue<TComponent>;
       }
     : Value<TDraft, TPath> extends FieldValue<TComponent>
-    ?
-        | {
-            defaultValue: FieldValue<TComponent>;
-            serialize?: (value: Value<TDraft, TPath>) => FieldValue<TComponent>;
-          }
-        | {
-            defaultValue?: FieldValue<TComponent>;
-            serialize: (value: Value<TDraft, TPath>) => FieldValue<TComponent>;
-          }
-    : { serialize: (value: Value<TDraft, TPath>) => FieldValue<TComponent> }) &
+      ?
+          | {
+              defaultValue: FieldValue<TComponent>;
+              serialize?: (value: Value<TDraft, TPath>) => FieldValue<TComponent>;
+            }
+          | {
+              defaultValue?: FieldValue<TComponent>;
+              serialize: (value: Value<TDraft, TPath>) => FieldValue<TComponent>;
+            }
+      : { serialize: (value: Value<TDraft, TPath>) => FieldValue<TComponent> }) &
   (FieldChangeValue<TComponent> extends Value<TDraft, TPath>
     ? { deserialize?: (value: FieldChangeValue<TComponent>) => Value<TDraft, TPath> }
     : { deserialize: (value: FieldChangeValue<TComponent>) => Value<TDraft, TPath> });
@@ -111,7 +112,7 @@ export function FormField<
   }:
     | FormFieldPropsWithRender<TDraft, TPath>
     | FormFieldPropsWithComponent<TDraft, TPath, TComponent>,
-) {
+): JSX.Element | null {
   type T = FieldChangeValue<TComponent>;
 
   const { value, setValue } = this.useField(name);
@@ -164,7 +165,7 @@ export function FormField<
   };
 
   if (render) {
-    return render(props as FormFieldComponentProps<Value<TDraft, TPath>, TPath>) ?? null;
+    return <>{render(props as FormFieldComponentProps<Value<TDraft, TPath>, TPath>) ?? null}</>;
   }
 
   if (component) {

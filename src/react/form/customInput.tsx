@@ -5,7 +5,7 @@ export interface CustomInputProps extends React.HTMLAttributes<HTMLDivElement> {
   children?: ReactNode;
 }
 
-export function CustomInput({ name, children, ...props }: CustomInputProps) {
+export function CustomInput({ name, children, ...props }: CustomInputProps): JSX.Element {
   return (
     <div
       {...props}

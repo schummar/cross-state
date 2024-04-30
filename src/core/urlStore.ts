@@ -46,7 +46,7 @@ urlStore.addEffect(() => {
   };
 });
 
-export function updateUrlStore() {
+export function updateUrlStore(): void {
   urlStore.set(window.location.href);
 }
 

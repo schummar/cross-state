@@ -30,7 +30,7 @@ export class PromiseWithCancel<T> extends Promise<T> {
     this.abortController = abortController;
   }
 
-  cancel(reason: any = new PromiseCancelError()) {
+  cancel(reason: any = new PromiseCancelError()): void {
     this.abortController.abort(reason);
   }
 }

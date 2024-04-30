@@ -29,7 +29,7 @@ export interface FormForEachProps<TDraft, TPath extends ForEachPath<TDraft>> {
 export function FormForEach<TDraft, TPath extends ForEachPath<TDraft>>(
   this: Form<TDraft, any>,
   { name, renderElement, children }: FormForEachProps<TDraft, TPath>,
-) {
+): JSX.Element {
   const form = this.useForm();
 
   const names = this.useFormState(() => {

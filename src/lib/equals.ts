@@ -1,4 +1,4 @@
-export function strictEqual(a: any, b: any) {
+export function strictEqual(a: any, b: any): boolean {
   return a === b;
 }
 

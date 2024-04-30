@@ -6,7 +6,10 @@ const unwrapProxySymbol = /* @__PURE__ */ Symbol('unwrapProxy');
 export type TrackingProxy<T> = [value: T, equals: (newValue: T) => boolean, revoke?: () => void];
 type Object_ = Record<string | symbol, unknown>;
 
-export function trackingProxy<T>(value: T, equals = deepEqual): TrackingProxy<T> {
+export function trackingProxy<T>(
+  value: T,
+  equals: (a: any, b: any) => boolean = deepEqual,
+): TrackingProxy<T> {
   if (!isPlainObject(value) && !Array.isArray(value)) {
     return [value, (other) => equals(value, other)];
   }

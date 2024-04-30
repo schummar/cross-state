@@ -37,6 +37,8 @@ function update<T, TPath extends Path<T>>(
   }
 }
 
-export const mutativeMethods = {
+export const mutativeMethods: {
+  update: typeof update;
+} = {
   update,
 };

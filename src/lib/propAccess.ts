@@ -42,7 +42,7 @@ export function set<T, P extends Path<T>>(
   object: T,
   path: P,
   value: Update<Value<T, P>>,
-  rootPath = path,
+  rootPath: P = path,
 ): T {
   const _path = castArrayPath(path as any);
   const [first, ...rest] = _path;
@@ -109,6 +109,6 @@ export function remove<T, P extends Path<T, true>>(object: T, path: P): T {
   return set(object, parentPath as any, parent);
 }
 
-export function join(a: string, b: string) {
+export function join(a: string, b: string): string {
   return [a, b].filter(Boolean).join('.');
 }

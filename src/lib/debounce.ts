@@ -11,7 +11,12 @@ export type DebounceOptions =
 export function debounce<Args extends any[]>(
   action: (...args: Args) => void,
   options: Duration | DebounceOptions,
-) {
+): {
+  (...args: Args): void;
+  flush(): void;
+  cancel(): void;
+  isScheduled(): boolean;
+} {
   const wait =
     typeof options === 'object' && 'wait' in options
       ? calcDuration(options.wait)

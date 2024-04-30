@@ -13,7 +13,6 @@
     "noImplicitAny": true,
     "target": "ES2020",
     "lib": ["ESNext", "ESNext.WeakRef", "DOM"],
-    "allowJs": true,
     "downlevelIteration": true,
     "allowSyntheticDefaultImports": true,
     "noUncheckedIndexedAccess": true,
@@ -22,6 +21,7 @@
     "skipLibCheck": true,
     "useDefineForClassFields": false,
     "verbatimModuleSyntax": true,
+    "isolatedDeclarations": true,
 
     "paths": {
       "@*": ["./src/*"]

@@ -92,7 +92,12 @@ function acceptSync<T>(this: Store<T>): (message: SyncMessage) => void {
   };
 }
 
-export const patchMethods = {
+export const patchMethods: {
+  subscribePatches: typeof subscribePatches;
+  applyPatches: typeof applyPatches;
+  sync: typeof sync;
+  acceptSync: typeof acceptSync;
+} = {
   subscribePatches,
   applyPatches,
   sync,

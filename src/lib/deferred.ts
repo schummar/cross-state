@@ -1,5 +1,5 @@
 export class Deferred<T = void> extends Promise<T> {
-  static get [Symbol.species]() {
+  static get [Symbol.species](): typeof Promise {
     return Promise;
   }
 
