@@ -1,5 +1,6 @@
-import { patchMethods } from './patchMethods';
 import { Store } from '@core';
+import { autobind } from '@lib/autobind';
+import { patchMethods } from './patchMethods';
 
 type PatchMethods = typeof patchMethods;
 
@@ -8,38 +9,6 @@ declare module '@core' {
   interface Store<T> extends PatchMethods {}
 }
 
-let backup: any;
+Object.assign(Store.prototype, patchMethods);
 
-export function register(): void {
-  if (backup) {
-    return;
-  }
-
-  backup = {};
-
-  for (const [name, method] of Object.entries(patchMethods)) {
-    if (name in Store.prototype) {
-      backup[name] = (Store.prototype as any)[name];
-    }
-
-    (Store.prototype as any)[name] = method;
-  }
-}
-
-export function unregister(): void {
-  if (!backup) {
-    return;
-  }
-
-  for (const key in patchMethods) {
-    if (key in backup) {
-      (Store.prototype as any)[key] = backup[key];
-    } else {
-      delete (Store.prototype as any)[key];
-    }
-  }
-
-  backup = undefined;
-}
-
-register();
+autobind(Store);

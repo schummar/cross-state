@@ -1,8 +1,7 @@
-import type { Selector, Update } from '@core/commonTypes';
-import type { Store } from '@core/store';
+import type { Selector, Store, Update } from '@core';
 import type { Path, Value } from '@lib/path';
-import { useProp } from './useProp';
-import { useStore, type UseStoreOptions } from './useStore';
+import { useProp } from '@react/useProp';
+import { type UseStoreOptions, useStore } from '@react/useStore';
 
 function boundUseStore<T, S>(
   this: Store<T>,
@@ -38,7 +37,7 @@ function boundUseProp(this: Store<any>, ...args: any[]) {
   return useProp(this, ...args);
 }
 
-export const reactMethods: {
+export const storeMethods: {
   useStore: typeof boundUseStore;
   useProp: typeof boundUseProp;
 } = {

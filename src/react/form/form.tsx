@@ -331,9 +331,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     TOriginal
   > | null>(null);
 
-  constructor(public readonly options: FormOptions<TDraft, TOriginal>) {
-    autobind(Form);
-  }
+  constructor(public readonly options: FormOptions<TDraft, TOriginal>) {}
 
   useForm(): FormContext<TDraft, TOriginal> {
     const context = useContext(this.context);
@@ -562,6 +560,8 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     };
   }
 }
+
+/* @__PURE__ */ autobind(Form);
 
 export function createForm<TDraft, TOriginal extends TDraft = TDraft>(
   options: FormOptions<TDraft, TOriginal>,

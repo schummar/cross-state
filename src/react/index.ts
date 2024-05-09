@@ -1,3 +1,4 @@
+export { cacheMethods } from './cacheMethods';
 export * from './form';
 export {
   LoadingBoundary,
@@ -5,8 +6,9 @@ export {
   type LoadingBoundaryEntry,
   type LoadingBoundaryProps,
 } from './loadingBoundary';
-export { reactMethods } from './reactMethods';
 export { ScopeProvider, useScope, type ScopeProps } from './scope';
+export { scopeMethods } from './scopeMethods';
+export { storeMethods } from './storeMethods';
 export { useCache, type UseCacheArray, type UseCacheValue } from './useCache';
 export { useDecoupledState, type UseDecoupledStateOptions } from './useDecoupledState';
 export { useProp } from './useProp';

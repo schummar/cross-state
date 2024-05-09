@@ -1,3 +1,4 @@
+import { autobind } from '@lib/autobind';
 import { mutativeMethods } from './mutativeMethods';
 import { Store } from '@core';
 
@@ -9,3 +10,5 @@ declare module '@core' {
 }
 
 Object.assign(Store.prototype, mutativeMethods);
+
+autobind(Store);

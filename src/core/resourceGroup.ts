@@ -10,9 +10,7 @@ export class ResourceGroup {
 
   private refSet = new Set<WeakRef<Resource>>();
 
-  constructor(public readonly name?: string) {
-    autobind(ResourceGroup);
-  }
+  constructor(public readonly name?: string) {}
 
   add(resource: Resource): void {
     const ref = new WeakRef(resource);
@@ -50,6 +48,8 @@ export class ResourceGroup {
     }
   }
 }
+
+/* @__PURE__ */ autobind(ResourceGroup);
 
 export const allResources: ResourceGroup = /* @__PURE__ */ new ResourceGroup();
 

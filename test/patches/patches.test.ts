@@ -1,8 +1,20 @@
 import { Store, createStore } from '@core';
 import type { Patch } from '@index';
+import { autobind } from '@lib/autobind';
 import { patchMethods } from '@patches';
-import { register, unregister } from '@patches/register';
+import '@patches/register';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+
+function register() {
+  Object.assign(Store.prototype, patchMethods);
+  autobind(Store);
+}
+
+function unregister() {
+  for (const key in patchMethods) {
+    delete (Store.prototype as any)[key];
+  }
+}
 
 beforeEach((ctx) => {
   vi.useFakeTimers();

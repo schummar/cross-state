@@ -52,7 +52,6 @@ export class Cache<T> extends Store<Promise<T>> {
     _call?: (...args: any[]) => any,
   ) {
     super(getter, options, undefined, _call);
-    autobind(Cache);
 
     this.watchPromise();
     this.watchFocus();
@@ -268,6 +267,8 @@ export class Cache<T> extends Store<Promise<T>> {
     document.addEventListener('visibilitychange', onFocus);
   }
 }
+
+/* @__PURE__ */ autobind(Cache);
 
 type CreateReturnType<T, Args extends any[]> = {
   (...args: Args): Cache<T>;
