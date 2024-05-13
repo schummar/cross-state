@@ -7,6 +7,10 @@ export class PromiseCancelError extends Error {
 }
 
 export class PromiseWithCancel<T> extends Promise<T> {
+  static {
+    /* @__PURE__ */ autobind(PromiseWithCancel);
+  }
+
   private abortController;
 
   constructor(
@@ -33,5 +37,3 @@ export class PromiseWithCancel<T> extends Promise<T> {
     this.abortController.abort(reason);
   }
 }
-
-/* @__PURE__ */ autobind(PromiseWithCancel);

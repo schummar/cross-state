@@ -326,6 +326,10 @@ function getErrors<TDraft, TOriginal>(
 }
 
 export class Form<TDraft, TOriginal extends TDraft = TDraft> {
+  static {
+    /* @__PURE__ */ autobind(Form);
+  }
+
   context: Context<FormContext<TDraft, TOriginal> | null> = createContext<FormContext<
     TDraft,
     TOriginal
@@ -560,8 +564,6 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     };
   }
 }
-
-/* @__PURE__ */ autobind(Form);
 
 export function createForm<TDraft, TOriginal extends TDraft = TDraft>(
   options: FormOptions<TDraft, TOriginal>,

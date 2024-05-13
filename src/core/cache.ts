@@ -31,6 +31,10 @@ export interface CacheOptions<T> extends StoreOptions {
 }
 
 export class Cache<T> extends Store<Promise<T>> {
+  static {
+    /* @__PURE__ */ autobind(Cache);
+  }
+
   readonly state: Store<CacheState<T>> = createStore<CacheState<T>>({
     status: 'pending',
     isStale: true,
@@ -267,8 +271,6 @@ export class Cache<T> extends Store<Promise<T>> {
     document.addEventListener('visibilitychange', onFocus);
   }
 }
-
-/* @__PURE__ */ autobind(Cache);
 
 type CreateReturnType<T, Args extends any[]> = {
   (...args: Args): Cache<T>;

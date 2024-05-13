@@ -66,6 +66,10 @@ function noop() {
 }
 
 export class Store<T> extends Callable<any, any> {
+  static {
+    /* @__PURE__ */ autobind(Store);
+  }
+
   protected calculatedValue?: CalculatedValue<T>;
   protected defaultValue?: CalculatedValue<T>;
 
@@ -410,8 +414,6 @@ export class Store<T> extends Callable<any, any> {
     }
   }
 }
-
-/* @__PURE__ */ autobind(Store);
 
 function create<T>(calculate: Calculate<T>, options?: StoreOptions): Store<T>;
 function create<T, Methods extends StoreMethods = {}>(

@@ -6,6 +6,10 @@ export interface Resource {
 }
 
 export class ResourceGroup {
+  static {
+    /* @__PURE__ */ autobind(ResourceGroup);
+  }
+
   private refMap = new WeakMap<Resource, WeakRef<Resource>>();
 
   private refSet = new Set<WeakRef<Resource>>();
@@ -48,8 +52,6 @@ export class ResourceGroup {
     }
   }
 }
-
-/* @__PURE__ */ autobind(ResourceGroup);
 
 export const allResources: ResourceGroup = /* @__PURE__ */ new ResourceGroup();
 

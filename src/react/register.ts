@@ -20,9 +20,10 @@ declare module '@core' {
 }
 
 Object.assign(Store.prototype, storeMethods);
-Object.assign(Cache.prototype, cacheMethods);
-Object.assign(Scope.prototype, scopeMethods);
-
 autobind(Store);
+
+Object.assign(Cache.prototype, cacheMethods);
 autobind(Cache);
+
+Object.assign(Scope.prototype, scopeMethods);
 autobind(Scope);

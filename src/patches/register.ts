@@ -10,5 +10,4 @@ declare module '@core' {
 }
 
 Object.assign(Store.prototype, patchMethods);
-
 autobind(Store);

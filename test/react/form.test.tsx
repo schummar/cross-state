@@ -45,6 +45,7 @@ describe('form', () => {
         },
       },
     });
+    const { Form } = form;
 
     const DatePicker = ({ value, onChange }: { value?: Date; onChange: (value: Date) => void }) => {
       return (
@@ -58,7 +59,7 @@ describe('form', () => {
 
     function Component() {
       return (
-        <form.Form
+        <Form
           validations={{
             lastName: {
               required: (value) => !!value,
@@ -125,7 +126,7 @@ describe('form', () => {
           <form.FormState selector={(form) => form.errors}>
             {(errors) => <div data-testid="all-errors" data-errors={JSON.stringify([...errors])} />}
           </form.FormState>
-        </form.Form>
+        </Form>
       );
     }
 
