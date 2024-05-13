@@ -3,13 +3,12 @@ import { type Value } from '@lib/path';
 import {
   createElement,
   useEffect,
-  useMemo,
   useState,
   type Component,
   type ComponentPropsWithoutRef,
   type ReactNode,
 } from 'react';
-import { type Form } from './form';
+import { type Form, type FormInstance } from './form';
 
 export interface FormFieldComponentProps<TValue, TPath> {
   name: TPath;
@@ -39,67 +38,89 @@ type FieldChangeValue<T extends FormFieldComponent> =
 
 type MakeOptional<T, Keys extends string> = Omit<T, Keys> & Partial<Pick<T, Keys & keyof T>>;
 
-export type FormFieldProps<TDraft, TPath extends PathAsString<TDraft>> = {
-  name: TPath;
+export type FormFieldProps<TPath> = {
+  name?: TPath;
   commitOnBlur?: boolean;
   commitDebounce?: number;
-};
+} & (TPath extends '' ? {} : { name: TPath });
 
-export type FormFieldPropsWithRender<TDraft, TPath extends PathAsString<TDraft>> = FormFieldProps<
+export type FormFieldPropsWithRender<
   TDraft,
-  TPath
-> & {
-  component?: undefined;
-  render: (props: FormFieldComponentProps<Value<TDraft, TPath>, TPath>) => ReactNode;
-  inputFilter?: undefined;
-  defaultValue?: undefined;
-  serialize?: undefined;
-  deserialize?: undefined;
-  onChange?: undefined;
-  onBlur?: undefined;
-};
+  TPath extends PathAsString<TDraft>,
+> = FormFieldProps<TPath> &
+  NoInfer<{
+    component?: undefined;
+    render: (props: FormFieldComponentProps<Value<TDraft, TPath>, TPath>) => ReactNode;
+    inputFilter?: undefined;
+    defaultValue?: undefined;
+    serialize?: undefined;
+    deserialize?: undefined;
+    onChange?: undefined;
+    onBlur?: undefined;
+  }>;
+
+type Serialize<TDraft, TOriginal, TPath, TComponent extends FormFieldComponent> = (
+  value: Value<TDraft, TPath>,
+  formState: FormInstance<TDraft, TOriginal>,
+) => FieldValue<TComponent>;
+
+type Deserialize<TDraft, TOriginal, TPath, TComponent extends FormFieldComponent> = (
+  value: FieldChangeValue<TComponent>,
+  formState: FormInstance<TDraft, TOriginal>,
+) => Value<TDraft, TPath>;
 
 export type FormFieldPropsWithComponent<
   TDraft,
+  TOriginal,
   TPath extends PathAsString<TDraft>,
   TComponent extends FormFieldComponent,
-> = FormFieldProps<TDraft, TPath> & {
+> = FormFieldProps<TPath> & {
   component?: TComponent;
   render?: undefined;
-  inputFilter?: (value: FieldChangeValue<TComponent>) => boolean;
-} & MakeOptional<
-    Omit<ComponentPropsWithoutRef<TComponent>, 'id' | 'name' | 'value' | 'defaultValue'>,
-    'onChange' | 'onBlur'
-  > &
-  (Value<TDraft, TPath> extends Exclude<FieldValue<TComponent>, undefined>
-    ? {
-        defaultValue?: FieldValue<TComponent>;
-        serialize?: (value: Value<TDraft, TPath>) => FieldValue<TComponent>;
-      }
-    : Value<TDraft, TPath> extends FieldValue<TComponent>
-      ?
-          | {
-              defaultValue: FieldValue<TComponent>;
-              serialize?: (value: Value<TDraft, TPath>) => FieldValue<TComponent>;
-            }
-          | {
-              defaultValue?: FieldValue<TComponent>;
-              serialize: (value: Value<TDraft, TPath>) => FieldValue<TComponent>;
-            }
-      : { serialize: (value: Value<TDraft, TPath>) => FieldValue<TComponent> }) &
-  (FieldChangeValue<TComponent> extends Value<TDraft, TPath>
-    ? { deserialize?: (value: FieldChangeValue<TComponent>) => Value<TDraft, TPath> }
-    : { deserialize: (value: FieldChangeValue<TComponent>) => Value<TDraft, TPath> });
+} & NoInfer<
+    {
+      inputFilter?: (value: FieldChangeValue<TComponent>) => boolean;
+    } & MakeOptional<
+      Omit<ComponentPropsWithoutRef<TComponent>, 'id' | 'name' | 'value' | 'defaultValue'>,
+      'onChange' | 'onBlur'
+    > &
+      (Value<TDraft, TPath> extends Exclude<FieldValue<TComponent>, undefined>
+        ? {
+            defaultValue?: FieldValue<TComponent>;
+            serialize?: Serialize<TDraft, TOriginal, TPath, TComponent>;
+          }
+        : Value<TDraft, TPath> extends FieldValue<TComponent>
+          ?
+              | {
+                  defaultValue: FieldValue<TComponent>;
+                  serialize?: Serialize<TDraft, TOriginal, TPath, TComponent>;
+                }
+              | {
+                  defaultValue?: FieldValue<TComponent>;
+                  serialize: Serialize<TDraft, TOriginal, TPath, TComponent>;
+                }
+          : {
+              serialize: Serialize<TDraft, TOriginal, TPath, TComponent>;
+            }) &
+      (FieldChangeValue<TComponent> extends Value<TDraft, TPath>
+        ? {
+            deserialize?: Deserialize<TDraft, TOriginal, TPath, TComponent>;
+          }
+        : {
+            deserialize: Deserialize<TDraft, TOriginal, TPath, TComponent>;
+          })
+  >;
 
 export function FormField<
   TDraft,
+  TOriginal,
   TPath extends PathAsString<TDraft>,
   TComponent extends FormFieldComponent,
 >(
   this: Form<TDraft, any>,
   {
     // id,
-    name,
+    name = '' as TPath,
     component,
     commitOnBlur,
     commitDebounce,
@@ -108,15 +129,32 @@ export function FormField<
     defaultValue,
     serialize,
     deserialize = (x) => x as Value<TDraft, TPath>,
+    onChange,
+    onBlur,
     ...restProps
   }:
     | FormFieldPropsWithRender<TDraft, TPath>
-    | FormFieldPropsWithComponent<TDraft, TPath, TComponent>,
+    | FormFieldPropsWithComponent<TDraft, TOriginal, TPath, TComponent>,
 ): JSX.Element | null {
   type T = FieldChangeValue<TComponent>;
 
-  const { value, setValue } = this.useField(name);
+  const form = this.useForm();
+  const getFormState = () => ({ ...form, ...form.derivedState.get() });
   const [localValue, setLocalValue] = useState<T>();
+
+  const value = this.useFormState((form) => {
+    const value = form.getField(name).value;
+    if (serialize) {
+      return serialize(value, getFormState());
+    }
+    if (value !== undefined) {
+      return value;
+    }
+    return defaultValue;
+  });
+
+  const setValue = (x: FieldChangeValue<TComponent>) =>
+    form.getField(name).setValue(deserialize(x, getFormState()));
 
   useEffect(() => {
     if (localValue === undefined || !commitDebounce) {
@@ -124,7 +162,7 @@ export function FormField<
     }
 
     const timeout = setTimeout(() => {
-      setValue(deserialize(localValue));
+      setValue(localValue);
       setLocalValue(undefined);
     }, commitDebounce);
 
@@ -134,8 +172,7 @@ export function FormField<
   const props = {
     ...restProps,
     name,
-    value:
-      localValue ?? (serialize ? serialize(value) : value !== undefined ? value : defaultValue),
+    value: localValue ?? value,
     onChange: (event: { target: { value: T } } | T, ...moreArgs: any[]) => {
       const value =
         typeof event === 'object' && event !== null && 'target' in event
@@ -149,18 +186,18 @@ export function FormField<
       if (commitOnBlur || commitDebounce) {
         setLocalValue(value);
       } else {
-        setValue(deserialize(value));
+        setValue(value);
       }
 
-      restProps.onChange?.(event, ...moreArgs);
+      onChange?.(event, ...moreArgs);
     },
     onBlur(...args: any[]) {
       if (localValue !== undefined) {
-        setValue(deserialize(localValue));
+        setValue(localValue);
         setLocalValue(undefined);
       }
 
-      restProps.onBlur?.apply(null, args);
+      onBlur?.(...args);
     },
   };
 

@@ -1,7 +1,8 @@
 import { isObject } from '@lib/helpers';
 import type { Update } from '../core/commonTypes';
 import { flatClone } from './clone';
-import type { KeyType, Path, Value } from './path';
+import type { GetKeys, KeyType, Path, PathAsArray, SettablePath, Value } from './path';
+import type { IsAny, Object_, StringToArrayPath } from '@lib/typeHelpers';
 
 export function castArrayPath(path: string | KeyType[]): KeyType[] {
   if (Array.isArray(path)) {
@@ -38,47 +39,40 @@ export function get<T, P extends Path<T>>(object: T, path: P): Value<T, P> {
   throw new Error(`Could not get ${path} of ${object}`);
 }
 
-export function set<T, P extends Path<T>>(
+export function set<T, P extends SettablePath<T>>(
   object: T,
   path: P,
   value: Update<Value<T, P>>,
-  rootPath: P = path,
+  rootPath: string | readonly KeyType[] = path,
 ): T {
   const _path = castArrayPath(path as any);
   const [first, ...rest] = _path;
 
   if (first === undefined) {
-    return value as any;
-  }
-
-  const updateChild = (child: any) => {
-    if (!child && rest.length > 0) {
-      const _rootPath = castArrayPath(rootPath as any);
-
-      const prefix = _rootPath.slice(0, -rest.length);
-      throw new Error(`Cannot set ${_rootPath.join('.')} because ${prefix.join('.')} is ${child}`);
+    if (value instanceof Function) {
+      return value(object as Value<T, P>) as T;
     }
 
-    return set(child, rest as any, value, rootPath);
-  };
+    return value as T;
+  }
 
   if (object instanceof Map) {
     const copy = flatClone(object);
     const child = copy.get(first);
-    copy.set(first, updateChild(child));
+    copy.set(first, set(child, rest, value, rootPath));
     return copy;
   }
 
   if (object instanceof Set) {
     const copy = [...object];
     const child = copy[Number(first)];
-    copy[Number(first)] = updateChild(child);
+    copy[Number(first)] = set(child, rest, value, rootPath);
     return new Set(copy) as any;
   }
 
   if (isObject(object) || object === undefined) {
     const copy = flatClone(object ?? ({} as T));
-    copy[first as keyof T] = updateChild(copy[first as keyof T]);
+    copy[first as keyof T] = set(copy[first as keyof T], rest as any, value, rootPath);
     return copy;
   }
 

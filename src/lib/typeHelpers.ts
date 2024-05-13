@@ -8,20 +8,20 @@ export type StringToNumber<T> = T extends `${infer K extends number}` ? K : neve
 export type ArrayToStringPath<T> = T extends readonly []
   ? ''
   : T extends readonly [infer First extends string | number, ...infer Rest]
-  ? First extends `${string}.${string}`
-    ? never
-    : Rest extends readonly []
-    ? `${First}`
-    : `${First}.${ArrayToStringPath<Rest>}`
-  : T extends readonly KeyType[]
-  ? string
-  : never;
+    ? First extends `${string}.${string}`
+      ? never
+      : Rest extends readonly []
+        ? `${First}`
+        : `${First}.${ArrayToStringPath<Rest>}`
+    : T extends readonly KeyType[]
+      ? string
+      : never;
 
 export type StringToArrayPath<T> = T extends ''
   ? readonly []
   : T extends `${infer First}.${infer Rest}`
-  ? readonly [First, ...StringToArrayPath<Rest>]
-  : readonly [T];
+    ? readonly [First, ...StringToArrayPath<Rest>]
+    : readonly [T];
 
 export type OptionalPropertyOf<T> = Exclude<
   {

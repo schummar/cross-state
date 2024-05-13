@@ -35,8 +35,8 @@ export function useProp<T, S>(
     typeof argument1 === 'object'
       ? argument1
       : typeof argument2 === 'object'
-      ? argument2
-      : argument3;
+        ? argument2
+        : argument3;
 
   if (selector) {
     store = store.map(selector, updater);

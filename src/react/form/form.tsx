@@ -1,4 +1,4 @@
-import { connectUrl, createStore, type Store, type UrlStoreOptions } from '@core';
+import { connectUrl, createStore, type Store, type Update, type UrlStoreOptions } from '@core';
 import { autobind } from '@lib/autobind';
 import { deepEqual } from '@lib/equals';
 import { hash } from '@lib/hash';
@@ -77,9 +77,7 @@ export type Validation<TDraft, TOriginal, TPath> = (
 export type Field<TDraft, TOriginal, TPath extends PathAsString<TDraft>> = {
   originalValue: Value<TOriginal, TPath> | undefined;
   value: Value<TDraft, TPath>;
-  setValue: (
-    value: Value<TDraft, TPath> | ((value: Value<TDraft, TPath>) => Value<TDraft, TPath>),
-  ) => void;
+  setValue: (value: Update<Value<TDraft, TPath>>) => void;
   hasChange: boolean;
   errors: string[];
 } & (Value<TDraft, TPath> extends Object_ ? FieldHelperMethods<TDraft, TPath> : {});
@@ -366,9 +364,11 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
 
   useField<TPath extends PathAsString<TDraft>>(
     path: TPath,
-    useStoreOptions?: UseStoreOptions<Field<TDraft, TOriginal, TPath>>,
+    useStoreOptions?: UseStoreOptions<any>,
   ): Field<TDraft, TOriginal, TPath> {
-    return this.useFormState((form) => form.getField(path), useStoreOptions);
+    const form = this.useForm();
+    this.useFormState((form) => [form.getField(path).value, form.original], useStoreOptions);
+    return form.getField(path);
   }
 
   // ///////////////////////////////////////////////////////////////////////////
@@ -533,14 +533,14 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     return <>{children(selectedState)}</>;
   }
 
-  Field<TPath extends PathAsString<TDraft>>(
+  Field<TPath extends PathAsString<TDraft> = ''>(
     props: FormFieldPropsWithRender<TDraft, TPath>,
   ): JSX.Element;
 
   Field<
-    const TPath extends PathAsString<TDraft>,
+    const TPath extends PathAsString<TDraft> = '',
     const TComponent extends FormFieldComponent = 'input',
-  >(props: FormFieldPropsWithComponent<TDraft, TPath, TComponent>): JSX.Element;
+  >(props: FormFieldPropsWithComponent<TDraft, TOriginal, TPath, TComponent>): JSX.Element;
 
   Field(props: any): JSX.Element {
     return Reflect.apply(FormField, this, [{ component: 'input', ...props }]);

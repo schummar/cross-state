@@ -25,11 +25,11 @@ export function getWildCardMatches(
     throw new Error('Path is empty');
   }
 
-  if (!isObject(object) && !Array.isArray(object)) {
-    throw new Error('Object is not an object');
+  if (!Array.isArray(object) && !isObject(object)) {
+    object = {};
   }
 
-  for (const [key, value] of Object.entries(object)) {
+  for (const [key, value] of first !== '*' ? [[first, object[first]]] : Object.entries(object)) {
     if (first !== '*' && first !== key) {
       continue;
     }

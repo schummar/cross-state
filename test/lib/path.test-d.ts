@@ -1,11 +1,12 @@
+import type { IsAny } from '@lib/typeHelpers';
 import { describe, expectTypeOf, test } from 'vitest';
 import type {
   GetKeys,
   Path,
   PathAsArray,
+  SettablePathAsArray,
   Value,
   WildcardMatch,
-  WildcardPath,
   WildcardPathAsString,
   WildcardValue,
 } from '../../src/lib/path';
@@ -245,6 +246,40 @@ describe('path', () => {
       expectTypeOf({} as WildcardMatch<'a.b.c', 'a.*.d'>).toEqualTypeOf<false>();
       expectTypeOf({} as WildcardMatch<'a.b.c', 'a.*.*'>).toEqualTypeOf<true>();
       expectTypeOf({} as WildcardMatch<'a.b.c', '*.*.*'>).toEqualTypeOf<true>();
+    });
+  });
+
+  describe('SettablePath', () => {
+    test('SettablePathAsArray', () => {
+      expectTypeOf({} as SettablePathAsArray<{}>).toEqualTypeOf<readonly []>();
+      expectTypeOf({} as SettablePathAsArray<{} | undefined>).toEqualTypeOf<readonly []>();
+
+      expectTypeOf({} as SettablePathAsArray<{ a: 1 }>).toEqualTypeOf<
+        readonly [] | readonly ['a']
+      >();
+      expectTypeOf({} as SettablePathAsArray<{ a: 1 } | undefined>).toEqualTypeOf<
+        readonly [] | readonly ['a']
+      >();
+
+      expectTypeOf({} as SettablePathAsArray<{ a: 1; b: 2 }>).toEqualTypeOf<
+        readonly [] | readonly ['a'] | readonly ['b']
+      >();
+      expectTypeOf({} as SettablePathAsArray<{ a: 1; b: 2 } | undefined>).toEqualTypeOf<
+        readonly []
+      >;
+      expectTypeOf({} as SettablePathAsArray<{ a: 1; b?: 2 } | undefined>).toEqualTypeOf<
+        readonly [] | readonly ['a']
+      >();
+
+      expectTypeOf(
+        {} as SettablePathAsArray<{ a1?: { b1: { c: 1 }; b2?: 1 }; a2?: 1 }>,
+      ).toEqualTypeOf<
+        | readonly []
+        | readonly ['a1']
+        | readonly ['a1', 'b1']
+        | readonly ['a1', 'b1', 'c']
+        | readonly ['a2']
+      >();
     });
   });
 });

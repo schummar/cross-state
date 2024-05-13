@@ -21,14 +21,9 @@ describe('propAccess', () => {
     g('nested', { x: [{ y: 1 }] } as { x: [{ y: number }] }, ['x', 0, 'y'], 1, 2, {
       x: [{ y: 2 }],
     }),
-    g(
-      'nested undefined',
-      { x: {} } as { x: { y?: { z: 1 } } },
-      'x.y.z',
-      undefined,
-      1,
-      new Error('some error'),
-    ),
+    g('nested undefined', { x: {} } as { x: { y?: { z: 1 } } }, 'x.y.z', undefined, 1, {
+      x: { y: { z: 1 } },
+    }),
   ])('prop access %s', (_name, object: any, path, checkValue, newValue, newObject) => {
     test('get', async () => {
       const calculatedValue = get(object, path as any);
@@ -39,15 +34,8 @@ describe('propAccess', () => {
     test('set', async () => {
       const backup = JSON.parse(JSON.stringify(object));
 
-      if (newObject instanceof Error) {
-        expect(() => set(object, path as any, newValue)).toThrow(
-          'Cannot set x.y.z because x.y is undefined',
-        );
-      } else {
-        const updated = set(object, path as any, newValue);
-        expect(updated).toEqual(newObject);
-      }
-
+      const updated = set(object, path as any, newValue);
+      expect(updated).toEqual(newObject);
       expect(object).toEqual(backup);
     });
   });

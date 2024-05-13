@@ -8,7 +8,7 @@ import { deepEqual } from '@lib/equals';
 import { forwardError } from '@lib/forwardError';
 import { isObject } from '@lib/helpers';
 import { makeSelector } from '@lib/makeSelector';
-import type { Path, Value } from '@lib/path';
+import type { Path, SettablePath, Value } from '@lib/path';
 import { PromiseWithCancel } from '@lib/promiseWithCancel';
 import { get, set } from '@lib/propAccess';
 import { arrayMethods, mapMethods, recordMethods, setMethods } from '@lib/standardMethods';
@@ -269,13 +269,13 @@ export class Store<T> extends Callable<any, any> {
 
   map<S>(selector: Selector<T, S>, updater?: (value: S) => Update<T>): Store<S>;
 
-  map<P extends Path<T>>(selector: P): Store<Value<T, P>>;
+  map<P extends SettablePath<T>>(selector: P): Store<Value<T, P>>;
 
-  map(_selector: Selector<T, any> | Path<any>, ...args: any[]): Store<any> {
+  map(_selector: Selector<T, any> | SettablePath<any>, ...args: any[]): Store<any> {
     const updater: ((value: any) => Update<T>) | undefined =
       _selector instanceof Function
         ? args[0]
-        : (value) => (state) => set(state, _selector as Path<T>, value);
+        : (value) => (state) => set(state, _selector as SettablePath<T>, value);
 
     const selector = makeSelector(_selector);
 

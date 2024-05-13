@@ -126,6 +126,17 @@ describe('form', () => {
           <form.FormState selector={(form) => form.errors}>
             {(errors) => <div data-testid="all-errors" data-errors={JSON.stringify([...errors])} />}
           </form.FormState>
+
+          <form.Field
+            name=""
+            serialize={(x) => x.firstName}
+            deserialize={(string, form) => ({ ...form.draft, firstName: string })}
+          />
+
+          <form.Field
+            serialize={(x) => x.firstName}
+            deserialize={(string, form) => ({ ...form.draft, firstName: string })}
+          />
         </Form>
       );
     }
