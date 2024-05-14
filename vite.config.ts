@@ -21,6 +21,7 @@ export default defineConfig({
     emptyOutDir: false,
     sourcemap: true,
     minify: false,
+    target: 'esnext',
 
     lib: {
       entry: {

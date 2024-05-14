@@ -324,16 +324,14 @@ function getErrors<TDraft, TOriginal>(
 }
 
 export class Form<TDraft, TOriginal extends TDraft = TDraft> {
-  static {
-    /* @__PURE__ */ autobind(Form);
-  }
-
   context: Context<FormContext<TDraft, TOriginal> | null> = createContext<FormContext<
     TDraft,
     TOriginal
   > | null>(null);
 
-  constructor(public readonly options: FormOptions<TDraft, TOriginal>) {}
+  constructor(public readonly options: FormOptions<TDraft, TOriginal>) {
+    autobind(Form);
+  }
 
   useForm(): FormContext<TDraft, TOriginal> {
     const context = useContext(this.context);

@@ -6,15 +6,13 @@ export interface Resource {
 }
 
 export class ResourceGroup {
-  static {
-    /* @__PURE__ */ autobind(ResourceGroup);
-  }
-
   private refMap = new WeakMap<Resource, WeakRef<Resource>>();
 
   private refSet = new Set<WeakRef<Resource>>();
 
-  constructor(public readonly name?: string) {}
+  constructor(public readonly name?: string) {
+    autobind(ResourceGroup);
+  }
 
   add(resource: Resource): void {
     const ref = new WeakRef(resource);

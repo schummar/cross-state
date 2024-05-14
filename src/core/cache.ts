@@ -31,10 +31,6 @@ export interface CacheOptions<T> extends StoreOptions {
 }
 
 export class Cache<T> extends Store<Promise<T>> {
-  static {
-    /* @__PURE__ */ autobind(Cache);
-  }
-
   readonly state: Store<CacheState<T>> = createStore<CacheState<T>>({
     status: 'pending',
     isStale: true,
@@ -56,6 +52,7 @@ export class Cache<T> extends Store<Promise<T>> {
     _call?: (...args: any[]) => any,
   ) {
     super(getter, options, undefined, _call);
+    autobind(Cache);
 
     this.watchPromise();
     this.watchFocus();

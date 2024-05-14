@@ -66,10 +66,6 @@ function noop() {
 }
 
 export class Store<T> extends Callable<any, any> {
-  static {
-    /* @__PURE__ */ autobind(Store);
-  }
-
   protected calculatedValue?: CalculatedValue<T>;
   protected defaultValue?: CalculatedValue<T>;
 
@@ -93,6 +89,7 @@ export class Store<T> extends Callable<any, any> {
     protected readonly _call: (...args: any[]) => any = () => undefined,
   ) {
     super(_call);
+    autobind(Store);
 
     if (typeof getter !== 'function') {
       this.calculatedValue = this.defaultValue = staticValue(getter);
