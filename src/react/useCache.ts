@@ -37,7 +37,7 @@ export interface UseCacheOptions<T> extends UseStoreOptions<UseCacheArray<T> & C
 
   /**
    * If true, `useCache` will register its loading state with the nearest `LoadingBoundary`.
-   * @default true
+   * @default false
    */
   loadingBoundary?: boolean;
 }
@@ -50,7 +50,7 @@ export function useCache<T>(
     updateOnMount,
     withViewTransition,
     suspense,
-    loadingBoundary = true,
+    loadingBoundary,
     ...options
   }: UseCacheOptions<T> = {},
 ): UseCacheValue<T> {
