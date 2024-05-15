@@ -42,17 +42,13 @@ export function get<T, P extends Path<T>>(object: T, path: P): Value<T, P> {
 export function set<T, P extends SettablePath<T>>(
   object: T,
   path: P,
-  value: Update<Value<T, P>>,
+  value: Value<T, P>,
   rootPath: string | readonly KeyType[] = path,
 ): T {
   const _path = castArrayPath(path as any);
   const [first, ...rest] = _path;
 
   if (first === undefined) {
-    if (value instanceof Function) {
-      return value(object as Value<T, P>) as T;
-    }
-
     return value as T;
   }
 
