@@ -137,12 +137,26 @@ describe('cache', () => {
 
     test('with function', async () => {
       const cache = createCache(async () => 1);
-      cache.updateValue((x) => x + 1);
+      await cache.get();
+      cache.updateValue((x = 0) => x + 1);
       await cache.get();
 
       expect(cache.state.get()).toStrictEqual({
         status: 'value',
         value: 2,
+        isStale: false,
+        isUpdating: false,
+        isConnected: false,
+      });
+    });
+
+    test('with function when cache is empty', async () => {
+      const cache = createCache(async () => 1);
+      cache.updateValue((x = 0) => x + 1);
+
+      expect(cache.state.get()).toStrictEqual({
+        status: 'value',
+        value: 1,
         isStale: false,
         isUpdating: false,
         isConnected: false,

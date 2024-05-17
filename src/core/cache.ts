@@ -85,12 +85,11 @@ export class Cache<T> extends Store<Promise<T>> {
     return promise;
   }
 
-  updateValue(value: MaybePromise<T> | ((value: T) => T)): void {
+  updateValue(value: MaybePromise<T> | ((value: T | undefined) => T)): void {
     if (value instanceof Function) {
-      this.set(this.get().then((v) => value(v)));
-    } else {
-      this.set(PromiseWithState.resolve(value));
+      value = value(this.state.get().value);
     }
+    this.set(PromiseWithState.resolve(value));
   }
 
   updateError(error: unknown): void {
