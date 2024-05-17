@@ -148,6 +148,16 @@ describe('cache', () => {
         isConnected: false,
       });
     });
+
+    test('subscription gets notified', async () => {
+      const cache = createCache(async (_key: unknown) => 1);
+      const sub = vi.fn();
+      cache({ a: 'a', b: 0, c: new Date(0) }).subscribe(sub);
+
+      cache({ a: 'a', b: 0, c: new Date(0) }).updateValue(2);
+
+      expect(sub.mock.calls.length).toBe(2);
+    });
   });
 
   describe('sub', () => {

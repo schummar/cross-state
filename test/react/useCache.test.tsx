@@ -102,6 +102,36 @@ describe('useCache', () => {
     expect(div.textContent).toBe('{"value":1,"isUpdating":false,"isStale":false}');
   });
 
+  test('with updateValue', async () => {
+    const cache = createCache(async (_key: unknown) => 1);
+
+    const Component = vi.fn<[], any>(function Component() {
+      const [value] = useCache(cache({ a: 'a', b: 0, c: new Date(0) }));
+
+      return (
+        <div
+          data-testid="div"
+          onClick={() => cache({ a: 'a', b: 0, c: new Date(0) }).updateValue(2)}
+        >
+          {value}
+        </div>
+      );
+    });
+
+    render(<Component />);
+    const div = screen.getByTestId('div');
+
+    await act(() => cache({ a: 'a', b: 0, c: new Date(0) }).get());
+    expect(div.textContent).toBe('1');
+
+    await act(async () => {
+      div.click();
+      await flushPromises();
+    });
+
+    expect(div.textContent).toBe('2');
+  });
+
   describe('passive', () => {
     test(`doesn't trigger getter`, async () => {
       const getter = vi.fn(async () => 1);
