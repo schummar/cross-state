@@ -188,3 +188,43 @@ const data = await cache.useCache(); // equivalent to cache().useCache()
 
 const [data, error, isLoading] = cache.useCache();
 ```
+
+### Cache with connection
+
+_Experimental feature_
+
+A cache can be used not only for fetching data, but also for keeping it up to date with a WebSocket connection or similar.
+
+```ts
+// Explicit type annotations for content and cache keys are required here because TypeScript cannot infer them when using a connection.
+export const cache = createCache<Service, [serviceId: string]>(
+  (serviceId) =>
+    async ({ connect }) => {
+      // optionally wait until the connection is established, before fetching the initial data
+      // that ensures that no updates are missed
+      await connect(({ updateIsConnected, updateValue, updateError, close }) => {
+        const ws = new WebSocket(`wss://api.example.com/service/${serviceId}`);
+
+        ws.addEventListener('open', () => updateIsConnected(true));
+        ws.addEventListener('close', close);
+        ws.addEventListener('message', (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            updateValue(data);
+          } catch (error) {
+            updateError(error);
+          }
+        });
+
+        return () => ws.close();
+      });
+
+      // fetch the initial data
+      return await fetch(`https://api.example.com/service/${serviceId}`);
+    },
+  {
+    // no cache invalidation here, because the cache is kept up to date by the connection
+    invalidateOnWindowFocus: false,
+  },
+);
+```
