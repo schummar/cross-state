@@ -3,10 +3,6 @@ import { type ErrorState, type PendingState, type ValueState } from './cacheStat
 import { type MaybePromise } from './maybePromise';
 
 export class PromiseWithState<T> extends Promise<T> {
-  static get [Symbol.species](): typeof Promise {
-    return Promise;
-  }
-
   static override resolve(): PromiseWithState<void>;
 
   static override resolve<T>(value: MaybePromise<T>): PromiseWithState<T>;
@@ -38,3 +34,7 @@ export class PromiseWithState<T> extends Promise<T> {
     }
   }
 }
+
+/* @__PURE__ */ Object.defineProperty(PromiseWithState, Symbol.species, {
+  value: Promise,
+});

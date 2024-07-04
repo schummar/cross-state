@@ -1,8 +1,4 @@
 export class Deferred<T = void> extends Promise<T> {
-  static get [Symbol.species](): typeof Promise {
-    return Promise;
-  }
-
   resolve: (value: T | PromiseLike<T>) => void = () => undefined;
   reject: (reason?: any) => void = () => undefined;
 
@@ -16,3 +12,7 @@ export class Deferred<T = void> extends Promise<T> {
     Object.assign(this, that);
   }
 }
+
+/* @__PURE__ */ Object.defineProperty(Deferred, Symbol.species, {
+  value: Promise,
+});
