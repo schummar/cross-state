@@ -93,7 +93,7 @@
     }
   },
   "scripts": {
-    "start": "tsc --watch",
+    "start": "vite build --watch",
     "build": "runp -i build:clean :p build:compile:*",
     "build:clean": "rimraf dist",
     "build:compile:js": "vite build",
