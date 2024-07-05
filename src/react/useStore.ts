@@ -38,30 +38,31 @@ export function useStore<T, S>(store: Store<T>, argument1?: any, argument2?: any
   const selector = makeSelector<T, S>(
     typeof argument1 === 'function' || typeof argument1 === 'string' ? argument1 : undefined,
   );
+  const allOptions = (
+    typeof argument1 === 'object' ? argument1 : argument2 ?? {}
+  ) as UseStoreOptions<S>;
+
+  const lastEqualsRef = useRef<(newValue: S) => boolean>();
+
+  if (store.derivedFrom) {
+    return useStore(
+      store.derivedFrom.store,
+      (value) => {
+        for (const selector of store.derivedFrom!.selectors) {
+          value = makeSelector(selector)(value);
+        }
+        return value;
+      },
+      allOptions,
+    );
+  }
+
   const {
     disableTrackingProxy = true,
     equals = store.options.equals ?? deepEqual,
     withViewTransition,
     ...options
-  } = (typeof argument1 === 'object' ? argument1 : argument2 ?? {}) as UseStoreOptions<S>;
-
-  const lastEqualsRef = useRef<(newValue: S) => boolean>();
-
-  const { rootStore, mappingSelector } = useMemo(() => {
-    const rootStore = store.derivedFrom?.store ?? store;
-    let mappingSelector = (x: any) => x;
-
-    if (store.derivedFrom) {
-      mappingSelector = (value: any) => {
-        for (const s of store.derivedFrom!.selectors) {
-          value = makeSelector(s)(value);
-        }
-        return value;
-      };
-    }
-
-    return { rootStore, mappingSelector };
-  }, [store]);
+  } = allOptions;
 
   const subOptions = { ...options, runNow: false };
   const subscribe = useCallback(
@@ -99,17 +100,17 @@ export function useStore<T, S>(store: Store<T>, argument1?: any, argument2?: any
         };
       }
 
-      return rootStore.subscribe(_listener, subOptions);
+      return store.subscribe(_listener, subOptions);
     },
-    [rootStore, hash(subOptions)],
+    [store, hash(subOptions)],
   );
 
-  let value = useSyncExternalStoreWithSelector<unknown, S>(
+  let value = useSyncExternalStoreWithSelector<T, S>(
     //
     subscribe,
-    rootStore.get,
+    store.get,
     undefined,
-    (x) => selector(mappingSelector(x)),
+    (x) => selector(x),
     (_v, newValue) => lastEqualsRef.current?.(newValue) ?? false,
   );
   let lastEquals = (newValue: S) => equals(newValue, value);

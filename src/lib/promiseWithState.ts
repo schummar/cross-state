@@ -21,6 +21,10 @@ export class PromiseWithState<T> extends Promise<T> {
   ) {
     super((resolve) => resolve(value));
 
+    Object.defineProperty(PromiseWithState, Symbol.species, {
+      value: Promise,
+    });
+
     if (isPromise(value)) {
       value
         .then((value) => {
@@ -34,7 +38,3 @@ export class PromiseWithState<T> extends Promise<T> {
     }
   }
 }
-
-/* @__PURE__ */ Object.defineProperty(PromiseWithState, Symbol.species, {
-  value: Promise,
-});

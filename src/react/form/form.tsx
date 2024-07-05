@@ -496,17 +496,14 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
         const draft = derivedState.map('draft');
         const triggerStore = trigger ? draft.map(trigger as any) : draft;
 
-        return triggerStore.subscribe(
-          () => {
-            const value = trigger ? get(draft.get(), trigger as any) : draft.get();
-            const result = update(value as any, draft);
+        return triggerStore.subscribe(() => {
+          const value = trigger ? get(draft.get(), trigger as any) : draft.get();
+          const result = update(value as any, draft);
 
-            if (result !== undefined) {
-              draft.set(result);
-            }
-          },
-          { passive: true },
-        );
+          if (result !== undefined) {
+            draft.set(result);
+          }
+        });
       });
 
       return () => {

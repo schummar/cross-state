@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { createStore } from '../../src';
+import { createStore, strictEqual } from '../../src';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -161,5 +161,44 @@ describe('mapped', () => {
     state.set(2);
 
     expect(calc.mock.calls.length).toBe(0);
+  });
+
+  test('bug: subscribe fires too often for mapped store', () => {
+    const state = createStore(true);
+    const mapped = state.map((x) => [x]);
+    const listener = vi.fn();
+    mapped.subscribe(listener, { equals: strictEqual });
+    state.set(false);
+    state.set(true);
+    state.set(false);
+    state.set(true);
+    state.set(false);
+
+    expect(listener.mock.calls.map((x) => x[0][0])).toMatchObject([
+      true,
+      false,
+      true,
+      false,
+      true,
+      false,
+    ]);
+  });
+
+  test('bug: derived store invalidation', () => {
+    const state = createStore({ x: 'a' });
+
+    const derived1 = state.map(
+      (x) => ({ ...x }),
+      (x) => ({ ...x }),
+    );
+
+    const derived2 = state.map((x) => derived1.get().x);
+
+    const listener = vi.fn();
+    derived2.subscribe(listener);
+    derived1.subscribe(() => undefined);
+
+    derived1.set('x', 'a+');
+    expect(listener.mock.calls.map((x) => x[0])).toMatchObject(['a', 'a+']);
   });
 });

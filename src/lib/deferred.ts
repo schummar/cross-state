@@ -3,6 +3,10 @@ export class Deferred<T = void> extends Promise<T> {
   reject: (reason?: any) => void = () => undefined;
 
   constructor() {
+    Object.defineProperty(Deferred, Symbol.species, {
+      value: Promise,
+    });
+
     const that = {};
 
     super((resolve, reject) => {
@@ -12,7 +16,3 @@ export class Deferred<T = void> extends Promise<T> {
     Object.assign(this, that);
   }
 }
-
-/* @__PURE__ */ Object.defineProperty(Deferred, Symbol.species, {
-  value: Promise,
-});

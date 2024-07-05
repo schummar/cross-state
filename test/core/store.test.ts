@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { createStore, set } from '../../src';
-import { strictEqual, shallowEqual } from '../../src/lib/equals';
+import { createStore } from '../../src';
+import { shallowEqual, strictEqual } from '../../src/lib/equals';
 import { flushPromises } from '../testHelpers';
 
 beforeEach(() => {
@@ -290,27 +290,6 @@ describe('static store', () => {
 
       await expect(value).rejects.toThrow('timeout');
     });
-  });
-
-  test('bug: subscribe fires too often for mapped store', () => {
-    const state = createStore(true);
-    const mapped = state.map((x) => [x]);
-    const listener = vi.fn();
-    mapped.subscribe(listener, { equals: strictEqual });
-    state.set(false);
-    state.set(true);
-    state.set(false);
-    state.set(true);
-    state.set(false);
-
-    expect(listener.mock.calls.map((x) => x[0][0])).toMatchObject([
-      true,
-      false,
-      true,
-      false,
-      true,
-      false,
-    ]);
   });
 
   test('reactions', () => {

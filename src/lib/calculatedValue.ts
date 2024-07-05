@@ -1,11 +1,11 @@
+import type { Cache } from '@core';
 import type { AsyncConnectionActions, Cancel, Connection } from '@core/commonTypes';
 import type { Store } from '@core/store';
 import { Deferred } from '@lib/deferred';
+import isPromise from '@lib/isPromise';
+import { PromiseWithState } from '@lib/promiseWithState';
 import { queue } from '@lib/queue';
 import { deepEqual } from './equals';
-import { PromiseWithState } from '@lib/promiseWithState';
-import type { Cache } from '@core';
-import isPromise from '@lib/isPromise';
 
 export interface CalculatedValue<T> {
   value: T;
@@ -169,10 +169,6 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
   }
 
   function check() {
-    if (active) {
-      return;
-    }
-
     for (const dep of deps) {
       if (!deepEqual(dep.store.get(), dep.value)) {
         store.invalidate();
