@@ -1,8 +1,6 @@
 import { isObject } from '@lib/helpers';
-import type { Update } from '../core/commonTypes';
 import { flatClone } from './clone';
-import type { GetKeys, KeyType, Path, PathAsArray, SettablePath, Value } from './path';
-import type { IsAny, Object_, StringToArrayPath } from '@lib/typeHelpers';
+import type { KeyType, Path, SettablePath, SettableValue, Value } from './path';
 
 export function castArrayPath(path: string | KeyType[]): KeyType[] {
   if (Array.isArray(path)) {
@@ -16,7 +14,7 @@ export function castArrayPath(path: string | KeyType[]): KeyType[] {
   return (path as string).split('.');
 }
 
-export function get<T, P extends Path<T>>(object: T, path: P): Value<T, P> {
+export function get<T, const P extends Path<T>>(object: T, path: P): Value<T, P> {
   const _path = castArrayPath(path as any);
   const [first, ...rest] = _path;
 
@@ -39,10 +37,10 @@ export function get<T, P extends Path<T>>(object: T, path: P): Value<T, P> {
   throw new Error(`Could not get ${path} of ${object}`);
 }
 
-export function set<T, P extends SettablePath<T>>(
+export function set<T, const P extends SettablePath<T>>(
   object: T,
   path: P,
-  value: Value<T, P>,
+  value: SettableValue<T, P>,
   rootPath: string | readonly KeyType[] = path,
 ): T {
   const _path = castArrayPath(path as any);
@@ -75,7 +73,7 @@ export function set<T, P extends SettablePath<T>>(
   throw new Error(`Could not set ${path} of ${object}`);
 }
 
-export function remove<T, P extends Path<T, true>>(object: T, path: P): T {
+export function remove<T, const P extends Path<T, true>>(object: T, path: P): T {
   const _path = castArrayPath(path as any);
 
   if (_path.length === 0) {

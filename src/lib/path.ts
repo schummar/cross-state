@@ -196,13 +196,11 @@ type _SettablePathAsArray<T, MaxDepth, Depth extends 1[]> =
                 ? readonly [K] | readonly [K, ..._SettablePathAsArray<V, MaxDepth, [...Depth, 1]>]
                 : T extends Set<any>
                   ? readonly [number]
-                  : undefined extends T
-                    ? ['foo']
-                    : {
-                        [K in GetKeys<T>]:
-                          | readonly [K]
-                          | readonly [K, ..._SettablePathAsArray<T[K], MaxDepth, [...Depth, 1]>];
-                      }[GetKeys<T>]
+                  : {
+                      [K in GetKeys<T>]:
+                        | readonly [K]
+                        | readonly [K, ..._SettablePathAsArray<T[K], MaxDepth, [...Depth, 1]>];
+                    }[GetKeys<T>]
             : never);
 
 export type SettablePathAsArray<T, MaxDepth extends number = 5> = _SettablePathAsArray<
@@ -217,3 +215,21 @@ export type SettablePathAsString<T, MaxDepth extends number = 5> = ArrayToString
 export type SettablePath<T, MaxDepth extends number = 5> =
   | SettablePathAsString<T, MaxDepth>
   | SettablePathAsArray<T, MaxDepth>;
+
+export type SettableValue<T, P> = P extends readonly []
+  ? T
+  : true extends IsAny<T> | IsAny<P>
+    ? any
+    : true extends IsNever<T> | IsNever<P>
+      ? never
+      : P extends string
+        ? SettableValue<T, StringToArrayPath<P>>
+        : P extends readonly [infer First extends KeyType, ...infer Rest extends readonly KeyType[]]
+          ? T extends Map<any, infer V> | Set<infer V>
+            ? SettableValue<V, Rest>
+            : T extends Array_
+              ? SettableValue<T[First & keyof T], Rest>
+              : T extends Object_
+                ? SettableValue<T[First], Rest>
+                : never
+          : never;

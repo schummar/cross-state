@@ -1,6 +1,6 @@
-import { describe, expect, test } from 'vitest';
-import type { Path, Value } from '../../src/lib/path';
-import { get, set } from '../../src/lib/propAccess';
+import { describe, expect, expectTypeOf, test } from 'vitest';
+import type { Path, SettableValue, Value } from '../../src/lib/path';
+import { get, remove, set } from '../../src/lib/propAccess';
 
 function g<T extends Record<string | number, unknown> | readonly unknown[], P extends Path<T>>(
   name: string,
@@ -37,6 +37,52 @@ describe('propAccess', () => {
       const updated = set(object, path as any, newValue);
       expect(updated).toEqual(newObject);
       expect(object).toEqual(backup);
+    });
+  });
+
+  describe('get types', () => {
+    test('with string path', () => {
+      const x = { a: [{ b: '' }] };
+      const y = get(x, 'a.0.b');
+
+      expectTypeOf(y).toEqualTypeOf<string | undefined>();
+    });
+
+    test('with array path', () => {
+      const x = { a: [{ b: '' }] };
+      const y = get(x, ['a', 0, 'b']);
+
+      expectTypeOf(y).toEqualTypeOf<string | undefined>();
+    });
+  });
+
+  describe('set types', () => {
+    test('with string path', () => {
+      const x = { a: [{ b: '' }] };
+      const y = set(x, 'a.0.b', 'c');
+      // @ts-expect-error - should only accept string
+      set(x, 'a.0.b', undefined);
+    });
+
+    test('with array path', () => {
+      const x = { a: [{ b: '' }] };
+      set(x, ['a', 0, 'b'], 'c');
+      // @ts-expect-error - should only accept string
+      set(x, ['a', 0, 'b'], { b: '' });
+    });
+  });
+
+  describe('remove', () => {
+    test('remove', () => {
+      const x: { a: string; b?: string } = { a: '', b: '' };
+      const y = remove(x, 'b');
+
+      expect(y).toEqual({ a: '' });
+
+      // @ts-expect-error - should not accept non-optional property
+      remove(x, 'a');
+      // @ts-expect-error - should not accept non-optional property
+      remove(x, ['a']);
     });
   });
 });
