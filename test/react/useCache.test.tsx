@@ -8,7 +8,7 @@ describe('useCache', () => {
   test('value', async () => {
     const cache = createCache(async () => 1);
 
-    const Component = vi.fn<[], any>(function Component() {
+    const Component = vi.fn(function Component() {
       const [value] = useCache(cache);
 
       return <div data-testid="div">{value}</div>;
@@ -29,7 +29,7 @@ describe('useCache', () => {
       throw new Error('error');
     });
 
-    const Component = vi.fn<[], any>(function Component() {
+    const Component = vi.fn(function Component() {
       const [, error] = useCache(cache);
 
       return <div data-testid="div">{error instanceof Error ? error.message : ''}</div>;
@@ -48,7 +48,7 @@ describe('useCache', () => {
   test('isUpdating', async () => {
     const cache = createCache(async () => 1);
 
-    const Component = vi.fn<[], any>(function Component() {
+    const Component = vi.fn(function Component() {
       const isUpdating = useCache(cache)[2];
 
       return <div data-testid="div">{isUpdating ? 'true' : 'false'}</div>;
@@ -67,7 +67,7 @@ describe('useCache', () => {
   test('isStale', async () => {
     const cache = createCache(async () => 1);
 
-    const Component = vi.fn<[], any>(function Component() {
+    const Component = vi.fn(function Component() {
       const isStale = useCache(cache)[3];
 
       return <div data-testid="div">{isStale ? 'true' : 'false'}</div>;
@@ -86,7 +86,7 @@ describe('useCache', () => {
   test('access via keys', async () => {
     const cache = createCache(async () => 1);
 
-    const Component = vi.fn<[], any>(function Component() {
+    const Component = vi.fn(function Component() {
       const { value, error, isUpdating, isStale } = useCache(cache);
 
       return <div data-testid="div">{JSON.stringify({ value, error, isUpdating, isStale })}</div>;
@@ -105,7 +105,7 @@ describe('useCache', () => {
   test('with updateValue', async () => {
     const cache = createCache(async (_key: unknown) => 1);
 
-    const Component = vi.fn<[], any>(function Component() {
+    const Component = vi.fn(function Component() {
       const [value] = useCache(cache({ a: 'a', b: 0, c: new Date(0) }));
 
       return (
@@ -137,7 +137,7 @@ describe('useCache', () => {
       const getter = vi.fn(async () => 1);
       const cache = createCache(getter);
 
-      const Component = vi.fn<[], any>(function Component() {
+      const Component = vi.fn(function Component() {
         const state = useCache(cache, { passive: true });
 
         return <div data-testid="div">{JSON.stringify(state)}</div>;
@@ -155,7 +155,7 @@ describe('useCache', () => {
     test(`shows updated values if triggered somewhere else`, async () => {
       const cache = createCache(async () => 1);
 
-      const Component = vi.fn<[], any>(function Component() {
+      const Component = vi.fn(function Component() {
         const state = useCache(cache, { passive: true });
 
         return <div data-testid="div">{JSON.stringify(state)}</div>;
@@ -177,7 +177,7 @@ describe('useCache', () => {
     test('simple', async () => {
       const cache = createCache(async () => 1);
 
-      const Component = vi.fn<[], any>(function Component() {
+      const Component = vi.fn(function Component() {
         const [value] = useCache(cache.mapValue((value) => value + 1));
 
         return <div data-testid="div">{value}</div>;
@@ -196,7 +196,7 @@ describe('useCache', () => {
     test('mapValue throws', async () => {
       const cache = createCache(async () => 1);
 
-      const Component = vi.fn<[], any>(function Component() {
+      const Component = vi.fn(function Component() {
         const [, error] = useCache(
           cache.mapValue((value) => {
             throw Error('mapValue throws');

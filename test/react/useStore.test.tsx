@@ -26,7 +26,7 @@ describe('useStore', () => {
     test('changed', async () => {
       const store = createStore(before);
 
-      const Component = vi.fn<[], any>(function Component() {
+      const Component = vi.fn(function Component() {
         const v = useStore(store.map(select));
 
         return <div data-testid="div">{v}</div>;
@@ -46,7 +46,7 @@ describe('useStore', () => {
     test('same', async () => {
       const store = createStore(before);
 
-      const Component = vi.fn<[], any>(function Component() {
+      const Component = vi.fn(function Component() {
         const v = useStore(store.map(select));
 
         return <div data-testid="div">{v}</div>;
@@ -66,7 +66,7 @@ describe('useStore', () => {
     test('same without selector', async () => {
       const store = createStore(before);
 
-      const Component = vi.fn<[], any>(function Component() {
+      const Component = vi.fn(function Component() {
         const v = useStore(store, { disableTrackingProxy: false });
 
         return <div data-testid="div">{select(v)}</div>;
@@ -87,7 +87,7 @@ describe('useStore', () => {
   test('primitive/object union', async () => {
     const store = createStore<{ a: string } | string>({ a: 'a' });
 
-    const Component = vi.fn<[], any>(function Component() {
+    const Component = vi.fn(function Component() {
       const value = useStore(store);
 
       return <div data-testid="div">{JSON.stringify(value)}</div>;
@@ -107,7 +107,7 @@ describe('useStore', () => {
   test('inline selector', async () => {
     const store = createStore({ a: 1, b: 2 });
 
-    const Component = vi.fn<[], any>(function Component() {
+    const Component = vi.fn(function Component() {
       const value = useStore(store.map((s) => s.a));
 
       return <div data-testid="div">{value}</div>;

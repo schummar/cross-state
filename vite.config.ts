@@ -15,6 +15,11 @@ export default defineConfig({
     include: ['./test/**/*.test.{ts,tsx}'],
     exclude: ['**/_*'],
     setupFiles: ['./test/testSetup.ts'],
+    poolOptions: {
+      forks:{
+        execArgv: ['--expose-gc'],
+      }
+    }
   },
 
   build: {

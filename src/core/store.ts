@@ -322,7 +322,7 @@ export class Store<T> extends Callable<any, any> {
    */
   addEffect(effect: Effect, retain: Duration | undefined = this.options.retain): Cancel {
     this.effects.set(effect, {
-      handle: this.isActive() ? effect() ?? noop : undefined,
+      handle: this.isActive() ? (effect() ?? noop) : undefined,
       retain: retain !== undefined ? calcDuration(retain) : undefined,
     });
 

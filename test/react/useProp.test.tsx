@@ -7,7 +7,7 @@ describe('useProp', () => {
   test('get and set value', async () => {
     const store = createStore({ x: 0 });
 
-    const Component = vi.fn<[], any>(function Component() {
+    const Component = vi.fn(function Component() {
       const [v, setV] = useProp(store.map('x'));
 
       return (
@@ -31,7 +31,7 @@ describe('useProp', () => {
   test('throws when not using a string selector', async () => {
     const store = createStore({ x: 0 });
 
-    const Component = vi.fn<[], any>(function Component() {
+    const Component = vi.fn(function Component() {
       const [v, setV] = useProp(store.map((state) => state.x));
 
       return (
@@ -61,7 +61,7 @@ describe('useProp', () => {
   test('inline function selector', async () => {
     const store = createStore({ x: 0 });
 
-    const Component = vi.fn<[], any>(function Component() {
+    const Component = vi.fn(function Component() {
       const [v, setV] = useProp(
         store,
         (state) => state.x,
@@ -89,7 +89,7 @@ describe('useProp', () => {
   test('inline string selector', async () => {
     const store = createStore({ x: 0 });
 
-    const Component = vi.fn<[], any>(function Component() {
+    const Component = vi.fn(function Component() {
       const [v, setV] = useProp(store, 'x');
 
       return (

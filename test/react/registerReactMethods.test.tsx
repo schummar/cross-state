@@ -8,7 +8,7 @@ describe('register react methods', () => {
   test('useStore', async () => {
     const store = createStore({ x: 0 });
 
-    const Component = vi.fn<[], any>(function Component() {
+    const Component = vi.fn(function Component() {
       const value = store.map('x').useStore();
 
       return <div data-testid="div">{value}</div>;
@@ -23,7 +23,7 @@ describe('register react methods', () => {
   test('useProp', async () => {
     const store = createStore({ x: 0 });
 
-    const Component = vi.fn<[], any>(function Component() {
+    const Component = vi.fn(function Component() {
       const [v, setV] = store.map('x').useProp();
 
       return (
