@@ -1,3 +1,4 @@
+import type { OptionalProperties } from '@lib/typeHelpers';
 import { describe, expect, test } from 'vitest';
 import { createStore } from '../../src/core/store';
 import { mutativeMethods } from '../../src/mutative';
@@ -106,7 +107,7 @@ describe('store methods', () => {
     });
   });
 
-  describe('record methods', () => {
+  describe('record methods for objects', () => {
     test('set', () => {
       const state = createStore({ x: 1 });
 
@@ -130,6 +131,47 @@ describe('store methods', () => {
 
     test('clear', () => {
       const state = createStore<{ x?: number }>({ x: 1 });
+
+      state.clear();
+      expect(state.get()).toEqual({});
+    });
+
+    test('clear non clearable', () => {
+      const state = createStore<{ x: number }>({ x: 1 });
+
+      /** @ts-expect-error x is required */
+      state.clear();
+      expect(state.get()).toEqual({});
+    });
+  });
+
+  describe('record methods for dicts', () => {
+    test('set', () => {
+      const state = createStore<Record<string, number>>({ x: 1 });
+
+      state.set('x', 2);
+      state.set('y', 3);
+      expect(state.get()).toEqual({ x: 2, y: 3 });
+    });
+
+    test('set with function', () => {
+      const state = createStore<Record<string, number>>({ x: 1 });
+
+      /** @ts-expect-error x is possibly undefined */
+      state.set('x', (x) => x + 1);
+      state.set('y', (y) => (y ?? 0) + 1);
+      expect(state.get()).toEqual({ x: 2, y: 1 });
+    });
+
+    test('delete', () => {
+      const state = createStore<Record<string, number>>({ x: 1 });
+
+      state.delete('x');
+      expect(state.get()).toEqual({});
+    });
+
+    test('clear', () => {
+      const state = createStore<Record<string, number>>({ x: 1 });
 
       state.clear();
       expect(state.get()).toEqual({});

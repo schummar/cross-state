@@ -1,5 +1,5 @@
 import type { Store } from '../core/store';
-import type { OptionalPropertyOf } from './typeHelpers';
+import type { OptionalProperties, OptionalPropertyOf } from './typeHelpers';
 
 type Function_ = (...args: any) => any;
 
@@ -41,7 +41,9 @@ export const recordMethods = {
     this.set(copy);
   },
 
-  clear<T extends Record<any, any>>(this: Store<Partial<T>>): void {
+  clear<T extends Record<any, any>>(
+    this: OptionalProperties<T> extends T ? Store<T> : never,
+  ): void {
     this.set({} as T);
   },
 };
