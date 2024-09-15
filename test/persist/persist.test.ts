@@ -431,6 +431,8 @@ describe('persist', () => {
       await flushPromises();
       vi.runAllTimers();
       await flushPromises();
+      vi.runAllTimers();
+      await flushPromises();
 
       expect(s1.get()).toStrictEqual({ a: 3 });
       expect(s2.get()).toStrictEqual({ a: 3 });

@@ -1,9 +1,3 @@
-import { isAncestor } from './persistPathHelpers';
-import {
-  normalizeStorage,
-  type PersistStorage,
-  type PersistStorageWithKeys,
-} from './persistStorage';
 import { type Cancel, type Store } from '@core';
 import { diff } from '@lib/diff';
 import { shallowEqual } from '@lib/equals';
@@ -12,6 +6,12 @@ import { maybeAsync, maybeAsyncArray } from '@lib/maybeAsync';
 import type { KeyType, WildcardPath } from '@lib/path';
 import { castArrayPath, get, set } from '@lib/propAccess';
 import { queue } from '@lib/queue';
+import { isAncestor } from './persistPathHelpers';
+import {
+  normalizeStorage,
+  type PersistStorage,
+  type PersistStorageWithKeys,
+} from './persistStorage';
 
 type PathOption<T> =
   | WildcardPath<T>
@@ -19,6 +19,8 @@ type PathOption<T> =
       path: WildcardPath<T>;
       throttleMs?: number;
     };
+
+type Key = { type: 'internal'; path: string } | { type: 'data'; path: KeyType[] };
 
 export interface PersistOptions<T> {
   id: string;
@@ -144,26 +146,43 @@ export class Persist<T> {
     this.queue(() => this.resolveInitialized?.());
 
     const listener = (event: MessageEvent) => {
-      this.queue(() => this.load(event.data));
+      this.queue(() => this.load({ type: 'data', path: event.data }));
     };
 
     this.channel.addEventListener('message', listener);
     this.handles.add(() => this.channel.removeEventListener('message', listener));
   }
 
-  private buildKey(path: KeyType[]) {
-    return `${this.prefix}${JSON.stringify(path)}`;
+  private buildKey({ type, path }: Key) {
+    return `${this.prefix}${type === 'internal' ? path : JSON.stringify(path)}`;
   }
 
-  private parseKey(key: string) {
+  private parseKey(key: string): Key | undefined {
     if (!key.startsWith(this.prefix)) {
       return;
     }
 
-    return JSON.parse(key.slice(this.prefix.length)) as KeyType[];
+    key = key.slice(this.prefix.length);
+
+    if (!key.startsWith('[')) {
+      return { type: 'internal', path: key };
+    }
+
+    return { type: 'data', path: JSON.parse(key) as KeyType[] };
   }
 
-  private load(path: KeyType[]) {
+  private load({ type, path }: Key) {
+    if (type === 'internal') {
+      switch (path) {
+        case 'version':
+          return maybeAsync(this.storage.getItem(`${this.prefix}:version`), (value) => {
+            this.store.version = value || undefined;
+          });
+        default:
+          return;
+      }
+    }
+
     const matchingPath = this.paths.find(
       (p) => p.path.length === path.length && isAncestor(p.path, path),
     );
@@ -171,7 +190,7 @@ export class Persist<T> {
       return;
     }
 
-    const key = this.buildKey(path);
+    const key = this.buildKey({ type: 'data', path });
 
     return maybeAsync(this.storage.getItem(key), (value) => {
       if (this.stopped || !value) {
@@ -194,24 +213,33 @@ export class Persist<T> {
   }
 
   private save(path: KeyType[]) {
-    const key = this.buildKey(path);
+    const key = this.buildKey({ type: 'data', path });
     const value = get(this.store.get(), path as any);
     const serializedValue = value === undefined ? 'undefined' : JSON.stringify(value);
 
     return maybeAsync(this.storage.setItem(key, serializedValue), () => {
       this.channel.postMessage(path);
 
-      return maybeAsync(this.storage.keys(), (keys) => {
-        const toRemove = keys.filter((k) => {
-          const parsedKey = this.parseKey(k);
-          return (
-            parsedKey && parsedKey.length > path.length && isAncestor(path, parsedKey)
-            // !this.queue.getRefs().find((ref) => isAncestor(ref, parsedKey))
-          );
-        });
+      return maybeAsync(
+        this.store.version
+          ? this.storage.setItem(`${this.prefix}:version`, this.store.version ?? '')
+          : this.storage.removeItem(`${this.prefix}:version`),
+        () => {
+          return maybeAsync(this.storage.keys(), (keys) => {
+            const toRemove = keys.filter((k) => {
+              const parsedKey = this.parseKey(k);
+              return (
+                parsedKey?.type === 'data' &&
+                parsedKey.path.length > path.length &&
+                isAncestor(path, parsedKey.path)
+                // !this.queue.getRefs().find((ref) => isAncestor(ref, parsedKey))
+              );
+            });
 
-        return maybeAsyncArray(toRemove.map((k) => () => this.storage.removeItem(k)));
-      });
+            return maybeAsyncArray(toRemove.map((k) => () => this.storage.removeItem(k)));
+          });
+        },
+      );
     });
   }
 

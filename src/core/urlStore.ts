@@ -1,4 +1,5 @@
-import { type Cancel } from './commonTypes';
+import disposable from '@lib/disposable';
+import { type DisposableCancel } from './commonTypes';
 import { createStore, type Store, type StoreOptions } from './store';
 
 export interface UrlStoreOptions<T> extends StoreOptions {
@@ -50,9 +51,15 @@ export function updateUrlStore(): void {
   urlStore.set(window.location.href);
 }
 
-export function connectUrl<T>(store: Store<T>, options: UrlStoreOptionsWithDefaults<T>): Cancel;
+export function connectUrl<T>(
+  store: Store<T>,
+  options: UrlStoreOptionsWithDefaults<T>,
+): DisposableCancel;
 
-export function connectUrl<T>(store: Store<T | undefined>, options: UrlStoreOptions<T>): Cancel;
+export function connectUrl<T>(
+  store: Store<T | undefined>,
+  options: UrlStoreOptions<T>,
+): DisposableCancel;
 
 export function connectUrl<T>(
   store: Store<T>,
@@ -64,7 +71,7 @@ export function connectUrl<T>(
     defaultValue = undefined as T,
     onCommit,
   }: UrlStoreOptions<T>,
-): Cancel {
+): DisposableCancel {
   const serializedDefaultValue = serialize(defaultValue);
 
   const cancelUrlListener = urlStore.subscribe((_url) => {
@@ -94,10 +101,10 @@ export function connectUrl<T>(
     onCommit?.(value);
   });
 
-  return () => {
+  return disposable(() => {
     cancelUrlListener();
     cancelSubscription();
-  };
+  });
 }
 
 function defaultDeserializer(value: string): any {

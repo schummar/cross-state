@@ -100,7 +100,7 @@ describe('patch methods', () => {
     test('patches are only calculated once', () => {
       const store = createStore({ a: 1, b: 2 });
 
-      let p1, p2;
+      let p1: Patch[] | undefined, p2: Patch[] | undefined;
       store.subscribePatches((p) => {
         p1 = p;
       });
@@ -115,7 +115,7 @@ describe('patch methods', () => {
       vi.advanceTimersByTime(1);
 
       expect(p1).toEqual([{ op: 'replace', path: ['a'], value: 2 }]);
-      expect(p2).toBe(p1);
+      expect(p1![0]).toBe(p2![0]);
     });
   });
 
@@ -134,8 +134,7 @@ describe('patch methods', () => {
       const store1 = createStore({ a: 1, b: 2 });
       const store2 = createStore({ a: 0, b: 0 });
 
-      const accept = store2.acceptSync();
-      const cancel = store1.sync((message) => setTimeout(() => accept(message), 1));
+      const cancel = store1.sync((message) => setTimeout(() => store2.acceptSync(message), 1));
 
       expect(store2.get()).toEqual({ a: 0, b: 0 });
 
@@ -152,6 +151,75 @@ describe('patch methods', () => {
       store1.set('a', 3);
       vi.advanceTimersByTime(1);
       expect(store2.get()).toEqual({ a: 2, b: 2 });
+    });
+
+    test('sync with multiple consumers', () => {
+      const store1 = createStore({ a: 1, b: 2 });
+      const store2 = createStore({ a: 0, b: 0 });
+      const store3 = createStore({ a: 0, b: 0 });
+
+      using _cancel2 = store1.sync((message) => setTimeout(() => store2.acceptSync(message), 1));
+
+      using _cancel3 = store1.sync((message) => setTimeout(() => store3.acceptSync(message), 1), {
+        throttle: { milliseconds: 2 },
+      });
+
+      expect(store2.get()).toEqual({ a: 0, b: 0 });
+      expect(store3.get()).toEqual({ a: 0, b: 0 });
+
+      vi.advanceTimersByTime(1);
+      expect(store2.get()).toEqual({ a: 1, b: 2 });
+      expect(store3.get()).toEqual({ a: 1, b: 2 });
+
+      store1.set('a', 2);
+      store1.set('a', 3);
+      expect(store2.get()).toEqual({ a: 1, b: 2 });
+      expect(store3.get()).toEqual({ a: 1, b: 2 });
+
+      vi.advanceTimersByTime(1);
+      expect(store2.get()).toEqual({ a: 3, b: 2 });
+      expect(store3.get()).toEqual({ a: 1, b: 2 });
+
+      store1.set('a', 4);
+      store1.set('b', 5);
+      vi.advanceTimersByTime(10);
+      expect(store2.get()).toEqual({ a: 4, b: 5 });
+      expect(store3.get()).toEqual({ a: 4, b: 5 });
+    });
+
+    test('partial sync', () => {
+      const store1 = createStore({ a: 1, b: 2 });
+      const store2 = createStore({ a: 0, b: 0 });
+      const store3 = createStore({ a: 0, b: 0 });
+
+      using _cancel2 = store1.sync((message) => setTimeout(() => store2.acceptSync(message), 1));
+
+      let lastId: string | undefined;
+      const cancel3 = store1.sync((message) =>
+        setTimeout(() => {
+          lastId = message.toVersion;
+          store3.acceptSync(message);
+        }, 1),
+      );
+
+      vi.advanceTimersByTime(1);
+      expect(store3.get()).toEqual({ a: 1, b: 2 });
+
+      cancel3();
+      store1.set('a', 2);
+      store1.set('b', 3);
+      vi.advanceTimersByTime(1);
+
+      const callback4 = vi.fn(store3.acceptSync);
+      using _cancel4 = store1.sync((message) => setTimeout(() => callback4(message), 1), {
+        startAt: lastId,
+      });
+
+      vi.advanceTimersByTime(1);
+      store1.set('a', 3);
+      vi.advanceTimersByTime(1);
+
+      expect(store3.get()).toEqual({ a: 3, b: 3 });
     });
   });
 });
