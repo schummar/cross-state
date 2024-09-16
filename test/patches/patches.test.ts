@@ -193,14 +193,7 @@ describe('patch methods', () => {
       const store3 = createStore({ a: 0, b: 0 });
 
       using _cancel2 = store1.sync((message) => setTimeout(() => store2.acceptSync(message), 1));
-
-      let lastId: string | undefined;
-      using cancel3 = store1.sync((message) =>
-        setTimeout(() => {
-          lastId = message.toVersion;
-          store3.acceptSync(message);
-        }, 1),
-      );
+      using cancel3 = store1.sync((message) => setTimeout(() => store3.acceptSync(message), 1));
 
       vi.advanceTimersByTime(1);
       expect(store3.get()).toEqual({ a: 1, b: 2 });
@@ -212,7 +205,7 @@ describe('patch methods', () => {
 
       const callback = vi.fn(store3.acceptSync);
       using _cancel4 = store1.sync((message) => setTimeout(() => callback(message), 1), {
-        startAt: lastId,
+        startAt: store3.version,
       });
 
       vi.advanceTimersByTime(1);
@@ -228,6 +221,24 @@ describe('patch methods', () => {
       expect(callback.mock.calls[1]?.[0].patches).toEqual([
         { op: 'replace', path: ['a'], value: 3 },
       ]);
+    });
+
+    test('partial sync unchanged', () => {
+      const store1 = createStore({ a: 1, b: 2 });
+      const store2 = createStore({ a: 0, b: 0 });
+      using cancel2 = store1.sync((message) => setTimeout(() => store2.acceptSync(message), 1));
+
+      vi.advanceTimersByTime(1);
+      expect(store2.get()).toEqual({ a: 1, b: 2 });
+
+      cancel2();
+      const callback = vi.fn(store2.acceptSync);
+      using cancel3 = store1.sync((message) => setTimeout(() => callback(message), 1), {
+        startAt: store2.version,
+      });
+      vi.advanceTimersByTime(1);
+
+      expect(callback).not.toHaveBeenCalled();
     });
 
     test('partial sync with persistent storage', async () => {
@@ -257,6 +268,35 @@ describe('patch methods', () => {
       expect(callback.mock.calls[0]?.[0].patches).toEqual([
         { op: 'replace', path: ['a'], value: 3 },
       ]);
+    });
+
+    test(`sync error when versiosn don't match`, () => {
+      const store1 = createStore({ a: 1, b: 2 });
+      const store2 = createStore({ a: 0, b: 0 });
+
+      let error: unknown;
+      const callback = vi.fn((message) => {
+        try {
+          store2.acceptSync(message);
+        } catch (e) {
+          error = e;
+        }
+      });
+      let i = 0;
+      using cancel2 = store1.sync((message) =>
+        setTimeout(() => {
+          if (i++ === 2) return; // drop the second message
+          callback(message);
+        }, 1),
+      );
+
+      store1.set('a', 2);
+      store1.set('b', 3);
+      store1.set('a', 3);
+
+      vi.advanceTimersByTime(1);
+      expect(store2.get()).toEqual({ a: 2, b: 2 });
+      expect(error).toBeInstanceOf(Error);
     });
   });
 });
