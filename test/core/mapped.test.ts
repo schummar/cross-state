@@ -156,7 +156,7 @@ describe('mapped', () => {
   test(`don't calculate when inactive`, () => {
     const state = createStore(1);
     const calc = vi.fn((x: number) => x * 2);
-    const mapped = state.map(calc);
+    const _mapped = state.map(calc);
 
     state.set(2);
 
@@ -192,7 +192,7 @@ describe('mapped', () => {
       (x) => ({ ...x }),
     );
 
-    const derived2 = state.map((x) => derived1.get().x);
+    const derived2 = state.map(() => derived1.get().x);
 
     const listener = vi.fn();
     derived2.subscribe(listener);

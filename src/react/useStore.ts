@@ -5,7 +5,7 @@ import { hash } from '@lib/hash';
 import { makeSelector } from '@lib/makeSelector';
 import { type Path, type Value } from '@lib/path';
 import { trackingProxy } from '@lib/trackingProxy';
-import { useCallback, useDebugValue, useLayoutEffect, useMemo, useRef } from 'react';
+import { useCallback, useDebugValue, useLayoutEffect, useRef } from 'react';
 import { useSyncExternalStoreWithSelector } from 'use-sync-external-store/shim/with-selector.js';
 
 export interface UseStoreOptions<S> extends Omit<SubscribeOptions, 'runNow' | 'passive'> {

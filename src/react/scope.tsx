@@ -1,10 +1,8 @@
-import type { Context, ReactNode } from 'react';
-import { createContext, useContext, useMemo } from 'react';
+import type { Scope } from '@core';
+import { createStore, type Store } from '@core/store';
+import { createContext, useContext, useMemo, type Context, type ReactNode } from 'react';
 import { useProp } from './useProp';
 import { useStore, type UseStoreOptions } from './useStore';
-import { createStore } from '@core/store';
-import type { Store } from '@core/store';
-import type { Scope } from '@core';
 
 export type ScopeProps<T> = { scope: Scope<T>; store?: Store<T>; children?: ReactNode };
 

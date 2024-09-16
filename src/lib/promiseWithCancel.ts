@@ -22,7 +22,7 @@ export class PromiseWithCancel<T> extends Promise<T> {
     super((resolve, reject) => {
       executor(resolve, reject, abortController.signal);
 
-      abortController.signal.addEventListener('abort', (e) => {
+      abortController.signal.addEventListener('abort', () => {
         reject(abortController.signal.reason);
       });
     });

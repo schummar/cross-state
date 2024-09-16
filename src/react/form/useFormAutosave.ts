@@ -1,11 +1,11 @@
 import type { Duration } from '@core';
 import { calcDuration } from '@lib/calcDuration';
 import { debounce } from '@lib/debounce';
-import { queue } from '@lib/queue';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import type { FormContext } from './form';
-import type { MaybePromise } from '@lib/maybePromise';
 import { deepEqual } from '@lib/equals';
+import type { MaybePromise } from '@lib/maybePromise';
+import { queue } from '@lib/queue';
+import { useEffect, useMemo, useRef } from 'react';
+import type { FormContext } from './form';
 
 export interface FormAutosaveOptions<TDraft, TOriginal> {
   save: (draft: TDraft, form: FormContext<TDraft, TOriginal>) => MaybePromise<void>;

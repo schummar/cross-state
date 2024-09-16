@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, test } from 'vitest';
-import type { Path, SettableValue, Value } from '../../src/lib/path';
+import type { Path, Value } from '../../src/lib/path';
 import { get, remove, set } from '../../src/lib/propAccess';
 
 function g<T extends Record<string | number, unknown> | readonly unknown[], P extends Path<T>>(
@@ -59,7 +59,7 @@ describe('propAccess', () => {
   describe('set types', () => {
     test('with string path', () => {
       const x = { a: [{ b: '' }] };
-      const y = set(x, 'a.0.b', 'c');
+      const _y = set(x, 'a.0.b', 'c');
       // @ts-expect-error - should only accept string
       set(x, 'a.0.b', undefined);
     });

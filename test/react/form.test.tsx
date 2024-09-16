@@ -1,5 +1,5 @@
 import { MantineProvider, TextInput as MantineTextInput, SegmentedControl } from '@mantine/core';
-import { TextField as MUITextField, TextField } from '@mui/material';
+import { TextField as MUITextField } from '@mui/material';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { forwardRef } from 'react';
 import { describe, expect, test } from 'vitest';
@@ -67,7 +67,7 @@ describe('form', () => {
             },
           }}
         >
-          <form.Field name="firstName" aria-label="first name" inputFilter={(x) => true} />
+          <form.Field name="firstName" aria-label="first name" inputFilter={() => true} />
           <div data-testid="firstName-errors">
             <form.FormState
               selector={(form) =>
@@ -206,7 +206,7 @@ const CustomInput = forwardRef(function CustomInput(
     onChange: (value: number) => void;
     additionalProp: string;
   },
-  ref,
+  _ref,
 ) {
   return null;
 });

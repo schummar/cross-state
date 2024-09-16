@@ -90,14 +90,15 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
 
     const actions: AsyncConnectionActions<any> = {
       set(_value) {
-        connection?.active &&
+        if (connection?.active) {
           q(() => {
             value = _value;
             notify();
           });
+        }
       },
       updateValue(update) {
-        connection?.active &&
+        if (connection?.active) {
           q(async () => {
             if (update instanceof Function) {
               update = update(await value);
@@ -114,13 +115,15 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
             value = PromiseWithState.resolve(update) as T;
             notify();
           });
+        }
       },
       updateError(error) {
-        connection?.active &&
+        if (connection?.active) {
           q(() => {
             value = PromiseWithState.reject(error) as T;
             notify();
           });
+        }
       },
       updateIsConnected(isConnected) {
         if (!connection?.active) {
@@ -138,7 +141,9 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
         });
       },
       close() {
-        connection?.active && store.invalidate();
+        if (connection?.active) {
+          store.invalidate();
+        }
       },
     };
 

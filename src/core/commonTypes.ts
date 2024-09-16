@@ -85,7 +85,7 @@ export type ConnectionActions<T> = BaseConnectionActions<T> &
   (T extends Promise<infer S> ? AsyncConnectionActions<S> : {});
 
 export interface Connection<T> {
-  (actions: ConnectionActions<T>): DisposableCancel;
+  (actions: ConnectionActions<T>): Cancel;
 }
 
 export interface CalculationActions<T> {

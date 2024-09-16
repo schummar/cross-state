@@ -165,7 +165,7 @@ describe('cache with connection', () => {
     const cache = createCache<number>(
       () =>
         async ({ connect }) => {
-          await connect(({ updateValue, updateIsConnected, close }) => {
+          await connect(({ updateValue, updateIsConnected }) => {
             updateIsConnected(true);
             let i = 1;
             const interval = setInterval(() => updateValue(i++), 1);

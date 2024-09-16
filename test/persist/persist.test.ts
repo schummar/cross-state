@@ -3,8 +3,7 @@ import seedrandom from 'seedrandom';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createStore } from '../../src';
 import { maybeAsync } from '../../src/lib/maybeAsync';
-import type { PersistStorageWithKeys } from '../../src/persist';
-import { persist } from '../../src/persist';
+import { persist, type PersistStorageWithKeys } from '../../src/persist';
 import { flushPromises, sleep } from '../testHelpers';
 
 beforeEach(() => {

@@ -1,4 +1,3 @@
-import type { OptionalProperties } from '@lib/typeHelpers';
 import { describe, expect, test } from 'vitest';
 import { createStore } from '../../src/core/store';
 import { mutativeMethods } from '../../src/mutative';

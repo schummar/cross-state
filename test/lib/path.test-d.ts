@@ -1,4 +1,3 @@
-import type { IsAny } from '@lib/typeHelpers';
 import { describe, expectTypeOf, test } from 'vitest';
 import type {
   GetKeys,
@@ -198,8 +197,6 @@ describe('path', () => {
 
   describe('Wildcard Paths', () => {
     test('WildcardPath', () => {
-      type A = WildcardPathAsString<{ a: { b: string } }>;
-
       expectTypeOf({} as WildcardPathAsString<{ a: { x: string } }>).toEqualTypeOf<
         '' | '*' | '*.*' | '*.x' | 'a' | 'a.*' | 'a.x'
       >();
@@ -266,7 +263,7 @@ describe('path', () => {
       >();
       expectTypeOf({} as SettablePathAsArray<{ a: 1; b: 2 } | undefined>).toEqualTypeOf<
         readonly []
-      >;
+      >();
       expectTypeOf({} as SettablePathAsArray<{ a: 1; b?: 2 } | undefined>).toEqualTypeOf<
         readonly [] | readonly ['a']
       >();

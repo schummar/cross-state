@@ -1,6 +1,6 @@
-import { type ReactNode, useEffect } from 'react';
 import { castArray } from '@lib/castArray';
 import { hash } from '@lib/hash';
+import { useEffect } from 'react';
 
 export function useUrlParamScope({
   key,

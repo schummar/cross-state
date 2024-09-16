@@ -19,7 +19,6 @@ import {
   useEffect,
   useMemo,
   type Context,
-  type ElementType,
   type FormEvent,
   type FunctionComponent,
   type HTMLProps,

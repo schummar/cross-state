@@ -198,7 +198,7 @@ describe('useCache', () => {
 
       const Component = vi.fn(function Component() {
         const [, error] = useCache(
-          cache.mapValue((value) => {
+          cache.mapValue(() => {
             throw Error('mapValue throws');
           }),
         );

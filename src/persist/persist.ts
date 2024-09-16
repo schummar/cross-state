@@ -1,20 +1,18 @@
 import { type Cancel, type Duration, type Store } from '@core';
-import { diff } from '@lib/diff';
+import { calcDuration } from '@lib/calcDuration';
 import { shallowEqual } from '@lib/equals';
 import isPromise from '@lib/isPromise';
 import { maybeAsync, maybeAsyncArray } from '@lib/maybeAsync';
 import type { KeyType, WildcardPath } from '@lib/path';
 import { castArrayPath, get, set } from '@lib/propAccess';
 import { queue } from '@lib/queue';
+import { patchMethods } from '@patches';
 import { isAncestor } from './persistPathHelpers';
 import {
   normalizeStorage,
   type PersistStorage,
   type PersistStorageWithKeys,
 } from './persistStorage';
-import { patchMethods } from '@patches';
-import { calcDuration } from '@lib/calcDuration';
-import { throttle } from '@lib/throttle';
 
 type PathOption<T> =
   | WildcardPath<T>

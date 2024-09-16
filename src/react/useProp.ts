@@ -1,8 +1,7 @@
-import type { UseStoreOptions } from './useStore';
-import { useStore } from './useStore';
 import { type Selector, type Update } from '@core/commonTypes';
 import type { Store } from '@core/store';
 import { type Path, type Value } from '@lib/path';
+import { useStore, type UseStoreOptions } from './useStore';
 
 export function useProp<T, S>(
   store: Store<T>,
