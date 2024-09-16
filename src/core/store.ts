@@ -66,6 +66,8 @@ function noop() {
 }
 
 export class Store<T> extends Callable<any, any> {
+  version?: string;
+
   protected calculatedValue?: CalculatedValue<T>;
   protected defaultValue?: CalculatedValue<T>;
 
@@ -320,13 +322,13 @@ export class Store<T> extends Callable<any, any> {
    * @returns
    * The effect can return a teardown callback, which will be executed when the last subscription is removed and potentially the ratain time has passed.
    */
-  addEffect(effect: Effect, retain: Duration | undefined = this.options.retain): Cancel {
+  addEffect(effect: Effect, retain: Duration | undefined = this.options.retain): DisposableCancel {
     this.effects.set(effect, {
       handle: this.isActive() ? (effect() ?? noop) : undefined,
       retain: retain !== undefined ? calcDuration(retain) : undefined,
     });
 
-    return () => {
+    return disposable(() => {
       const { handle, timeout } = this.effects.get(effect) ?? {};
       handle?.();
 
@@ -335,7 +337,7 @@ export class Store<T> extends Callable<any, any> {
       }
 
       this.effects.delete(effect);
-    };
+    });
   }
 
   /** Return whether the store is currently active, which means whether it has at least one subscriber. */

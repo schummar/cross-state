@@ -77,6 +77,10 @@ class MockStorage implements PersistStorageWithKeys {
       return [...this.items.keys()];
     });
   }
+
+  get itemsWithoutVersion() {
+    return new Map([...this.items].filter(([key]) => !key.startsWith('test:version')));
+  }
 }
 
 describe('persist', () => {
@@ -118,7 +122,7 @@ describe('persist', () => {
 
       s1.set({ a: { b: 2 } });
 
-      expect(storage.items).toStrictEqual(new Map([['test:["a"]', '{"b":2}']]));
+      expect(storage.itemsWithoutVersion).toStrictEqual(new Map([['test:["a"]', '{"b":2}']]));
     });
 
     test('save path', async () => {
@@ -132,7 +136,7 @@ describe('persist', () => {
 
       s1.set({ a: 4, b: 5, c: 6 });
 
-      expect(storage.items).toStrictEqual(
+      expect(storage.itemsWithoutVersion).toStrictEqual(
         new Map([
           ['test:["a"]', '4'],
           ['test:["c"]', '6'],
@@ -151,7 +155,7 @@ describe('persist', () => {
 
       s1.set({ a: { x: 4, y: 2, z: 5 } });
 
-      expect(storage.items).toStrictEqual(
+      expect(storage.itemsWithoutVersion).toStrictEqual(
         new Map([
           ['test:["a","x"]', '4'],
           ['test:["a","z"]', '5'],
@@ -170,7 +174,7 @@ describe('persist', () => {
 
       s1.set({ a: [1, 4, 3] });
 
-      expect(storage.items).toStrictEqual(new Map([['test:["a",1]', '4']]));
+      expect(storage.itemsWithoutVersion).toStrictEqual(new Map([['test:["a",1]', '4']]));
     });
 
     test('save wildcard path with map', async () => {
@@ -196,7 +200,7 @@ describe('persist', () => {
         ]),
       });
 
-      expect(storage.items).toStrictEqual(
+      expect(storage.itemsWithoutVersion).toStrictEqual(
         new Map([
           ['test:["a","x"]', '4'],
           ['test:["a","z"]', '5'],
@@ -219,7 +223,7 @@ describe('persist', () => {
         a: new Set([1, 4, 3]),
       });
 
-      expect(storage.items).toStrictEqual(new Map([['test:["a",1]', '4']]));
+      expect(storage.itemsWithoutVersion).toStrictEqual(new Map([['test:["a",1]', '4']]));
     });
 
     test('save removal', async () => {
@@ -232,7 +236,7 @@ describe('persist', () => {
 
       s1.set({});
 
-      expect(storage.items).toStrictEqual(new Map([['test:["a"]', 'undefined']]));
+      expect(storage.itemsWithoutVersion).toStrictEqual(new Map([['test:["a"]', 'undefined']]));
     });
   });
 
@@ -324,7 +328,7 @@ describe('persist', () => {
       vi.runAllTimers();
       await flushPromises();
 
-      expect(storage.items).toStrictEqual(new Map([['test:["a"]', '3']]));
+      expect(storage.itemsWithoutVersion).toStrictEqual(new Map([['test:["a"]', '3']]));
       expect(s1.get()).toStrictEqual({ a: 3 });
     });
 
@@ -343,7 +347,7 @@ describe('persist', () => {
       vi.runAllTimers();
       await flushPromises();
 
-      expect(storage.items).toStrictEqual(new Map([['test:[]', '{"b":3}']]));
+      expect(storage.itemsWithoutVersion).toStrictEqual(new Map([['test:[]', '{"b":3}']]));
       expect(s1.get()).toStrictEqual({ b: 3 });
     });
 
@@ -362,7 +366,7 @@ describe('persist', () => {
       vi.runAllTimers();
       await flushPromises();
 
-      expect(storage.items).toStrictEqual(
+      expect(storage.itemsWithoutVersion).toStrictEqual(
         new Map([
           ['test:[]', '{"a":2}'],
           ['test:["a"]', '3'],
@@ -431,10 +435,12 @@ describe('persist', () => {
       await flushPromises();
       vi.runAllTimers();
       await flushPromises();
+      vi.runAllTimers();
+      await flushPromises();
 
       expect(s1.get()).toStrictEqual({ a: 3 });
       expect(s2.get()).toStrictEqual({ a: 3 });
-      expect(storage.items).toStrictEqual(new Map([[`test:["a"]`, '3']]));
+      expect(storage.itemsWithoutVersion).toStrictEqual(new Map([[`test:["a"]`, '3']]));
     });
 
     test.skip('sync avoids conflicts when updating ancestors or descendants', async () => {
@@ -510,6 +516,29 @@ describe('persist', () => {
 
       const values = stores.map((s) => s.get().x);
       expect(values).toStrictEqual(Array.from({ length: stores.length }, () => values[0]));
+    });
+
+    test('throttle', async () => {
+      const storage = new MockStorage();
+      const s1 = createStore({ a: 1 });
+      persist(s1, {
+        id: 'test',
+        storage,
+        throttle: { milliseconds: 1 },
+      });
+
+      s1.set({ a: 2 });
+
+      expect(storage.itemsWithoutVersion).toStrictEqual(new Map([['test:["a"]', '2']]));
+
+      s1.set({ a: 3 });
+
+      expect(storage.itemsWithoutVersion).toStrictEqual(new Map([['test:["a"]', '2']]));
+
+      vi.advanceTimersByTime(1);
+      await flushPromises();
+
+      expect(storage.itemsWithoutVersion).toStrictEqual(new Map([['test:["a"]', '3']]));
     });
   });
 });
