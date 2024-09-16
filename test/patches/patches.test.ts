@@ -1,5 +1,5 @@
 import { Store, createStore } from '@core';
-import type { Patch } from '@index';
+import { persist, type Patch } from '@index';
 import { autobind } from '@lib/autobind';
 import { patchMethods } from '@patches';
 import '@patches/register';
@@ -134,7 +134,7 @@ describe('patch methods', () => {
       const store1 = createStore({ a: 1, b: 2 });
       const store2 = createStore({ a: 0, b: 0 });
 
-      const cancel = store1.sync((message) => setTimeout(() => store2.acceptSync(message), 1));
+      using cancel = store1.sync((message) => setTimeout(() => store2.acceptSync(message), 1));
 
       expect(store2.get()).toEqual({ a: 0, b: 0 });
 
@@ -195,7 +195,7 @@ describe('patch methods', () => {
       using _cancel2 = store1.sync((message) => setTimeout(() => store2.acceptSync(message), 1));
 
       let lastId: string | undefined;
-      const cancel3 = store1.sync((message) =>
+      using cancel3 = store1.sync((message) =>
         setTimeout(() => {
           lastId = message.toVersion;
           store3.acceptSync(message);
@@ -210,8 +210,8 @@ describe('patch methods', () => {
       store1.set('b', 3);
       vi.advanceTimersByTime(1);
 
-      const callback4 = vi.fn(store3.acceptSync);
-      using _cancel4 = store1.sync((message) => setTimeout(() => callback4(message), 1), {
+      const callback = vi.fn(store3.acceptSync);
+      using _cancel4 = store1.sync((message) => setTimeout(() => callback(message), 1), {
         startAt: lastId,
       });
 
@@ -220,6 +220,43 @@ describe('patch methods', () => {
       vi.advanceTimersByTime(1);
 
       expect(store3.get()).toEqual({ a: 3, b: 3 });
+      expect(callback.mock.calls).toHaveLength(2);
+      expect(callback.mock.calls[0]?.[0].patches).toEqual([
+        { op: 'replace', path: ['a'], value: 2 },
+        { op: 'replace', path: ['b'], value: 3 },
+      ]);
+      expect(callback.mock.calls[1]?.[0].patches).toEqual([
+        { op: 'replace', path: ['a'], value: 3 },
+      ]);
+    });
+
+    test('partial sync with persistent storage', async () => {
+      const store1 = createStore({ a: 1, b: 2 });
+      const store2 = createStore({ a: 0, b: 0 });
+      using _persist2 = persist(store2, { id: 'x', storage: localStorage });
+      using cancel2 = store1.sync((message) => setTimeout(() => store2.acceptSync(message), 1));
+
+      store1.set('a', 2);
+      vi.advanceTimersByTime(1);
+      expect(store2.get()).toEqual({ a: 2, b: 2 });
+
+      cancel2();
+
+      store1.set('a', 3);
+
+      const store3 = createStore({ a: 0, b: 0 });
+      using persist3 = persist(store3, { id: 'x', storage: localStorage });
+      const callback = vi.fn(store3.acceptSync);
+      await persist3.initialized;
+
+      store1.sync((message) => setTimeout(() => callback(message), 1), { startAt: store3.version });
+      vi.advanceTimersByTime(1);
+
+      expect(store3.get()).toEqual({ a: 3, b: 2 });
+      expect(callback.mock.calls).toHaveLength(1);
+      expect(callback.mock.calls[0]?.[0].patches).toEqual([
+        { op: 'replace', path: ['a'], value: 3 },
+      ]);
     });
   });
 });

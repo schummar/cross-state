@@ -16,7 +16,10 @@ export interface HistoryEntry extends SyncMessage {
 declare module '@core' {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface Store<T> {
-    __patches?: Store<HistoryEntry[]>;
+    __patches?: Store<{
+      version: string;
+      history: HistoryEntry[];
+    }>;
   }
 }
 
@@ -43,7 +46,7 @@ function subscribePatches<T>(
   options: SubscribePatchOptions = {},
 ): DisposableCancel {
   if (!this.__patches) {
-    this.version ??= genId();
+    let version = genId();
     let previousValue = this.get();
     let patches: HistoryEntry[] = [];
 
@@ -54,15 +57,15 @@ function subscribePatches<T>(
 
       patches = patches
         .concat({
-          fromVersion: this.version,
+          fromVersion: version,
           toVersion: newVersion,
           patches: result[0],
           reversePatches: result[1],
         })
         .slice(-1000);
 
-      this.version = newVersion;
-      return patches;
+      version = newVersion;
+      return { version, history: patches };
     });
   }
 
@@ -70,27 +73,27 @@ function subscribePatches<T>(
   let cursor = options.startAt;
 
   if (!options.runNow && !options.startAt) {
-    cursor = this.version;
+    cursor = this.__patches.get().version;
   }
 
   return this.__patches.subscribe((p) => {
-    if (cursor === this.version) {
+    if (cursor === p.version) {
       return;
     }
 
-    const index = p.findIndex((h) => h.fromVersion === cursor);
+    const index = p.history.findIndex((h) => h.fromVersion === cursor);
     let forward, backward, previousVersion;
 
     if (index === -1) {
       [forward, backward] = diff(undefined, this.get(), options);
       previousVersion = undefined;
     } else {
-      forward = p.slice(index).flatMap((h) => h.patches);
-      backward = p.slice(index).flatMap((h) => h.reversePatches);
+      forward = p.history.slice(index).flatMap((h) => h.patches);
+      backward = p.history.slice(index).flatMap((h) => h.reversePatches);
       previousVersion = cursor;
     }
 
-    cursor = this.version!;
+    cursor = p.version;
     if (forward.length > 0) {
       listener(forward, backward, cursor, previousVersion);
     }
@@ -122,7 +125,9 @@ function sync<T>(
 
 function acceptSync<T>(this: Store<T>, message: SyncMessage): void {
   if (message.fromVersion && message.fromVersion !== this.version) {
-    throw new Error('previousId mismatch');
+    throw new Error(
+      `version mismatch! version=${this.version}, fromVersion=${message.fromVersion}`,
+    );
   }
 
   this.version = message.toVersion;

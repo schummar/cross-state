@@ -1,4 +1,4 @@
-import { type Cancel, type Store } from '@core';
+import { type Cancel, type Duration, type Store } from '@core';
 import { diff } from '@lib/diff';
 import { shallowEqual } from '@lib/equals';
 import isPromise from '@lib/isPromise';
@@ -12,12 +12,15 @@ import {
   type PersistStorage,
   type PersistStorageWithKeys,
 } from './persistStorage';
+import { patchMethods } from '@patches';
+import { calcDuration } from '@lib/calcDuration';
+import { throttle } from '@lib/throttle';
 
 type PathOption<T> =
   | WildcardPath<T>
   | {
       path: WildcardPath<T>;
-      throttleMs?: number;
+      // throttle?: Duration;
     };
 
 type Key = { type: 'internal'; path: string } | { type: 'data'; path: KeyType[] };
@@ -26,15 +29,16 @@ export interface PersistOptions<T> {
   id: string;
   storage: PersistStorage;
   paths?: PathOption<T>[];
-  throttleMs?: number;
+  throttle?: Duration;
 }
 
 export class Persist<T> {
   readonly storage: PersistStorageWithKeys;
+  readonly [Symbol.dispose]!: Cancel;
 
   readonly paths: {
     path: KeyType[];
-    throttleMs?: number;
+    throttle?: number;
   }[];
 
   readonly initialized: Promise<void>;
@@ -61,26 +65,38 @@ export class Persist<T> {
     this.channel = new BroadcastChannel(`cross-state-persist_${options.id}`);
     this.prefix = `${options.id}:`;
 
+    if (Symbol.dispose) {
+      this[Symbol.dispose] = () => this.stop();
+    }
+
     this.paths = (options.paths ?? [])
       .map<{
         path: KeyType[];
-        throttleMs?: number;
+        throttle?: number;
       }>((p) => {
         if (isPlainPath(p)) {
-          return { path: castArrayPath(p) };
+          return {
+            path: castArrayPath(p),
+            throttle: options.throttle && calcDuration(options.throttle),
+          };
         }
 
-        const _p = p as { path: KeyType[]; throttleMs?: number };
+        const _p = p as { path: KeyType[]; throttle?: Duration };
 
         return {
           path: castArrayPath(_p.path),
-          throttleMs: _p.throttleMs,
+          throttle:
+            (_p.throttle && calcDuration(_p.throttle)) ??
+            (options.throttle && calcDuration(options.throttle)),
         };
       })
       .sort((a, b) => b.path.length - a.path.length);
 
     if (this.paths.length === 0) {
-      this.paths.push({ path: ['*'] });
+      this.paths.push({
+        path: ['*'],
+        throttle: options.throttle && calcDuration(options.throttle),
+      });
     }
 
     this.initialized = new Promise((resolve) => {
@@ -92,13 +108,10 @@ export class Persist<T> {
   }
 
   private watchStore() {
-    let committed = this.store.get();
+    const throttle = Math.min(...this.paths.map((p) => p.throttle ?? 0)) || undefined;
 
-    const cancel = this.store.subscribe(
-      (value) => {
-        const [patches] = diff(committed, value);
-        committed = value;
-
+    const cancel = patchMethods.subscribePatches.apply(this.store as Store<unknown>, [
+      (patches) => {
         for (const patch of patches) {
           if (
             this.updateInProgress &&
@@ -118,8 +131,8 @@ export class Persist<T> {
           this.queue(() => this.save(pathToSave), pathToSave);
         }
       },
-      { runNow: false },
-    );
+      { runNow: false, throttle },
+    ]);
 
     this.handles.add(cancel);
   }
@@ -175,9 +188,12 @@ export class Persist<T> {
     if (type === 'internal') {
       switch (path) {
         case 'version':
-          return maybeAsync(this.storage.getItem(`${this.prefix}:version`), (value) => {
-            this.store.version = value || undefined;
-          });
+          return maybeAsync(
+            this.storage.getItem(this.buildKey({ type: 'internal', path: 'version' })),
+            (value) => {
+              this.store.version = value || undefined;
+            },
+          );
         default:
           return;
       }
@@ -222,8 +238,11 @@ export class Persist<T> {
 
       return maybeAsync(
         this.store.version
-          ? this.storage.setItem(`${this.prefix}:version`, this.store.version ?? '')
-          : this.storage.removeItem(`${this.prefix}:version`),
+          ? this.storage.setItem(
+              this.buildKey({ type: 'internal', path: 'version' }),
+              this.store.version ?? '',
+            )
+          : this.storage.removeItem(this.buildKey({ type: 'internal', path: 'version' })),
         () => {
           return maybeAsync(this.storage.keys(), (keys) => {
             const toRemove = keys.filter((k) => {
