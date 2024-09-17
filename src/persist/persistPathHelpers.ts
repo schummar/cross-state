@@ -1,4 +1,3 @@
-import { isObject } from '@lib/helpers';
 import type { KeyType } from '@lib/path';
 
 export const isAncestor = (ancestor: KeyType[], path: KeyType[]): boolean => {
@@ -8,28 +7,29 @@ export const isAncestor = (ancestor: KeyType[], path: KeyType[]): boolean => {
   );
 };
 
-export const split = (
-  value: any,
-  path: KeyType[],
-): [value: unknown, subValues: { path: KeyType[]; value: unknown }[]] => {
+export const split = (value: any, path: KeyType[]): { path: KeyType[]; value: unknown }[] => {
   const [first, ...rest] = path;
-  if (first === undefined) return [value, []];
+  if (first === undefined) return [{ path: [], value }];
 
-  if (rest.length === 0) {
-    if (first === '*')
-      return [{}, Object.entries(value).map(([k, v]) => ({ path: [k], value: v }))];
-    if (!(first in value)) return [value, []];
-    const { [first]: subValue, ...newValue } = value;
-    return [newValue, [{ path: [first], value: subValue }]];
+  let entries: Map<KeyType, unknown>;
+  if (value instanceof Map) {
+    entries = value;
+  } else if (value instanceof Set) {
+    entries = new Map([...value].map((v, i) => [i, v]));
+  } else if (Array.isArray(value)) {
+    entries = new Map(value.map((v, i) => [i, v]));
+  } else {
+    entries = new Map(Object.entries(value));
   }
 
-  const newValue = { ...value };
-  const subValues = new Array<{ path: KeyType[]; value: unknown }>();
-  for (const key of first === '*' ? Object.keys(value) : [first]) {
-    if (!isObject(newValue[key])) return [value, []];
-    const result = split(newValue[key], rest);
-    newValue[key] = result[0];
-    subValues.push(...result[1].map((s) => ({ path: [key, ...s.path], value: s.value })));
+  if (first === '*') {
+    return [...entries].flatMap(([k, v]) =>
+      split(v, rest).map(({ path, value }) => ({ path: [k, ...path], value })),
+    );
   }
-  return [newValue, subValues];
+
+  const subValue = entries.get(first);
+  if (subValue === undefined) return [{ path: [], value }];
+
+  return split(subValue, rest).map(({ path, value }) => ({ path: [first, ...path], value }));
 };

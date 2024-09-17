@@ -1,8 +1,8 @@
 // eslint-disable-next-line max-classes-per-file
+import { split } from '@persist/persistPathHelpers';
 import seedrandom from 'seedrandom';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createStore } from '../../src';
-import { maybeAsync } from '../../src/lib/maybeAsync';
 import { persist, type PersistStorageWithKeys } from '../../src/persist';
 import { flushPromises, sleep } from '../testHelpers';
 
@@ -52,7 +52,11 @@ class MockStorage implements PersistStorageWithKeys {
   ) {}
 
   withDelay<T>(method: 'get' | 'set' | 'remove' | 'keys', action: () => T) {
-    return maybeAsync(this.delay?.[method] ? sleep(this.delay[method]!) : undefined, action);
+    if (this.delay?.[method]) {
+      return sleep(this.delay[method]!).then(action);
+    }
+
+    return action();
   }
 
   getItem(key: string) {
@@ -124,6 +128,31 @@ describe('persist', () => {
       expect(storage.itemsWithoutVersion).toStrictEqual(new Map([['test:["a"]', '{"b":2}']]));
     });
 
+    test('save extended json', async () => {
+      const storage = new MockStorage();
+      const s1 = createStore(new Map());
+      persist(s1, {
+        id: 'test',
+        storage,
+      });
+
+      s1.set(
+        new Map<any, any>([
+          ['a', new Map([['a', 1]])],
+          ['b', new Set([2])],
+          ['c', new Date(0)],
+        ]),
+      );
+
+      expect(storage.itemsWithoutVersion).toStrictEqual(
+        new Map([
+          ['test:["a"]', '{"__map":[["a",1]]}'],
+          ['test:["b"]', '{"__set":[2]}'],
+          ['test:["c"]', '{"__date":"1970-01-01T00:00:00.000Z"}'],
+        ]),
+      );
+    });
+
     test('save path', async () => {
       const storage = new MockStorage();
       const s1 = createStore({ a: 1, b: 2, c: 3 });
@@ -173,7 +202,13 @@ describe('persist', () => {
 
       s1.set({ a: [1, 4, 3] });
 
-      expect(storage.itemsWithoutVersion).toStrictEqual(new Map([['test:["a",1]', '4']]));
+      expect(storage.itemsWithoutVersion).toStrictEqual(
+        new Map([
+          ['test:["a",0]', '1'],
+          ['test:["a",1]', '4'],
+          ['test:["a",2]', '3'],
+        ]),
+      );
     });
 
     test('save wildcard path with map', async () => {
@@ -222,7 +257,26 @@ describe('persist', () => {
         a: new Set([1, 4, 3]),
       });
 
-      expect(storage.itemsWithoutVersion).toStrictEqual(new Map([['test:["a",1]', '4']]));
+      expect(storage.itemsWithoutVersion).toStrictEqual(
+        new Map([
+          ['test:["a",0]', '1'],
+          ['test:["a",1]', '4'],
+          ['test:["a",2]', '3'],
+        ]),
+      );
+    });
+
+    test('setting undefined', async () => {
+      const storage = new MockStorage();
+      const s1 = createStore<any>({ a: { b: 1 } });
+      persist(s1, {
+        id: 'test',
+        storage,
+      });
+
+      s1.set({ a: undefined });
+
+      expect(storage.itemsWithoutVersion).toStrictEqual(new Map());
     });
 
     test('save removal', async () => {
@@ -235,7 +289,7 @@ describe('persist', () => {
 
       s1.set({});
 
-      expect(storage.itemsWithoutVersion).toStrictEqual(new Map([['test:["a"]', 'undefined']]));
+      expect(storage.itemsWithoutVersion).toStrictEqual(new Map());
     });
   });
 
@@ -308,7 +362,7 @@ describe('persist', () => {
         storage,
       });
 
-      expect(s1.get()).toStrictEqual({ a: undefined });
+      expect(s1.get()).toStrictEqual({});
     });
   });
 
@@ -367,7 +421,7 @@ describe('persist', () => {
 
       expect(storage.itemsWithoutVersion).toStrictEqual(
         new Map([
-          ['test:[]', '{"a":2}'],
+          ['test:[]', '{"a":3}'],
           ['test:["a"]', '3'],
         ]),
       );
@@ -538,6 +592,34 @@ describe('persist', () => {
       await flushPromises();
 
       expect(storage.itemsWithoutVersion).toStrictEqual(new Map([['test:["a"]', '3']]));
+    });
+
+    describe('split', () => {
+      test('length=1', () => {
+        const x = split({ a: 1, b: 2 }, ['a']);
+        expect(x).toStrictEqual([{ path: ['a'], value: 1 }]);
+      });
+
+      test('length=1 with wildcard', () => {
+        const x = split({ a: 1, b: 2 }, ['*']);
+        expect(x).toStrictEqual([
+          { path: ['a'], value: 1 },
+          { path: ['b'], value: 2 },
+        ]);
+      });
+
+      test('length=2', () => {
+        const x = split({ a: { b: 1, c: 2 }, d: 3 }, ['a', 'b']);
+        expect(x).toStrictEqual([{ path: ['a', 'b'], value: 1 }]);
+      });
+
+      test('length=2 with wildcard', () => {
+        const x = split({ a: { b: 1, c: 2 }, d: 3 }, ['a', '*']);
+        expect(x).toStrictEqual([
+          { path: ['a', 'b'], value: 1 },
+          { path: ['a', 'c'], value: 2 },
+        ]);
+      });
     });
   });
 });

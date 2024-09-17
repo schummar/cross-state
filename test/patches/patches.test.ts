@@ -16,7 +16,7 @@ function unregister() {
   }
 }
 
-beforeEach((ctx) => {
+beforeEach(() => {
   vi.useFakeTimers();
   register();
 });
@@ -297,6 +297,28 @@ describe('patch methods', () => {
       vi.advanceTimersByTime(1);
       expect(store2.get()).toEqual({ a: 2, b: 2 });
       expect(error).toBeInstanceOf(Error);
+    });
+
+    test('sync with extended json', () => {
+      const store1 = createStore({
+        a: new Map([['a', 1]]),
+        b: new Set([2]),
+        c: new Date(0),
+      });
+      const store2 = createStore({});
+
+      using cancel2 = store1.sync((message) => {
+        message = JSON.parse(JSON.stringify(message));
+        setTimeout(() => store2.acceptSync(message), 1);
+      });
+
+      vi.advanceTimersByTime(1);
+
+      expect(store2.get()).toEqual({
+        a: new Map([['a', 1]]),
+        b: new Set([2]),
+        c: new Date(0),
+      });
     });
   });
 });

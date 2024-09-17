@@ -2,17 +2,17 @@ import { type Cancel, type Duration, type Store } from '@core';
 import { calcDuration } from '@lib/calcDuration';
 import { shallowEqual } from '@lib/equals';
 import isPromise from '@lib/isPromise';
-import { maybeAsync, maybeAsyncArray } from '@lib/maybeAsync';
 import type { KeyType, WildcardPath } from '@lib/path';
-import { castArrayPath, get, set } from '@lib/propAccess';
+import { castArrayPath, get, remove, set } from '@lib/propAccess';
 import { queue } from '@lib/queue';
 import { patchMethods } from '@patches';
-import { isAncestor } from './persistPathHelpers';
+import { isAncestor, split } from './persistPathHelpers';
 import {
   normalizeStorage,
   type PersistStorage,
   type PersistStorageWithKeys,
 } from './persistStorage';
+import { fromExtendedJsonString, toExtendedJsonString } from '@lib/extendedJson';
 
 type PathOption<T> =
   | WildcardPath<T>
@@ -109,8 +109,11 @@ export class Persist<T> {
     const throttle = Math.min(...this.paths.map((p) => p.throttle ?? 0)) || undefined;
 
     const cancel = patchMethods.subscribePatches.apply(this.store as Store<unknown>, [
-      (patches) => {
+      (patches, reversePatches) => {
+        let i = 0;
         for (const patch of patches) {
+          const reversePatch = reversePatches[i++];
+
           if (
             this.updateInProgress &&
             shallowEqual(this.updateInProgress[0], patch.path) &&
@@ -119,14 +122,38 @@ export class Persist<T> {
             continue;
           }
 
-          const ancestor = this.paths.find((p) => isAncestor(p.path, patch.path));
+          const matchingPaths = this.paths.filter(
+            (p) => isAncestor(p.path, patch.path) || isAncestor(patch.path, p.path),
+          );
 
-          if (!ancestor) {
-            continue;
+          for (const { path } of matchingPaths) {
+            if (path.length <= patch.path.length) {
+              const pathToSave = patch.path.slice(0, path.length);
+              this.queue(() => this.save(pathToSave), pathToSave);
+            } else if (patch.op === 'remove') {
+              const subValues = split(
+                reversePatch?.op === 'add' ? reversePatch.value : {},
+                path.slice(patch.path.length),
+              );
+
+              for (const { path } of subValues) {
+                this.queue(() => this.save([...patch.path, ...path]), [...patch.path, ...path]);
+              }
+            } else {
+              const updatedValues = split(patch.value, path.slice(patch.path.length));
+              const removedValues = split(
+                reversePatch?.op !== 'remove' ? reversePatch?.value : {},
+                path.slice(patch.path.length),
+              ).filter((v) => !updatedValues.some((u) => shallowEqual(u.path, v.path)));
+
+              for (const { path } of updatedValues) {
+                this.queue(() => this.save([...patch.path, ...path]), [...patch.path, ...path]);
+              }
+              for (const { path } of removedValues) {
+                this.queue(() => this.save([...patch.path, ...path]), [...patch.path, ...path]);
+              }
+            }
           }
-
-          const pathToSave = patch.path.slice(0, ancestor.path.length);
-          this.queue(() => this.save(pathToSave), pathToSave);
         }
       },
       { runNow: false, throttle },
@@ -145,7 +172,9 @@ export class Persist<T> {
       return;
     }
 
-    for (const key of keys) {
+    const sortedKeys = keys.sort((a, b) => b.length - a.length);
+
+    for (const key of sortedKeys) {
       const path = this.parseKey(key);
       if (!path) {
         continue;
@@ -182,19 +211,18 @@ export class Persist<T> {
     return { type: 'data', path: JSON.parse(key) as KeyType[] };
   }
 
-  private load({ type, path }: Key) {
+  private load({ type, path }: Key): void | Promise<void> {
     if (type === 'internal') {
       switch (path) {
         case 'version':
-          return maybeAsync(
+          return chain(
             this.storage.getItem(this.buildKey({ type: 'internal', path: 'version' })),
-            (value) => {
-              this.store.version = value || undefined;
-            },
-          );
-        default:
-          return;
+          ).then((value) => {
+            this.store.version = value || undefined;
+          }).value;
       }
+
+      return;
     }
 
     const matchingPath = this.paths.find(
@@ -206,8 +234,8 @@ export class Persist<T> {
 
     const key = this.buildKey({ type: 'data', path });
 
-    return maybeAsync(this.storage.getItem(key), (value) => {
-      if (this.stopped || !value) {
+    return chain(this.storage.getItem(key)).then((value) => {
+      if (this.stopped) {
         return;
       }
 
@@ -218,46 +246,47 @@ export class Persist<T> {
         return;
       }
 
-      const parsedValue = value === 'undefined' ? undefined : JSON.parse(value);
+      const parsedValue =
+        !value || value === 'undefined' ? undefined : fromExtendedJsonString(value);
 
       this.updateInProgress = [path, parsedValue];
-      this.store.set((state) => set(state, path as any, parsedValue));
+
+      console.log('set', path);
+
+      if (parsedValue === undefined) {
+        this.store.set((state) => remove(state, path as any));
+      } else {
+        this.store.set((state) => set(state, path as any, parsedValue));
+      }
+
       this.updateInProgress = undefined;
-    });
+    }).value;
   }
 
-  private save(path: KeyType[]) {
+  private save(path: KeyType[]): void | Promise<unknown> {
     const key = this.buildKey({ type: 'data', path });
-    const value = get(this.store.get(), path as any);
-    const serializedValue = value === undefined ? 'undefined' : JSON.stringify(value);
+    const value = get(this.store.get() as any, path);
 
-    return maybeAsync(this.storage.setItem(key, serializedValue), () => {
-      this.channel.postMessage(path);
+    return chain(value)
+      .then((value) => {
+        if (value === undefined) {
+          return this.storage.removeItem(key);
+        } else {
+          return this.storage.setItem(key, toExtendedJsonString(value));
+        }
+      })
+      .then(() => {
+        this.channel.postMessage(path);
 
-      return maybeAsync(
-        this.store.version
-          ? this.storage.setItem(
-              this.buildKey({ type: 'internal', path: 'version' }),
-              this.store.version ?? '',
-            )
-          : this.storage.removeItem(this.buildKey({ type: 'internal', path: 'version' })),
-        () => {
-          return maybeAsync(this.storage.keys(), (keys) => {
-            const toRemove = keys.filter((k) => {
-              const parsedKey = this.parseKey(k);
-              return (
-                parsedKey?.type === 'data' &&
-                parsedKey.path.length > path.length &&
-                isAncestor(path, parsedKey.path)
-                // !this.queue.getRefs().find((ref) => isAncestor(ref, parsedKey))
-              );
-            });
-
-            return maybeAsyncArray(toRemove.map((k) => () => this.storage.removeItem(k)));
-          });
-        },
-      );
-    });
+        if (this.store.version) {
+          return this.storage.setItem(
+            this.buildKey({ type: 'internal', path: 'version' }),
+            this.store.version,
+          );
+        } else {
+          return this.storage.removeItem(this.buildKey({ type: 'internal', path: 'version' }));
+        }
+      }).value;
   }
 
   async stop(): Promise<void> {
@@ -278,4 +307,22 @@ export function persist<T>(store: Store<T>, options: PersistOptions<T>): Persist
 
 function isPlainPath<T>(p: PathOption<T>): p is WildcardPath<T> & (KeyType[] | string) {
   return typeof p === 'string' || Array.isArray(p);
+}
+
+interface Chain<T> {
+  value: T;
+  then<S>(fn: (value: Awaited<T>) => S): T extends Promise<any> ? Chain<Promise<S>> : Chain<S>;
+}
+
+function chain<T>(value: T): Chain<T> {
+  return {
+    value,
+    then(fn) {
+      const next = isPromise(value)
+        ? value.then((value) => fn(value as Awaited<T>))
+        : fn(value as Awaited<T>);
+
+      return chain(next) as any;
+    },
+  };
 }

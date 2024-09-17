@@ -2,6 +2,8 @@ import type { DisposableCancel, SubscribeOptions } from '@core/commonTypes';
 import type { Store } from '@core/store';
 import { applyPatches as _applyPatches } from '@lib/applyPatches';
 import { diff, type DiffOptions, type Patch } from '@lib/diff';
+import disposable from '@lib/disposable';
+import { fromExtendedJson, toExtendedJson } from '@lib/extendedJson';
 
 export interface SyncMessage {
   fromVersion?: string;
@@ -53,18 +55,22 @@ function subscribePatches<T>(
     this.__patches = this.map((value) => {
       const result = diff(previousValue, value, options);
       previousValue = value;
-      const newVersion = genId();
 
-      patches = patches
-        .concat({
-          fromVersion: version,
-          toVersion: newVersion,
-          patches: result[0],
-          reversePatches: result[1],
-        })
-        .slice(-1000);
+      if (result[0].length > 0) {
+        const newVersion = genId();
 
-      version = newVersion;
+        patches = patches
+          .concat({
+            fromVersion: version,
+            toVersion: newVersion,
+            patches: result[0],
+            reversePatches: result[1],
+          })
+          .slice(-1000);
+
+        version = newVersion;
+      }
+
       return { version, history: patches };
     });
   }
@@ -76,7 +82,7 @@ function subscribePatches<T>(
     cursor = this.__patches.get().version;
   }
 
-  return this.__patches.subscribe((p) => {
+  const cancelPatches = this.__patches.subscribe((p) => {
     if (cursor === p.version) {
       return;
     }
@@ -93,11 +99,18 @@ function subscribePatches<T>(
       previousVersion = cursor;
     }
 
-    cursor = p.version;
     if (forward.length > 0) {
+      cursor = p.version;
       listener(forward, backward, cursor, previousVersion);
     }
   }, options);
+
+  const cancelSub = this.subscribe(() => undefined);
+
+  return disposable(() => {
+    cancelPatches();
+    cancelSub();
+  });
 }
 
 function applyPatches<T>(this: Store<T>, patches: InteropPatch[]): void;
@@ -116,7 +129,7 @@ function sync<T>(
       listener({
         fromVersion: previousVersion,
         toVersion: version,
-        patches,
+        patches: toExtendedJson(patches) as Patch[],
       });
     },
     { ...options, runNow: true },
@@ -130,8 +143,10 @@ function acceptSync<T>(this: Store<T>, message: SyncMessage): void {
     );
   }
 
+  const patches = fromExtendedJson(message.patches) as Patch[];
+
   this.version = message.toVersion;
-  this.applyPatches(...message.patches);
+  this.applyPatches(...patches);
 }
 
 export const patchMethods: {
