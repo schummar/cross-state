@@ -51,7 +51,7 @@ export class Persist<T> {
 
   private stopped = false;
 
-  private updateInProgress?: [any, any];
+  private updateInProgress = new Map<string, unknown>();
 
   private prefix;
 
@@ -114,10 +114,11 @@ export class Persist<T> {
         for (const patch of patches) {
           const reversePatch = reversePatches[i++];
 
+          const stringPath = JSON.stringify(patch.path);
           if (
-            this.updateInProgress &&
-            shallowEqual(this.updateInProgress[0], patch.path) &&
-            this.updateInProgress[1] === (patch.op === 'remove' ? undefined : patch.value)
+            this.updateInProgress.has(stringPath) &&
+            this.updateInProgress.get(stringPath) ===
+              (patch.op === 'remove' ? undefined : patch.value)
           ) {
             continue;
           }
@@ -156,7 +157,7 @@ export class Persist<T> {
           }
         }
       },
-      { runNow: false, throttle },
+      { runNow: false, passive: true, throttle },
     ]);
 
     this.handles.add(cancel);
@@ -172,17 +173,12 @@ export class Persist<T> {
       return;
     }
 
-    const sortedKeys = keys.sort((a, b) => b.length - a.length);
+    const sortedKeys = keys
+      .sort((a, b) => b.length - a.length)
+      .map((key) => this.parseKey(key))
+      .filter(Boolean) as Key[];
 
-    for (const key of sortedKeys) {
-      const path = this.parseKey(key);
-      if (!path) {
-        continue;
-      }
-
-      this.queue(() => this.load(path));
-    }
-
+    this.queue(() => this.load(...sortedKeys));
     this.queue(() => this.resolveInitialized?.());
 
     const listener = (event: MessageEvent) => {
@@ -211,55 +207,77 @@ export class Persist<T> {
     return { type: 'data', path: JSON.parse(key) as KeyType[] };
   }
 
-  private load({ type, path }: Key): void | Promise<void> {
-    if (type === 'internal') {
-      switch (path) {
-        case 'version':
-          return chain(
-            this.storage.getItem(this.buildKey({ type: 'internal', path: 'version' })),
-          ).then((value) => {
-            this.store.version = value || undefined;
-          }).value;
+  private load(...keys: Key[]): void | Promise<void> {
+    const results = keys.map(({ type, path }) => {
+      if (type === 'internal') {
+        switch (path) {
+          case 'version':
+            return this.storage.getItem(this.buildKey({ type: 'internal', path: 'version' }));
+        }
+
+        return;
       }
 
-      return;
-    }
+      const matchingPath = this.paths.find(
+        (p) => p.path.length === path.length && isAncestor(p.path, path),
+      );
+      if (!matchingPath) {
+        return;
+      }
 
-    const matchingPath = this.paths.find(
-      (p) => p.path.length === path.length && isAncestor(p.path, path),
-    );
-    if (!matchingPath) {
-      return;
-    }
+      const key = this.buildKey({ type: 'data', path });
+      return this.storage.getItem(key);
+    });
 
-    const key = this.buildKey({ type: 'data', path });
-
-    return chain(this.storage.getItem(key)).then((value) => {
+    return chain(
+      results.some(isPromise) ? Promise.all(results) : (results as (string | null | undefined)[]),
+    ).then((results) => {
       if (this.stopped) {
         return;
       }
 
-      const inSaveQueue = this.queue
-        .getRefs()
-        .find((ref) => isAncestor(ref, path) || isAncestor(path, ref));
-      if (inSaveQueue) {
-        return;
+      const toWrite = keys
+        .map((key, i) => ({ key, value: results[i] }))
+        .filter(({ key, value }) => {
+          if (key.type !== 'data' || !value) {
+            return;
+          }
+
+          const inSaveQueue = this.queue
+            .getRefs()
+            .find((ref) => isAncestor(ref, key.path) || isAncestor(key.path, ref));
+          return !inSaveQueue;
+        })
+        .map(({ key, value }) => ({
+          path: key.path,
+          value: !value || value === 'undefined' ? undefined : fromExtendedJsonString(value),
+        }));
+
+      for (const { path, value } of toWrite) {
+        this.updateInProgress.set(JSON.stringify(path), value);
       }
 
-      const parsedValue =
-        !value || value === 'undefined' ? undefined : fromExtendedJsonString(value);
+      this.store.set((state) => {
+        for (const { path, value } of toWrite) {
+          if (value === undefined) {
+            state = remove(state, path as any);
+          } else {
+            state = set(state, path as any, value);
+          }
+        }
 
-      this.updateInProgress = [path, parsedValue];
+        return state;
+      });
 
-      console.log('set', path);
+      this.updateInProgress.clear();
 
-      if (parsedValue === undefined) {
-        this.store.set((state) => remove(state, path as any));
-      } else {
-        this.store.set((state) => set(state, path as any, parsedValue));
+      const versionIndex = keys.findIndex(
+        ({ type, path }) => type === 'internal' && path === 'version',
+      );
+      const version = results[versionIndex];
+      if (version) {
+        this.store.version = version;
       }
-
-      this.updateInProgress = undefined;
     }).value;
   }
 

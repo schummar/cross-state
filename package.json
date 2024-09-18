@@ -65,6 +65,12 @@
       "import": "./dist/es/patches/register.mjs",
       "require": "./dist/cjs/patches/register.cjs",
       "default": "./dist/es/patches/register.mjs"
+    },
+    "./persist/register": {
+      "types": "./dist/types/persist/register.d.ts",
+      "import": "./dist/es/persist/register.mjs",
+      "require": "./dist/cjs/persist/register.cjs",
+      "default": "./dist/es/persist/register.mjs"
     }
   },
   "typesVersions": {

@@ -16,10 +16,10 @@ export default defineConfig({
     exclude: ['**/_*'],
     setupFiles: ['./test/testSetup.ts'],
     poolOptions: {
-      forks:{
+      forks: {
         execArgv: ['--expose-gc'],
-      }
-    }
+      },
+    },
   },
 
   build: {
@@ -37,6 +37,7 @@ export default defineConfig({
         'mutative/register': 'src/mutative/register.ts',
         'patches/index': 'src/patches/index.ts',
         'patches/register': 'src/patches/register.ts',
+        'persist/register': 'src/persist/register.ts',
       },
     },
 

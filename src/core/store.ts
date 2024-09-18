@@ -30,12 +30,13 @@ export type StoreMethods = Record<string, (...args: any[]) => any>;
 export type BoundStoreMethods<T, Methods extends StoreMethods> = Methods &
   ThisType<Store<T> & Methods>;
 
-export interface StoreOptions {
+export interface StoreOptions<T> {
   retain?: Duration;
   equals?: SubscribeOptions['equals'];
+  effect?: Effect<Store<T>> | { effect: Effect<Store<T>>; retain?: Duration };
 }
 
-export interface StoreOptionsWithMethods<T, Methods extends StoreMethods> extends StoreOptions {
+export interface StoreOptionsWithMethods<T, Methods extends StoreMethods> extends StoreOptions<T> {
   methods?: Methods & ThisType<Store<T> & Methods & StandardMethods<T>>;
 }
 
@@ -66,6 +67,13 @@ function noop() {
 }
 
 export class Store<T> extends Callable<any, any> {
+  private static hooks = new Set<(this: Store<any>, store: Store<any>) => void>();
+
+  static addHook(hook: (store: Store<any>) => void): DisposableCancel {
+    this.hooks.add(hook);
+    return disposable(() => this.hooks.delete(hook));
+  }
+
   version?: string;
 
   protected calculatedValue?: CalculatedValue<T>;
@@ -74,7 +82,7 @@ export class Store<T> extends Callable<any, any> {
   protected listeners: Map<Listener, boolean> = new Map();
 
   protected effects: Map<
-    Effect,
+    Effect<Store<T>>,
     { handle?: Cancel; retain?: number; timeout?: ReturnType<typeof setTimeout> }
   > = new Map();
 
@@ -82,7 +90,7 @@ export class Store<T> extends Callable<any, any> {
 
   constructor(
     public readonly getter: T | Calculate<T>,
-    public readonly options: StoreOptions = {},
+    public readonly options: StoreOptions<T> = {},
     public readonly derivedFrom?: {
       store: Store<any>;
       selectors: (Selector<any, any> | Path<any>)[];
@@ -95,6 +103,16 @@ export class Store<T> extends Callable<any, any> {
 
     if (typeof getter !== 'function') {
       this.calculatedValue = this.defaultValue = staticValue(getter);
+    }
+
+    for (const hook of Store.hooks) {
+      hook.apply(this, [this]);
+    }
+
+    if (options.effect instanceof Function) {
+      this.addEffect(options.effect);
+    } else if (options.effect) {
+      this.addEffect(options.effect.effect, options.effect.retain);
     }
   }
 
@@ -309,7 +327,7 @@ export class Store<T> extends Callable<any, any> {
       ({ use }) => {
         return selector(use(this));
       },
-      this.options,
+      undefined,
       derivedFrom,
     );
   }
@@ -324,9 +342,12 @@ export class Store<T> extends Callable<any, any> {
    * @returns
    * The effect can return a teardown callback, which will be executed when the last subscription is removed and potentially the ratain time has passed.
    */
-  addEffect(effect: Effect, retain: Duration | undefined = this.options.retain): DisposableCancel {
+  addEffect(
+    effect: Effect<Store<T>>,
+    retain: Duration | undefined = this.options.retain,
+  ): DisposableCancel {
     this.effects.set(effect, {
-      handle: this.isActive() ? (effect() ?? noop) : undefined,
+      handle: this.isActive() ? (effect.apply(this, [this]) ?? noop) : undefined,
       retain: retain !== undefined ? calcDuration(retain) : undefined,
     });
 
@@ -356,7 +377,7 @@ export class Store<T> extends Callable<any, any> {
       }
 
       this.effects.set(effect, {
-        handle: handle ?? effect() ?? noop,
+        handle: handle ?? effect.apply(this, [this]) ?? noop,
         retain,
         timeout: undefined,
       });
@@ -416,7 +437,7 @@ export class Store<T> extends Callable<any, any> {
   }
 }
 
-function create<T>(calculate: Calculate<T>, options?: StoreOptions): Store<T>;
+function create<T>(calculate: Calculate<T>, options?: StoreOptions<T>): Store<T>;
 function create<T, Methods extends StoreMethods = {}>(
   initialState: T,
   options?: StoreOptionsWithMethods<T, Methods>,
@@ -454,9 +475,9 @@ function create<T, Methods extends StoreMethods>(
   return Object.assign(store, boundMethods);
 }
 
-export const createStore: typeof create & { defaultOptions: StoreOptions } =
+export const createStore: typeof create & { defaultOptions: StoreOptions<any> } =
   /* @__PURE__ */ Object.assign(create, {
     defaultOptions: {
       equals: deepEqual,
-    } as StoreOptions,
+    } as StoreOptions<any>,
   });
