@@ -253,6 +253,10 @@ export class Persist<T> {
           value: !value || value === 'undefined' ? undefined : fromExtendedJsonString(value),
         }));
 
+      if (toWrite.length === 0) {
+        return;
+      }
+
       for (const { path, value } of toWrite) {
         this.updateInProgress.set(JSON.stringify(path), value);
       }

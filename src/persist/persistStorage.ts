@@ -2,8 +2,8 @@ import isPromise from '@lib/isPromise';
 
 export interface PersistStorageBase {
   getItem: (key: string) => string | null | Promise<string | null>;
-  setItem: (key: string, value: string) => void | Promise<void>;
-  removeItem: (key: string) => void | Promise<void>;
+  setItem: (key: string, value: string) => void | Promise<unknown>;
+  removeItem: (key: string) => void | Promise<unknown>;
 }
 
 export interface PersistStorageWithKeys extends PersistStorageBase {

@@ -2,7 +2,6 @@ import type { DisposableCancel, SubscribeOptions } from '@core/commonTypes';
 import type { Store } from '@core/store';
 import { applyPatches as _applyPatches } from '@lib/applyPatches';
 import { diff, type DiffOptions, type Patch } from '@lib/diff';
-import disposable from '@lib/disposable';
 import { fromExtendedJson, toExtendedJson } from '@lib/extendedJson';
 
 export interface SyncMessage {
@@ -18,10 +17,11 @@ export interface HistoryEntry extends SyncMessage {
 declare module '@core' {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface Store<T> {
-    __patches?: Store<{
+    __patches?: {
+      value: T;
       version: string;
       history: HistoryEntry[];
-    }>;
+    };
   }
 }
 
@@ -47,70 +47,53 @@ function subscribePatches<T>(
   ) => void,
   options: SubscribePatchOptions = {},
 ): DisposableCancel {
-  if (!this.__patches) {
-    let version = genId();
-    let previousValue = this.get();
-    let patches: HistoryEntry[] = [];
+  const patches = (this.__patches ??= {
+    value: this.get(),
+    version: genId(),
+    history: [],
+  });
 
-    this.__patches = this.map((value) => {
-      const result = diff(previousValue, value, options);
-      previousValue = value;
+  options = { ...options };
+  options.runNow ??= false;
+  let cursor = options.startAt ?? (options.runNow ? undefined : this.__patches.version);
+
+  return this.subscribe((value) => {
+    if (patches.value !== value) {
+      const result = diff(patches.value, value, options);
+      patches.value = value;
 
       if (result[0].length > 0) {
         const newVersion = genId();
 
-        patches = patches
+        patches.history = patches.history
           .concat({
-            fromVersion: version,
+            fromVersion: patches.version,
             toVersion: newVersion,
             patches: result[0],
             reversePatches: result[1],
           })
           .slice(-1000);
 
-        version = newVersion;
+        patches.version = newVersion;
       }
-
-      return { version, history: patches };
-    });
-  }
-
-  options.runNow ??= false;
-  let cursor = options.startAt;
-
-  if (!options.runNow && !options.startAt) {
-    cursor = this.__patches.get().version;
-  }
-
-  const cancelPatches = this.__patches.subscribe((p) => {
-    if (cursor === p.version) {
-      return;
     }
 
-    const index = p.history.findIndex((h) => h.fromVersion === cursor);
+    if (cursor === patches.version) return;
+    const index = patches.history.findIndex((h) => h.fromVersion === cursor);
     let forward, backward, previousVersion;
 
     if (index === -1) {
-      [forward, backward] = diff(undefined, this.get(), options);
+      [forward, backward] = diff(undefined, value, options);
       previousVersion = undefined;
     } else {
-      forward = p.history.slice(index).flatMap((h) => h.patches);
-      backward = p.history.slice(index).flatMap((h) => h.reversePatches);
+      forward = patches.history.slice(index).flatMap((h) => h.patches);
+      backward = patches.history.slice(index).flatMap((h) => h.reversePatches);
       previousVersion = cursor;
     }
 
-    if (forward.length > 0) {
-      cursor = p.version;
-      listener(forward, backward, cursor, previousVersion);
-    }
+    cursor = patches.version;
+    listener(forward, backward, cursor, previousVersion);
   }, options);
-
-  const cancelSub = this.subscribe(() => undefined);
-
-  return disposable(() => {
-    cancelPatches();
-    cancelSub();
-  });
 }
 
 function applyPatches<T>(this: Store<T>, patches: InteropPatch[]): void;

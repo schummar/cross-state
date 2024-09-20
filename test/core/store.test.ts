@@ -51,7 +51,7 @@ describe('static store', () => {
       expect(effect.mock.calls.length).toBe(0);
       state.subscribe(vi.fn());
       state.subscribe(vi.fn());
-      expect(effect).toHaveBeenCalledWith();
+      expect(effect).toHaveBeenCalledWith(state);
     });
 
     test('store.addEffect resubscribed', () => {
@@ -63,7 +63,7 @@ describe('static store', () => {
       cancel();
       state.subscribe(vi.fn());
 
-      expect(effect.mock.calls).toEqual([[], []]);
+      expect(effect.mock.calls).toEqual([[state], [state]]);
     });
 
     test('store.addEffect cancel while on', () => {
