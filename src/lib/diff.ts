@@ -85,7 +85,7 @@ function* _diff(
   }
 
   if (isObject(a) && isObject(b) && !Array.isArray(a) && !Array.isArray(b)) {
-    return yield * objectDiff(a, b, options, prefix);
+    return yield* objectDiff(a, b, options, prefix);
   }
 
   yield [

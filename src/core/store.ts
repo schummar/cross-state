@@ -67,11 +67,12 @@ function noop() {
 }
 
 export class Store<T> extends Callable<any, any> {
-  private static hooks = new Set<(this: Store<any>, store: Store<any>) => void>();
+  private static hooks?: Set<(this: Store<any>, store: Store<any>) => void>;
 
   static addHook(hook: (store: Store<any>) => void): DisposableCancel {
+    this.hooks ??= new Set();
     this.hooks.add(hook);
-    return disposable(() => this.hooks.delete(hook));
+    return disposable(() => this.hooks?.delete(hook));
   }
 
   version?: string;
@@ -105,7 +106,7 @@ export class Store<T> extends Callable<any, any> {
       this.calculatedValue = this.defaultValue = staticValue(getter);
     }
 
-    for (const hook of Store.hooks) {
+    for (const hook of Store.hooks ?? []) {
       hook.apply(this, [this]);
     }
 
