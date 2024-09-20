@@ -90,6 +90,8 @@ export function remove<T, const P extends Path<T, true>>(object: T, path: P): T 
   } else if (parent instanceof Set) {
     const value = Array.from(parent)[Number(key)];
     parent.delete(value);
+  } else if (Array.isArray(parent)) {
+    parent.splice(Number(key), 1);
   } else {
     delete parent[key as keyof typeof parent];
   }

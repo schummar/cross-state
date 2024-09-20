@@ -19,8 +19,8 @@ describe('diff', () => {
     const result = diff(a, b);
 
     expect(result).toEqual([
-      [{ op: 'replace', path: [1], value: 3 }],
-      [{ op: 'replace', path: [1], value: 2 }],
+      [{ op: 'replace', path: [], value: [1, 3] }],
+      [{ op: 'replace', path: [], value: [1, 2] }],
     ]);
   });
 
@@ -47,8 +47,8 @@ describe('diff', () => {
     const result = diff(a, b);
 
     expect(result).toEqual([
-      [{ op: 'replace', path: [1], value: 3 }],
-      [{ op: 'replace', path: [1], value: 2 }],
+      [{ op: 'replace', path: [], value: new Set([1, 3]) }],
+      [{ op: 'replace', path: [], value: new Set([1, 2]) }],
     ]);
   });
 
@@ -86,8 +86,8 @@ describe('diff', () => {
     const result = diff(a, b);
 
     expect(result).toEqual([
-      [{ op: 'replace', path: ['x', 0], value: 2 }],
-      [{ op: 'replace', path: ['x', 0], value: 1 }],
+      [{ op: 'replace', path: ['x'], value: new Set([2]) }],
+      [{ op: 'replace', path: ['x'], value: new Set([1]) }],
     ]);
   });
 

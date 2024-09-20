@@ -10,8 +10,8 @@ export interface Selector<T, S> {
   (value: T): S;
 }
 
-export interface Effect {
-  (): void | Cancel;
+export interface Effect<T> {
+  (this: T, context: T): void | Cancel;
 }
 
 export interface SubscribeOptions {

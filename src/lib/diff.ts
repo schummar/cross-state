@@ -47,16 +47,44 @@ function* _diff(
     ];
   }
 
+  if (a instanceof Date && b instanceof Date) {
+    if (a.getTime() === b.getTime()) {
+      return;
+    }
+
+    return yield [
+      { op: 'replace', path: prefix, value: b },
+      { op: 'replace', path: prefix, value: a },
+    ];
+  }
+
   if (a instanceof Map && b instanceof Map) {
     return yield* mapDiff(a, b, options, prefix);
   }
 
   if (a instanceof Set && b instanceof Set) {
-    a = [...a];
-    b = [...b];
+    if (deepEqual(a, b)) {
+      return;
+    }
+
+    return yield [
+      { op: 'replace', path: prefix, value: b },
+      { op: 'replace', path: prefix, value: a },
+    ];
   }
 
-  if (isObject(a) && isObject(b) && Array.isArray(a) === Array.isArray(b)) {
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (deepEqual(a, b)) {
+      return;
+    }
+
+    return yield [
+      { op: 'replace', path: prefix, value: b },
+      { op: 'replace', path: prefix, value: a },
+    ];
+  }
+
+  if (isObject(a) && isObject(b) && !Array.isArray(a) && !Array.isArray(b)) {
     return yield* objectDiff(a, b, options, prefix);
   }
 
@@ -99,24 +127,22 @@ function* objectDiff(
   options: { stopAt?: number | ((path: KeyType[]) => boolean) },
   prefix: KeyType[],
 ): Iterable<[patch: Patch, reversePatch: Patch]> {
-  const castKey = (key: string) => (Array.isArray(a) ? Number(key) : key);
-
   for (const [key, value] of Object.entries(a)) {
     if (!(key in b)) {
       yield [
-        { op: 'remove', path: [...prefix, castKey(key)] },
-        { op: 'add', path: [...prefix, castKey(key)], value },
+        { op: 'remove', path: [...prefix, key] },
+        { op: 'add', path: [...prefix, key], value },
       ];
     } else {
-      yield* _diff(value, b[key], options, [...prefix, castKey(key)]);
+      yield* _diff(value, b[key], options, [...prefix, key]);
     }
   }
 
   for (const [key, value] of Object.entries(b)) {
     if (!(key in a)) {
       yield [
-        { op: 'add', path: [...prefix, castKey(key)], value },
-        { op: 'remove', path: [...prefix, castKey(key)] },
+        { op: 'add', path: [...prefix, key], value },
+        { op: 'remove', path: [...prefix, key] },
       ];
     }
   }

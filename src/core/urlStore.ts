@@ -2,7 +2,7 @@ import disposable from '@lib/disposable';
 import { type DisposableCancel } from './commonTypes';
 import { createStore, type Store, type StoreOptions } from './store';
 
-export interface UrlStoreOptions<T> extends StoreOptions {
+export interface UrlStoreOptions<T> extends StoreOptions<T | undefined> {
   key: string;
   type?: 'search' | 'hash';
   serialize?: (value: T) => string;

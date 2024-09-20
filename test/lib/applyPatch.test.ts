@@ -12,7 +12,7 @@ describe('applyPatch', () => {
   test('array', () => {
     expect(applyPatches([1], { op: 'add', path: [1], value: 2 })).toEqual([1, 2]);
     // eslint-disable-next-line no-sparse-arrays
-    expect(applyPatches([1], { op: 'remove', path: [0] })).toEqual([,]);
+    expect(applyPatches([1], { op: 'remove', path: [0] })).toEqual([]);
     expect(applyPatches([1], { op: 'replace', path: [0], value: 2 })).toEqual([2]);
   });
 

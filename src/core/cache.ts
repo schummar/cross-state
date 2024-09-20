@@ -21,7 +21,7 @@ export interface CacheFunction<T, Args extends any[] = []> {
   (...args: Args): Promise<T> | Calculate<Promise<T>>;
 }
 
-export interface CacheOptions<T> extends StoreOptions {
+export interface CacheOptions<T> extends StoreOptions<Promise<T>> {
   invalidateAfter?: Duration | ((state: ValueState<T> | ErrorState) => Duration | null) | null;
   invalidateOnWindowFocus?: boolean;
   invalidateOnActivation?: boolean;
@@ -353,7 +353,7 @@ function create<T, Args extends any[] = []>(
   return baseInstance;
 }
 
-export const createCache: typeof create & { defaultOptions: CacheOptions<unknown> } =
+export const createCache: typeof create & { defaultOptions: CacheOptions<any> } =
   /* @__PURE__ */ Object.assign(create, {
     defaultOptions: {
       invalidateOnWindowFocus: true,
@@ -361,5 +361,5 @@ export const createCache: typeof create & { defaultOptions: CacheOptions<unknown
       clearUnusedAfter: { days: 1 },
       retain: { milliseconds: 1 },
       equals: deepEqual,
-    } as CacheOptions<unknown>,
+    } as CacheOptions<any>,
   });
