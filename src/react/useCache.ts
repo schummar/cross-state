@@ -117,6 +117,11 @@ export function useCache<T>(
     { ...options, withViewTransition, passive: passive || disabled },
   );
 
+  useEffect(
+    () => rootCache.subscribe(() => undefined, { passive: passive || disabled }),
+    [passive || disabled],
+  );
+
   useLoadingBoundary(loadingBoundary && !disabled && result.status === 'pending');
 
   if (suspense && result.status === 'pending') {
