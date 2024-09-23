@@ -87,6 +87,9 @@
       ],
       "patches/register": [
         "dist/types/patches/register.d.ts"
+      ],
+      "persist/register": [
+        "dist/types/persist/register.d.ts"
       ]
     }
   },
