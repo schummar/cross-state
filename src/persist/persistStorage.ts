@@ -1,4 +1,5 @@
 import isPromise from '@lib/isPromise';
+import promiseChain from '@lib/promiseChain';
 
 export interface PersistStorageBase {
   getItem: (key: string) => string | null | Promise<string | null>;
@@ -15,35 +16,55 @@ export interface PersistStorageWithLength extends PersistStorageBase {
   key: (keyIndex: number) => string | null | Promise<string | null>;
 }
 
-export type PersistStorage = PersistStorageBase &
-  (PersistStorageWithKeys | PersistStorageWithLength);
+export interface PersistStorageWithListItems extends PersistStorageBase {
+  listItems: () => Map<string, string> | Promise<Map<string, string>>;
+}
 
-export function normalizeStorage(storage: PersistStorage): PersistStorageWithKeys {
+export type PersistStorage =
+  | PersistStorageWithKeys
+  | PersistStorageWithLength
+  | PersistStorageWithListItems;
+
+export function normalizeStorage(storage: PersistStorage): PersistStorageWithListItems {
   return {
     getItem: storage.getItem.bind(storage),
     setItem: storage.setItem.bind(storage),
     removeItem: storage.removeItem.bind(storage),
 
-    keys(): string[] | Promise<string[]> {
-      if ('keys' in storage) {
-        return storage.keys();
+    listItems() {
+      if ('listItems' in storage) {
+        return storage.listItems();
       }
 
-      const loadKey = (index: number) => storage.key(index);
+      return promiseChain(() => {
+        if ('keys' in storage) {
+          return storage.keys();
+        } else {
+          return promiseChain(
+            storage.length instanceof Function ? storage.length() : storage.length,
+          )
+            .then((length) => {
+              const keys = Array.from({ length }, (_, index) => storage.key(index));
+              return keys.some(isPromise) ? Promise.all(keys) : (keys as (string | null)[]);
+            })
+            .then((keys) => {
+              return keys.filter((key): key is string => typeof key === 'string');
+            }).value;
+        }
+      })
+        .then((keys) => {
+          const results = keys.map(
+            (key) =>
+              promiseChain(storage.getItem(key)).then((value) => [key, value] as const).value,
+          );
 
-      const length = storage.length instanceof Function ? storage.length() : storage.length;
-      return isPromise(length) ? length.then(continueWithLength) : continueWithLength(length);
-
-      function continueWithLength(length: number) {
-        const keys = Array.from({ length }, (_, index) => loadKey(index));
-        return keys.some(isPromise)
-          ? Promise.all(keys).then(continueWithKeys)
-          : continueWithKeys(keys as (string | null)[]);
-      }
-
-      function continueWithKeys(keys: (string | null)[]) {
-        return keys.filter((key): key is string => typeof key === 'string');
-      }
+          return results.some(isPromise)
+            ? Promise.all(results)
+            : (results as [string, string | null][]);
+        })
+        .then((results) => {
+          return new Map(results.filter(([, value]) => value !== null) as [string, string][]);
+        }).value;
     },
   };
 }

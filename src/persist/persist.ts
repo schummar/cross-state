@@ -1,8 +1,10 @@
 import { type Cancel, type Duration, type Store } from '@core';
 import { calcDuration } from '@lib/calcDuration';
 import { shallowEqual } from '@lib/equals';
+import { fromExtendedJsonString, toExtendedJsonString } from '@lib/extendedJson';
 import isPromise from '@lib/isPromise';
 import type { KeyType, WildcardPath } from '@lib/path';
+import promiseChain from '@lib/promiseChain';
 import { castArrayPath, get, remove, set } from '@lib/propAccess';
 import { queue } from '@lib/queue';
 import { patchMethods } from '@patches';
@@ -10,9 +12,8 @@ import { isAncestor, split } from './persistPathHelpers';
 import {
   normalizeStorage,
   type PersistStorage,
-  type PersistStorageWithKeys,
+  type PersistStorageWithListItems,
 } from './persistStorage';
-import { fromExtendedJsonString, toExtendedJsonString } from '@lib/extendedJson';
 
 type PathOption<T> =
   | WildcardPath<T>
@@ -31,7 +32,7 @@ export interface PersistOptions<T> {
 }
 
 export class Persist<T> {
-  readonly storage: PersistStorageWithKeys;
+  readonly storage: PersistStorageWithListItems;
   readonly [Symbol.dispose]!: Cancel;
 
   readonly paths: {
@@ -164,25 +165,27 @@ export class Persist<T> {
   }
 
   private async watchStorage() {
-    let keys = this.storage.keys();
-    if (isPromise(keys)) {
-      keys = await keys;
+    let items = this.storage.listItems();
+    if (isPromise(items)) {
+      items = await items;
     }
 
     if (this.stopped) {
       return;
     }
 
-    const sortedKeys = keys
-      .sort((a, b) => b.length - a.length)
-      .map((key) => this.parseKey(key))
-      .filter(Boolean) as Key[];
+    const toLoad = new Map(
+      [...items.entries()]
+        .sort((a, b) => b[1].length - a[1].length)
+        .map(([key, value]) => [this.parseKey(key), value])
+        .filter(([key]) => key) as [Key, string][],
+    );
 
-    this.queue(() => this.load(...sortedKeys));
+    this.queue(() => this.load(toLoad));
     this.queue(() => this.resolveInitialized?.());
 
     const listener = (event: MessageEvent) => {
-      this.queue(() => this.load({ type: 'data', path: event.data }));
+      this.queue(() => this.load([{ type: 'data', path: event.data }]));
     };
 
     this.channel.addEventListener('message', listener);
@@ -207,40 +210,43 @@ export class Persist<T> {
     return { type: 'data', path: JSON.parse(key) as KeyType[] };
   }
 
-  private load(...keys: Key[]): void | Promise<void> {
-    const results = keys.map(({ type, path }) => {
-      if (type === 'internal') {
-        switch (path) {
-          case 'version':
-            return this.storage.getItem(this.buildKey({ type: 'internal', path: 'version' }));
-        }
+  private load(items: Key[] | Map<Key, string>): void | Promise<void> {
+    return promiseChain(() => {
+      if (Array.isArray(items)) {
+        return promiseChain(() => {
+          const entries = items.map(
+            (key) =>
+              promiseChain(() => {
+                return this.storage.getItem(this.buildKey(key));
+              }).then((value) => [key, value] as const).value,
+          );
 
-        return;
+          return entries.some(isPromise)
+            ? Promise.all(entries)
+            : (entries as [Key, string | null][]);
+        }).then((entries) => {
+          return entries.filter((entry) => entry !== null) as [Key, string][];
+        }).value;
+      } else {
+        return [...items.entries()];
       }
-
-      const matchingPath = this.paths.find(
-        (p) => p.path.length === path.length && isAncestor(p.path, path),
-      );
-      if (!matchingPath) {
-        return;
-      }
-
-      const key = this.buildKey({ type: 'data', path });
-      return this.storage.getItem(key);
-    });
-
-    return chain(
-      results.some(isPromise) ? Promise.all(results) : (results as (string | null | undefined)[]),
-    ).then((results) => {
+    }).then((entries) => {
       if (this.stopped) {
         return;
       }
 
-      const toWrite = keys
-        .map((key, i) => ({ key, value: results[i] }))
-        .filter(({ key, value }) => {
+      const toWrite = entries
+        .filter(([key, value]) => {
           if (key.type !== 'data' || !value) {
             return;
+          }
+
+          if (
+            !this.paths.find(
+              (p) => p.path.length === key.path.length && isAncestor(p.path, key.path),
+            )
+          ) {
+            return null;
           }
 
           const inSaveQueue = this.queue
@@ -248,39 +254,43 @@ export class Persist<T> {
             .find((ref) => isAncestor(ref, key.path) || isAncestor(key.path, ref));
           return !inSaveQueue;
         })
-        .map(({ key, value }) => ({
-          path: key.path,
-          value: !value || value === 'undefined' ? undefined : fromExtendedJsonString(value),
-        }));
-
-      if (toWrite.length === 0) {
-        return;
-      }
-
-      for (const { path, value } of toWrite) {
-        this.updateInProgress.set(JSON.stringify(path), value);
-      }
-
-      this.store.set((state) => {
-        for (const { path, value } of toWrite) {
-          if (value === undefined) {
-            state = remove(state, path as any);
-          } else {
-            state = set(state, path as any, value);
+        .map(([key, value]) => {
+          try {
+            return {
+              path: key.path,
+              value: !value || value === 'undefined' ? undefined : fromExtendedJsonString(value),
+            };
+          } catch {
+            return undefined;
           }
+        })
+        .filter(Boolean) as { path: KeyType[]; value: unknown }[];
+
+      if (toWrite.length > 0) {
+        for (const { path, value } of toWrite) {
+          this.updateInProgress.set(JSON.stringify(path), value);
         }
 
-        return state;
-      });
+        this.store.set((state) => {
+          for (const { path, value } of toWrite) {
+            if (value === undefined) {
+              state = remove(state, path as any);
+            } else {
+              state = set(state, path as any, value);
+            }
+          }
 
-      this.updateInProgress.clear();
+          return state;
+        });
 
-      const versionIndex = keys.findIndex(
-        ({ type, path }) => type === 'internal' && path === 'version',
+        this.updateInProgress.clear();
+      }
+
+      const versionEntry = entries.find(
+        ([key]) => key.type === 'internal' && key.path === 'version',
       );
-      const version = results[versionIndex];
-      if (version) {
-        this.store.version = version;
+      if (versionEntry) {
+        this.store.version = versionEntry[1];
       }
     }).value;
   }
@@ -289,7 +299,7 @@ export class Persist<T> {
     const key = this.buildKey({ type: 'data', path });
     const value = get(this.store.get() as any, path);
 
-    return chain(value)
+    return promiseChain(value)
       .then((value) => {
         if (value === undefined) {
           return this.storage.removeItem(key);
@@ -329,22 +339,4 @@ export function persist<T>(store: Store<T>, options: PersistOptions<T>): Persist
 
 function isPlainPath<T>(p: PathOption<T>): p is WildcardPath<T> & (KeyType[] | string) {
   return typeof p === 'string' || Array.isArray(p);
-}
-
-interface Chain<T> {
-  value: T;
-  then<S>(fn: (value: Awaited<T>) => S): T extends Promise<any> ? Chain<Promise<S>> : Chain<S>;
-}
-
-function chain<T>(value: T): Chain<T> {
-  return {
-    value,
-    then(fn) {
-      const next = isPromise(value)
-        ? value.then((value) => fn(value as Awaited<T>))
-        : fn(value as Awaited<T>);
-
-      return chain(next) as any;
-    },
-  };
 }

@@ -3,7 +3,11 @@ import { split } from '@persist/persistPathHelpers';
 import seedrandom from 'seedrandom';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createStore } from '../../src';
-import { persist, type PersistStorageWithKeys } from '../../src/persist';
+import {
+  persist,
+  type PersistStorageWithKeys,
+  type PersistStorageWithLength,
+} from '../../src/persist';
 import { flushPromises, sleep } from '../testHelpers';
 
 beforeEach(() => {
@@ -426,6 +430,24 @@ describe('persist', () => {
         ]),
       );
       expect(s1.get()).toStrictEqual({ a: 3 });
+    });
+  });
+
+  describe('storage types', () => {
+    test('PersistStorageWithLength', async () => {
+      const storage: PersistStorageWithLength = {
+        getItem: (key) => key.match(/(\d+)/)?.[1] ?? '',
+        setItem: () => undefined,
+        removeItem: () => undefined,
+        length: 3,
+        key: (index) => `test:["${index}"]`,
+      };
+
+      const store = createStore({});
+      await persist(store, { id: 'test', storage }).initialized;
+      await flushPromises();
+
+      expect(store.get()).toStrictEqual({ '0': 0, '1': 1, '2': 2 });
     });
   });
 
