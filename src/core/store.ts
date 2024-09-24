@@ -223,8 +223,7 @@ export class Store<T> extends Callable<any, any> {
     }
 
     return disposable(() => {
-      this.listeners.delete(innerListener);
-      if (!passive) {
+      if (this.listeners.delete(innerListener) && !passive) {
         this.onUnsubscribe();
       }
     });
