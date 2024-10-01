@@ -3,6 +3,7 @@ import { describe, expect, test, vi } from 'vitest';
 import { createCache } from '../../src';
 import { useCache } from '../../src/react';
 import { flushPromises } from '../testHelpers';
+import { useState } from 'react';
 
 describe('useCache', () => {
   test('value', async () => {
@@ -211,6 +212,58 @@ describe('useCache', () => {
 
       await act(() => flushPromises(2));
       expect(div.textContent).toBe('mapValue throws');
+    });
+
+    describe('with args', () => {
+      test('with args', async () => {
+        const cache = createCache(async (x: number) => `x=${x}`);
+
+        const Component = vi.fn(function Component() {
+          const [value] = useCache(cache(1));
+
+          return <div data-testid="div">{value}</div>;
+        });
+
+        render(<Component />);
+        const div = screen.getByTestId('div');
+
+        expect(div.textContent).toBe('');
+
+        await act(() => flushPromises());
+
+        expect(div.textContent).toBe('x=1');
+      });
+
+      test('change args', async () => {
+        const cache = createCache(async (x: number) => `x=${x}`);
+
+        const Component = vi.fn(function Component() {
+          const [key, setKey] = useState(1);
+          const [value] = useCache(cache(key));
+
+          return (
+            <div data-testid="div" onClick={() => setKey(2)}>
+              {value}
+            </div>
+          );
+        });
+
+        render(<Component />);
+        const div = screen.getByTestId('div');
+
+        expect(div.textContent).toBe('');
+
+        await act(() => flushPromises());
+
+        expect(div.textContent).toBe('x=1');
+
+        await act(async () => {
+          div.click();
+          await flushPromises();
+        });
+
+        expect(div.textContent).toBe('x=2');
+      });
     });
   });
 });

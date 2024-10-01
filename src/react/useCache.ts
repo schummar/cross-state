@@ -119,7 +119,7 @@ export function useCache<T>(
 
   useEffect(
     () => rootCache.subscribe(() => undefined, { passive: passive || disabled }),
-    [passive || disabled],
+    [rootCache, passive || disabled],
   );
 
   useLoadingBoundary(loadingBoundary && !disabled && result.status === 'pending');
