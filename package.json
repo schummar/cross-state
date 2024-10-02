@@ -15,7 +15,9 @@
     "dist/es/mutative/register.mjs",
     "dist/cjs/mutative/register.cjs",
     "dist/es/patches/register.mjs",
-    "dist/cjs/patches/register.cjs"
+    "dist/cjs/patches/register.cjs",
+    "dist/es/persist/register.mjs",
+    "dist/cjs/persist/register.cjs"
   ],
   "files": [
     "dist"
