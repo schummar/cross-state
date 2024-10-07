@@ -1,13 +1,10 @@
 // eslint-disable-next-line max-classes-per-file
+import { createStore } from '@core';
+import '@patches/register';
+import { persist, type PersistStorageWithKeys, type PersistStorageWithLength } from '@persist';
 import { split } from '@persist/persistPathHelpers';
 import seedrandom from 'seedrandom';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { createStore } from '../../src';
-import {
-  persist,
-  type PersistStorageWithKeys,
-  type PersistStorageWithLength,
-} from '../../src/persist';
 import { flushPromises, sleep } from '../testHelpers';
 
 beforeEach(() => {
@@ -38,6 +35,10 @@ beforeEach(() => {
           await sleep(1);
           channel.listener?.({ data: message });
         }
+      }
+
+      close() {
+        this.listener = undefined;
       }
     },
   );
@@ -642,6 +643,21 @@ describe('persist', () => {
           { path: ['a', 'c'], value: 2 },
         ]);
       });
+    });
+
+    test('version is persisted', async () => {
+      const store = createStore({ a: 1, b: 2 });
+      const storage = new MockStorage();
+      using _persist1 = persist(store, { id: 'x', storage });
+
+      store.acceptSync({ toVersion: 'v1', patches: [{ op: 'replace', path: ['a'], value: 3 }] });
+
+      expect(storage.items).toEqual(
+        new Map([
+          ['x:["a"]', '3'],
+          ['x:version', 'v1'],
+        ]),
+      );
     });
   });
 });

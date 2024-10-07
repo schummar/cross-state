@@ -3,6 +3,7 @@ import type { Store } from '@core/store';
 import { applyPatches as _applyPatches } from '@lib/applyPatches';
 import { diff, type DiffOptions, type Patch } from '@lib/diff';
 import { fromExtendedJson, toExtendedJson } from '@lib/extendedJson';
+import { Trie } from '@lib/trie';
 
 export interface SyncMessage {
   fromVersion?: string;
@@ -37,7 +38,7 @@ export type InteropPatch = Patch | { op: 'add' | 'replace' | 'remove'; value?: a
 
 const genId = () => Math.random().toString(36).slice(2);
 
-function subscribePatches<T>(
+export function subscribePatches<T>(
   this: Store<T>,
   listener: (
     patches: Patch[],
@@ -96,19 +97,36 @@ function subscribePatches<T>(
   }, options);
 }
 
-function applyPatches<T>(this: Store<T>, patches: InteropPatch[]): void;
-function applyPatches<T>(this: Store<T>, ...patches: InteropPatch[]): void;
-function applyPatches<T>(this: Store<T>, ...patches: (InteropPatch | InteropPatch[])[]): void {
+export function applyPatches<T>(this: Store<T>, patches: InteropPatch[]): void;
+export function applyPatches<T>(this: Store<T>, ...patches: InteropPatch[]): void;
+export function applyPatches<T>(
+  this: Store<T>,
+  ...patches: (InteropPatch | InteropPatch[])[]
+): void {
   this.set((value) => _applyPatches(value, ...(patches.flat() as Patch[])));
 }
 
-function sync<T>(
+export function sync<T>(
   this: Store<T>,
   listener: (syncMessage: SyncMessage) => void,
   options?: Omit<SubscribePatchOptions, 'runNow'>,
 ): DisposableCancel {
   return this.subscribePatches(
     (patches, _, version, previousVersion) => {
+      const trie = new Trie();
+
+      patches = [...patches]
+        .reverse()
+        .filter((patch) => {
+          if (trie.hasSubPath(patch.path)) {
+            return false;
+          }
+
+          trie.add(patch.path);
+          return true;
+        })
+        .reverse();
+
       listener({
         fromVersion: previousVersion,
         toVersion: version,
@@ -119,7 +137,7 @@ function sync<T>(
   );
 }
 
-function acceptSync<T>(this: Store<T>, message: SyncMessage): void {
+export function acceptSync<T>(this: Store<T>, message: SyncMessage): void {
   if (message.fromVersion && message.fromVersion !== this.version) {
     throw new Error(
       `version mismatch! version=${this.version}, fromVersion=${message.fromVersion}`,

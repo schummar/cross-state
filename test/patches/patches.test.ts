@@ -1,8 +1,9 @@
 import { Store, createStore } from '@core';
-import { persist, type Patch } from '@index';
+import type { Patch } from '@index';
 import { autobind } from '@lib/autobind';
 import { patchMethods } from '@patches';
 import '@patches/register';
+import { persist } from '@persist';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 function register() {
@@ -319,6 +320,27 @@ describe('patch methods', () => {
         b: new Set([2]),
         c: new Date(0),
       });
+    });
+
+    test('sync deduplication', () => {
+      const store = createStore({ a: 1, b: 2 });
+      using _sync1 = store.sync(() => undefined);
+      const callback = vi.fn();
+      using _sync2 = store.sync(callback, { startAt: store.__patches?.version, debounce: 1 });
+
+      store.set('a', 2);
+      store.set('a', 3);
+      store.set({ a: 4, b: 5 });
+      store.set('b', 6);
+      store.set('b', 7);
+      vi.advanceTimersByTime(1);
+
+      expect(callback.mock.calls.map((x) => x[0].patches)).toEqual([
+        [
+          { op: 'replace', path: ['a'], value: 4 },
+          { op: 'replace', path: ['b'], value: 7 },
+        ],
+      ]);
     });
   });
 });

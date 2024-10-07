@@ -7,7 +7,7 @@ import type { KeyType, WildcardPath } from '@lib/path';
 import promiseChain from '@lib/promiseChain';
 import { castArrayPath, get, remove, set } from '@lib/propAccess';
 import { queue } from '@lib/queue';
-import { patchMethods } from '@patches';
+import { subscribePatches } from '@patches/patchMethods';
 import { isAncestor, split } from './persistPathHelpers';
 import {
   normalizeStorage,
@@ -109,7 +109,7 @@ export class Persist<T> {
   private watchStore() {
     const throttle = Math.min(...this.paths.map((p) => p.throttle ?? 0)) || undefined;
 
-    const cancel = patchMethods.subscribePatches.apply(this.store as Store<unknown>, [
+    const cancel = subscribePatches.apply(this.store as Store<unknown>, [
       (patches, reversePatches) => {
         let i = 0;
         for (const patch of patches) {

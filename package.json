@@ -184,7 +184,7 @@
     {
       "name": "core",
       "path": "dist/es/index.mjs",
-      "limit": "7.8 KB"
+      "limit": "8 KB"
     },
     {
       "name": "core: Store",
@@ -197,6 +197,12 @@
       "path": "dist/es/index.mjs",
       "import": "{createCache}",
       "limit": "5.5 KB"
+    },
+    {
+      "name": "core: Persist",
+      "path": "dist/es/index.mjs",
+      "import": "{persist}",
+      "limit": "3.5 KB"
     },
     {
       "name": "core: InstanceCache",
