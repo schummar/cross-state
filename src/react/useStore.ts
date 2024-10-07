@@ -68,6 +68,7 @@ export function useStore<T, S>(store: Store<T>, argument1?: any, argument2?: any
   const subscribe = useCallback(
     (listener: () => void) => {
       let _listener: (value: any) => void = listener;
+      let stopped = false;
 
       if (withViewTransition && (document as any).startViewTransition) {
         let lastObservedValue: any;
@@ -91,7 +92,11 @@ export function useStore<T, S>(store: Store<T>, argument1?: any, argument2?: any
           mutationObserver.observe(document.body, { childList: true, subtree: true });
 
           (document as any).startViewTransition(() => {
-            listener();
+            mutationObserver.disconnect();
+
+            if (!stopped) {
+              listener();
+            }
 
             if (!hasChanges) {
               throw new Error('no change');
@@ -100,7 +105,11 @@ export function useStore<T, S>(store: Store<T>, argument1?: any, argument2?: any
         };
       }
 
-      return store.subscribe(_listener, subOptions);
+      const cancel = store.subscribe(_listener, subOptions);
+      return () => {
+        stopped = true;
+        cancel();
+      };
     },
     [store, hash(subOptions)],
   );
