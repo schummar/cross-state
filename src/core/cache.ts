@@ -156,6 +156,8 @@ export class Cache<T> extends Store<Promise<T>> {
     this.subscribe(
       async (promise) => {
         if (promise instanceof PromiseWithState && promise.state.status !== 'pending') {
+          promise.catch(() => undefined);
+
           this.state.set((state) => ({
             ...promise.state,
             isStale: false,

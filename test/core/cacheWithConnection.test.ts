@@ -60,7 +60,7 @@ describe('cache with connection', () => {
         ws.addEventListener('open', () => updateIsConnected(true));
         ws.addEventListener('close', close);
         ws.addEventListener('message', (event) =>
-          updateValue((x) => {
+          updateValue((x = 0) => {
             return x + Number(event.data);
           }),
         );
@@ -121,7 +121,7 @@ describe('cache with connection', () => {
             () => {
               updateIsConnected(true);
               updateValue(sleep(1).then(() => 3));
-              updateValue(4);
+              updateValue(() => 4);
             },
           ]) {
             await sleep(1);
@@ -154,6 +154,7 @@ describe('cache with connection', () => {
       { status: 'value', value: 2, isUpdating: false, isConnected: true },
       { status: 'value', value: 2, isUpdating: false, isConnected: false },
       { status: 'value', value: 2, isUpdating: false, isConnected: true },
+      { status: 'value', value: 2, isUpdating: true, isConnected: true },
       { status: 'value', value: 3, isUpdating: false, isConnected: true },
       { status: 'value', value: 4, isUpdating: false, isConnected: true },
     ]);
@@ -222,6 +223,68 @@ describe('cache with connection', () => {
       { status: 'value', value: 2, isStale: true, isUpdating: true, isConnected: false },
       { status: 'value', value: 0, isStale: false, isUpdating: false, isConnected: false },
       { status: 'value', value: 0, isStale: false, isUpdating: false, isConnected: true },
+      { status: 'value', value: 1, isStale: false, isUpdating: false, isConnected: true },
+    ]);
+  });
+
+  test('connection error', async () => {
+    const cache = createCache<number>(() => async ({ connect }) => {
+      await connect(({ updateError, updateIsConnected }) => {
+        updateIsConnected(true);
+        updateError(new Error('Connection error'));
+        return () => {};
+      });
+
+      return 0;
+    });
+
+    const subscriber = vi.fn();
+    cache.subscribe(() => undefined);
+    cache.state.subscribe(subscriber);
+
+    await flushPromises();
+
+    expect(subscriber.mock.calls.map((x) => x[0])).toMatchObject([
+      { status: 'pending', isStale: true, isUpdating: true, isConnected: false },
+      { status: 'value', value: 0, isStale: false, isUpdating: false, isConnected: false },
+      { status: 'value', value: 0, isStale: false, isUpdating: false, isConnected: true },
+      {
+        status: 'error',
+        error: new Error('Connection error'),
+        isUpdating: false,
+        isConnected: true,
+      },
+    ]);
+  });
+
+  test('reset error by setting new value', async () => {
+    const cache = createCache<number>(() => async ({ connect }) => {
+      await connect(({ updateValue, updateError, updateIsConnected }) => {
+        updateIsConnected(true);
+        updateError(new Error('Connection error'));
+        updateValue((x) => x ?? 1);
+        return () => {};
+      });
+
+      return 0;
+    });
+
+    const subscriber = vi.fn();
+    cache.subscribe(() => undefined);
+    cache.state.subscribe(subscriber);
+
+    await flushPromises();
+
+    expect(subscriber.mock.calls.map((x) => x[0])).toMatchObject([
+      { status: 'pending', isStale: true, isUpdating: true, isConnected: false },
+      { status: 'value', value: 0, isStale: false, isUpdating: false, isConnected: false },
+      { status: 'value', value: 0, isStale: false, isUpdating: false, isConnected: true },
+      {
+        status: 'error',
+        error: new Error('Connection error'),
+        isUpdating: false,
+        isConnected: true,
+      },
       { status: 'value', value: 1, isStale: false, isUpdating: false, isConnected: true },
     ]);
   });

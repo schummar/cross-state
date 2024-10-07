@@ -62,8 +62,8 @@ export interface UpdateFunction<Value> {
   (update: Update<Value>): void;
 }
 
-export interface AsyncUpdateFunction<Value> {
-  (update: UpdateFrom<MaybePromise<Value>, [Value]>): void;
+export interface AsyncUpdateFunction<Value, From extends any[] = [Value]> {
+  (update: UpdateFrom<MaybePromise<Value>, From>): void;
 }
 
 export interface Use {
@@ -75,7 +75,7 @@ export interface BaseConnectionActions<T> {
 }
 
 export interface AsyncConnectionActions<T> extends BaseConnectionActions<T> {
-  updateValue: AsyncUpdateFunction<T>;
+  updateValue: AsyncUpdateFunction<T, [T | undefined]>;
   updateError: (error: unknown) => void;
   updateIsConnected: (isConnected: boolean) => void;
   close: () => void;

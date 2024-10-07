@@ -101,11 +101,19 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
         if (connection?.active) {
           q(async () => {
             if (update instanceof Function) {
-              update = update(await value);
-            }
+              const currentValue = await (value as Promise<T>).catch(() => undefined);
 
-            if (isPromise(update)) {
-              update = await update;
+              if (!connection?.active) {
+                return;
+              }
+
+              try {
+                update = update(currentValue);
+              } catch (error) {
+                value = PromiseWithState.reject(error) as T;
+                notify();
+                return;
+              }
             }
 
             if (!connection?.active) {
@@ -162,10 +170,15 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
     return whenConnected;
   }
 
-  value =
-    store.getter instanceof Function
-      ? store.getter({ signal: ac.signal, use, connect })
-      : store.getter;
+  if (store.getter instanceof Function) {
+    try {
+      value = store.getter({ signal: ac.signal, use, connect });
+    } catch (error) {
+      value = PromiseWithState.reject(error) as T;
+    }
+  } else {
+    value = store.getter;
+  }
 
   if (isPromise(value)) {
     value.finally(() => whenExecuted.resolve()).catch(() => undefined);
