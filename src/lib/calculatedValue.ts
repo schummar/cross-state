@@ -90,59 +90,76 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
 
     const actions: AsyncConnectionActions<any> = {
       set(_value) {
-        if (connection?.active) {
-          q(() => {
-            value = _value;
-            notify();
-          });
-        }
+        q(() => {
+          if (!connection?.active) {
+            return;
+          }
+
+          value = _value;
+          notify();
+        });
       },
       updateValue(update) {
-        if (connection?.active) {
-          q(async () => {
-            if (update instanceof Function) {
-              const currentValue = await (value as Promise<T>).catch(() => undefined);
+        q(async () => {
+          if (!connection?.active) {
+            return;
+          }
 
-              if (!connection?.active) {
-                return;
-              }
-
-              try {
-                update = update(currentValue);
-              } catch (error) {
-                value = PromiseWithState.reject(error) as T;
-                notify();
-                return;
-              }
-            }
+          if (update instanceof Function) {
+            const currentValue = await value;
 
             if (!connection?.active) {
               return;
             }
 
-            value = PromiseWithState.resolve(update) as T;
-            notify();
-          });
-        }
+            try {
+              update = update(currentValue);
+            } catch (error) {
+              value = PromiseWithState.reject(error) as T;
+              notify();
+              connection.active = false;
+              connection.cancel?.();
+              return;
+            }
+          }
+
+          value = PromiseWithState.resolve(update) as T;
+          notify();
+        });
       },
       updateError(error) {
-        if (connection?.active) {
-          q(() => {
-            value = PromiseWithState.reject(error) as T;
-            notify();
-          });
-        }
+        q(() => {
+          if (!connection?.active) {
+            return;
+          }
+
+          connection.active = false;
+          connection.cancel?.();
+
+          if ('state' in store) {
+            (store as unknown as Cache<any>).state.set({
+              status: 'error',
+              error,
+              isConnected: false,
+              isUpdating: false,
+              isStale: false,
+            });
+          }
+
+          value = PromiseWithState.reject(error) as T;
+          notify();
+        });
       },
       updateIsConnected(isConnected) {
-        if (!connection?.active) {
-          return;
-        }
-
         if (isConnected) {
           whenConnected.resolve();
         }
 
         q(() => {
+          if (!connection?.active) {
+            return;
+          }
+
           if ('state' in store) {
             (store as unknown as Cache<any>).state.set('isConnected', isConnected);
           }
@@ -175,6 +192,12 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
       value = store.getter({ signal: ac.signal, use, connect });
     } catch (error) {
       value = PromiseWithState.reject(error) as T;
+
+      if (connection) {
+        connection.active = false;
+        connection.cancel?.();
+        q.clear();
+      }
     }
   } else {
     value = store.getter;
