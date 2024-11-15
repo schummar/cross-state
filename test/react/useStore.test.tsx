@@ -1,7 +1,7 @@
 import { act, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, test, vi } from 'vitest';
-import { createStore } from '../../src';
+import { createStore, strictEqual } from '../../src';
 import { useStore } from '../../src/react';
 
 function c<T>(name: string, before: T, after1: T, after2: T, select: (t: T) => ReactNode) {
@@ -121,6 +121,26 @@ describe('useStore', () => {
     });
 
     expect(div.textContent).toBe('2');
+    expect(Component.mock.calls.length).toBe(2);
+  });
+
+  test('fall back to store equals', async () => {
+    const store = createStore({ a: 1 }, { equals: strictEqual });
+
+    const Component = vi.fn(function Component() {
+      const value = useStore(store);
+
+      return <div data-testid="div">{value.a}</div>;
+    });
+
+    render(<Component />);
+    const div = screen.getByTestId('div');
+
+    act(() => {
+      store.set({ a: 1 });
+    });
+
+    expect(div.textContent).toBe('1');
     expect(Component.mock.calls.length).toBe(2);
   });
 });

@@ -172,6 +172,17 @@ describe('static store', () => {
       expect(listener.mock.calls).toMatchObject([[{ a: 1 }, undefined]]);
     });
 
+    test('store.subscribe fall back to store equals', async () => {
+      const state = createStore({ a: 1 }, { equals: strictEqual });
+      const listener = vi.fn();
+      state.subscribe(listener);
+      state.set({ a: 1 });
+      expect(listener.mock.calls).toMatchObject([
+        [{ a: 1 }, undefined],
+        [{ a: 1 }, { a: 1 }],
+      ]);
+    });
+
     test('catch error', async () => {
       const state = createStore(1);
       const nextListener = vi.fn();

@@ -170,7 +170,7 @@ export class Store<T> extends Callable<any, any> {
       runNow = true,
       throttle: throttleOption,
       debounce: debounceOption,
-      equals = deepEqual,
+      equals = this.options.equals ?? deepEqual,
     } = options ?? {};
 
     let isSetup = false;
