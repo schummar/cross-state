@@ -83,4 +83,17 @@ describe('applyPatch', () => {
     expect(applyPatches(a, ...patches)).toEqual(b);
     expect(applyPatches(a, ...patches, ...reversePatches)).toEqual(a);
   });
+
+  test('x', () => {
+    const builds = { x: 1, y: 2, z: 3 };
+    const a = applyPatches(
+      { builds, updatedOn: new Date() },
+      {
+        op: 'replace',
+        path: ['updatedOn'],
+        value: new Date(),
+      },
+    );
+    expect(a.builds).toBe(builds);
+  });
 });

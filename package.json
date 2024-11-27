@@ -136,7 +136,7 @@
     "@mui/material": "6.1.2",
     "@schummar/eslint-config": "github:schummar/eslint-config",
     "@schummar/prettier-config": "github:schummar/prettier-config",
-    "@schummar/runp": "2.0.3",
+    "@schummar/runp": "2.0.7",
     "@size-limit/preset-small-lib": "11.1.6",
     "@testing-library/react": "16.0.1",
     "@types/react": "18.3.11",

@@ -1,5 +1,6 @@
-import type { Scope } from '@core';
+import type { Scope, Selector, Update } from '@core';
 import { createStore, type Store } from '@core/store';
+import type { Path, Value } from '@lib/path';
 import { createContext, useContext, useMemo, type Context, type ReactNode } from 'react';
 import { useProp } from './useProp';
 import { useStore, type UseStoreOptions } from './useStore';
@@ -36,15 +37,47 @@ export function useScope<T>(scope: Scope<T>): Store<T> {
   return useContext(context);
 }
 
-export function useScopeStore<T>(scope: Scope<T>, options?: UseStoreOptions<T>): T {
+export function useScopeStore<T, S>(
+  scope: Scope<T>,
+  selector: Selector<T, S>,
+  option?: UseStoreOptions<S>,
+): S;
+
+export function useScopeStore<T, P extends Path<T>>(
+  scope: Scope<T>,
+  selector: P,
+  option?: UseStoreOptions<Value<T, P>>,
+): Value<T, P>;
+
+export function useScopeStore<T>(scope: Scope<T>, option?: UseStoreOptions<T>): T;
+
+export function useScopeStore<T>(scope: Scope<T>, ...args: any[]): T {
   const store = useScope(scope);
-  return useStore(store, options);
+  return useStore(store, ...args);
 }
+
+export function useScopeProp<T, S>(
+  scope: Scope<T>,
+  selector: Selector<T, S>,
+  updater: (value: S) => Update<T>,
+  options?: UseStoreOptions<S>,
+): [value: S, setValue: Store<S>['set']];
+
+export function useScopeProp<T, P extends Path<T>>(
+  scope: Scope<T>,
+  selector: P,
+  options?: UseStoreOptions<Value<T, P>>,
+): [value: Value<T, P>, setValue: Store<Value<T, P>>['set']];
 
 export function useScopeProp<T>(
   scope: Scope<T>,
   options?: UseStoreOptions<T>,
+): [value: T, setValue: Store<T>['set']];
+
+export function useScopeProp<T>(
+  scope: Scope<T>,
+  ...args: any[]
 ): [value: T, setValue: Store<T>['set']] {
   const store = useScope(scope);
-  return useProp(store, options);
+  return useProp(store, ...args);
 }
