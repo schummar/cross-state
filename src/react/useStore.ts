@@ -1,7 +1,7 @@
 import type { Selector, SubscribeOptions } from '@core/commonTypes';
 import type { Store } from '@core/store';
 import { deepEqual } from '@lib/equals';
-import { hash } from '@lib/hash';
+import { simpleHash } from '@lib/hash';
 import { makeSelector } from '@lib/makeSelector';
 import { type Path, type Value } from '@lib/path';
 import { trackingProxy } from '@lib/trackingProxy';
@@ -111,7 +111,7 @@ export function useStore<T, S>(store: Store<T>, argument1?: any, argument2?: any
         cancel();
       };
     },
-    [store, hash(subOptions)],
+    [store, simpleHash(subOptions)],
   );
 
   let value = useSyncExternalStoreWithSelector<T, S>(

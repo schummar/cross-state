@@ -1,7 +1,7 @@
 import { connectUrl, createStore, type Store, type Update, type UrlStoreOptions } from '@core';
 import { autobind } from '@lib/autobind';
 import { deepEqual } from '@lib/equals';
-import { hash } from '@lib/hash';
+import { simpleHash } from '@lib/hash';
 import { isObject } from '@lib/helpers';
 import {
   type Path,
@@ -488,7 +488,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
       }
 
       return undefined;
-    }, [formState, hash(urlState)]);
+    }, [formState, simpleHash(urlState)]);
 
     useEffect(() => {
       const handles = options.transform?.map(({ trigger, update }) => {

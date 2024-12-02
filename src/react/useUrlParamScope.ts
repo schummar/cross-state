@@ -1,5 +1,5 @@
 import { castArray } from '@lib/castArray';
-import { hash } from '@lib/hash';
+import { simpleHash } from '@lib/hash';
 import { useEffect } from 'react';
 
 export function useUrlParamScope({
@@ -21,6 +21,6 @@ export function useUrlParamScope({
       url[type] = parameters.toString();
       window.history.replaceState(null, '', url.toString());
     },
-    [hash(key), type],
+    [simpleHash(key), type],
   );
 }

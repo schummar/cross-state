@@ -2,6 +2,7 @@ import { afterEach, assert, beforeEach, describe, expect, test, vi } from 'vites
 import { createStore, type CalculationActions } from '../../src/core';
 import { Cache, createCache } from '../../src/core/cache';
 import { flushPromises, sleep } from '../testHelpers';
+import { hash } from '@lib/hash';
 
 const originalDefaultOptions = { ...createCache.defaultOptions };
 
@@ -499,6 +500,13 @@ describe('cache', () => {
     test('same instance for when not calling as when calling without args', async () => {
       const cache = createCache(async () => 1);
       expect(cache).toBe(cache());
+    });
+
+    test('customer hash function for args', async () => {
+      const cache = createCache(async (x: { id: number }) => x.id);
+      const arg1 = { id: 1, [hash]: () => '1' };
+      const arg2 = { id: 2, [hash]: () => '1' };
+      expect(cache(arg1)).toBe(cache(arg2));
     });
 
     test('invalidateAll', async () => {

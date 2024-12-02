@@ -1,4 +1,4 @@
-import { hash } from './hash';
+import { simpleHash } from './hash';
 
 export class InstanceCache<Args extends any[], T extends object> {
   private cache = new Map<string, { t: number; ref?: T; weakRef: WeakRef<T> }>();
@@ -27,7 +27,7 @@ export class InstanceCache<Args extends any[], T extends object> {
   }
 
   get(...args: Args): T {
-    const key = hash(args);
+    const key = simpleHash(args);
     let entry = this.cache.get(key);
     let value = entry?.ref ?? entry?.weakRef?.deref();
 
