@@ -38,6 +38,7 @@ export function useStore<T, S>(store: Store<T>, argument1?: any, argument2?: any
   const selector = makeSelector<T, S>(
     typeof argument1 === 'function' || typeof argument1 === 'string' ? argument1 : undefined,
   );
+
   const allOptions = (
     typeof argument1 === 'object' ? argument1 : (argument2 ?? {})
   ) as UseStoreOptions<S>;
@@ -51,7 +52,7 @@ export function useStore<T, S>(store: Store<T>, argument1?: any, argument2?: any
         for (const selector of store.derivedFrom!.selectors) {
           value = makeSelector(selector)(value);
         }
-        return value;
+        return selector(value);
       },
       allOptions,
     );

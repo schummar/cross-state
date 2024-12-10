@@ -20,6 +20,36 @@ describe('register react methods', () => {
     expect(div.textContent).toBe('0');
   });
 
+  test('useStore with selector', async () => {
+    const store = createStore({ x: 0 });
+
+    const Component = vi.fn(function Component() {
+      const value = store.useStore((x) => x.x + 1);
+
+      return <div data-testid="div">{value}</div>;
+    });
+
+    render(<Component />);
+    const div = screen.getByTestId('div');
+
+    expect(div.textContent).toBe('1');
+  });
+
+  test('useStore with selector and mapping', async () => {
+    const store = createStore({ x: 0 });
+
+    const Component = vi.fn(function Component() {
+      const value = store.map('x').useStore((x) => x + 1);
+
+      return <div data-testid="div">{value}</div>;
+    });
+
+    render(<Component />);
+    const div = screen.getByTestId('div');
+
+    expect(div.textContent).toBe('1');
+  });
+
   test('useProp', async () => {
     const store = createStore({ x: 0 });
 

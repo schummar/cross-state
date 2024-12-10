@@ -124,6 +124,49 @@ describe('useStore', () => {
     expect(Component.mock.calls.length).toBe(2);
   });
 
+  test('with selector as argument', async () => {
+    const store = createStore({ a: 1, b: 2 });
+
+    const Component = vi.fn(function Component() {
+      const value = useStore(store, (s) => s.a);
+
+      return <div data-testid="div">{value}</div>;
+    });
+
+    render(<Component />);
+    const div = screen.getByTestId('div');
+
+    act(() => {
+      store.set({ a: 2, b: 2 });
+    });
+
+    expect(div.textContent).toBe('2');
+    expect(Component.mock.calls.length).toBe(2);
+  });
+
+  test('with mapping and selector as argument', async () => {
+    const store = createStore({ a: 1, b: 2 });
+
+    const Component = vi.fn(function Component() {
+      const value = useStore(
+        store.map((s) => s.a),
+        (s) => s + 1,
+      );
+
+      return <div data-testid="div">{value}</div>;
+    });
+
+    render(<Component />);
+    const div = screen.getByTestId('div');
+
+    act(() => {
+      store.set({ a: 2, b: 2 });
+    });
+
+    expect(div.textContent).toBe('3');
+    expect(Component.mock.calls.length).toBe(2);
+  });
+
   test('fall back to store equals', async () => {
     const store = createStore({ a: 1 }, { equals: strictEqual });
 
