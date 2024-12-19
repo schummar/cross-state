@@ -1,5 +1,6 @@
 export * from './core';
 export { applyPatches } from './lib/applyPatches';
+export * from './lib/cacheState';
 export { calcDuration } from './lib/calcDuration';
 export { diff, type Patch } from './lib/diff';
 export { deepEqual, shallowEqual, strictEqual } from './lib/equals';
