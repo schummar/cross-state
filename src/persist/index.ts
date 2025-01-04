@@ -7,4 +7,3 @@ export type {
   PersistStorageWithLength,
   PersistStorageWithListItems,
 } from './persistStorage';
-
