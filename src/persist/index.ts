@@ -5,4 +5,6 @@ export type {
   PersistStorageBase,
   PersistStorageWithKeys,
   PersistStorageWithLength,
+  PersistStorageWithListItems,
 } from './persistStorage';
+
