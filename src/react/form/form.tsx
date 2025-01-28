@@ -190,7 +190,10 @@ function FormContainer({
       ref={formRef}
       noValidate
       {...formProps}
-      className={[formProps.className, hasTriggeredValidations ? 'validated' : undefined]
+      className={[
+        formProps.className,
+        hasTriggeredValidations ? (form.options.validClass ?? 'validated') : undefined,
+      ]
         .filter(Boolean)
         .join(' ')}
       onSubmit={(event) => {
