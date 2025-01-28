@@ -59,7 +59,7 @@ export interface FormOptions<TDraft, TOriginal> {
   urlState?: boolean | UrlStoreOptions<TDraft>;
   autoSave?: FormAutosaveOptions<TDraft, TOriginal>;
   transform?: Transform<TDraft>[];
-  validClass?: string;
+  validatedClass?: string;
 }
 
 export type Validations<TDraft, TOriginal> = {
@@ -192,7 +192,7 @@ function FormContainer({
       {...formProps}
       className={[
         formProps.className,
-        hasTriggeredValidations ? (form.options.validClass ?? 'validated') : undefined,
+        hasTriggeredValidations ? (form.options.validatedClass ?? 'validated') : undefined,
       ]
         .filter(Boolean)
         .join(' ')}
