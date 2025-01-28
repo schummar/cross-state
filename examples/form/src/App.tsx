@@ -15,11 +15,12 @@ const { Form, Field } = createForm<{ a: string; b: string }>({
       required: (value) => !!value,
     },
   },
+  validatedClass: 'valid-foo',
 });
 
 export default function App() {
   return (
-    <Form onSubmit={(_e, form) => form.reset()}>
+    <Form onSubmit={(_e, form) => form.reset()} validatedClass="valid-bar">
       <Content />
     </Form>
   );

@@ -192,7 +192,7 @@ function FormContainer({
       {...formProps}
       className={[
         formProps.className,
-        hasTriggeredValidations ? (form.options.validatedClass ?? 'validated') : undefined,
+        hasTriggeredValidations ? (formInstance.options.validatedClass ?? 'validated') : undefined,
       ]
         .filter(Boolean)
         .join(' ')}
@@ -391,6 +391,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     urlState,
     autoSave,
     transform,
+    validatedClass,
     ...formProps
   }: {
     original?: TOriginal;
@@ -406,6 +407,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
       localizeError: localizeError ?? this.options.localizeError,
       autoSave: autoSave ?? this.options.autoSave,
       transform: transform ?? this.options.transform,
+      validatedClass: validatedClass ?? this.options.validatedClass,
     };
 
     const formState = useMemo(() => {
@@ -488,7 +490,18 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
           formState.set('hasTriggeredValidations', false);
         },
       } satisfies FormContext<TDraft, TOriginal>;
-    }, [formState, derivedState, original, defaultValue, validations, localizeError, urlState]);
+    }, [
+      formState,
+      derivedState,
+      original,
+      defaultValue,
+      validations,
+      localizeError,
+      urlState,
+      autoSave,
+      transform,
+      validatedClass,
+    ]);
 
     useEffect(() => {
       if (urlState) {
