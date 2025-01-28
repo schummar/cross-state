@@ -1,0 +1,4 @@
+form.validated input:invalid,
+form.validated input:invalid ~ fieldset {
+  box-shadow: 0 0 5px red;
+}

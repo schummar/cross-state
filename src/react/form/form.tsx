@@ -18,6 +18,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   type Context,
   type FormEvent,
   type FunctionComponent,
@@ -58,6 +59,7 @@ export interface FormOptions<TDraft, TOriginal> {
   urlState?: boolean | UrlStoreOptions<TDraft>;
   autoSave?: FormAutosaveOptions<TDraft, TOriginal>;
   transform?: Transform<TDraft>[];
+  validClass?: string;
 }
 
 export type Validations<TDraft, TOriginal> = {
@@ -127,7 +129,10 @@ export interface FormContext<TDraft, TOriginal> {
 
 export interface FormInstance<TDraft, TOriginal>
   extends FormDerivedState<TDraft>,
-    Pick<FormContext<TDraft, TOriginal>, 'options' | 'original' | 'getField'> {}
+    Pick<
+      FormContext<TDraft, TOriginal>,
+      'options' | 'original' | 'getField' | 'validate' | 'reset'
+    > {}
 
 /// /////////////////////////////////////////////////////////////////////////////
 // Implementation
@@ -141,11 +146,48 @@ function FormContainer({
   onSubmit?: (event: FormEvent<HTMLFormElement>, form: FormInstance<any, any>) => void;
 } & Omit<HTMLProps<HTMLFormElement>, 'form' | 'onSubmit'>) {
   const formInstance = form.useForm();
-
   const hasTriggeredValidations = form.useFormState((state) => state.hasTriggeredValidations);
+
+  const formRef = useRef<HTMLFormElement>(null);
+
+  function updateValidity(errors: Map<string, string[]>, buttonElement?: HTMLButtonElement) {
+    const formElement = formRef.current;
+    if (!formElement) {
+      return;
+    }
+
+    const localizedErrors = new Map(
+      [...errors.entries()].map(
+        ([field, errors]) =>
+          [
+            field,
+            errors.map((error) => formInstance.options.localizeError?.(error, field) ?? error),
+          ] as const,
+      ),
+    );
+
+    for (const element of Array.from(formElement.elements)) {
+      if ('name' in element && 'setCustomValidity' in element) {
+        (element as HTMLObjectElement).setCustomValidity(
+          localizedErrors.get((element as HTMLObjectElement).name)?.join('\n') ?? '',
+        );
+      }
+    }
+
+    if (buttonElement && 'setCustomValidity' in buttonElement) {
+      const errorString = [...errors.values()].flat().join('\n');
+
+      buttonElement.setCustomValidity(errorString);
+    }
+  }
+
+  useEffect(() => {
+    return formInstance.derivedState.map('errors').subscribe((errors) => updateValidity(errors));
+  }, [formInstance.derivedState]);
 
   return (
     <form
+      ref={formRef}
       noValidate
       {...formProps}
       className={[formProps.className, hasTriggeredValidations ? 'validated' : undefined]
@@ -161,45 +203,11 @@ function FormContainer({
             ? event.nativeEvent.submitter
             : undefined;
 
-        const isValid = formInstance.validate();
-        const errors = new Map(
-          [...formInstance.getErrors().entries()].map(([field, errors]) => [
-            field,
-            errors.map((error) => formInstance.options.localizeError?.(error, field) ?? error),
-          ]),
-        );
-
-        for (const element of Array.from(formElement.elements)) {
-          if ('name' in element && 'setCustomValidity' in element) {
-            (element as HTMLObjectElement).setCustomValidity(
-              errors.get((element as HTMLObjectElement).name)?.join('\n') ?? '',
-            );
-          }
-        }
-
-        if (buttonElement && 'setCustomValidity' in buttonElement) {
-          const errorString = [...errors.values()].flat().join('\n');
-
-          buttonElement.setCustomValidity(errorString);
-        }
+        updateValidity(formInstance.derivedState.get().errors, buttonElement);
 
         formElement.reportValidity();
 
-        function reset() {
-          for (const element of Array.from(formElement.elements)) {
-            if ('name' in element && 'setCustomValidity' in element) {
-              (element as HTMLObjectElement).setCustomValidity('');
-            }
-          }
-
-          if (buttonElement && 'setCustomValidity' in buttonElement) {
-            buttonElement.setCustomValidity('');
-          }
-
-          formElement.removeEventListener('input', reset);
-        }
-        formElement.addEventListener('input', reset);
-
+        const isValid = formInstance.validate();
         if (isValid) {
           formProps.onSubmit?.(event, {
             ...formInstance,
@@ -531,7 +539,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
   }
 
   Field<TPath extends PathAsString<TDraft> = ''>(
-    props: FormFieldPropsWithRender<TDraft, TPath>,
+    props: FormFieldPropsWithRender<TDraft, TOriginal, TPath>,
   ): JSX.Element;
 
   Field<

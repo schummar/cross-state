@@ -8,7 +8,7 @@ import {
   type ComponentPropsWithoutRef,
   type ReactNode,
 } from 'react';
-import { type Form, type FormInstance } from './form';
+import { type Field, type Form, type FormInstance } from './form';
 
 export interface FormFieldComponentProps<TValue, TPath> {
   name: TPath;
@@ -16,6 +16,14 @@ export interface FormFieldComponentProps<TValue, TPath> {
   onChange: (event: { target: { value: TValue } } | TValue | undefined, ...args: any[]) => void;
   onBlur: (...args: any[]) => void;
 }
+
+export type FormFieldInfos<TDraft, TOriginal, TPath extends PathAsString<TDraft>> = Field<
+  TDraft,
+  TOriginal,
+  TPath
+> & {
+  hasTriggeredValidations: boolean;
+};
 
 type NativeInputType = 'input' | 'select' | 'textarea';
 
@@ -46,11 +54,15 @@ export type FormFieldProps<TPath> = {
 
 export type FormFieldPropsWithRender<
   TDraft,
+  TOriginal,
   TPath extends PathAsString<TDraft>,
 > = FormFieldProps<TPath> &
   NoInfer<{
     component?: undefined;
-    render: (props: FormFieldComponentProps<Value<TDraft, TPath>, TPath>) => ReactNode;
+    render: (
+      props: FormFieldComponentProps<Value<TDraft, TPath>, TPath>,
+      info: FormFieldInfos<TDraft, TOriginal, TPath>,
+    ) => ReactNode;
     inputFilter?: undefined;
     defaultValue?: undefined;
     serialize?: undefined;
@@ -133,7 +145,7 @@ export function FormField<
     onBlur,
     ...restProps
   }:
-    | FormFieldPropsWithRender<TDraft, TPath>
+    | FormFieldPropsWithRender<TDraft, TOriginal, TPath>
     | FormFieldPropsWithComponent<TDraft, TOriginal, TPath, TComponent>,
 ): JSX.Element | null {
   type T = FieldChangeValue<TComponent>;
@@ -156,6 +168,8 @@ export function FormField<
   const setValue = (x: FieldChangeValue<TComponent>) =>
     form.getField(name).setValue(deserialize(x, getFormState()));
 
+  const hasTriggeredValidations = this.useFormState((form) => form.hasTriggeredValidations);
+
   useEffect(() => {
     if (localValue === undefined || !commitDebounce) {
       return;
@@ -170,7 +184,6 @@ export function FormField<
   }, [localValue, commitDebounce]);
 
   const props = {
-    ...restProps,
     name,
     value: localValue ?? value,
     onChange: (event: { target: { value: T } } | T, ...moreArgs: any[]) => {
@@ -199,14 +212,14 @@ export function FormField<
 
       onBlur?.(...args);
     },
-  };
+  } as FormFieldComponentProps<Value<TDraft, TPath>, TPath>;
 
   if (render) {
-    return <>{render(props as FormFieldComponentProps<Value<TDraft, TPath>, TPath>) ?? null}</>;
+    return <>{render(props, { ...form.getField(name), hasTriggeredValidations }) ?? null}</>;
   }
 
   if (component) {
-    return createElement(component, props);
+    return createElement(component, { ...restProps, ...props });
   }
 
   return null;
