@@ -28,7 +28,8 @@ const internalEqual = (comp: (a: any, b: any) => boolean) => (a: any, b: any) =>
     const entries1 = Object.entries(a);
     const entries2 = Object.entries(b);
     return (
-      entries1.length === entries2.length && entries1.every(([key, value]) => comp(value, b[key]))
+      entries1.length === entries2.length &&
+      entries1.every(([key, value]) => key in b && comp(value, b[key]))
     );
   }
 
@@ -41,7 +42,10 @@ const internalEqual = (comp: (a: any, b: any) => boolean) => (a: any, b: any) =>
   }
 
   if (a instanceof Map) {
-    return a.size === b.size && [...a.entries()].every(([key, value]) => comp(value, b.get(key)));
+    return (
+      a.size === b.size &&
+      [...a.entries()].every(([key, value]) => b.has(key) && comp(value, b.get(key)))
+    );
   }
 
   if (a instanceof Set) {
