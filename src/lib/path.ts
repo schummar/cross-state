@@ -11,6 +11,8 @@ import type {
 
 export type KeyType = string | number | symbol;
 
+export type AnyPath = string | readonly KeyType[];
+
 export type GetKeys<T extends Object_ | Array_> = T extends Array_
   ? T extends readonly [] // special case empty tuple => no keys
     ? never

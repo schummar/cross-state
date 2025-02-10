@@ -1,5 +1,6 @@
 import type { Scope, Selector, Update } from '@core';
 import { createStore, type Store } from '@core/store';
+import type { Constrain } from '@lib/constrain';
 import type { Path, Value } from '@lib/path';
 import { createContext, useContext, useMemo, type Context, type ReactNode } from 'react';
 import { useProp } from './useProp';
@@ -43,9 +44,9 @@ export function useScopeStore<T, S>(
   option?: UseStoreOptions<S>,
 ): S;
 
-export function useScopeStore<T, P extends Path<T>>(
+export function useScopeStore<T, const P>(
   scope: Scope<T>,
-  selector: P,
+  selector: Constrain<P, Path<T>>,
   option?: UseStoreOptions<Value<T, P>>,
 ): Value<T, P>;
 
@@ -63,9 +64,9 @@ export function useScopeProp<T, S>(
   options?: UseStoreOptions<S>,
 ): [value: S, setValue: Store<S>['set']];
 
-export function useScopeProp<T, P extends Path<T>>(
+export function useScopeProp<T, const P>(
   scope: Scope<T>,
-  selector: P,
+  selector: Constrain<P, Path<T>>,
   options?: UseStoreOptions<Value<T, P>>,
 ): [value: Value<T, P>, setValue: Store<Value<T, P>>['set']];
 

@@ -1,5 +1,6 @@
 import { type Selector, type Update } from '@core/commonTypes';
 import type { Store } from '@core/store';
+import type { Constrain } from '@lib/constrain';
 import { type Path, type Value } from '@lib/path';
 import { useStore, type UseStoreOptions } from './useStore';
 
@@ -10,9 +11,9 @@ export function useProp<T, S>(
   options?: UseStoreOptions<S>,
 ): [value: S, setValue: Store<S>['set']];
 
-export function useProp<T, P extends Path<T>>(
+export function useProp<T, const P>(
   store: Store<T>,
-  selector: P,
+  selector: Constrain<P, Path<T>>,
   options?: UseStoreOptions<Value<T, P>>,
 ): [value: Value<T, P>, setValue: Store<Value<T, P>>['set']];
 

@@ -32,12 +32,7 @@ import {
   type FormFieldPropsWithComponent,
   type FormFieldPropsWithRender,
 } from './formField';
-import {
-  FormForEach,
-  type ElementName,
-  type ForEachPath,
-  type FormForEachProps,
-} from './formForEach';
+import { FormForEach, type ElementName, type FormForEachProps } from './formForEach';
 import { useFormAutosave, type FormAutosaveOptions } from './useFormAutosave';
 
 /// /////////////////////////////////////////////////////////////////////////////
@@ -75,7 +70,7 @@ export type Validation<TDraft, TOriginal, TPath> = (
   },
 ) => boolean;
 
-export type Field<TDraft, TOriginal, TPath extends PathAsString<TDraft>> = {
+export type Field<TDraft, TOriginal, TPath extends string> = {
   originalValue: Value<TOriginal, TPath> | undefined;
   value: Value<TDraft, TPath>;
   setValue: (value: Update<Value<TDraft, TPath>>) => void;
@@ -83,7 +78,7 @@ export type Field<TDraft, TOriginal, TPath extends PathAsString<TDraft>> = {
   errors: string[];
 } & (Value<TDraft, TPath> extends Object_ ? FieldHelperMethods<TDraft, TPath> : {});
 
-export type FieldHelperMethods<TDraft, TPath extends PathAsString<TDraft>> = {
+export type FieldHelperMethods<TDraft, TPath extends string> = {
   names: ElementName<TDraft, TPath>[];
   add: NonNullable<Value<TDraft, TPath>> extends readonly (infer T)[]
     ? (element: T) => void
@@ -117,7 +112,7 @@ export interface FormContext<TDraft, TOriginal> {
   derivedState: Store<FormDerivedState<TDraft>>;
   options: FormOptions<TDraft, TOriginal>;
   original: TOriginal | undefined;
-  getField: <TPath extends PathAsString<TDraft>>(path: TPath) => Field<TDraft, TOriginal, TPath>;
+  getField: <TPath extends string>(path: TPath) => Field<TDraft, TOriginal, TPath>;
   getDraft: () => TDraft;
   hasTriggeredValidations: () => boolean;
   hasChanges: () => boolean;
@@ -222,7 +217,7 @@ function FormContainer({
   );
 }
 
-function getField<TDraft, TOriginal extends TDraft, TPath extends PathAsString<TDraft>>(
+function getField<TDraft, TOriginal extends TDraft, TPath extends string>(
   derivedState: Store<FormDerivedState<TDraft>>,
   original: TOriginal | undefined,
   path: TPath,
@@ -234,7 +229,7 @@ function getField<TDraft, TOriginal extends TDraft, TPath extends PathAsString<T
 
     get value() {
       const { draft } = derivedState.get();
-      return get(draft, path);
+      return get(draft, path as any);
     },
 
     setValue(update: any) {
@@ -370,7 +365,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     );
   }
 
-  useField<TPath extends PathAsString<TDraft>>(
+  useField<TPath extends string>(
     path: TPath,
     useStoreOptions?: UseStoreOptions<any>,
   ): Field<TDraft, TOriginal, TPath> {
@@ -554,20 +549,19 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     return <>{children(selectedState)}</>;
   }
 
-  Field<TPath extends PathAsString<TDraft> = ''>(
+  Field<const TPath extends string>(
     props: FormFieldPropsWithRender<TDraft, TOriginal, TPath>,
   ): JSX.Element;
 
-  Field<
-    const TPath extends PathAsString<TDraft> = '',
-    const TComponent extends FormFieldComponent = 'input',
-  >(props: FormFieldPropsWithComponent<TDraft, TOriginal, TPath, TComponent>): JSX.Element;
+  Field<const TPath extends string, const TComponent extends FormFieldComponent = 'input'>(
+    props: FormFieldPropsWithComponent<TDraft, TOriginal, TPath, TComponent>,
+  ): JSX.Element;
 
   Field(props: any): JSX.Element {
     return Reflect.apply(FormField, this, [{ component: 'input', ...props }]);
   }
 
-  ForEach<TPath extends ForEachPath<TDraft>>(props: FormForEachProps<TDraft, TPath>): JSX.Element {
+  ForEach<const TPath extends string>(props: FormForEachProps<TDraft, TPath>): JSX.Element {
     return Reflect.apply(FormForEach, this, [props]);
   }
 

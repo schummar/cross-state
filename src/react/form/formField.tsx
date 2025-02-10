@@ -1,5 +1,4 @@
-import { type PathAsString } from '@index';
-import { type Value } from '@lib/path';
+import { type PathAsString, type Value } from '@lib/path';
 import {
   createElement,
   useEffect,
@@ -17,7 +16,7 @@ export interface FormFieldComponentProps<TValue, TPath> {
   onBlur: (...args: any[]) => void;
 }
 
-export type FormFieldInfos<TDraft, TOriginal, TPath extends PathAsString<TDraft>> = Field<
+export type FormFieldInfos<TDraft, TOriginal, TPath extends string> = Field<
   TDraft,
   TOriginal,
   TPath
@@ -46,17 +45,16 @@ type FieldChangeValue<T extends FormFieldComponent> =
 
 type MakeOptional<T, Keys extends string> = Omit<T, Keys> & Partial<Pick<T, Keys & keyof T>>;
 
-export type FormFieldProps<TPath> = {
-  name?: TPath;
+export type FormFieldProps<TPath, TDraft> = {
+  name: TPath & PathAsString<TDraft>;
   commitOnBlur?: boolean;
   commitDebounce?: number;
-} & (TPath extends '' ? {} : { name: TPath });
+};
 
-export type FormFieldPropsWithRender<
-  TDraft,
-  TOriginal,
-  TPath extends PathAsString<TDraft>,
-> = FormFieldProps<TPath> &
+export type FormFieldPropsWithRender<TDraft, TOriginal, TPath extends string> = FormFieldProps<
+  TPath,
+  TDraft
+> &
   NoInfer<{
     component?: undefined;
     render: (
@@ -84,9 +82,9 @@ type Deserialize<TDraft, TOriginal, TPath, TComponent extends FormFieldComponent
 export type FormFieldPropsWithComponent<
   TDraft,
   TOriginal,
-  TPath extends PathAsString<TDraft>,
+  TPath extends string,
   TComponent extends FormFieldComponent,
-> = FormFieldProps<TPath> & {
+> = FormFieldProps<TPath, TDraft> & {
   component?: TComponent;
   render?: undefined;
 } & NoInfer<
@@ -126,13 +124,13 @@ export type FormFieldPropsWithComponent<
 export function FormField<
   TDraft,
   TOriginal,
-  TPath extends PathAsString<TDraft>,
+  TPath extends string,
   TComponent extends FormFieldComponent,
 >(
   this: Form<TDraft, any>,
   {
     // id,
-    name = '' as TPath,
+    name = '' as any,
     component,
     commitOnBlur,
     commitDebounce,
@@ -155,9 +153,9 @@ export function FormField<
   const [localValue, setLocalValue] = useState<T>();
 
   const value = this.useFormState((form) => {
-    const value = form.getField(name).value;
+    const value = form.getField(name as any).value;
     if (serialize) {
-      return serialize(value, getFormState());
+      return serialize(value as any, getFormState());
     }
     if (value !== undefined) {
       return value;
@@ -166,7 +164,7 @@ export function FormField<
   });
 
   const setValue = (x: FieldChangeValue<TComponent>) =>
-    form.getField(name).setValue(deserialize(x, getFormState()));
+    form.getField(name as any).setValue(deserialize(x, getFormState()));
 
   const hasTriggeredValidations = this.useFormState((form) => form.hasTriggeredValidations);
 
@@ -215,7 +213,11 @@ export function FormField<
   } as FormFieldComponentProps<Value<TDraft, TPath>, TPath>;
 
   if (render) {
-    return <>{render(props, { ...form.getField(name), hasTriggeredValidations }) ?? null}</>;
+    return (
+      <>
+        {render(props, { ...form.getField(name as any), hasTriggeredValidations } as any) ?? null}
+      </>
+    );
   }
 
   if (component) {

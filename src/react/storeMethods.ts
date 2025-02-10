@@ -1,4 +1,5 @@
 import type { Selector, Store, Update } from '@core';
+import type { Constrain } from '@lib/constrain';
 import type { Path, Value } from '@lib/path';
 import { useProp } from '@react/useProp';
 import { type UseStoreOptions, useStore } from '@react/useStore';
@@ -8,9 +9,9 @@ function boundUseStore<T, S>(
   selector: Selector<T, S>,
   option?: UseStoreOptions<S>,
 ): S;
-function boundUseStore<T, P extends Path<T>>(
+function boundUseStore<T, const P>(
   this: Store<T>,
-  selector: P,
+  selector: Constrain<P, Path<T>>,
   option?: UseStoreOptions<Value<T, P>>,
 ): Value<T, P>;
 function boundUseStore<T>(this: Store<T>, option?: UseStoreOptions<T>): T;
@@ -24,9 +25,9 @@ function boundUseProp<T, S>(
   updater: (value: S) => Update<T>,
   options?: UseStoreOptions<S>,
 ): [value: S, setValue: Store<S>['set']];
-function boundUseProp<T, P extends Path<T>>(
+function boundUseProp<T, const P>(
   this: Store<T>,
-  selector: P,
+  selector: Constrain<P, Path<T>>,
   options?: UseStoreOptions<Value<T, P>>,
 ): [value: Value<T, P>, setValue: Store<Value<T, P>>['set']];
 function boundUseProp<T>(

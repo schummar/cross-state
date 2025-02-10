@@ -2,15 +2,16 @@ import { autobind } from '@lib/autobind';
 import type { CacheState, ErrorState, ValueState } from '@lib/cacheState';
 import { calcDuration } from '@lib/calcDuration';
 import { calculatedValue } from '@lib/calculatedValue';
+import type { Constrain } from '@lib/constrain';
+import { deepEqual } from '@lib/equals';
 import { InstanceCache } from '@lib/instanceCache';
 import { makeSelector } from '@lib/makeSelector';
 import { type MaybePromise } from '@lib/maybePromise';
-import type { Path, Value } from '@lib/path';
+import type { AnyPath, Path, Value } from '@lib/path';
 import { PromiseWithState } from '@lib/promiseWithState';
 import type { Duration, Selector } from './commonTypes';
 import { allResources, type ResourceGroup } from './resourceGroup';
 import { Store, createStore, type Calculate, type StoreOptions } from './store';
-import { deepEqual } from '@lib/equals';
 
 export interface CacheGetOptions {
   update?: 'whenMissing' | 'whenStale' | 'force';
@@ -47,7 +48,7 @@ export class Cache<T> extends Store<Promise<T>> {
     public readonly options: CacheOptions<T> = {},
     public readonly derivedFromCache?: {
       cache: Cache<any>;
-      selectors: (Selector<any, any> | Path<any>)[];
+      selectors: (Selector<any, any> | AnyPath)[];
     },
     _call?: (...args: any[]) => any,
   ) {
@@ -129,9 +130,9 @@ export class Cache<T> extends Store<Promise<T>> {
 
   mapValue<S>(selector: Selector<T, S>): Cache<S>;
 
-  mapValue<P extends Path<T>>(selector: P): Cache<Value<T, P>>;
+  mapValue<const P>(selector: Constrain<P, Path<T>>): Cache<Value<T, P>>;
 
-  mapValue<S>(_selector: Selector<T, S> | Path<any>): Cache<S> {
+  mapValue<S>(_selector: Selector<T, S> | AnyPath): Cache<S> {
     const selector = makeSelector(_selector);
     const derivedFromCache = {
       cache: this.derivedFromCache ? this.derivedFromCache.cache : this,

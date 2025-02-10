@@ -1,3 +1,4 @@
+import type { Constrain } from '@lib/constrain';
 import { isObject } from '@lib/helpers';
 import { flatClone } from './clone';
 import type { KeyType, Path, SettablePath, SettableValue, Value } from './path';
@@ -14,7 +15,7 @@ export function castArrayPath(path: string | KeyType[]): KeyType[] {
   return (path as string).split('.');
 }
 
-export function get<T, const P extends Path<T>>(object: T, path: P): Value<T, P> {
+export function get<T, const P>(object: T, path: Constrain<P, Path<T>>): Value<T, P> {
   const _path = castArrayPath(path as any);
   const [first, ...rest] = _path;
 
@@ -37,9 +38,9 @@ export function get<T, const P extends Path<T>>(object: T, path: P): Value<T, P>
   throw new Error(`Could not get ${path} of ${object}`);
 }
 
-export function set<T, const P extends SettablePath<T>>(
+export function set<T, const P>(
   object: T,
-  path: P,
+  path: Constrain<P, SettablePath<T>>,
   value: SettableValue<T, P>,
   rootPath: string | readonly KeyType[] = path,
 ): T {
@@ -53,27 +54,27 @@ export function set<T, const P extends SettablePath<T>>(
   if (object instanceof Map) {
     const copy = flatClone(object);
     const child = copy.get(first);
-    copy.set(first, set(child, rest, value, rootPath));
+    copy.set(first, set(child, rest as any, value, rootPath));
     return copy;
   }
 
   if (object instanceof Set) {
     const copy = [...object];
     const child = copy[Number(first)];
-    copy[Number(first)] = set(child, rest, value, rootPath);
+    copy[Number(first)] = set(child, rest as any, value, rootPath);
     return new Set(copy) as any;
   }
 
   if (isObject(object) || object === undefined) {
     const copy = flatClone(object ?? ({} as T));
-    copy[first as keyof T] = set(copy[first as keyof T], rest as any, value, rootPath);
+    copy[first as keyof T] = set(copy[first as keyof T], rest as any, value as any, rootPath);
     return copy;
   }
 
   throw new Error(`Could not set ${path} of ${object}`);
 }
 
-export function remove<T, const P extends Path<T, true>>(object: T, path: P): T {
+export function remove<T, const P>(object: T, path: Constrain<P, Path<T, true>>): T {
   const _path = castArrayPath(path as any);
 
   if (_path.length === 0) {

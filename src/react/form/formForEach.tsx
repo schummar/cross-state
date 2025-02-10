@@ -2,15 +2,13 @@ import { type GetKeys, type Join, type PathAsString, type Value } from '@lib/pat
 import { Fragment, useCallback, type ReactNode } from 'react';
 import { type FieldHelperMethods, type Form } from './form';
 
-export type ForEachPath<T> = PathAsString<T>;
-
-export type ElementName<TDraft, TPath extends PathAsString<TDraft>> = Join<
+export type ElementName<TDraft, TPath extends string> = Join<
   TPath,
   GetKeys<NonNullable<Value<TDraft, TPath>>> & (string | number)
 >;
 
-export interface FormForEachProps<TDraft, TPath extends ForEachPath<TDraft>> {
-  name: TPath;
+export interface FormForEachProps<TDraft, TPath extends string> {
+  name: TPath & PathAsString<TDraft>;
   renderElement?: (props: {
     name: ElementName<TDraft, TPath>;
     key: `${GetKeys<NonNullable<Value<TDraft, TPath>>> & (string | number)}`;
@@ -26,20 +24,20 @@ export interface FormForEachProps<TDraft, TPath extends ForEachPath<TDraft>> {
   ) => ReactNode;
 }
 
-export function FormForEach<TDraft, TPath extends ForEachPath<TDraft>>(
+export function FormForEach<TDraft, TPath extends string>(
   this: Form<TDraft, any>,
   { name, renderElement, children }: FormForEachProps<TDraft, TPath>,
 ): JSX.Element {
   const form = this.useForm();
 
   const names = this.useFormState(() => {
-    const field = form.getField(name) as any;
+    const field = form.getField(name as any) as any;
     return field.names as any[];
   });
 
   const add = useCallback(
     (...args: any[]) => {
-      const field = form.getField(name) as any;
+      const field = form.getField(name as any) as any;
       field.add(...args);
     },
     [form],
@@ -47,7 +45,7 @@ export function FormForEach<TDraft, TPath extends ForEachPath<TDraft>>(
 
   const remove = useCallback(
     (key: any) => {
-      const field = form.getField(name) as any;
+      const field = form.getField(name as any) as any;
       field.remove(key);
     },
     [form],
@@ -55,7 +53,7 @@ export function FormForEach<TDraft, TPath extends ForEachPath<TDraft>>(
 
   const setValue = useCallback(
     (value: Value<TDraft, TPath> | ((value: Value<TDraft, TPath>) => Value<TDraft, TPath>)) => {
-      const field = form.getField(name) as any;
+      const field = form.getField(name as any) as any;
       field.setValue(value);
     },
     [form],

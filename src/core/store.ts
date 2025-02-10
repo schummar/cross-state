@@ -2,13 +2,14 @@ import { autobind } from '@lib/autobind';
 import { calcDuration } from '@lib/calcDuration';
 import { calculatedValue, staticValue, type CalculatedValue } from '@lib/calculatedValue';
 import { Callable } from '@lib/callable';
+import type { Constrain } from '@lib/constrain';
 import { debounce } from '@lib/debounce';
 import disposable from '@lib/disposable';
 import { deepEqual } from '@lib/equals';
 import { forwardError } from '@lib/forwardError';
 import { isObject } from '@lib/helpers';
 import { makeSelector } from '@lib/makeSelector';
-import type { Path, SettablePath, Value } from '@lib/path';
+import type { AnyPath, Path, SettablePath, Value } from '@lib/path';
 import { PromiseWithCancel } from '@lib/promiseWithCancel';
 import { get, set } from '@lib/propAccess';
 import { arrayMethods, mapMethods, recordMethods, setMethods } from '@lib/standardMethods';
@@ -94,7 +95,7 @@ export class Store<T> extends Callable<any, any> {
     public readonly options: StoreOptions<T> = {},
     public readonly derivedFrom?: {
       store: Store<any>;
-      selectors: (Selector<any, any> | Path<any>)[];
+      selectors: (Selector<any, any> | AnyPath)[];
       updater: (state: any) => void;
     },
     protected readonly _call: (...args: any[]) => any = () => undefined,
@@ -129,7 +130,7 @@ export class Store<T> extends Callable<any, any> {
 
   set(update: Update<T>): void;
 
-  set<const P extends Path<T>>(path: P, update: Update<Value<T, P>>): void;
+  set<const P>(path: Constrain<P, Path<T>>, update: Update<Value<T, P>>): void;
 
   set(...args: any[]): void {
     const path: any = args.length > 1 ? args[0] : [];
@@ -288,13 +289,13 @@ export class Store<T> extends Callable<any, any> {
 
   map<S>(selector: Selector<T, S>, updater?: (value: S) => Update<T>): Store<S>;
 
-  map<P extends SettablePath<T>>(selector: P): Store<Value<T, P>>;
+  map<const P>(selector: Constrain<P, SettablePath<T>>): Store<Value<T, P>>;
 
   map(_selector: Selector<T, any> | SettablePath<any>, ...args: any[]): Store<any> {
     const updater: ((value: any) => Update<T>) | undefined =
       _selector instanceof Function
         ? args[0]
-        : (value) => (state) => set(state, _selector as SettablePath<T>, value);
+        : (value) => (state) => set(state, _selector as any, value);
 
     const selector = makeSelector(_selector);
 

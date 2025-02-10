@@ -1,5 +1,6 @@
 import type { Selector, SubscribeOptions } from '@core/commonTypes';
 import type { Store } from '@core/store';
+import type { Constrain } from '@lib/constrain';
 import { deepEqual } from '@lib/equals';
 import { simpleHash } from '@lib/hash';
 import { makeSelector } from '@lib/makeSelector';
@@ -26,9 +27,9 @@ export function useStore<T, S>(
   option?: UseStoreOptions<S>,
 ): S;
 
-export function useStore<T, P extends Path<T>>(
+export function useStore<T, const P>(
   store: Store<T>,
-  selector: P,
+  selector: Constrain<P, Path<T>>,
   option?: UseStoreOptions<Value<T, P>>,
 ): Value<T, P>;
 

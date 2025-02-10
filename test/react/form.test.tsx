@@ -1,4 +1,9 @@
-import { MantineProvider, TextInput as MantineTextInput, SegmentedControl } from '@mantine/core';
+import {
+  MantineProvider,
+  TextInput as MantineTextInput,
+  SegmentedControl,
+  TextInput,
+} from '@mantine/core';
 import { TextField as MUITextField } from '@mui/material';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { forwardRef } from 'react';
@@ -116,7 +121,21 @@ describe('form', () => {
 
           <form.ForEach
             name="record"
-            renderElement={({ name }) => <form.Field name={`${name}.x`} component={MUITextField} />}
+            renderElement={({ name, key }) => (
+              <form.ForEach
+                key={key}
+                name={`${name}.arr`}
+                renderElement={({ name, key }) => (
+                  <form.Field
+                    key={key}
+                    name={`${name}.x`}
+                    render={(props) => (
+                      <TextInput {...props} onChange={(e) => props.onChange(Number(e) as 1)} />
+                    )}
+                  />
+                )}
+              />
+            )}
           >
             {({ names }) => names.join(',')}
           </form.ForEach>
@@ -134,6 +153,7 @@ describe('form', () => {
           />
 
           <form.Field
+            name=""
             serialize={(x) => x.firstName}
             deserialize={(string, form) => ({ ...form.draft, firstName: string })}
           />

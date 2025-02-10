@@ -54,6 +54,14 @@ describe('propAccess', () => {
 
       expectTypeOf(y).toEqualTypeOf<string | undefined>();
     });
+
+    test('with wrong path', async () => {
+      const x = { a: [{ b: '' }] };
+      // @ts-expect-error - invalid path
+      const y = get(x, 'a.0.c');
+
+      expect(y).toBe(undefined);
+    });
   });
 
   describe('set types', () => {
@@ -69,6 +77,12 @@ describe('propAccess', () => {
       set(x, ['a', 0, 'b'], 'c');
       // @ts-expect-error - should only accept string
       set(x, ['a', 0, 'b'], { b: '' });
+    });
+
+    test('with wrong path', async () => {
+      const x = { a: [{ b: '' }] };
+      // @ts-expect-error - invalid path
+      set(x, 'a.0.c', 'c');
     });
   });
 
