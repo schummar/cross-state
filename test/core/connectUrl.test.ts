@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { connectUrl, createStore, createUrlStore } from '../../src';
 
 beforeEach(() => {
@@ -13,6 +13,8 @@ beforeEach(() => {
 
 describe('url store', () => {
   test('createUrlStore1', async () => {
+    vi.useFakeTimers();
+
     const state = createUrlStore<string>({ key: 'foo', type: 'hash' });
 
     window.location.hash = '#foo="bar"';
@@ -20,10 +22,15 @@ describe('url store', () => {
     expect(state.get()).toEqual('bar');
 
     state.set('baz');
+    expect(window.location.hash).toEqual('#foo=%22bar%22');
+
+    await vi.advanceTimersByTimeAsync(500);
     expect(window.location.hash).toEqual('#foo=%22baz%22');
   });
 
   test('createUrlStore2', async () => {
+    vi.useFakeTimers();
+
     const state = createUrlStore<{ bar: string }>({
       key: 'foo',
       type: 'hash',
@@ -33,6 +40,9 @@ describe('url store', () => {
     expect(state.get()).toEqual({ bar: 'default' });
 
     state.set({ bar: 'baz' });
+    expect(window.location.hash).toEqual('');
+
+    await vi.advanceTimersByTimeAsync(500);
     expect(window.location.hash).toEqual('#foo=%7B%22bar%22%3A%22baz%22%7D');
   });
 

@@ -1,6 +1,7 @@
 import disposable from '@lib/disposable';
-import { type DisposableCancel } from './commonTypes';
+import { type DisposableCancel, type Duration } from './commonTypes';
 import { createStore, type Store, type StoreOptions } from './store';
+import { debounce } from '@lib/debounce';
 
 export interface UrlStoreOptions<T> extends StoreOptions<T | undefined> {
   key: string;
@@ -9,6 +10,7 @@ export interface UrlStoreOptions<T> extends StoreOptions<T | undefined> {
   deserialize?: (value: string) => T;
   defaultValue?: T;
   onCommit?: (value: T | undefined) => void;
+  debounce?: Duration;
 }
 
 export interface UrlStoreOptionsWithDefaults<T> extends UrlStoreOptions<T> {
@@ -70,11 +72,40 @@ export function connectUrl<T>(
     deserialize = defaultDeserializer,
     defaultValue = undefined as T,
     onCommit,
+    debounce: debounceTime = 500,
   }: UrlStoreOptions<T>,
 ): DisposableCancel {
   const serializedDefaultValue = serialize(defaultValue);
+  let isDirty = false;
+
+  const commit = debounce(() => {
+    if (isDirty) {
+      const value = store.get();
+      const url = new URL(window.location.href);
+      const parameters = new URLSearchParams(url[type].slice(1));
+      const serializedValue = value !== undefined ? serialize(value) : undefined;
+
+      if (serializedValue === undefined || serializedValue === serializedDefaultValue) {
+        parameters.delete(key);
+      } else {
+        parameters.set(key, serializedValue);
+      }
+
+      url[type] = parameters.toString();
+
+      window.history.replaceState(window.history.state, '', url.toString());
+      window.dispatchEvent(new PopStateEvent('popstate'));
+
+      onCommit?.(value);
+      isDirty = false;
+    }
+  }, debounceTime);
 
   const cancelUrlListener = urlStore.subscribe((_url) => {
+    if (isDirty) {
+      return;
+    }
+
     const url = new URL(_url);
     const parameters = new URLSearchParams(url[type].slice(1));
     const urlValue = parameters.get(key);
@@ -82,28 +113,18 @@ export function connectUrl<T>(
     store.set(urlValue !== null ? deserialize(urlValue) : defaultValue);
   });
 
-  const cancelSubscription = store.subscribe((value) => {
-    const url = new URL(window.location.href);
-    const parameters = new URLSearchParams(url[type].slice(1));
-    const serializedValue = value !== undefined ? serialize(value) : undefined;
-
-    if (serializedValue === undefined || serializedValue === serializedDefaultValue) {
-      parameters.delete(key);
-    } else {
-      parameters.set(key, serializedValue);
-    }
-
-    url[type] = parameters.toString();
-
-    window.history.replaceState(window.history.state, '', url.toString());
-    window.dispatchEvent(new PopStateEvent('popstate'));
-
-    onCommit?.(value);
-  });
+  const cancelSubscription = store.subscribe(
+    () => {
+      isDirty = true;
+      commit();
+    },
+    { runNow: false },
+  );
 
   return disposable(() => {
     cancelUrlListener();
     cancelSubscription();
+    commit.flush();
   });
 }
 
