@@ -70,7 +70,7 @@ export function FormForEach<TDraft, TPath extends string>(
                 name,
                 key,
                 index,
-                remove: () => remove(index),
+                remove: () => remove(key),
               })}
             </Fragment>
           );
