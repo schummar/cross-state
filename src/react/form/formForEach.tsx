@@ -2,10 +2,9 @@ import { type GetKeys, type Join, type PathAsString, type Value } from '@lib/pat
 import { Fragment, useCallback, type ReactNode } from 'react';
 import { type FieldHelperMethods, type Form } from './form';
 
-export type ElementName<TDraft, TPath extends string> = Join<
-  TPath,
-  GetKeys<NonNullable<Value<TDraft, TPath>>> & (string | number)
->;
+export type ElementName<TDraft, TPath extends string> = keyof {
+  [Path in TPath as Join<Path, GetKeys<NonNullable<Value<TDraft, Path>>> & (string | number)>]: 1;
+};
 
 export interface FormForEachProps<TDraft, TPath extends string> {
   name: TPath & PathAsString<TDraft>;
