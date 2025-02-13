@@ -1,4 +1,4 @@
-import type { DisposableCancel, SubscribeOptions } from '@core/commonTypes';
+import type { Cancel, DisposableCancel, SubscribeOptions } from '@core/commonTypes';
 import type { Store } from '@core/store';
 import { applyPatches as _applyPatches } from '@lib/applyPatches';
 import { diff, type DiffOptions, type Patch } from '@lib/diff';
@@ -41,6 +41,7 @@ const genId = () => Math.random().toString(36).slice(2);
 export function subscribePatches<T>(
   this: Store<T>,
   listener: (
+    this: { cancel: Cancel },
     patches: Patch[],
     reversePatches: Patch[],
     version: string,
@@ -58,7 +59,7 @@ export function subscribePatches<T>(
   options.runNow ??= false;
   let cursor = options.startAt ?? (options.runNow ? undefined : this.__patches.version);
 
-  return this.subscribe((value) => {
+  return this.subscribe(function (value) {
     if (patches.value !== value) {
       const result = diff(patches.value, value, options);
       patches.value = value;
@@ -93,7 +94,7 @@ export function subscribePatches<T>(
     }
 
     cursor = patches.version;
-    listener(forward, backward, cursor, previousVersion);
+    listener.apply(this, [forward, backward, cursor, previousVersion]);
   }, options);
 }
 

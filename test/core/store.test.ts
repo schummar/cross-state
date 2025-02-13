@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { createStore } from '../../src';
+import { createStore, type Cancel, type Listener } from '../../src';
 import { shallowEqual, strictEqual } from '../../src/lib/equals';
 import { flushPromises } from '../testHelpers';
 
@@ -231,6 +231,17 @@ describe('static store', () => {
         [3, undefined],
         [4, 3],
       ]);
+    });
+
+    test('store.subscribe cancel immediately', () => {
+      const state = createStore(1);
+      const listener = vi.fn<Listener<number, { cancel: Cancel }>>(function () {
+        this.cancel();
+      });
+      state.subscribe(listener);
+
+      state.set(2);
+      expect(listener.mock.calls).toMatchObject([[1, undefined]]);
     });
 
     test('store.once without condition', async () => {

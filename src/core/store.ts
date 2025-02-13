@@ -165,7 +165,10 @@ export class Store<T> extends Callable<any, any> {
     this.notify();
   }
 
-  subscribe(listener: Listener<T>, options?: SubscribeOptions): DisposableCancel {
+  subscribe(
+    listener: Listener<T, { cancel: Cancel }>,
+    options?: SubscribeOptions,
+  ): DisposableCancel {
     const {
       passive,
       runNow = true,
@@ -196,7 +199,7 @@ export class Store<T> extends Callable<any, any> {
       previousValue = this.calculatedValue && { value: this.calculatedValue?.value };
 
       try {
-        listener(value.value, _previousValue);
+        listener.apply({ cancel }, [value.value, _previousValue]);
       } catch (error) {
         forwardError(error);
       }
@@ -209,6 +212,12 @@ export class Store<T> extends Callable<any, any> {
     }
 
     this.listeners.set(innerListener, !passive);
+    const cancel = () => {
+      if (this.listeners.delete(innerListener) && !passive) {
+        this.onUnsubscribe();
+      }
+    };
+
     if (!passive) {
       this.onSubscribe();
     }
@@ -223,11 +232,7 @@ export class Store<T> extends Callable<any, any> {
         : { value: this.get() };
     }
 
-    return disposable(() => {
-      if (this.listeners.delete(innerListener) && !passive) {
-        this.onUnsubscribe();
-      }
-    });
+    return disposable(cancel);
   }
 
   once<S extends T>(

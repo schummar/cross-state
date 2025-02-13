@@ -2,8 +2,8 @@ import type { DebounceOptions } from '@lib/debounce';
 import { type MaybePromise } from '@lib/maybePromise';
 import type { Store } from './store';
 
-export interface Listener<T = void> {
-  (value: T, previouseValue?: T): void;
+export interface Listener<T = void, TThis = unknown> {
+  (this: TThis, value: T, previouseValue?: T): void;
 }
 
 export interface Selector<T, S> {
