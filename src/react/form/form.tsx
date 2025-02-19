@@ -138,7 +138,10 @@ function FormContainer({
   ...formProps
 }: {
   form: Form<any, any>;
-  onSubmit?: (event: FormEvent<HTMLFormElement>, form: FormInstance<any, any>) => void;
+  onSubmit?: (
+    event: FormEvent<HTMLFormElement>,
+    form: FormInstance<any, any>,
+  ) => void | Promise<void>;
 } & Omit<HTMLProps<HTMLFormElement>, 'form' | 'onSubmit'>) {
   const formInstance = form.useForm();
   const hasTriggeredValidations = form.useFormState((state) => state.hasTriggeredValidations);
@@ -191,26 +194,35 @@ function FormContainer({
       ]
         .filter(Boolean)
         .join(' ')}
-      onSubmit={(event) => {
-        event.preventDefault();
+      onSubmit={async (event) => {
+        if (formInstance.derivedState.get().saveInProgress) {
+          return;
+        }
 
-        const formElement = event.currentTarget;
-        const buttonElement =
-          event.nativeEvent instanceof SubmitEvent &&
-          event.nativeEvent.submitter instanceof HTMLButtonElement
-            ? event.nativeEvent.submitter
-            : undefined;
+        try {
+          formInstance.derivedState.set('saveInProgress', true);
+          event.preventDefault();
 
-        updateValidity(formInstance.derivedState.get().errors, buttonElement);
+          const formElement = event.currentTarget;
+          const buttonElement =
+            event.nativeEvent instanceof SubmitEvent &&
+            event.nativeEvent.submitter instanceof HTMLButtonElement
+              ? event.nativeEvent.submitter
+              : undefined;
 
-        formElement.reportValidity();
+          updateValidity(formInstance.derivedState.get().errors, buttonElement);
 
-        const isValid = formInstance.validate();
-        if (isValid) {
-          formProps.onSubmit?.(event, {
-            ...formInstance,
-            ...formInstance.derivedState.get(),
-          });
+          formElement.reportValidity();
+
+          const isValid = formInstance.validate();
+          if (isValid) {
+            await formProps.onSubmit?.(event, {
+              ...formInstance,
+              ...formInstance.derivedState.get(),
+            });
+          }
+        } finally {
+          formInstance.derivedState.set('saveInProgress', false);
         }
       }}
     />
