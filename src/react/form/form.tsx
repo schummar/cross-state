@@ -438,136 +438,136 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     onSubmit?: (event: FormEvent<HTMLFormElement>, form: FormInstance<TDraft, TOriginal>) => void;
   } & Partial<FormOptions<TDraft, TOriginal>> &
     Omit<HTMLProps<HTMLFormElement>, 'defaultValue' | 'autoSave' | 'onSubmit'>): JSX.Element {
-      const options: FormOptions<TDraft, TOriginal> = {
-        defaultValue: { ...this.options.defaultValue, ...defaultValue },
-        validations: { ...this.options.validations, ...validations } as Validations<
-          TDraft,
-          TOriginal
-        >,
-        localizeError: localizeError ?? this.options.localizeError,
-        autoSave: autoSave ?? this.options.autoSave,
-        transform: transform ?? this.options.transform,
-        validatedClass: validatedClass ?? this.options.validatedClass,
-      };
+    const options: FormOptions<TDraft, TOriginal> = {
+      defaultValue: { ...this.options.defaultValue, ...defaultValue },
+      validations: { ...this.options.validations, ...validations } as Validations<
+        TDraft,
+        TOriginal
+      >,
+      localizeError: localizeError ?? this.options.localizeError,
+      autoSave: autoSave ?? this.options.autoSave,
+      transform: transform ?? this.options.transform,
+      validatedClass: validatedClass ?? this.options.validatedClass,
+    };
 
-      const formState = useMemo(() => {
-        return createStore<FormState<TDraft>>({
-          draft: undefined,
-          hasTriggeredValidations: false,
-          saveScheduled: false,
-          saveInProgress: false,
-        });
-      }, []);
+    const formState = useMemo(() => {
+      return createStore<FormState<TDraft>>({
+        draft: undefined,
+        hasTriggeredValidations: false,
+        saveScheduled: false,
+        saveInProgress: false,
+      });
+    }, []);
 
-      let lastDraft: TDraft | undefined;
-      const cache = new Map<string, unknown>();
-      function lazy<T>(key: string, fn: () => T): T {
-        if (lastDraft !== formState.get().draft) {
-          cache.clear();
-          lastDraft = formState.get().draft;
-        }
-
-        let value = cache.get(key);
-        if (!cache.has(key)) {
-          value = fn();
-          cache.set(key, value);
-        }
-
-        return value as T;
+    let lastDraft: TDraft | undefined;
+    const cache = new Map<string, unknown>();
+    function lazy<T>(key: string, fn: () => T): T {
+      if (lastDraft !== formState.get().draft) {
+        cache.clear();
+        lastDraft = formState.get().draft;
       }
 
-      const context: FormContext<TDraft, TOriginal> = {
-        formState,
-        options,
-        original,
+      let value = cache.get(key);
+      if (!cache.has(key)) {
+        value = fn();
+        cache.set(key, value);
+      }
 
-        getField() {
-          throw new Error('Not implemented');
-        },
-
-        getDraft() {
-          return formState.get().draft ?? original ?? options.defaultValue;
-        },
-
-        hasTriggeredValidations() {
-          return formState.get().hasTriggeredValidations;
-        },
-
-        saveScheduled() {
-          return formState.get().saveScheduled;
-        },
-
-        saveInProgress() {
-          return formState.get().saveInProgress;
-        },
-
-        hasChanges() {
-          return lazy(
-            'hasChanges',
-            () => !deepEqual(this.getDraft(), original ?? options.defaultValue),
-          );
-        },
-
-        getErrors() {
-          return lazy('getErrors', () => getErrors(this.getDraft(), original, options.validations));
-        },
-
-        isValid() {
-          return lazy('isValid', () => this.getErrors().size === 0);
-        },
-
-        validate() {
-          formState.set('hasTriggeredValidations', true);
-          return this.isValid();
-        },
-
-        reset() {
-          formState.set('draft', undefined);
-          formState.set('hasTriggeredValidations', false);
-        },
-      };
-
-      context.getField = (path) => lazy(path, () => getField(context, path));
-
-      useEffect(() => {
-        if (urlState) {
-          return connectUrl(
-            formState.map('draft'),
-            typeof urlState === 'object' ? urlState : { key: 'form' },
-          );
-        }
-
-        return undefined;
-      }, [formState, simpleHash(urlState)]);
-
-      // useEffect(() => {
-      //   const handles = options.transform?.map(({ trigger, update }) => {
-      //     const draft = derivedState.map('draft');
-      //     const triggerStore = trigger ? draft.map(trigger as any) : draft;
-
-      //     return triggerStore.subscribe(() => {
-      //       const value = trigger ? get(draft.get(), trigger as any) : draft.get();
-      //       const result = update(value as any, draft);
-
-      //       if (result !== undefined) {
-      //         draft.set(result);
-      //       }
-      //     });
-      //   });
-
-      //   return () => {
-      //     handles?.forEach((handle) => handle());
-      //   };
-      // }, [original,options.transform]);
-
-      useFormAutosave(context);
-
-      return (
-        <this.context.Provider value={context}>
-          <FormContainer {...formProps} form={this} />
-        </this.context.Provider>
-      );
+      return value as T;
     }
+
+    const context: FormContext<TDraft, TOriginal> = {
+      formState,
+      options,
+      original,
+
+      getField() {
+        throw new Error('Not implemented');
+      },
+
+      getDraft() {
+        return formState.get().draft ?? original ?? options.defaultValue;
+      },
+
+      hasTriggeredValidations() {
+        return formState.get().hasTriggeredValidations;
+      },
+
+      saveScheduled() {
+        return formState.get().saveScheduled;
+      },
+
+      saveInProgress() {
+        return formState.get().saveInProgress;
+      },
+
+      hasChanges() {
+        return lazy(
+          'hasChanges',
+          () => !deepEqual(this.getDraft(), original ?? options.defaultValue),
+        );
+      },
+
+      getErrors() {
+        return lazy('getErrors', () => getErrors(this.getDraft(), original, options.validations));
+      },
+
+      isValid() {
+        return lazy('isValid', () => this.getErrors().size === 0);
+      },
+
+      validate() {
+        formState.set('hasTriggeredValidations', true);
+        return this.isValid();
+      },
+
+      reset() {
+        formState.set('draft', undefined);
+        formState.set('hasTriggeredValidations', false);
+      },
+    };
+
+    context.getField = (path) => lazy(path, () => getField(context, path));
+
+    useEffect(() => {
+      if (urlState) {
+        return connectUrl(
+          formState.map('draft'),
+          typeof urlState === 'object' ? urlState : { key: 'form' },
+        );
+      }
+
+      return undefined;
+    }, [formState, simpleHash(urlState)]);
+
+    // useEffect(() => {
+    //   const handles = options.transform?.map(({ trigger, update }) => {
+    //     const draft = derivedState.map('draft');
+    //     const triggerStore = trigger ? draft.map(trigger as any) : draft;
+
+    //     return triggerStore.subscribe(() => {
+    //       const value = trigger ? get(draft.get(), trigger as any) : draft.get();
+    //       const result = update(value as any, draft);
+
+    //       if (result !== undefined) {
+    //         draft.set(result);
+    //       }
+    //     });
+    //   });
+
+    //   return () => {
+    //     handles?.forEach((handle) => handle());
+    //   };
+    // }, [original,options.transform]);
+
+    useFormAutosave(context);
+
+    return (
+      <this.context.Provider value={context}>
+        <FormContainer {...formProps} form={this} />
+      </this.context.Provider>
+    );
+  }
 
   FormState<S>({
     selector,
