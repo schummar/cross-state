@@ -236,20 +236,24 @@ function getField<TDraft, TOriginal extends TDraft, TPath extends string>(
   form: FormContext<TDraft, TOriginal>,
   path: TPath,
 ): Field<TDraft, TOriginal, TPath> {
-  return {
+  const field = {
     get originalValue() {
       return form.original !== undefined ? get(form.original as any, path as any) : undefined;
     },
 
     get value() {
       const draft = form.getDraft();
-      return get(draft, path as any);
+      return get(draft ?? form.original ?? form.options.defaultValue, path as any);
     },
 
-    setValue(update: any) {
-      form.formState.set('draft', (draft) =>
-        set(draft ?? form.original ?? form.options.defaultValue, path as any, update),
-      );
+    setValue(update: Update<Value<TDraft, TPath>>) {
+      form.formState.set('draft', (draft = form.original ?? form.options.defaultValue) => {
+        if (update instanceof Function) {
+          update = update(get(draft, path as any) as Value<TDraft, TPath>);
+        }
+
+        return set(draft, path as any, update as any);
+      });
     },
 
     get hasChange() {
@@ -276,37 +280,47 @@ function getField<TDraft, TOriginal extends TDraft, TPath extends string>(
     },
 
     add(...args: any[]) {
-      this.setValue((value: any) => {
-        if (args.length === 1) {
-          return [...(value ?? []), args[0]];
-        }
-
-        return {
-          ...value,
-          [args[0]]: args[1],
-        };
-      });
-    },
-
-    remove(key: any) {
-      this.setValue((value: any) => {
+      this.setValue((value): any => {
         if (!value) {
-          return value;
+          throw new Error(`Cannot add element to ${JSON.stringify(value)}`);
         }
 
         if (Array.isArray(value)) {
-          return value.filter((_, index) => index !== key);
+          return [...(value ?? []), args[0]];
         }
 
         if (isObject(value)) {
-          const { [key]: _, ...rest } = value;
+          return {
+            ...value,
+            [args[0]]: args[1],
+          };
+        }
+
+        throw new Error(`Cannot add element to ${JSON.stringify(value)}`);
+      });
+    },
+
+    remove(key: string | number) {
+      this.setValue((value): any => {
+        if (!value) {
+          throw new Error(`Cannot remove element from ${JSON.stringify(value)}`);
+        }
+
+        if (Array.isArray(value)) {
+          return value.filter((_, index) => index !== Number(key));
+        }
+
+        if (isObject(value)) {
+          const { [key]: _, ...rest } = value as Record<string | number, unknown>;
           return rest;
         }
 
-        return value;
+        throw new Error(`Cannot remove element from ${JSON.stringify(value)}`);
       });
     },
-  } as any;
+  };
+
+  return field as any;
 }
 
 function getErrors<TDraft, TOriginal>(

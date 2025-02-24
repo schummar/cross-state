@@ -216,6 +216,91 @@ describe('form', () => {
       ['lastName', ['different']],
     ]);
   });
+
+  describe('ForEach', () => {
+    describe('with array', () => {
+      test('renders each element', () => {
+        const { Form, ForEach, Field } = createForm({ defaultValue: { arr: [1, 2] } });
+
+        function Component() {
+          return (
+            <Form>
+              <ForEach
+                name="arr"
+                renderElement={({ name }) => (
+                  <div>
+                    {name}: <Field name={name} render={(props) => props.value} />
+                  </div>
+                )}
+              />
+            </Form>
+          );
+        }
+
+        render(<Component />);
+        expect(screen.getByText('arr.0: 1')).toBeDefined();
+        expect(screen.getByText('arr.1: 2')).toBeDefined();
+      });
+
+      test('add', () => {
+        const { Form, ForEach, Field } = createForm({ defaultValue: { arr: [1, 2] } });
+
+        function Component() {
+          return (
+            <Form>
+              <ForEach
+                name="arr"
+                renderElement={({ name }) => (
+                  <div>
+                    {name}: <Field name={name} render={(props) => props.value} />
+                  </div>
+                )}
+              >
+                {({ add }) => <button onClick={() => add(3)}>add</button>}
+              </ForEach>
+            </Form>
+          );
+        }
+
+        const { container } = render(<Component />);
+        expect(container.querySelectorAll('form > div')).toHaveLength(2);
+
+        act(() => {
+          screen.getByRole('button').click();
+        });
+        expect(container.querySelectorAll('form > div')).toHaveLength(3);
+        expect(screen.queryByText('arr.2: 3')).not.toBeNull();
+      });
+
+      test('remove', () => {
+        const { Form, ForEach, Field } = createForm({ defaultValue: { arr: [1, 2] } });
+
+        function Component() {
+          return (
+            <Form>
+              <ForEach
+                name="arr"
+                renderElement={({ name, remove }) => (
+                  <div onClick={remove}>
+                    {name}: <Field name={name} render={(props) => props.value} />
+                  </div>
+                )}
+              />
+            </Form>
+          );
+        }
+
+        const { container } = render(<Component />);
+        expect(container.querySelectorAll('form > div')).toHaveLength(2);
+
+        act(() => {
+          screen.getByText('arr.0: 1').click();
+        });
+        expect(container.querySelectorAll('form > div')).toHaveLength(1);
+        expect(screen.queryByText('arr.0: 1')).toBeNull();
+      });
+    });
+  });
 });
 
 const CustomInput = forwardRef(function CustomInput(
