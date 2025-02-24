@@ -7,7 +7,7 @@ import {
   type ComponentPropsWithoutRef,
   type ReactNode,
 } from 'react';
-import { type Field, type Form, type FormInstance } from './form';
+import { getDerivedState, type Field, type Form, type FormInstance } from './form';
 
 export interface FormFieldComponentProps<TValue, TPath> {
   name: TPath;
@@ -149,7 +149,7 @@ export function FormField<
   type T = FieldChangeValue<TComponent>;
 
   const form = this.useForm();
-  const getFormState = () => ({ ...form, ...form.derivedState.get() });
+  const getFormState = () => ({ ...form, ...getDerivedState(form) });
   const [localValue, setLocalValue] = useState<T>();
 
   const value = this.useFormState((form) => {

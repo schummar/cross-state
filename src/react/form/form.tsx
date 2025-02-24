@@ -10,7 +10,7 @@ import {
   type WildcardPathAsString,
   type WildcardValue,
 } from '@lib/path';
-import { get, join } from '@lib/propAccess';
+import { get, join, set } from '@lib/propAccess';
 import type { Object_ } from '@lib/typeHelpers';
 import { getWildCardMatches } from '@lib/wildcardMatch';
 import {
@@ -109,12 +109,13 @@ export interface FormDerivedState<TDraft> {
 
 export interface FormContext<TDraft, TOriginal> {
   formState: Store<FormState<TDraft>>;
-  derivedState: Store<FormDerivedState<TDraft>>;
   options: FormOptions<TDraft, TOriginal>;
   original: TOriginal | undefined;
   getField: <TPath extends string>(path: TPath) => Field<TDraft, TOriginal, TPath>;
   getDraft: () => TDraft;
   hasTriggeredValidations: () => boolean;
+  saveScheduled: () => boolean;
+  saveInProgress: () => boolean;
   hasChanges: () => boolean;
   getErrors: () => Map<string, string[]>;
   isValid: () => boolean;
@@ -180,8 +181,10 @@ function FormContainer({
   }
 
   useEffect(() => {
-    return formInstance.derivedState.map('errors').subscribe((errors) => updateValidity(errors));
-  }, [formInstance.derivedState]);
+    return formInstance.formState
+      .map(() => formInstance.getErrors())
+      .subscribe((errors) => updateValidity(errors));
+  }, []);
 
   return (
     <form
@@ -195,12 +198,12 @@ function FormContainer({
         .filter(Boolean)
         .join(' ')}
       onSubmit={async (event) => {
-        if (formInstance.derivedState.get().saveInProgress) {
+        if (formInstance.saveInProgress()) {
           return;
         }
 
         try {
-          formInstance.derivedState.set('saveInProgress', true);
+          formInstance.formState.set('saveInProgress', true);
           event.preventDefault();
 
           const formElement = event.currentTarget;
@@ -210,7 +213,7 @@ function FormContainer({
               ? event.nativeEvent.submitter
               : undefined;
 
-          updateValidity(formInstance.derivedState.get().errors, buttonElement);
+          updateValidity(formInstance.getErrors(), buttonElement);
 
           formElement.reportValidity();
 
@@ -218,11 +221,11 @@ function FormContainer({
           if (isValid) {
             await formProps.onSubmit?.(event, {
               ...formInstance,
-              ...formInstance.derivedState.get(),
+              ...getDerivedState(formInstance),
             });
           }
         } finally {
-          formInstance.derivedState.set('saveInProgress', false);
+          formInstance.formState.set('saveInProgress', false);
         }
       }}
     />
@@ -230,22 +233,27 @@ function FormContainer({
 }
 
 function getField<TDraft, TOriginal extends TDraft, TPath extends string>(
-  derivedState: Store<FormDerivedState<TDraft>>,
-  original: TOriginal | undefined,
+  form: FormContext<TDraft, TOriginal>,
   path: TPath,
 ): Field<TDraft, TOriginal, TPath> {
-  return {
+  const field = {
     get originalValue() {
-      return original !== undefined ? get(original as any, path as any) : undefined;
+      return form.original !== undefined ? get(form.original as any, path as any) : undefined;
     },
 
     get value() {
-      const { draft } = derivedState.get();
-      return get(draft, path as any);
+      const draft = form.getDraft();
+      return get(draft ?? form.original ?? form.options.defaultValue, path as any);
     },
 
-    setValue(update: any) {
-      derivedState.set(join('draft', path) as any, update);
+    setValue(update: Update<Value<TDraft, TPath>>) {
+      form.formState.set('draft', (draft = form.original ?? form.options.defaultValue) => {
+        if (update instanceof Function) {
+          update = update(get(draft, path as any) as Value<TDraft, TPath>);
+        }
+
+        return set(draft, path as any, update as any);
+      });
     },
 
     get hasChange() {
@@ -253,7 +261,7 @@ function getField<TDraft, TOriginal extends TDraft, TPath extends string>(
     },
 
     get errors() {
-      const { errors } = derivedState.get();
+      const errors = form.getErrors();
       return errors.get(path) ?? [];
     },
 
@@ -272,37 +280,47 @@ function getField<TDraft, TOriginal extends TDraft, TPath extends string>(
     },
 
     add(...args: any[]) {
-      this.setValue((value: any) => {
-        if (args.length === 1) {
-          return [...(value ?? []), args[0]];
-        }
-
-        return {
-          ...value,
-          [args[0]]: args[1],
-        };
-      });
-    },
-
-    remove(key: any) {
-      this.setValue((value: any) => {
+      this.setValue((value): any => {
         if (!value) {
-          return value;
+          throw new Error(`Cannot add element to ${JSON.stringify(value)}`);
         }
 
         if (Array.isArray(value)) {
-          return value.filter((_, index) => index !== key);
+          return [...(value ?? []), args[0]];
         }
 
         if (isObject(value)) {
-          const { [key]: _, ...rest } = value;
+          return {
+            ...value,
+            [args[0]]: args[1],
+          };
+        }
+
+        throw new Error(`Cannot add element to ${JSON.stringify(value)}`);
+      });
+    },
+
+    remove(key: string | number) {
+      this.setValue((value): any => {
+        if (!value) {
+          throw new Error(`Cannot remove element from ${JSON.stringify(value)}`);
+        }
+
+        if (Array.isArray(value)) {
+          return value.filter((_, index) => index !== Number(key));
+        }
+
+        if (isObject(value)) {
+          const { [key]: _, ...rest } = value as Record<string | number, unknown>;
           return rest;
         }
 
-        return value;
+        throw new Error(`Cannot remove element from ${JSON.stringify(value)}`);
       });
     },
-  } as any;
+  };
+
+  return field as any;
 }
 
 function getErrors<TDraft, TOriginal>(
@@ -340,6 +358,20 @@ function getErrors<TDraft, TOriginal>(
   return errors;
 }
 
+export function getDerivedState<TDraft>(
+  instance: FormContext<TDraft, any>,
+): FormDerivedState<TDraft> {
+  return {
+    draft: instance.getDraft(),
+    hasTriggeredValidations: instance.hasTriggeredValidations(),
+    saveScheduled: instance.saveScheduled(),
+    saveInProgress: instance.saveInProgress(),
+    hasChanges: instance.hasChanges(),
+    errors: instance.getErrors(),
+    isValid: instance.isValid(),
+  };
+}
+
 export class Form<TDraft, TOriginal extends TDraft = TDraft> {
   context: Context<FormContext<TDraft, TOriginal> | null> = createContext<FormContext<
     TDraft,
@@ -367,12 +399,13 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     const form = this.useForm();
 
     return useStore(
-      form.derivedState.map((state) =>
+      form.formState,
+      () =>
         selector({
           ...form,
-          ...state,
+          ...getDerivedState(form),
         }),
-      ),
+
       useStoreOptions,
     );
   }
@@ -405,66 +438,51 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     onSubmit?: (event: FormEvent<HTMLFormElement>, form: FormInstance<TDraft, TOriginal>) => void;
   } & Partial<FormOptions<TDraft, TOriginal>> &
     Omit<HTMLProps<HTMLFormElement>, 'defaultValue' | 'autoSave' | 'onSubmit'>): JSX.Element {
-    const options: FormOptions<TDraft, TOriginal> = {
-      defaultValue: { ...this.options.defaultValue, ...defaultValue },
-      validations: { ...this.options.validations, ...validations } as Validations<
-        TDraft,
-        TOriginal
-      >,
-      localizeError: localizeError ?? this.options.localizeError,
-      autoSave: autoSave ?? this.options.autoSave,
-      transform: transform ?? this.options.transform,
-      validatedClass: validatedClass ?? this.options.validatedClass,
-    };
+      const options: FormOptions<TDraft, TOriginal> = {
+        defaultValue: { ...this.options.defaultValue, ...defaultValue },
+        validations: { ...this.options.validations, ...validations } as Validations<
+          TDraft,
+          TOriginal
+        >,
+        localizeError: localizeError ?? this.options.localizeError,
+        autoSave: autoSave ?? this.options.autoSave,
+        transform: transform ?? this.options.transform,
+        validatedClass: validatedClass ?? this.options.validatedClass,
+      };
 
-    const formState = useMemo(() => {
-      return createStore<FormState<TDraft>>({
-        draft: undefined,
-        hasTriggeredValidations: false,
-        saveScheduled: false,
-        saveInProgress: false,
-      });
-    }, []);
+      const formState = useMemo(() => {
+        return createStore<FormState<TDraft>>({
+          draft: undefined,
+          hasTriggeredValidations: false,
+          saveScheduled: false,
+          saveInProgress: false,
+        });
+      }, []);
 
-    const derivedState = useMemo(() => {
-      return formState.map<FormDerivedState<TDraft>>(
-        (state) => {
-          const {
-            draft = original ?? options.defaultValue,
-            hasTriggeredValidations,
-            saveScheduled,
-            saveInProgress,
-          } = state;
-          const errors = getErrors(draft, original, options.validations);
+      let lastDraft: TDraft | undefined;
+      const cache = new Map<string, unknown>();
+      function lazy<T>(key: string, fn: () => T): T {
+        if (lastDraft !== formState.get().draft) {
+          cache.clear();
+          lastDraft = formState.get().draft;
+        }
 
-          return {
-            draft,
-            hasTriggeredValidations,
-            saveScheduled,
-            saveInProgress,
-            hasChanges: !deepEqual(draft, original ?? options.defaultValue),
-            errors,
-            isValid: errors.size === 0,
-          };
-        },
-        (newState) => ({
-          draft: newState.draft,
-          hasTriggeredValidations: newState.hasTriggeredValidations,
-          saveScheduled: newState.saveScheduled,
-          saveInProgress: newState.saveInProgress,
-        }),
-      );
-    }, [formState, original, options.validations, options.defaultValue]);
+        let value = cache.get(key);
+        if (!cache.has(key)) {
+          value = fn();
+          cache.set(key, value);
+        }
 
-    const context = useMemo(() => {
-      return {
+        return value as T;
+      }
+
+      const context: FormContext<TDraft, TOriginal> = {
         formState,
-        derivedState,
         options,
         original,
 
-        getField(path) {
-          return getField(derivedState, original, path);
+        getField() {
+          throw new Error('Not implemented');
         },
 
         getDraft() {
@@ -475,80 +493,81 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
           return formState.get().hasTriggeredValidations;
         },
 
+        saveScheduled() {
+          return formState.get().saveScheduled;
+        },
+
+        saveInProgress() {
+          return formState.get().saveInProgress;
+        },
+
         hasChanges() {
-          return derivedState.get().hasChanges;
+          return lazy(
+            'hasChanges',
+            () => !deepEqual(this.getDraft(), original ?? options.defaultValue),
+          );
         },
 
         getErrors() {
-          return derivedState.get().errors;
+          return lazy('getErrors', () => getErrors(this.getDraft(), original, options.validations));
         },
 
         isValid() {
-          return derivedState.get().isValid;
+          return lazy('isValid', () => this.getErrors().size === 0);
         },
 
         validate() {
           formState.set('hasTriggeredValidations', true);
-          return derivedState.get().isValid;
+          return this.isValid();
         },
 
         reset() {
           formState.set('draft', undefined);
           formState.set('hasTriggeredValidations', false);
         },
-      } satisfies FormContext<TDraft, TOriginal>;
-    }, [
-      formState,
-      derivedState,
-      original,
-      defaultValue,
-      validations,
-      localizeError,
-      urlState,
-      autoSave,
-      transform,
-      validatedClass,
-    ]);
-
-    useEffect(() => {
-      if (urlState) {
-        return connectUrl(
-          formState.map('draft'),
-          typeof urlState === 'object' ? urlState : { key: 'form' },
-        );
-      }
-
-      return undefined;
-    }, [formState, simpleHash(urlState)]);
-
-    useEffect(() => {
-      const handles = options.transform?.map(({ trigger, update }) => {
-        const draft = derivedState.map('draft');
-        const triggerStore = trigger ? draft.map(trigger as any) : draft;
-
-        return triggerStore.subscribe(() => {
-          const value = trigger ? get(draft.get(), trigger as any) : draft.get();
-          const result = update(value as any, draft);
-
-          if (result !== undefined) {
-            draft.set(result);
-          }
-        });
-      });
-
-      return () => {
-        handles?.forEach((handle) => handle());
       };
-    }, [options.transform]);
 
-    useFormAutosave(context);
+      context.getField = (path) => lazy(path, () => getField(context, path));
 
-    return (
-      <this.context.Provider value={context}>
-        <FormContainer {...formProps} form={this} />
-      </this.context.Provider>
-    );
-  }
+      useEffect(() => {
+        if (urlState) {
+          return connectUrl(
+            formState.map('draft'),
+            typeof urlState === 'object' ? urlState : { key: 'form' },
+          );
+        }
+
+        return undefined;
+      }, [formState, simpleHash(urlState)]);
+
+      // useEffect(() => {
+      //   const handles = options.transform?.map(({ trigger, update }) => {
+      //     const draft = derivedState.map('draft');
+      //     const triggerStore = trigger ? draft.map(trigger as any) : draft;
+
+      //     return triggerStore.subscribe(() => {
+      //       const value = trigger ? get(draft.get(), trigger as any) : draft.get();
+      //       const result = update(value as any, draft);
+
+      //       if (result !== undefined) {
+      //         draft.set(result);
+      //       }
+      //     });
+      //   });
+
+      //   return () => {
+      //     handles?.forEach((handle) => handle());
+      //   };
+      // }, [original,options.transform]);
+
+      useFormAutosave(context);
+
+      return (
+        <this.context.Provider value={context}>
+          <FormContainer {...formProps} form={this} />
+        </this.context.Provider>
+      );
+    }
 
   FormState<S>({
     selector,
