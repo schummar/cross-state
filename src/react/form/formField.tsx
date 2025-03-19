@@ -7,7 +7,13 @@ import {
   type ComponentPropsWithoutRef,
   type ReactNode,
 } from 'react';
-import { getDerivedState, type Field, type Form, type FormInstance } from './form';
+import {
+  getDerivedState,
+  type Field,
+  type Form,
+  type FormContext,
+  type FormInstance,
+} from './form';
 
 export interface FormFieldComponentProps<TValue, TPath> {
   name: TPath;
@@ -60,6 +66,7 @@ export type FormFieldPropsWithRender<TDraft, TOriginal, TPath extends string> = 
     render: (
       props: FormFieldComponentProps<Value<TDraft, TPath>, TPath>,
       info: FormFieldInfos<TDraft, TOriginal, TPath>,
+      form: FormContext<TDraft, TOriginal>,
     ) => ReactNode;
     inputFilter?: undefined;
     defaultValue?: undefined;
@@ -215,7 +222,8 @@ export function FormField<
   if (render) {
     return (
       <>
-        {render(props, { ...form.getField(name as any), hasTriggeredValidations } as any) ?? null}
+        {render(props, { ...form.getField(name as any), hasTriggeredValidations } as any, form) ??
+          null}
       </>
     );
   }
