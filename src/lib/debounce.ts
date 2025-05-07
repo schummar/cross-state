@@ -6,6 +6,7 @@ export type DebounceOptions =
   | {
       wait: Duration;
       maxWait?: Duration;
+      waitOnRunNow?: boolean;
     };
 
 export function debounce<Args extends any[]>(

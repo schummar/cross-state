@@ -342,5 +342,40 @@ describe('patch methods', () => {
         ],
       ]);
     });
+
+    test('sync with debounce starts immediately', () => {
+      const store = createStore({ a: 1, b: 2 });
+      const callback = vi.fn();
+      using sync = store.sync(callback, { debounce: 2 });
+
+      store.set('a', 2);
+      vi.advanceTimersByTime(1);
+      store.set('a', 3);
+      vi.advanceTimersByTime(2);
+
+      expect(callback.mock.calls.map((x) => x[0].patches)).toMatchInlineSnapshot(`
+        [
+          [
+            {
+              "op": "replace",
+              "path": [],
+              "value": {
+                "a": 1,
+                "b": 2,
+              },
+            },
+          ],
+          [
+            {
+              "op": "replace",
+              "path": [
+                "a",
+              ],
+              "value": 3,
+            },
+          ],
+        ]
+      `);
+    });
   });
 });

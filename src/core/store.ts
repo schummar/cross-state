@@ -226,6 +226,16 @@ export class Store<T> extends Callable<any, any> {
 
     if (runNow) {
       innerListener();
+
+      if (
+        !throttleOption &&
+        typeof debounceOption === 'object' &&
+        'waitOnRunNow' in debounceOption &&
+        debounceOption.waitOnRunNow === false &&
+        'flush' in innerListener
+      ) {
+        (innerListener as { flush: () => void }).flush();
+      }
     } else {
       previousValue = passive
         ? this.calculatedValue && { value: this.calculatedValue.value }

@@ -153,6 +153,20 @@ describe('static store', () => {
       expect(listener.mock.calls).toMatchObject([[3, undefined]]);
     });
 
+    test('store.subscribe debounce with waitOnRunNow=false', async () => {
+      const state = createStore(1);
+      const listener = vi.fn();
+      state.subscribe(listener, { debounce: { wait: 2, maxWait: 2, waitOnRunNow: false } });
+      state.set(2);
+      vi.advanceTimersByTime(1);
+      state.set(3);
+      vi.advanceTimersByTime(1);
+      expect(listener.mock.calls).toMatchObject([
+        [1, undefined],
+        [3, 1],
+      ]);
+    });
+
     test('store.subscribe default equals', async () => {
       const state = createStore({ a: 1 });
       const listener = vi.fn();

@@ -112,6 +112,17 @@ export function sync<T>(
   listener: (syncMessage: SyncMessage) => void,
   options?: Omit<SubscribePatchOptions, 'runNow'>,
 ): DisposableCancel {
+  const debounce =
+    typeof options?.debounce === 'object' && 'wait' in options.debounce
+      ? { ...options.debounce }
+      : options?.debounce !== undefined
+        ? { wait: options.debounce }
+        : undefined;
+
+  if (debounce) {
+    debounce.waitOnRunNow ??= false;
+  }
+
   return this.subscribePatches(
     (patches, _, version, previousVersion) => {
       const trie = new Trie();
@@ -134,7 +145,7 @@ export function sync<T>(
         patches: toExtendedJson(patches) as Patch[],
       });
     },
-    { ...options, runNow: true },
+    { ...options, debounce, runNow: true },
   );
 }
 
