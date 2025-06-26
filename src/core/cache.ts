@@ -60,6 +60,7 @@ export class Cache<T> extends Store<Promise<T>> {
   }
 
   get({ update = 'whenStale', backgroundUpdate = false }: CacheGetOptions = {}): Promise<T> {
+    this.calculatedValue?.check();
     const promise = this.calculatedValue?.value;
     const stalePromise = this.stalePromise;
 
@@ -68,12 +69,11 @@ export class Cache<T> extends Store<Promise<T>> {
       (update === 'whenStale' && !promise) ||
       update === 'force'
     ) {
-      this.calculatedValue?.stop();
       this.calculatedValue = calculatedValue(this, this.notify);
       this.notify();
 
       if ((!promise && !stalePromise) || !backgroundUpdate) {
-        return super.get();
+        return this.calculatedValue.value;
       }
     }
 
@@ -130,27 +130,10 @@ export class Cache<T> extends Store<Promise<T>> {
 
   mapValue<S>(selector: Selector<T, S>): Cache<S>;
 
-  mapValue<const P>(selector: Constrain<P, Path<T>>): Cache<Value<T, P>>;
+  mapValue<const P extends AnyPath>(selector: P extends Path<T> ? P : Path<T>): Cache<Value<T, P>>;
 
-  mapValue<S>(_selector: Selector<T, S> | AnyPath): Cache<S> {
-    const selector = makeSelector(_selector);
-    const derivedFromCache = {
-      cache: this.derivedFromCache ? this.derivedFromCache.cache : this,
-      selectors: this.derivedFromCache
-        ? [...this.derivedFromCache.selectors, _selector]
-        : [_selector],
-    };
-
-    return new Cache(
-      async ({ use }) => {
-        const value = await use(this);
-        return selector(value);
-      },
-      {
-        equals: this.options.equals,
-      },
-      derivedFromCache,
-    );
+  mapValue(selector: Selector<any, any> | AnyPath) {
+    return mapValue(this, selector);
   }
 
   protected watchPromise(): void {
@@ -269,14 +252,47 @@ export class Cache<T> extends Store<Promise<T>> {
   }
 }
 
+function mapValue<T, S>(cache: Cache<T>, _selector: Selector<T, S> | AnyPath, get?: any): Cache<S> {
+  const selector = makeSelector(_selector);
+  const derivedFromCache = {
+    cache: cache.derivedFromCache ? cache.derivedFromCache.cache : cache,
+    selectors: cache.derivedFromCache
+      ? [...cache.derivedFromCache.selectors, _selector]
+      : [_selector],
+  };
+
+  return new Cache(
+    async ({ use }) => {
+      const value = await use(cache);
+      return selector(value);
+    },
+    {
+      equals: cache.options.equals,
+    },
+    derivedFromCache,
+    get,
+  );
+}
+
 type CreateReturnType<T, Args extends any[]> = {
   (...args: Args): Cache<T>;
+  mapCache<S>(selector: Selector<T, S>): CreateReturnType<S, Args>;
+  mapValue<const P>(selector: Constrain<P, Path<T>>): CreateReturnType<Value<T, P>, Args>;
   invalidateAll: () => void;
   clearAll: () => void;
 } & ([] extends Args ? Cache<T> : {});
 
 function create<T, Args extends any[] = []>(
   cacheFunction: CacheFunction<T, Args>,
+  options?: CacheOptions<T>,
+): CreateReturnType<T, Args> {
+  return internalCreate<T, Args>(cacheFunction, options);
+}
+
+function internalCreate<T, Args extends any[] = []>(
+  source:
+    | CacheFunction<T, Args>
+    | [cache: CreateReturnType<any, Args>, selector: Selector<any, T> | AnyPath],
   options?: CacheOptions<T>,
 ): CreateReturnType<T, Args> {
   options = { ...createCache.defaultOptions, ...options };
@@ -290,21 +306,40 @@ function create<T, Args extends any[] = []>(
         return baseInstance;
       }
 
-      return new Cache((helpers) => {
-        const result = cacheFunction.apply(helpers, args);
+      if (Array.isArray(source)) {
+        const [cache, selector] = source;
+        return mapValue(cache(...args), selector, get);
+      }
 
-        if (result instanceof Function) {
-          return result(helpers);
-        }
+      return new Cache(
+        (helpers) => {
+          const result = source.apply(helpers, args);
 
-        return result;
-      }, options);
+          if (result instanceof Function) {
+            return result(helpers);
+          }
+
+          return result;
+        },
+        options,
+        undefined,
+        args.length === 0 ? get : undefined,
+      );
     },
     clearUnusedAfter ? calcDuration(clearUnusedAfter) : undefined,
   );
 
-  const get = (...args: Args) => {
+  function get(...args: Args) {
+    const sliceAfter = args.lastIndexOf(undefined);
+    if (sliceAfter !== -1) {
+      args = args.slice(0, sliceAfter) as Args;
+    }
+
     return instanceCache.get(...args);
+  }
+
+  const mapCache = (selector: any) => {
+    return internalCreate([baseInstance, selector]);
   };
 
   const invalidateAll = () => {
@@ -319,37 +354,21 @@ function create<T, Args extends any[] = []>(
     }
   };
 
-  baseInstance = Object.assign(
-    new Cache(
-      (helpers) => {
-        const result = cacheFunction.apply(helpers);
-
-        if (result instanceof Function) {
-          return result(helpers);
-        }
-
-        return result;
-      },
-      options,
-      undefined,
-      get,
-    ),
-    {
-      invalidateAll,
-      clearAll,
-    },
-  ) as CreateReturnType<T, Args> & Cache<T>;
+  baseInstance = Object.assign(get(...([] as unknown as Args)), {
+    mapCache,
+    invalidateAll,
+    clearAll,
+  }) as CreateReturnType<T, Args> & Cache<T>;
 
   const groups = Array.isArray(resourceGroup)
     ? resourceGroup
     : resourceGroup
       ? [resourceGroup]
       : [];
+
   for (const group of groups.concat(allResources)) {
     group.add(baseInstance);
   }
-
-  get(...([] as any));
 
   return baseInstance;
 }

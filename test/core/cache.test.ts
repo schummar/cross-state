@@ -366,6 +366,20 @@ describe('cache', () => {
       expect(value).toBe(2);
     });
 
+    test('on parent invalidate', async () => {
+      let x = 1;
+      const cache1 = createCache(async () => x++);
+      const cache2 = createCache(() => async ({ use }) => {
+        return await use(cache1);
+      });
+
+      await cache2.get();
+      cache1.invalidate();
+      const value = await cache2.get();
+
+      expect(value).toBe(2);
+    });
+
     test('on clear', async () => {
       let x = 1;
       const cache1 = createCache(async () => x++);
@@ -456,6 +470,62 @@ describe('cache', () => {
     });
   });
 
+  describe('mapCache', () => {
+    test('no args', async () => {
+      const cache = createCache(async () => 1);
+      const mapped = cache.mapCache((x) => x + 1);
+      const value = await mapped.get();
+
+      expect(value).toBe(2);
+    });
+
+    test('with args', async () => {
+      const cache = createCache(async (x: number) => x);
+      const mapped = cache.mapCache((x) => x + 1);
+      const value = await mapped(1).get();
+
+      expect(value).toBe(2);
+    });
+
+    test('parent changes', async () => {
+      let x = 1;
+      const cache = createCache(async () => x++);
+      const mapped = cache.mapCache((x) => x + 1);
+      const value1 = await mapped.get();
+
+      expect(value1).toBe(2);
+
+      cache.invalidate();
+      const value2 = await mapped.get();
+
+      expect(value2).toBe(3);
+    });
+
+    test('is invalidated without recursive', async () => {
+      let x = 1;
+      const cache = createCache(async () => x++);
+      const mapped = cache.mapCache((x) => x + 1);
+      await mapped.get();
+
+      mapped.invalidate();
+      const value = await mapped.get();
+
+      expect(value).toBe(2);
+    });
+
+    test('is invalidated with recursive', async () => {
+      let x = 1;
+      const cache = createCache(async () => x++);
+      const mapped = cache.mapCache((x) => x + 1);
+      await mapped.get();
+
+      mapped.invalidate(true);
+      const value = await mapped.get();
+
+      expect(value).toBe(3);
+    });
+  });
+
   describe('args', () => {
     test('no args', async () => {
       const cache = createCache(async () => 1);
@@ -500,6 +570,17 @@ describe('cache', () => {
     test('same instance for when not calling as when calling without args', async () => {
       const cache = createCache(async () => 1);
       expect(cache).toBe(cache());
+    });
+
+    test('same instance for when called with only undefined args', async () => {
+      const cache = createCache(async (x?: number) => x ?? 0);
+      expect(cache()).toBe(cache(undefined));
+      expect(cache).toBe(cache(undefined));
+    });
+
+    test('same instance for when called with trailing undefined args', async () => {
+      const cache = createCache(async (x: number, y?: number) => x + (y ?? 0));
+      expect(cache(1)).toBe(cache(1, undefined));
     });
 
     test('customer hash function for args', async () => {
