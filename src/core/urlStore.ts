@@ -75,7 +75,7 @@ export function connectUrl<T>(
     debounce: debounceTime = 500,
   }: UrlStoreOptions<T>,
 ): DisposableCancel {
-  const serializedDefaultValue = serialize(defaultValue);
+  const serializedDefaultValue = defaultValue !== undefined ? serialize(defaultValue) : undefined;
   let isDirty = false;
 
   const commit = debounce(() => {
