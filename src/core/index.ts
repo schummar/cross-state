@@ -5,6 +5,7 @@ export {
   type CacheFunction,
   type CacheGetOptions,
   type CacheOptions,
+  type CreateCacheResult,
 } from './cache';
 export type {
   AsyncConnectionActions,

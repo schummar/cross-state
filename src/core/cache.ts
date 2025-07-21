@@ -274,18 +274,22 @@ function mapValue<T, S>(cache: Cache<T>, _selector: Selector<T, S> | AnyPath, ge
   );
 }
 
+export type CreateCacheResult<T, Args extends any[]> = [] extends Args
+  ? CacheBundle<T, Args> & Cache<T>
+  : CacheBundle<T, Args>;
+
 export type CacheBundle<T, Args extends any[]> = {
   (...args: Args): Cache<T>;
-  mapCache<S>(selector: Selector<T, S>): CacheBundle<S, Args>;
-  mapValue<const P>(selector: Constrain<P, Path<T>>): CacheBundle<Value<T, P>, Args>;
+  mapCache<S>(selector: Selector<T, S>): CreateCacheResult<S, Args>;
+  mapValue<const P>(selector: Constrain<P, Path<T>>): CreateCacheResult<Value<T, P>, Args>;
   invalidateAll: () => void;
   clearAll: () => void;
-} & ([] extends Args ? Cache<T> : {});
+};
 
 function create<T, Args extends any[] = []>(
   cacheFunction: CacheFunction<T, Args>,
   options?: CacheOptions<T>,
-): CacheBundle<T, Args> {
+): CreateCacheResult<T, Args> {
   return internalCreate<T, Args>(cacheFunction, options);
 }
 
@@ -294,7 +298,7 @@ function internalCreate<T, Args extends any[] = []>(
     | CacheFunction<T, Args>
     | [cache: CacheBundle<any, Args>, selector: Selector<any, T> | AnyPath],
   options?: CacheOptions<T>,
-): CacheBundle<T, Args> {
+): CreateCacheResult<T, Args> {
   options = { ...createCache.defaultOptions, ...options };
   const { clearUnusedAfter, resourceGroup } = options ?? {};
 
