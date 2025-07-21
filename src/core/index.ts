@@ -1,6 +1,7 @@
 export {
   Cache,
   createCache,
+  type CacheBundle,
   type CacheFunction,
   type CacheGetOptions,
   type CacheOptions,
@@ -24,11 +25,11 @@ export type {
   UpdateFunction,
   Use,
 } from './commonTypes';
-export { ResourceGroup, allResources, createResourceGroup, type Resource } from './resourceGroup';
-export { Scope, createScope } from './scope';
+export { allResources, createResourceGroup, ResourceGroup, type Resource } from './resourceGroup';
+export { createScope, Scope } from './scope';
 export {
-  Store,
   createStore,
+  Store,
   type BoundStoreMethods,
   type StoreMethods,
   type StoreOptions,
