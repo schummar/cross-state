@@ -296,6 +296,19 @@ describe('persist', () => {
 
       expect(storage.itemsWithoutVersion).toStrictEqual(new Map());
     });
+
+    test('save primitive', async () => {
+      const storage = new MockStorage();
+      const s1 = createStore(1);
+      persist(s1, {
+        id: 'test',
+        storage,
+      });
+
+      s1.set(2);
+
+      expect(storage.itemsWithoutVersion).toStrictEqual(new Map([['test:[]', '2']]));
+    });
   });
 
   describe('load', () => {
@@ -368,6 +381,20 @@ describe('persist', () => {
       });
 
       expect(s1.get()).toStrictEqual({});
+    });
+
+    test('load primitive', async () => {
+      const storage = new MockStorage();
+      storage.items.set('test:[]', '2');
+
+      const s1 = createStore(1);
+      using p = persist(s1, {
+        id: 'test',
+        storage,
+      });
+      await p.initialized;
+
+      expect(s1.get()).toBe(2);
     });
   });
 

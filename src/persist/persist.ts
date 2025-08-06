@@ -243,7 +243,9 @@ export class Persist<T> {
 
           if (
             !this.paths.find(
-              (p) => p.path.length === key.path.length && isAncestor(p.path, key.path),
+              (p) =>
+                (p.path.length === 1 && p.path[0] === '*' && key.path.length === 0) ||
+                (p.path.length === key.path.length && isAncestor(p.path, key.path)),
             )
           ) {
             return null;

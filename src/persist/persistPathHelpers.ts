@@ -18,8 +18,10 @@ export const split = (value: any, path: KeyType[]): { path: KeyType[]; value: un
     entries = new Map([...value].map((v, i) => [i, v]));
   } else if (Array.isArray(value)) {
     entries = new Map(value.map((v, i) => [i, v]));
-  } else {
+  } else if (typeof value === 'object' && value !== null) {
     entries = new Map(Object.entries(value));
+  } else {
+    return [{ path: [], value }];
   }
 
   if (first === '*') {
