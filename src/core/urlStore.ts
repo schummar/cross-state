@@ -9,6 +9,7 @@ export interface UrlStoreOptions<T> extends StoreOptions<T | undefined> {
   serialize?: (value: T) => string;
   deserialize?: (value: string) => T;
   defaultValue?: T;
+  writeDefaultValue?: boolean;
   onCommit?: (value: T | undefined) => void;
   debounce?: Duration;
 }
@@ -71,12 +72,13 @@ export function connectUrl<T>(
     serialize = defaultSerializer,
     deserialize = defaultDeserializer,
     defaultValue = undefined as T,
+    writeDefaultValue,
     onCommit,
     debounce: debounceTime = 500,
   }: UrlStoreOptions<T>,
 ): DisposableCancel {
   const serializedDefaultValue = defaultValue !== undefined ? serialize(defaultValue) : undefined;
-  let isDirty = false;
+  let isDirty = writeDefaultValue ?? false;
 
   const commit = debounce(() => {
     if (isDirty) {
@@ -85,7 +87,10 @@ export function connectUrl<T>(
       const parameters = new URLSearchParams(url[type].slice(1));
       const serializedValue = value !== undefined ? serialize(value) : undefined;
 
-      if (serializedValue === undefined || serializedValue === serializedDefaultValue) {
+      if (
+        serializedValue === undefined ||
+        (!writeDefaultValue && serializedValue === serializedDefaultValue)
+      ) {
         parameters.delete(key);
       } else {
         parameters.set(key, serializedValue);
@@ -118,7 +123,7 @@ export function connectUrl<T>(
       isDirty = true;
       commit();
     },
-    { runNow: false },
+    { runNow: writeDefaultValue ?? false },
   );
 
   return disposable(() => {

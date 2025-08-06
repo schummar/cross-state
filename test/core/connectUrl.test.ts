@@ -12,7 +12,7 @@ beforeEach(() => {
 });
 
 describe('url store', () => {
-  test('createUrlStore1', async () => {
+  test('createUrlStore', async () => {
     vi.useFakeTimers();
 
     const state = createUrlStore<string>({ key: 'foo', type: 'hash' });
@@ -28,7 +28,7 @@ describe('url store', () => {
     expect(window.location.hash).toEqual('#foo=%22baz%22');
   });
 
-  test('createUrlStore2', async () => {
+  test('createUrlStore with defaultValue', async () => {
     vi.useFakeTimers();
 
     const state = createUrlStore<{ bar: string }>({
@@ -44,6 +44,33 @@ describe('url store', () => {
 
     await vi.advanceTimersByTimeAsync(500);
     expect(window.location.hash).toEqual('#foo=%7B%22bar%22%3A%22baz%22%7D');
+
+    state.set({ bar: 'default' });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(window.location.hash).toEqual('');
+  });
+
+  test('createUrlStore with defaultValue and writeDefaultValue=true', async () => {
+    vi.useFakeTimers();
+
+    const state = createUrlStore<{ bar: string }>({
+      key: 'foo',
+      type: 'hash',
+      defaultValue: { bar: 'default' },
+      writeDefaultValue: true,
+    });
+
+    expect(state.get()).toEqual({ bar: 'default' });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(window.location.hash).toEqual('#foo=%7B%22bar%22%3A%22default%22%7D');
+
+    state.set({ bar: 'baz' });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(window.location.hash).toEqual('#foo=%7B%22bar%22%3A%22baz%22%7D');
+
+    state.set({ bar: 'default' });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(window.location.hash).toEqual('#foo=%7B%22bar%22%3A%22default%22%7D');
   });
 
   test('connectUrl1', async () => {
