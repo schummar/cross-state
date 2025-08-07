@@ -14,7 +14,18 @@ import { allResources, type ResourceGroup } from './resourceGroup';
 import { Store, createStore, type Calculate, type StoreOptions } from './store';
 
 export interface CacheGetOptions {
+  /**
+   * How to handle the cache when getting the value.
+   * - `whenMissing`: Only fetch a new value if there is no cached value.
+   * - `whenStale`: Fetch a new value if there is no cached value or if the cached value is stale.
+   * - `force`: Always fetch a new value, regardless of the cache state.
+   */
   update?: 'whenMissing' | 'whenStale' | 'force';
+
+  /**
+   * If set to `true`, the cache will be updated in the background.
+   * This means that a stale value will be returned immediately, if available, while the new value is being fetched.
+   */
   backgroundUpdate?: boolean;
 }
 
@@ -23,12 +34,45 @@ export interface CacheFunction<T, Args extends any[] = []> {
 }
 
 export interface CacheOptions<T, Args extends any[]> extends StoreOptions<Promise<T>> {
+  /**
+   * How long to keep the cache entry before it is considered stale.
+   * If set to `undefined` or `null`, the cache entry will never be invalidated automatically.
+   *
+   * @example
+   * ```typescript
+   * createCache(fetchData, {
+   *   invalidateAfter: { seconds: 10 },
+   * });
+   * ```
+   */
   invalidateAfter?: Duration | ((state: ValueState<T> | ErrorState) => Duration | null) | null;
+
+  /**
+   * If set, the cache will be invalidated when the window gets focused.
+   * This is useful for caches that are used in a browser environment and might become stale when the user switches tabs.
+   */
   invalidateOnWindowFocus?: boolean;
-  invalidateOnActivation?: boolean;
+
+  /**
+   * If set, the cached value will be cleared when the cache is invalidated.
+   * Without this option, the cache will keep the last value as stale until a new value becomes available.
+   */
   clearOnInvalidate?: boolean;
+
+  /**
+   * If set, cache entries will be cleared after approximately the specified duration.
+   * This is useful for long lived pages or applications and helps to prevent memory leaks.
+   * The exact time when the entry is cleared is not guaranteed, since it will be cleared during garbage collection.
+   */
   clearUnusedAfter?: Duration | null;
+
+  /**
+   * Add the cache to the specified resource group(s).
+   * This allows you to invalidate or clear multiple caches that belong to the same group.
+   * All caches are always added to the `allResources` group.
+   */
   resourceGroup?: ResourceGroup | ResourceGroup[];
+
   /**
    * Function to generate a custom cache key based on the provided arguments.
    * This allows you to control how cache entries are identified and reused.
@@ -37,7 +81,7 @@ export interface CacheOptions<T, Args extends any[]> extends StoreOptions<Promis
    * @example
    * ```typescript
    * // Will use the same instance when provided with `undefined`, `{ num: 0 }`, `{ bool: false }`, etc.
-   * createCache((filter?: { num?: number, bool?: boolean }) => ..., {
+   * createCache((filter?: { num?: number, bool?: boolean }) => fetchData(filter), {
    *   getCacheKey: (filter?) => ({
    *     num: filter?.num ?? 0,
    *     bool: filter?.bool ?? false,
@@ -395,7 +439,6 @@ export const createCache: typeof create & { defaultOptions: CacheOptions<any, an
   /* @__PURE__ */ Object.assign(create, {
     defaultOptions: {
       invalidateOnWindowFocus: true,
-      invalidateOnActivation: true,
       clearUnusedAfter: { days: 1 },
       retain: { milliseconds: 1 },
       equals: deepEqual,
