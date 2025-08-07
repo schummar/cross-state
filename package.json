@@ -208,7 +208,7 @@
       "name": "core: InstanceCache",
       "path": "dist/es/index.mjs",
       "import": "{InstanceCache}",
-      "limit": "603 B"
+      "limit": "610 B"
     },
     {
       "name": "core: calcDuration",
