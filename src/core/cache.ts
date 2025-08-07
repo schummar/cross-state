@@ -22,13 +22,30 @@ export interface CacheFunction<T, Args extends any[] = []> {
   (...args: Args): Promise<T> | Calculate<Promise<T>>;
 }
 
-export interface CacheOptions<T> extends StoreOptions<Promise<T>> {
+export interface CacheOptions<T, Args extends any[]> extends StoreOptions<Promise<T>> {
   invalidateAfter?: Duration | ((state: ValueState<T> | ErrorState) => Duration | null) | null;
   invalidateOnWindowFocus?: boolean;
   invalidateOnActivation?: boolean;
   clearOnInvalidate?: boolean;
   clearUnusedAfter?: Duration | null;
   resourceGroup?: ResourceGroup | ResourceGroup[];
+  /**
+   * Function to generate a custom cache key based on the provided arguments.
+   * This allows you to control how cache entries are identified and reused.
+   * By default, the arguments array is used as the cache key.
+   *
+   * @example
+   * ```typescript
+   * // Will use the same instance when provided with `undefined`, `{ num: 0 }`, `{ bool: false }`, etc.
+   * createCache((filter?: { num?: number, bool?: boolean }) => ..., {
+   *   getCacheKey: (filter?) => ({
+   *     num: filter?.num ?? 0,
+   *     bool: filter?.bool ?? false,
+   *   }),
+   * });
+   * ```
+   */
+  getCacheKey?: (...args: NoInfer<Args>) => unknown;
 }
 
 export class Cache<T> extends Store<Promise<T>> {
@@ -45,7 +62,7 @@ export class Cache<T> extends Store<Promise<T>> {
 
   constructor(
     getter: Calculate<Promise<T>>,
-    public readonly options: CacheOptions<T> = {},
+    public readonly options: CacheOptions<T, any> = {},
     public readonly derivedFromCache?: {
       cache: Cache<any>;
       selectors: (Selector<any, any> | AnyPath)[];
@@ -288,7 +305,7 @@ export type CacheBundle<T, Args extends any[]> = {
 
 function create<T, Args extends any[] = []>(
   cacheFunction: CacheFunction<T, Args>,
-  options?: CacheOptions<T>,
+  options?: CacheOptions<T, Args>,
 ): CreateCacheResult<T, Args> {
   return internalCreate<T, Args>(cacheFunction, options);
 }
@@ -297,7 +314,7 @@ function internalCreate<T, Args extends any[] = []>(
   source:
     | CacheFunction<T, Args>
     | [cache: CacheBundle<any, Args>, selector: Selector<any, T> | AnyPath],
-  options?: CacheOptions<T>,
+  options?: CacheOptions<T, Args>,
 ): CreateCacheResult<T, Args> {
   options = { ...createCache.defaultOptions, ...options };
   const { clearUnusedAfter, resourceGroup } = options ?? {};
@@ -306,10 +323,6 @@ function internalCreate<T, Args extends any[] = []>(
 
   const instanceCache = new InstanceCache<Args, Cache<T>>(
     (...args: Args): Cache<T> => {
-      if (args.length === 0 && baseInstance) {
-        return baseInstance;
-      }
-
       if (Array.isArray(source)) {
         const [cache, selector] = source;
         return mapValue(cache(...args), selector, get);
@@ -339,7 +352,8 @@ function internalCreate<T, Args extends any[] = []>(
       args = args.slice(0, sliceAfter) as Args;
     }
 
-    return instanceCache.get(...args);
+    const cacheKey = options?.getCacheKey ? options.getCacheKey(...args) : args;
+    return instanceCache.getWithKey(args, cacheKey);
   }
 
   const mapCache = (selector: any) => {
@@ -377,7 +391,7 @@ function internalCreate<T, Args extends any[] = []>(
   return baseInstance;
 }
 
-export const createCache: typeof create & { defaultOptions: CacheOptions<any> } =
+export const createCache: typeof create & { defaultOptions: CacheOptions<any, any> } =
   /* @__PURE__ */ Object.assign(create, {
     defaultOptions: {
       invalidateOnWindowFocus: true,
@@ -385,5 +399,5 @@ export const createCache: typeof create & { defaultOptions: CacheOptions<any> } 
       clearUnusedAfter: { days: 1 },
       retain: { milliseconds: 1 },
       equals: deepEqual,
-    } as CacheOptions<any>,
+    } as CacheOptions<any, any>,
   });

@@ -583,6 +583,31 @@ describe('cache', () => {
       expect(cache(1)).toBe(cache(1, undefined));
     });
 
+    test('same instance with getCacheKey', async () => {
+      const cache = createCache(
+        async (filter?: { x?: number; y?: number }) => (filter?.x ?? 0) + (filter?.y ?? 0),
+        {
+          getCacheKey(filter?) {
+            return {
+              x: filter?.x ?? 0,
+              y: filter?.y ?? 0,
+            };
+          },
+        },
+      );
+
+      expect(cache).toBe(cache());
+      expect(cache).toBe(cache({}));
+      expect(cache).toBe(cache({ x: undefined }));
+      expect(cache).toBe(cache({ x: 0 }));
+      expect(cache).toBe(cache({ y: undefined }));
+      expect(cache).toBe(cache({ y: 0 }));
+      expect(cache).toBe(cache({ x: 0, y: 0 }));
+      expect(cache).not.toBe(cache({ x: 1 }));
+      expect(cache({ x: 1 })).toBe(cache({ x: 1, y: undefined }));
+      expect(cache({ x: 1 })).toBe(cache({ x: 1, y: 0 }));
+    });
+
     test('customer hash function for args', async () => {
       const cache = createCache(async (x: { id: number }) => x.id);
       const arg1 = { id: 1, [hash]: () => '1' };

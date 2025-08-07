@@ -27,7 +27,11 @@ export class InstanceCache<Args extends any[], T extends object> {
   }
 
   get(...args: Args): T {
-    const key = simpleHash(args);
+    return this.getWithKey(args, args);
+  }
+
+  getWithKey(args: Args, cacheKey: unknown): T {
+    const key = simpleHash(cacheKey);
     let entry = this.cache.get(key);
     let value = entry?.ref ?? entry?.weakRef?.deref();
 
