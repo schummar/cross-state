@@ -625,6 +625,16 @@ describe('cache', () => {
       expect(cache(1).state.get().isStale).toBe(true);
     });
 
+    test('invalidateAll except one', async () => {
+      const cache = createCache(async (x?: number) => x);
+      await cache.get();
+      await cache(1).get();
+      cache.invalidateAll({ filter: (x) => x !== cache() });
+
+      expect(cache.state.get().isStale).toBe(false);
+      expect(cache(1).state.get().isStale).toBe(true);
+    });
+
     test('clearAll', async () => {
       const cache = createCache(async (x?: number) => x);
       await cache.get();
@@ -633,6 +643,27 @@ describe('cache', () => {
 
       expect(cache.state.get().value).toBe(undefined);
       expect(cache(1).state.get().value).toBe(undefined);
+    });
+
+    test('clearAll except one', async () => {
+      const cache = createCache(async (x?: number) => x);
+      await cache.get();
+      await cache(1).get();
+      cache.clearAll({ filter: (x) => x !== cache(1) });
+
+      expect(cache.state.get().value).toBe(undefined);
+      expect(cache(1).state.get().value).toBe(1);
+    });
+
+    test('getInstances', async () => {
+      const cache = createCache(async (x?: number) => x);
+      await cache.get();
+      await cache(1).get();
+      const instances = cache.getInstances();
+
+      expect(instances).toHaveLength(2);
+      expect(instances).toContain(cache);
+      expect(instances).toContain(cache(1));
     });
   });
 

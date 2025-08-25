@@ -339,12 +339,17 @@ export type CreateCacheResult<T, Args extends any[]> = [] extends Args
   ? CacheBundle<T, Args> & Cache<T>
   : CacheBundle<T, Args>;
 
+export interface InvalidationOptions<T> {
+  filter?: (cache: Cache<T>) => boolean;
+}
+
 export type CacheBundle<T, Args extends any[]> = {
   (...args: Args): Cache<T>;
   mapCache<S>(selector: Selector<T, S>): CreateCacheResult<S, Args>;
   mapValue<const P>(selector: Constrain<P, Path<T>>): CreateCacheResult<Value<T, P>, Args>;
-  invalidateAll: () => void;
-  clearAll: () => void;
+  invalidateAll: (options?: InvalidationOptions<T>) => void;
+  clearAll: (options?: InvalidationOptions<T>) => void;
+  getInstances: () => Cache<T>[];
 };
 
 function create<T, Args extends any[] = []>(
@@ -404,22 +409,31 @@ function internalCreate<T, Args extends any[] = []>(
     return internalCreate([baseInstance, selector]);
   };
 
-  const invalidateAll = () => {
+  const invalidateAll = ({ filter = () => true }: InvalidationOptions<T> = {}) => {
     for (const instance of instanceCache.values()) {
-      instance.invalidate();
+      if (filter(instance)) {
+        instance.invalidate();
+      }
     }
   };
 
-  const clearAll = () => {
+  const clearAll = ({ filter = () => true }: InvalidationOptions<T> = {}) => {
     for (const instance of instanceCache.values()) {
-      instance.clear();
+      if (filter(instance)) {
+        instance.clear();
+      }
     }
+  };
+
+  const getInstances = () => {
+    return instanceCache.values();
   };
 
   baseInstance = Object.assign(get(...([] as unknown as Args)), {
     mapCache,
     invalidateAll,
     clearAll,
+    getInstances,
   }) as CacheBundle<T, Args> & Cache<T>;
 
   const groups = Array.isArray(resourceGroup)
