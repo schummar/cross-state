@@ -17,6 +17,12 @@ export function toExtendedJson(value: unknown): unknown {
     };
   }
 
+  if (typeof value === 'bigint') {
+    return {
+      __bigint: value.toString(),
+    };
+  }
+
   if (Array.isArray(value)) {
     return value.map(toExtendedJson);
   }
@@ -52,6 +58,10 @@ export function fromExtendedJson(value: unknown): unknown {
 
   if ('__date' in value) {
     return new Date(value.__date as string);
+  }
+
+  if ('__bigint' in value) {
+    return BigInt(value.__bigint as string);
   }
 
   if (Array.isArray(value)) {
