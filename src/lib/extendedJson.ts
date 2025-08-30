@@ -34,8 +34,18 @@ export function toExtendedJson(value: unknown): unknown {
   return value;
 }
 
-export function toExtendedJsonString(value: unknown): string {
-  return JSON.stringify(toExtendedJson(value));
+export function toExtendedJsonString(
+  value: any,
+  replacer?: (this: any, key: string, value: any) => any,
+  space?: string | number,
+): string;
+export function toExtendedJsonString(
+  value: any,
+  replacer?: (number | string)[] | null,
+  space?: string | number,
+): string;
+export function toExtendedJsonString(value: unknown, ...args: any[]): string {
+  return JSON.stringify(toExtendedJson(value), ...args);
 }
 
 export function fromExtendedJson(value: unknown): unknown {
@@ -71,6 +81,9 @@ export function fromExtendedJson(value: unknown): unknown {
   return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, fromExtendedJson(v)]));
 }
 
-export function fromExtendedJsonString(value: string): unknown {
-  return fromExtendedJson(JSON.parse(value));
+export function fromExtendedJsonString(
+  value: string,
+  reviver?: (this: any, key: string, value: any) => any,
+): unknown {
+  return fromExtendedJson(JSON.parse(value, reviver));
 }

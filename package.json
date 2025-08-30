@@ -184,7 +184,7 @@
     {
       "name": "core",
       "path": "dist/es/index.mjs",
-      "limit": "8 KB"
+      "limit": "8.1 KB"
     },
     {
       "name": "core: Store",
