@@ -1,6 +1,5 @@
 import type { DebounceOptions } from '@lib/debounce';
 import { type MaybePromise } from '@lib/maybePromise';
-import type { Store } from './store';
 
 export interface Listener<T = void, TThis = unknown> {
   (this: TThis, value: T, previouseValue?: T): void;
@@ -66,8 +65,14 @@ export interface AsyncUpdateFunction<Value> {
   (update: UpdateFrom<MaybePromise<Value>, [Value]>): void;
 }
 
+export interface StoreLike<T> {
+  get(): T;
+  subscribe(listener: (value: T) => void, options?: { runNow?: boolean }): Cancel;
+  invalidate(recursive?: boolean): void;
+}
+
 export interface Use {
-  <T>(store: Store<T>): T;
+  <T>(store: StoreLike<T>): T;
 }
 
 export interface BaseConnectionActions<T> {

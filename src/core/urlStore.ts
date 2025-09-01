@@ -1,7 +1,9 @@
-import disposable from '@lib/disposable';
-import { type DisposableCancel, type Duration } from './commonTypes';
+import { type Cancel, type DisposableCancel, type Duration } from './commonTypes';
 import { createStore, type Store, type StoreOptions } from './store';
 import { debounce } from '@lib/debounce';
+import disposable from '@lib/disposable';
+import { fromExtendedJsonString, toExtendedJsonString } from '@lib/extendedJson';
+import { persist, type PersistOptions } from '@persist/persist';
 
 export interface UrlStoreOptions<T> extends StoreOptions<T | undefined> {
   key: string;
@@ -12,6 +14,9 @@ export interface UrlStoreOptions<T> extends StoreOptions<T | undefined> {
   writeDefaultValue?: boolean;
   onCommit?: (value: T | undefined) => void;
   debounce?: Duration;
+  persist?: PersistOptions<T | undefined> & {
+    onlyWhenActive?: boolean;
+  };
 }
 
 export interface UrlStoreOptionsWithDefaults<T> extends UrlStoreOptions<T> {
@@ -21,37 +26,63 @@ export interface UrlStoreOptionsWithDefaults<T> extends UrlStoreOptions<T> {
 export type UrlStoreOptionsRequired<T> = UrlStoreOptions<T> &
   Required<Pick<UrlStoreOptions<T>, 'type' | 'serialize' | 'deserialize' | 'defaultValue'>>;
 
-const urlStore = createStore(() => (typeof window !== 'undefined' ? window.location.href : ''));
+const urlStore = createStore<string>(({ use }) => {
+  return use({
+    get() {
+      return typeof window !== 'undefined' ? window.location.href : '';
+    },
+    subscribe(listener) {
+      if (typeof window === 'undefined') {
+        return () => undefined;
+      }
 
-urlStore.addEffect(() => {
-  const originalPushState = window.history.pushState;
-  const originalReplaceState = window.history.replaceState;
+      const originalPushState = window.history.pushState;
+      const originalReplaceState = window.history.replaceState;
 
-  const update = () => {
-    urlStore.set(window.location.href);
-  };
+      const update = () => {
+        listener(window.location.href);
+      };
 
-  window.history.pushState = (...args) => {
-    originalPushState.apply(window.history, args);
-    update();
-  };
+      window.history.pushState = (...args) => {
+        originalPushState.apply(window.history, args);
+        update();
+      };
 
-  window.history.replaceState = (...args) => {
-    originalReplaceState.apply(window.history, args);
-    update();
-  };
+      window.history.replaceState = (...args) => {
+        originalReplaceState.apply(window.history, args);
+        update();
+      };
 
-  window.addEventListener('popstate', update);
+      window.addEventListener('popstate', update);
 
-  return () => {
-    window.history.pushState = originalPushState;
-    window.history.replaceState = originalReplaceState;
-    window.removeEventListener('popstate', update);
-  };
+      return () => {
+        window.history.pushState = originalPushState;
+        window.history.replaceState = originalReplaceState;
+        window.removeEventListener('popstate', update);
+      };
+    },
+    invalidate() {},
+  });
 });
 
 export function updateUrlStore(): void {
   urlStore.set(window.location.href);
+}
+
+function defaultDeserializer(value: string): any {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  try {
+    return fromExtendedJsonString(value);
+  } catch {
+    return undefined;
+  }
+}
+
+function defaultSerializer(value: any): string {
+  return toExtendedJsonString(value);
 }
 
 export function connectUrl<T>(
@@ -75,35 +106,39 @@ export function connectUrl<T>(
     writeDefaultValue,
     onCommit,
     debounce: debounceTime = 500,
+    persist: persistOptions,
   }: UrlStoreOptions<T>,
 ): DisposableCancel {
   const serializedDefaultValue = defaultValue !== undefined ? serialize(defaultValue) : undefined;
-  let isDirty = writeDefaultValue ?? false;
+  let isDirty = false;
+  let isSettingFromUrl = false;
 
   const commit = debounce(() => {
-    if (isDirty) {
-      const value = store.get();
-      const url = new URL(window.location.href);
-      const parameters = new URLSearchParams(url[type].slice(1));
-      const serializedValue = value !== undefined ? serialize(value) : undefined;
-
-      if (
-        serializedValue === undefined ||
-        (!writeDefaultValue && serializedValue === serializedDefaultValue)
-      ) {
-        parameters.delete(key);
-      } else {
-        parameters.set(key, serializedValue);
-      }
-
-      url[type] = parameters.toString();
-
-      window.history.replaceState(window.history.state, '', url.toString());
-      window.dispatchEvent(new PopStateEvent('popstate'));
-
-      onCommit?.(value);
-      isDirty = false;
+    if (!isDirty) {
+      return;
     }
+
+    const value = store.get();
+    const url = new URL(urlStore.get());
+    const parameters = new URLSearchParams(url[type].slice(1));
+    const serializedValue = value !== undefined ? serialize(value) : undefined;
+
+    if (
+      serializedValue === undefined ||
+      (!writeDefaultValue && serializedValue === serializedDefaultValue)
+    ) {
+      parameters.delete(key);
+    } else {
+      parameters.set(key, serializedValue);
+    }
+
+    url[type] = parameters.toString();
+
+    window.history.replaceState(window.history.state, '', url.toString());
+    window.dispatchEvent(new PopStateEvent('popstate'));
+
+    onCommit?.(value);
+    isDirty = false;
   }, debounceTime);
 
   const cancelUrlListener = urlStore.subscribe((_url) => {
@@ -115,53 +150,47 @@ export function connectUrl<T>(
     const parameters = new URLSearchParams(url[type].slice(1));
     const urlValue = parameters.get(key);
 
+    isSettingFromUrl = true;
     store.set(urlValue !== null ? deserialize(urlValue) : defaultValue);
+    isSettingFromUrl = false;
   });
 
   const cancelSubscription = store.subscribe(
     () => {
+      if (isSettingFromUrl) {
+        return;
+      }
+
       isDirty = true;
       commit();
     },
-    { runNow: writeDefaultValue ?? false },
+    { runNow: writeDefaultValue ?? false, passive: true },
   );
+
+  function startPersist(persistOptions: PersistOptions<T>) {
+    const url = new URL(urlStore.get());
+    const parameters = new URLSearchParams(url[type].slice(1));
+    const isUrlSet = parameters.get(key) !== null;
+
+    const p = persist(store, {
+      ...persistOptions,
+      persistInitialState: isUrlSet,
+    });
+    return () => p.stop();
+  }
+
+  let cancelPersistence: Cancel | undefined;
+  if (persistOptions?.onlyWhenActive) {
+    cancelPersistence = store.addEffect(() => startPersist(persistOptions));
+  } else if (persistOptions) {
+    cancelPersistence = startPersist(persistOptions);
+  }
 
   return disposable(() => {
     cancelUrlListener();
     cancelSubscription();
+    cancelPersistence?.();
     commit.flush();
-  });
-}
-
-function defaultDeserializer(value: string): any {
-  if (value === undefined) {
-    return undefined;
-  }
-
-  try {
-    return JSON.parse(value, (_k, v) => {
-      if (typeof v === 'object' && v !== null && '__set' in v) {
-        return new Set(v.__set);
-      }
-      if (typeof v === 'object' && v !== null && '__map' in v) {
-        return new Map(v.__map);
-      }
-      return v;
-    });
-  } catch {
-    return undefined;
-  }
-}
-
-function defaultSerializer(value: any): string {
-  return JSON.stringify(value, (_k, v) => {
-    if (v instanceof Set) {
-      return { __set: Array.from(v) };
-    }
-    if (v instanceof Map) {
-      return { __map: Array.from(v) };
-    }
-    return v;
   });
 }
 
@@ -169,8 +198,31 @@ export function createUrlStore<T>(options: UrlStoreOptionsWithDefaults<T>): Stor
 
 export function createUrlStore<T>(options: UrlStoreOptions<T>): Store<T | undefined>;
 
-export function createUrlStore<T>(options: UrlStoreOptions<T>) {
-  const store = createStore(options.defaultValue, options);
-  connectUrl(store, options);
+export function createUrlStore<T>({
+  key,
+  type,
+  serialize,
+  deserialize,
+  defaultValue,
+  writeDefaultValue,
+  onCommit,
+  debounce,
+  persist,
+  ...options
+}: UrlStoreOptions<T>) {
+  const store = createStore(defaultValue, options);
+
+  connectUrl(store, {
+    key,
+    type,
+    serialize,
+    deserialize,
+    defaultValue,
+    writeDefaultValue,
+    onCommit,
+    debounce,
+    persist,
+  });
+
   return store;
 }

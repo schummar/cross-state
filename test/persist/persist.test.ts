@@ -1,95 +1,23 @@
 // eslint-disable-next-line max-classes-per-file
 import { createStore } from '@core';
 import '@patches/register';
-import { persist, type PersistStorageWithKeys, type PersistStorageWithLength } from '@persist';
+import { persist, type PersistStorageWithLength } from '@persist';
 import { split } from '@persist/persistPathHelpers';
 import seedrandom from 'seedrandom';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { flushPromises, sleep } from '../testHelpers';
+import useMockBroadcastChannel from '../mockBroadcastChannel';
+import MockStorage from '../mockStorage';
+import { flushPromises } from '../testHelpers';
 
 beforeEach(() => {
   vi.useFakeTimers();
-
-  const broadcastChannelInstances: any[] = [];
-
-  vi.stubGlobal(
-    'BroadcastChannel',
-    class {
-      listener: any;
-
-      constructor() {
-        broadcastChannelInstances.push(this);
-      }
-
-      addEventListener(_event: string, listener: any) {
-        this.listener = listener;
-      }
-
-      removeEventListener() {
-        this.listener = undefined;
-      }
-
-      async postMessage(message: any) {
-        for (const channel of broadcastChannelInstances) {
-          if (channel === this) continue;
-          await sleep(1);
-          channel.listener?.({ data: message });
-        }
-      }
-
-      close() {
-        this.listener = undefined;
-      }
-    },
-  );
+  useMockBroadcastChannel();
 });
 
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
-
-class MockStorage implements PersistStorageWithKeys {
-  items = new Map<string, string>();
-
-  constructor(
-    public readonly delay?: { get?: number; set?: number; remove?: number; keys?: number },
-  ) {}
-
-  withDelay<T>(method: 'get' | 'set' | 'remove' | 'keys', action: () => T) {
-    if (this.delay?.[method]) {
-      return sleep(this.delay[method]!).then(action);
-    }
-
-    return action();
-  }
-
-  getItem(key: string) {
-    return this.withDelay('get', () => this.items.get(key) ?? null);
-  }
-
-  setItem(key: string, value: string) {
-    return this.withDelay('set', () => {
-      this.items.set(key, value);
-    });
-  }
-
-  removeItem(key: string) {
-    return this.withDelay('remove', () => {
-      this.items.delete(key);
-    });
-  }
-
-  keys() {
-    return this.withDelay('keys', () => {
-      return [...this.items.keys()];
-    });
-  }
-
-  get itemsWithoutVersion() {
-    return new Map([...this.items].filter(([key]) => !key.startsWith('test:version')));
-  }
-}
 
 describe('persist', () => {
   test('initialize', async () => {

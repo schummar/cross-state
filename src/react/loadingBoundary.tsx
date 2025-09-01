@@ -30,7 +30,7 @@ export function LoadingBoundary({
   fallback,
   children,
   isLoading: isLoadingExternal,
-}: LoadingBoundaryProps): JSX.Element {
+}: LoadingBoundaryProps): React.JSX.Element {
   const store = useMemo(() => createStore(new Set<LoadingBoundaryEntry>()), []);
   const entries = useStore(store);
   const isLoading = entries.size > 0 || isLoadingExternal;

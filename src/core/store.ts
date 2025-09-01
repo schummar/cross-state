@@ -442,8 +442,10 @@ export class Store<T> {
     const n = {};
     this.notifyId = n;
 
-    const snapshot = [...this.listeners.keys()];
-    for (const listener of snapshot) {
+    const snapshot = [...this.listeners.entries()];
+    const active = snapshot.filter(([, active]) => active);
+    const passive = snapshot.filter(([, active]) => !active);
+    for (const [listener] of [...active, ...passive]) {
       listener();
       if (n !== this.notifyId) break;
     }

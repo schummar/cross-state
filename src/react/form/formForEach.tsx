@@ -26,7 +26,7 @@ export interface FormForEachProps<TDraft, TPath extends string> {
 export function FormForEach<TDraft, TPath extends string>(
   this: Form<TDraft, any>,
   { name, renderElement, children }: FormForEachProps<TDraft, TPath>,
-): JSX.Element {
+): React.JSX.Element {
   const form = this.useForm();
 
   const names = this.useFormState(() => {
