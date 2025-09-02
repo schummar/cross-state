@@ -1,7 +1,6 @@
 import { autobind } from '@lib/autobind';
 import { calcDuration } from '@lib/calcDuration';
 import { calculatedValue, staticValue, type CalculatedValue } from '@lib/calculatedValue';
-import { Callable } from '@lib/callable';
 import type { Constrain } from '@lib/constrain';
 import { debounce } from '@lib/debounce';
 import disposable from '@lib/disposable';
