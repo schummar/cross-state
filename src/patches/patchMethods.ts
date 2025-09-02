@@ -123,7 +123,11 @@ export function sync<T>(
     debounce.waitOnRunNow ??= false;
   }
 
-  return this.subscribePatches(
+  return subscribePatches.apply<
+    Store<T>,
+    Parameters<typeof subscribePatches<T>>,
+    ReturnType<typeof subscribePatches<T>>
+  >(this, [
     (patches, _, version, previousVersion) => {
       const trie = new Trie();
 
@@ -146,7 +150,7 @@ export function sync<T>(
       });
     },
     { ...options, debounce, runNow: true },
-  );
+  ]);
 }
 
 export function acceptSync<T>(this: Store<T>, message: SyncMessage): void {
@@ -159,7 +163,7 @@ export function acceptSync<T>(this: Store<T>, message: SyncMessage): void {
   const patches = fromExtendedJson(message.patches) as Patch[];
 
   this.version = message.toVersion;
-  this.applyPatches(...patches);
+  applyPatches.apply<Store<T>, Patch[], void>(this, patches);
 }
 
 export const patchMethods: {

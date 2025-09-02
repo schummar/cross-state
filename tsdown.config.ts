@@ -11,6 +11,7 @@ export default defineConfig({
     'patches/register': 'src/patches/register.ts',
     'persist/register': 'src/persist/register.ts',
   },
+  platform: 'neutral',
   sourcemap: true,
   minify: false,
   target: 'esnext',
