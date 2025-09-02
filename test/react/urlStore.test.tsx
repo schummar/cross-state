@@ -145,7 +145,7 @@ describe('url store', () => {
 
     test('persists url changes while active', async () => {
       vi.useFakeTimers();
-      const { result } = renderHook(
+      renderHook(
         () =>
           useUrlParam({
             key: 'foo',
@@ -169,7 +169,7 @@ describe('url store', () => {
 
     test(`don't persists url changes while inactive`, async () => {
       vi.useFakeTimers();
-      const { result, unmount } = renderHook(
+      const { unmount } = renderHook(
         () =>
           useUrlParam({
             key: 'foo',
@@ -181,7 +181,6 @@ describe('url store', () => {
         { wrapper },
       );
 
-      await act(() => vi.runAllTimersAsync());
       await act(() => vi.runAllTimersAsync());
       expect(getHash()).toEqual('#foo=%7B%22bar%22%3A%22default%22%7D');
       expect(localStorage.getItem(persistKey)).toBe('{"bar":"default"}');

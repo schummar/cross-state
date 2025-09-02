@@ -174,12 +174,6 @@
       "limit": "100 B"
     },
     {
-      "name": "core: urlStore",
-      "path": "dist/index.js",
-      "import": "{createUrlStore}",
-      "limit": "7 KB"
-    },
-    {
       "name": "react",
       "path": "dist/react/index.js",
       "limit": "12 KB"
@@ -195,6 +189,12 @@
       "path": "dist/react/index.js",
       "import": "{useCache}",
       "limit": "6 KB"
+    },
+    {
+      "name": "react: useUrlParam",
+      "path": "dist/react/index.js",
+      "import": "{useUrlParam}",
+      "limit": "1.2 KB"
     },
     {
       "name": "/mutative",
