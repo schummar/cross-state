@@ -36,4 +36,3 @@ export {
   type StoreOptions,
   type StoreOptionsWithMethods,
 } from './store';
-

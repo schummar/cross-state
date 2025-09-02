@@ -1,7 +1,6 @@
-import { connectUrl, createStore, type Store, type Update, type UrlStoreOptions } from '@core';
+import { createStore, type Store, type Update } from '@core';
 import { autobind } from '@lib/autobind';
 import { deepEqual } from '@lib/equals';
-import { simpleHash } from '@lib/hash';
 import { isObject } from '@lib/helpers';
 import {
   type Path,
@@ -51,7 +50,6 @@ export interface FormOptions<TDraft, TOriginal> {
   defaultValue: TDraft;
   validations?: Validations<TDraft, TOriginal>;
   localizeError?: (error: string, field: string) => string | undefined;
-  urlState?: boolean | UrlStoreOptions<TDraft>;
   autoSave?: FormAutosaveOptions<TDraft, TOriginal>;
   transform?: Transform<TDraft>[];
   validatedClass?: string;
@@ -428,7 +426,6 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     defaultValue,
     validations,
     localizeError,
-    urlState,
     autoSave,
     transform,
     validatedClass,
@@ -528,17 +525,6 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     };
 
     context.getField = (path) => lazy(path, () => getField(context, path));
-
-    useEffect(() => {
-      if (urlState) {
-        return connectUrl(
-          formState.map('draft'),
-          typeof urlState === 'object' ? urlState : { key: 'form' },
-        );
-      }
-
-      return undefined;
-    }, [formState, simpleHash(urlState)]);
 
     // useEffect(() => {
     //   const handles = options.transform?.map(({ trigger, update }) => {

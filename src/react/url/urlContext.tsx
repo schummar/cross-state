@@ -1,32 +1,27 @@
 import React, { createContext, useContext, type Context, type ReactNode } from 'react';
 
+export type Location = string | { pathname: string; search: string; hash: string };
+
 export interface UrlContextType {
-  href: string;
-  navigate: (to: string) => void;
+  location: Location;
+  navigate: (navigate: (from: Location) => string) => void;
 }
 
 export type UrlContextProviderProps = { children?: ReactNode } & (
-  | { href: string }
-  | { hrefHook: () => string }
+  | { location: UrlContextType['location'] }
+  | { locationHook: () => UrlContextType['location'] }
 ) &
-  ({ navigate: (to: string) => void } | { navigateHook: () => (to: string) => void });
+  ({ navigate: UrlContextType['navigate'] } | { navigateHook: () => UrlContextType['navigate'] });
 
 export const UrlContext: Context<UrlContextType | undefined> = createContext<
   UrlContextType | undefined
 >(undefined);
 
-export function UrlProvider({
-  children,
-  ...props
-}: UrlContextProviderProps): React.JSX.Element {
-  let href = 'href' in props ? props.href : props.hrefHook();
+export function UrlProvider({ children, ...props }: UrlContextProviderProps): React.JSX.Element {
+  const location = 'location' in props ? props.location : props.locationHook();
   const navigate = 'navigate' in props ? props.navigate : props.navigateHook();
 
-  if (!href.startsWith(window.location.origin)) {
-    href = new URL(href, window.location.origin).href;
-  }
-
-  return <UrlContext.Provider value={{ href, navigate }}>{children}</UrlContext.Provider>;
+  return <UrlContext.Provider value={{ location, navigate }}>{children}</UrlContext.Provider>;
 }
 
 export function useUrlContext(): UrlContextType {

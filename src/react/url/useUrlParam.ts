@@ -1,11 +1,17 @@
 import type { UpdateFunction } from '@core';
 import { debounce } from '@lib/debounce';
-import { useUrlContext } from '@react/url/urlContext';
+import { useUrlContext, type Location } from '@react/url/urlContext';
+import type { UrlOptions, UrlOptionsWithoutDefaults } from '@react/url/urlOptions';
 import { defaultDeserializer, defaultSerializer } from '@react/url/urlSerializers';
-import type { UrlStore } from '@react/url/urlStore';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-export function useUrlParam<T>(store: UrlStore<T>): [T, update: UpdateFunction<T>] {
+export function useUrlParam<T>(options: UrlOptions<T>): [T, update: UpdateFunction<T>];
+export function useUrlParam<T>(
+  options: UrlOptionsWithoutDefaults<T>,
+): [T | undefined, update: UpdateFunction<T | undefined>];
+export function useUrlParam<T>(
+  options: UrlOptionsWithoutDefaults<T>,
+): [T, update: UpdateFunction<T>] {
   const {
     key,
     type = 'hash',
@@ -16,75 +22,99 @@ export function useUrlParam<T>(store: UrlStore<T>): [T, update: UpdateFunction<T
     onCommit,
     debounce: debounceTime = 500,
     persist,
-  } = store.urlOptions;
+  } = options as UrlOptions<T>;
 
-  const { href, navigate } = useUrlContext();
-  const [localValue, setLocalValue] = useState<{ v: T } | undefined>(() => {
-    const storageValue = storageKey ? localStorage.getItem(storageKey) : null;
-    return storageValue === null ? undefined : { v: deserialize(storageValue) };
-  });
-  const value = useMemo(() => getCurrentValue(localValue), [href, localValue]);
+  const { location, navigate } = useUrlContext();
+  const url = parseLocation(location);
+  const params = new URLSearchParams(url[type].slice(1));
+  const urlValue = params.get(key);
+
   const storageKey = persist && `cross-state:url:${persist.id}:${key}`;
+  const storageValue = storageKey ? localStorage.getItem(storageKey) : null;
 
-  const currentData = useRef({ href, value });
-  useEffect(() => {
-    currentData.current = { href, value };
+  const [localValue, setLocalValue] = useState(() => {
+    if (urlValue !== null) {
+      return undefined;
+    }
+    if (storageValue !== null) {
+      return { v: deserialize(storageValue) };
+    }
+    if (writeDefaultValue) {
+      return { v: defaultValue };
+    }
+    return undefined;
   });
 
-  function getUrlValue() {
-    const url = new URL(href);
-    const params = new URLSearchParams(url[type].slice(1));
-    return params.get(key);
-  }
+  const value = useMemo(() => getCurrentValue(localValue), [urlValue, localValue]);
 
   function getCurrentValue(localValue: { v: T } | undefined) {
     if (localValue) {
       return localValue.v;
     }
 
-    const urlValue = getUrlValue();
     return urlValue === null ? defaultValue : deserialize(urlValue);
   }
 
-  const commit = useMemo(
+  const commitUrl = useMemo(
     () =>
-      debounce(() => {
-        const { href, value } = currentData.current;
+      debounce((value: T) => {
         setLocalValue(undefined);
-        const url = new URL(href);
-        const params = new URLSearchParams(url[type].slice(1));
         const serializedValue = serialize(value);
 
-        if (!writeDefaultValue && serializedValue === serialize(defaultValue)) {
-          params.delete(key);
-        } else {
-          params.set(key, serializedValue);
-        }
+        navigate((location) => {
+          const url = parseLocation(location);
+          const params = new URLSearchParams(url[type].slice(1));
 
-        url[type] = params.toString();
-        console.trace('navigate', url.toString());
-        navigate(url.toString());
+          if (!writeDefaultValue && serializedValue === serialize(defaultValue)) {
+            params.delete(key);
+          } else {
+            params.set(key, serializedValue);
+          }
 
-        if (storageKey) {
-          localStorage.setItem(storageKey, serializedValue);
-        }
+          url[type] = params.toString();
+          return url.toString().replace(window.location.origin, '');
+        });
 
         onCommit?.(value);
       }, debounceTime),
     [debounceTime],
   );
 
+  const commitStorage = useMemo(
+    () =>
+      debounce((value: T) => {
+        if (!storageKey) {
+          return;
+        }
+
+        const serializedValue = serialize(value);
+        localStorage.setItem(storageKey, serializedValue);
+      }, debounceTime),
+    [debounceTime],
+  );
+
   const update: UpdateFunction<T> = (update) => {
+    let newValue: T;
+
     if (update instanceof Function) {
-      setLocalValue((localValue) => ({
-        v: update(getCurrentValue(localValue)),
-      }));
+      setLocalValue((localValue) => {
+        newValue = update(getCurrentValue(localValue));
+        return { v: newValue };
+      });
     } else {
-      setLocalValue({ v: update });
+      newValue = update;
+      setLocalValue({ v: newValue });
     }
 
-    commit();
+    commitUrl(newValue!);
+    commitStorage(newValue!);
   };
+
+  useEffect(() => {
+    if (urlValue !== null && !localValue) {
+      commitStorage(deserialize(urlValue));
+    }
+  }, [urlValue, localValue]);
 
   useEffect(() => {
     if (localValue) {
@@ -92,127 +122,18 @@ export function useUrlParam<T>(store: UrlStore<T>): [T, update: UpdateFunction<T
     }
 
     return () => {
-      commit.flush();
+      commitUrl.cancel();
+      commitStorage.flush();
     };
   }, []);
-
-  console.log('ret', value);
 
   return [value, update];
 }
 
-// export function connectUrl<T>(
-//   store: Store<T>,
-//   options: UrlStoreOptionsWithDefaults<T>,
-// ): DisposableCancel;
+function parseLocation(location: Location) {
+  if (typeof location !== 'string') {
+    location = `${location.pathname}${location.search}${location.hash}`;
+  }
 
-// export function connectUrl<T>(
-//   store: Store<T | undefined>,
-//   options: UrlStoreOptions<T>,
-// ): DisposableCancel;
-
-// export function connectUrl<T>(
-//   store: Store<T>,
-//   {
-//     key,
-//     type = 'search',
-//     serialize = defaultSerializer,
-//     deserialize = defaultDeserializer,
-//     defaultValue = undefined as T,
-//     writeDefaultValue,
-//     onCommit,
-//     debounce: debounceTime = 500,
-//     persist: persistOptions,
-//   }: UrlStoreOptions<T>,
-// ): DisposableCancel {
-//   const serializedDefaultValue = defaultValue !== undefined ? serialize(defaultValue) : undefined;
-//   let isDirty = false;
-//   let isSettingFromUrl = false;
-
-//   const commit = debounce(() => {
-//     if (!isDirty) {
-//       return;
-//     }
-
-//     const value = store.get();
-//     const url = new URL(urlStore.get());
-//     const parameters = new URLSearchParams(url[type].slice(1));
-//     const serializedValue = value !== undefined ? serialize(value) : undefined;
-
-//     if (
-//       serializedValue === undefined ||
-//       (!writeDefaultValue && serializedValue === serializedDefaultValue)
-//     ) {
-//       parameters.delete(key);
-//     } else {
-//       parameters.set(key, serializedValue);
-//     }
-
-//     url[type] = parameters.toString();
-
-//     window.history.replaceState(window.history.state, '', url.toString());
-//     window.dispatchEvent(new PopStateEvent('popstate'));
-
-//     onCommit?.(value);
-//     isDirty = false;
-//   }, debounceTime);
-
-//   const cancelUrlListener = urlStore.subscribe((_url) => {
-//     if (isDirty) {
-//       return;
-//     }
-
-//     console.log('url', _url);
-
-//     const url = new URL(_url);
-//     const parameters = new URLSearchParams(url[type].slice(1));
-//     const urlValue = parameters.get(key);
-
-//     isSettingFromUrl = true;
-//     store.set(urlValue !== null ? deserialize(urlValue) : defaultValue);
-//     isSettingFromUrl = false;
-//   });
-
-//   const cancelSubscription = store.subscribe(
-//     () => {
-//       if (isSettingFromUrl) {
-//         return;
-//       }
-
-//       isDirty = true;
-//       commit();
-//     },
-//     { runNow: writeDefaultValue ?? false, passive: true },
-//   );
-
-//   function startPersist(persistOptions: PersistOptions<T>) {
-//     const url = new URL(urlStore.get());
-//     const parameters = new URLSearchParams(url[type].slice(1));
-//     const isUrlSet = parameters.get(key) !== null;
-
-//     const p = persist(store, {
-//       ...persistOptions,
-//       persistInitialState: isUrlSet,
-//     });
-
-//     console.log('start');
-//     return () => {
-//       console.log('stop');
-//       p.stop();
-//     };
-//   }
-
-//   let cancelPersistence: Cancel | undefined;
-//   if (persistOptions?.onlyWhenActive) {
-//     cancelPersistence = store.addEffect(() => startPersist(persistOptions));
-//   } else if (persistOptions) {
-//     cancelPersistence = startPersist(persistOptions);
-//   }
-
-//   return disposable(() => {
-//     cancelUrlListener();
-//     cancelSubscription();
-//     cancelPersistence?.();
-//     commit.flush();
-//   });
-// }
+  return new URL(location, window.location.origin);
+}

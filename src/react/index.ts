@@ -17,11 +17,10 @@ export {
   type UrlContextType,
 } from './url/urlContext';
 export {
-  createUrlStore,
-  type UrlStore,
-  type UrlStoreOptions,
-  type UrlStoreOptionsWithoutDefaults,
-} from './url/urlStore';
+  createUrlOptions,
+  type UrlOptions,
+  type UrlOptionsWithoutDefaults,
+} from './url/urlOptions';
 export { useUrlParam } from './url/useUrlParam';
 export { useCache, type UseCacheArray, type UseCacheValue } from './useCache';
 export { useDecoupledState, type UseDecoupledStateOptions } from './useDecoupledState';
