@@ -67,7 +67,7 @@ function noop() {
   return undefined;
 }
 
-export class Store<T> extends Callable<any, any> {
+export class Store<T> {
   private static hooks?: Set<(this: Store<any>, store: Store<any>) => void>;
 
   static addHook(hook: (store: Store<any>) => void): DisposableCancel {
@@ -98,9 +98,7 @@ export class Store<T> extends Callable<any, any> {
       selectors: (Selector<any, any> | AnyPath)[];
       updater: (state: any) => void;
     },
-    protected readonly _call: (...args: any[]) => any = () => undefined,
   ) {
-    super(_call);
     autobind(Store);
 
     if (typeof getter !== 'function') {

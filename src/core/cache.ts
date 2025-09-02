@@ -112,9 +112,8 @@ export class Cache<T, Args extends any[] = unknown[]> extends Store<Promise<T>> 
       cache: Cache<any, any>;
       selectors: (Selector<any, any> | AnyPath)[];
     },
-    _call?: (...args: any[]) => any,
   ) {
-    super(getter, options, undefined, _call);
+    super(getter, options, undefined);
     autobind(Cache);
 
     this.watchPromise();
@@ -319,7 +318,6 @@ export class Cache<T, Args extends any[] = unknown[]> extends Store<Promise<T>> 
 function mapValue<T, S, Args extends any[]>(
   cache: Cache<T, Args>,
   _selector: Selector<T, S> | AnyPath,
-  get?: any,
 ): Cache<S, Args> {
   const selector = makeSelector(_selector);
   const derivedFromCache = {
@@ -339,7 +337,6 @@ function mapValue<T, S, Args extends any[]>(
       equals: cache.options.equals,
     },
     derivedFromCache,
-    get,
   );
 }
 
@@ -382,7 +379,7 @@ function internalCreate<T, Args extends any[] = []>(
     (...args: Args): Cache<T, Args> => {
       if (Array.isArray(source)) {
         const [cache, selector] = source;
-        return mapValue(cache(...args), selector, get);
+        return mapValue(cache(...args), selector);
       }
 
       return new Cache(
@@ -398,7 +395,6 @@ function internalCreate<T, Args extends any[] = []>(
         args,
         options,
         undefined,
-        args.length === 0 ? get : undefined,
       );
     },
     clearUnusedAfter ? calcDuration(clearUnusedAfter) : undefined,
