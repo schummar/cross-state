@@ -3,7 +3,7 @@ import { debounce } from '@lib/debounce';
 import { useUrlContext } from '@react/url/urlContext';
 import { defaultDeserializer, defaultSerializer } from '@react/url/urlSerializers';
 import type { UrlStore } from '@react/url/urlStore';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 export function useUrlParam<T>(store: UrlStore<T>): [T, update: UpdateFunction<T>] {
   const {
@@ -19,9 +19,17 @@ export function useUrlParam<T>(store: UrlStore<T>): [T, update: UpdateFunction<T
   } = store.urlOptions;
 
   const { href, navigate } = useUrlContext();
-  const [localValue, setLocalValue] = useState<{ v: T } | undefined>(undefined);
+  const [localValue, setLocalValue] = useState<{ v: T } | undefined>(() => {
+    const storageValue = storageKey ? localStorage.getItem(storageKey) : null;
+    return storageValue === null ? undefined : { v: deserialize(storageValue) };
+  });
   const value = useMemo(() => getCurrentValue(localValue), [href, localValue]);
   const storageKey = persist && `cross-state:url:${persist.id}:${key}`;
+
+  const currentData = useRef({ href, value });
+  useEffect(() => {
+    currentData.current = { href, value };
+  });
 
   function getUrlValue() {
     const url = new URL(href);
@@ -40,7 +48,8 @@ export function useUrlParam<T>(store: UrlStore<T>): [T, update: UpdateFunction<T
 
   const commit = useMemo(
     () =>
-      debounce((href: string) => {
+      debounce(() => {
+        const { href, value } = currentData.current;
         setLocalValue(undefined);
         const url = new URL(href);
         const params = new URLSearchParams(url[type].slice(1));
@@ -53,6 +62,7 @@ export function useUrlParam<T>(store: UrlStore<T>): [T, update: UpdateFunction<T
         }
 
         url[type] = params.toString();
+        console.trace('navigate', url.toString());
         navigate(url.toString());
 
         if (storageKey) {
@@ -72,23 +82,21 @@ export function useUrlParam<T>(store: UrlStore<T>): [T, update: UpdateFunction<T
     } else {
       setLocalValue({ v: update });
     }
+
+    commit();
   };
 
   useEffect(() => {
-    if (storageKey) {
-      const urlValue = getUrlValue();
-      if (urlValue === null) {
-        const storageValue = localStorage.getItem(storageKey);
-        if (storageValue !== null) {
-          update(deserialize(storageValue));
-        }
-      }
+    if (localValue) {
+      update(localValue.v);
     }
 
     return () => {
       commit.flush();
     };
   }, []);
+
+  console.log('ret', value);
 
   return [value, update];
 }
