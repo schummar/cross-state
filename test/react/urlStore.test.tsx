@@ -1,13 +1,28 @@
 import { createStore } from '@core';
 import { UrlProvider, useStore, useUrlParam } from '@react';
+import { createStorageKey } from '@react/url/useUrlParam';
 import { renderHook } from '@testing-library/react';
 import { act, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-const urlStore = createStore('/');
+const _urlStore = createStore('/');
+
+function getHash() {
+  return _urlStore.get().slice(1);
+}
+
+function setUrlParams(params: Record<string, unknown>) {
+  const urlParams = new URLSearchParams(
+    Object.entries(params).map(([key, value]) => [key, JSON.stringify(value)]),
+  ).toString();
+
+  act(() => {
+    _urlStore.set(`/#${urlParams}`);
+  });
+}
 
 beforeEach(() => {
-  urlStore.set('/');
+  _urlStore.set('/');
   vi.useFakeTimers();
 });
 
@@ -17,10 +32,10 @@ afterEach(() => {
 
 const wrapper = ({ children }: { children: ReactNode }) => (
   <UrlProvider
-    locationHook={() => useStore(urlStore)}
+    locationHook={() => useStore(_urlStore)}
     navigate={(nav) => {
-      const newUrl = nav(encodeURI(urlStore.get()));
-      urlStore.set(decodeURI(newUrl));
+      const newUrl = nav(_urlStore.get());
+      _urlStore.set(newUrl);
     }}
   >
     {children}
@@ -33,17 +48,17 @@ describe('url store', () => {
       wrapper,
     });
 
-    act(() => urlStore.set('/#foo="bar"'));
+    setUrlParams({ foo: 'bar' });
     expect(result.current[0]).toBe('bar');
 
-    result.current[1]('baz');
-    expect(urlStore.get()).toEqual('/#foo="bar"');
+    act(() => result.current[1]('baz'));
+    expect(getHash()).toEqual('#foo=%22bar%22');
 
-    await vi.advanceTimersByTimeAsync(500);
-    expect(urlStore.get()).toEqual('/#foo="baz"');
+    await act(() => vi.runAllTimersAsync());
+    expect(getHash()).toEqual('#foo=%22baz%22');
   });
 
-  test('createUrlStore without defaultValue', async () => {
+  test('createUrlStore with defaultValue', async () => {
     const { result } = renderHook(
       () =>
         useUrlParam({
@@ -59,196 +74,168 @@ describe('url store', () => {
     act(() => result.current[1]({ bar: 'baz' }));
     expect(result.current[0]).toEqual({ bar: 'baz' });
 
-    await vi.advanceTimersByTimeAsync(500);
-    expect(urlStore.get()).toBe('/#foo={"bar"%3A"baz"}');
+    await act(() => vi.runAllTimersAsync());
+    expect(getHash()).toBe('#foo=%7B%22bar%22%3A%22baz%22%7D');
+
+    act(() => result.current[1]({ bar: 'default' }));
+    await act(() => vi.runAllTimersAsync());
+    expect(getHash()).toBe('');
   });
 
-  // test('createUrlStore with defaultValue', async () => {
-  //   vi.useFakeTimers();
+  test('writeDefaultValue=true', async () => {
+    const { result } = renderHook(
+      () =>
+        useUrlParam({
+          key: 'foo',
+          type: 'hash',
+          defaultValue: { bar: 'default' },
+          writeDefaultValue: true,
+        }),
+      { wrapper },
+    );
 
-  //   const state = createUrlStore<{ bar: string }>({
-  //     key: 'foo',
-  //     type: 'hash',
-  //     defaultValue: { bar: 'default' },
-  //   });
+    expect(result.current[0]).toEqual({ bar: 'default' });
+    await act(() => vi.runAllTimersAsync());
+    expect(getHash()).toEqual('#foo=%7B%22bar%22%3A%22default%22%7D');
 
-  //   expect(state.get()).toEqual({ bar: 'default' });
+    act(() => result.current[1]({ bar: 'baz' }));
+    await act(() => vi.runAllTimersAsync());
+    expect(getHash()).toEqual('#foo=%7B%22bar%22%3A%22baz%22%7D');
 
-  //   state.set({ bar: 'baz' });
-  //   expect(window.location.hash).toEqual('');
+    act(() => result.current[1]({ bar: 'default' }));
+    await act(() => vi.runAllTimersAsync());
+    expect(getHash()).toEqual('#foo=%7B%22bar%22%3A%22default%22%7D');
+  });
 
-  //   await vi.advanceTimersByTimeAsync(500);
-  //   expect(window.location.hash).toEqual('#foo=%7B%22bar%22%3A%22baz%22%7D');
+  describe('url store persistence', () => {
+    const persistKey = createStorageKey('test', 'foo');
 
-  //   state.set({ bar: 'default' });
-  //   await vi.advanceTimersByTimeAsync(500);
-  //   expect(window.location.hash).toEqual('');
-  // });
+    beforeEach(() => {
+      localStorage.clear();
+    });
 
-  // test('writeDefaultValue=true', async () => {
-  //   vi.useFakeTimers();
+    test('persists store changes', async () => {
+      vi.useFakeTimers();
+      const { result } = renderHook(
+        () =>
+          useUrlParam({
+            key: 'foo',
+            type: 'hash',
+            defaultValue: { bar: 'default' },
+            writeDefaultValue: true,
+            persist: { id: 'test' },
+          }),
+        { wrapper },
+      );
 
-  //   const state = createUrlStore<{ bar: string }>({
-  //     key: 'foo',
-  //     type: 'hash',
-  //     defaultValue: { bar: 'default' },
-  //     writeDefaultValue: true,
-  //   });
+      await act(() => vi.runAllTimersAsync());
+      expect(getHash()).toEqual('#foo=%7B%22bar%22%3A%22default%22%7D');
+      expect(localStorage.getItem(persistKey)).toBe('{"bar":"default"}');
 
-  //   expect(state.get()).toEqual({ bar: 'default' });
-  //   await vi.advanceTimersByTimeAsync(500);
-  //   expect(window.location.hash).toEqual('#foo=%7B%22bar%22%3A%22default%22%7D');
+      act(() => result.current[1]({ bar: 'baz' }));
+      await act(() => vi.runAllTimersAsync());
+      expect(getHash()).toEqual('#foo=%7B%22bar%22%3A%22baz%22%7D');
+      expect(localStorage.getItem(persistKey)).toBe('{"bar":"baz"}');
 
-  //   state.set({ bar: 'baz' });
-  //   await vi.advanceTimersByTimeAsync(500);
-  //   expect(window.location.hash).toEqual('#foo=%7B%22bar%22%3A%22baz%22%7D');
+      act(() => result.current[1]({ bar: 'default' }));
+      await act(() => vi.runAllTimersAsync());
+      expect(getHash()).toEqual('#foo=%7B%22bar%22%3A%22default%22%7D');
+      expect(localStorage.getItem(persistKey)).toBe('{"bar":"default"}');
+    });
 
-  //   state.set({ bar: 'default' });
-  //   await vi.advanceTimersByTimeAsync(500);
-  //   expect(window.location.hash).toEqual('#foo=%7B%22bar%22%3A%22default%22%7D');
-  // });
+    test('persists url changes while active', async () => {
+      vi.useFakeTimers();
+      const { result } = renderHook(
+        () =>
+          useUrlParam({
+            key: 'foo',
+            type: 'hash',
+            defaultValue: { bar: 'default' },
+            writeDefaultValue: true,
+            persist: { id: 'test' },
+          }),
+        { wrapper },
+      );
 
-  // describe('url store persistence', () => {
-  //   test('persists store changes', async () => {
-  //     vi.useFakeTimers();
-  //     const storage = new MockStorage();
+      await act(() => vi.runAllTimersAsync());
+      expect(getHash()).toEqual('#foo=%7B%22bar%22%3A%22default%22%7D');
+      expect(localStorage.getItem(persistKey)).toBe('{"bar":"default"}');
 
-  //     const state = createUrlStore<{ bar: string }>({
-  //       key: 'foo',
-  //       type: 'hash',
-  //       defaultValue: { bar: 'default' },
-  //       writeDefaultValue: true,
-  //       persist: {
-  //         id: 'test',
-  //         storage,
-  //         onlyWhenActive: true,
-  //       },
-  //     });
+      setUrlParams({ foo: { bar: 'baz' } });
+      await act(() => vi.runAllTimersAsync());
+      expect(getHash()).toEqual('#foo=%7B%22bar%22%3A%22baz%22%7D');
+      expect(localStorage.getItem(persistKey)).toBe('{"bar":"baz"}');
+    });
 
-  //     using _s = state.subscribe(() => undefined);
+    test(`don't persists url changes while inactive`, async () => {
+      vi.useFakeTimers();
+      const { result, unmount } = renderHook(
+        () =>
+          useUrlParam({
+            key: 'foo',
+            type: 'hash',
+            defaultValue: { bar: 'default' },
+            writeDefaultValue: true,
+            persist: { id: 'test' },
+          }),
+        { wrapper },
+      );
 
-  //     await vi.advanceTimersByTimeAsync(500);
-  //     expect(window.location.hash).toEqual('#foo=%7B%22bar%22%3A%22default%22%7D');
-  //     expect(storage.itemsWithoutVersion).toEqual(new Map());
+      await act(() => vi.runAllTimersAsync());
+      await act(() => vi.runAllTimersAsync());
+      expect(getHash()).toEqual('#foo=%7B%22bar%22%3A%22default%22%7D');
+      expect(localStorage.getItem(persistKey)).toBe('{"bar":"default"}');
 
-  //     state.set({ bar: 'baz' });
-  //     await vi.advanceTimersByTimeAsync(500);
-  //     expect(window.location.hash).toEqual('#foo=%7B%22bar%22%3A%22baz%22%7D');
-  //     expect(storage.itemsWithoutVersion).toEqual(new Map([['test:["bar"]', '"baz"']]));
+      unmount();
+      setUrlParams({ foo: { bar: 'baz' } });
+      await act(() => vi.runAllTimersAsync());
+      expect(getHash()).toEqual('#foo=%7B%22bar%22%3A%22baz%22%7D');
+      expect(localStorage.getItem(persistKey)).toBe('{"bar":"default"}');
+    });
 
-  //     state.set({ bar: 'default' });
-  //     await vi.advanceTimersByTimeAsync(500);
-  //     expect(window.location.hash).toEqual('#foo=%7B%22bar%22%3A%22default%22%7D');
-  //     expect(storage.itemsWithoutVersion).toEqual(new Map([['test:["bar"]', '"default"']]));
-  //   });
+    test('restores persisted value', async () => {
+      vi.useFakeTimers();
+      localStorage.setItem(persistKey, '{"bar":"baz"}');
 
-  //   test('persists url changes while active', async () => {
-  //     vi.useFakeTimers();
-  //     const storage = new MockStorage();
+      const { result } = renderHook(
+        () =>
+          useUrlParam({
+            key: 'foo',
+            type: 'hash',
+            defaultValue: { bar: 'default' },
+            writeDefaultValue: true,
+            persist: { id: 'test' },
+          }),
+        { wrapper },
+      );
 
-  //     const state = createUrlStore<{ bar: string }>({
-  //       key: 'foo',
-  //       type: 'hash',
-  //       defaultValue: { bar: 'default' },
-  //       writeDefaultValue: true,
-  //       persist: {
-  //         id: 'test',
-  //         storage,
-  //         onlyWhenActive: true,
-  //       },
-  //     });
+      await act(() => vi.runAllTimersAsync());
+      expect(result.current[0]).toEqual({ bar: 'baz' });
+      expect(getHash()).toEqual('#foo=%7B%22bar%22%3A%22baz%22%7D');
+      expect(localStorage.getItem(persistKey)).toBe('{"bar":"baz"}');
+    });
 
-  //     using _s = state.subscribe(() => undefined);
+    test(`doesn't restore persisted value if url is set`, async () => {
+      vi.useFakeTimers();
+      localStorage.setItem(persistKey, '{"bar":"baz"}');
+      setUrlParams({ foo: { bar: 'hello' } });
 
-  //     await vi.advanceTimersByTimeAsync(500);
-  //     expect(window.location.hash).toEqual('#foo=%7B%22bar%22%3A%22default%22%7D');
-  //     expect(storage.itemsWithoutVersion).toEqual(new Map());
+      const { result } = renderHook(
+        () =>
+          useUrlParam({
+            key: 'foo',
+            type: 'hash',
+            defaultValue: { bar: 'default' },
+            writeDefaultValue: true,
+            persist: { id: 'test' },
+          }),
+        { wrapper },
+      );
 
-  //     window.location.hash = '#foo=%7B%22bar%22%3A%22baz%22%7D';
-  //     window.dispatchEvent(new Event('popstate'));
-  //     await vi.advanceTimersByTimeAsync(500);
-  //     expect(window.location.hash).toEqual('#foo=%7B%22bar%22%3A%22baz%22%7D');
-  //     expect(storage.itemsWithoutVersion).toEqual(new Map([['test:["bar"]', '"baz"']]));
-  //   });
-
-  //   test(`don't persists url changes while inactive`, async () => {
-  //     vi.useFakeTimers();
-  //     const storage = new MockStorage();
-
-  //     const _state = createUrlStore<{ bar: string }>({
-  //       key: 'foo',
-  //       type: 'hash',
-  //       defaultValue: { bar: 'default' },
-  //       writeDefaultValue: true,
-  //       persist: {
-  //         id: 'test',
-  //         storage,
-  //         onlyWhenActive: true,
-  //       },
-  //     });
-
-  //     await vi.advanceTimersByTimeAsync(500);
-  //     expect(window.location.hash).toEqual('#foo=%7B%22bar%22%3A%22default%22%7D');
-  //     expect(storage.itemsWithoutVersion).toEqual(new Map());
-
-  //     window.location.hash = '#foo=%7B%22bar%22%3A%22baz%22%7D';
-  //     window.dispatchEvent(new Event('popstate'));
-  //     await vi.advanceTimersByTimeAsync(500);
-  //     expect(window.location.hash).toEqual('#foo=%7B%22bar%22%3A%22baz%22%7D');
-  //     expect(storage.itemsWithoutVersion).toEqual(new Map());
-  //   });
-
-  //   test('restores persisted value', async () => {
-  //     vi.useFakeTimers();
-  //     const storage = new MockStorage();
-  //     storage.setItem('test:["bar"]', '"baz"');
-
-  //     const state = createUrlStore<{ bar: string }>({
-  //       key: 'foo',
-  //       type: 'hash',
-  //       defaultValue: { bar: 'default' },
-  //       writeDefaultValue: true,
-  //       persist: {
-  //         id: 'test',
-  //         storage,
-  //         onlyWhenActive: true,
-  //       },
-  //     });
-
-  //     using _s = state.subscribe(() => undefined);
-
-  //     await vi.advanceTimersByTimeAsync(500);
-  //     expect(state.get()).toEqual({ bar: 'baz' });
-  //     expect(window.location.hash).toEqual('#foo=%7B%22bar%22%3A%22baz%22%7D');
-  //     expect(storage.itemsWithoutVersion).toEqual(new Map([['test:["bar"]', '"baz"']]));
-  //   });
-
-  //   test(`doesn't restore persisted value if url is set`, async () => {
-  //     vi.useFakeTimers();
-  //     const storage = new MockStorage();
-  //     storage.setItem('test:["bar"]', '"baz"');
-
-  //     window.location.href = 'http://localhost/#foo=%7B%22bar%22%3A%22hello%22%7D';
-  //     window.dispatchEvent(new Event('popstate'));
-
-  //     const state = createUrlStore<{ bar: string }>({
-  //       key: 'foo',
-  //       type: 'hash',
-  //       defaultValue: { bar: 'default' },
-  //       writeDefaultValue: true,
-  //       persist: {
-  //         id: 'test',
-  //         storage,
-  //         onlyWhenActive: true,
-  //       },
-  //     });
-
-  //     using _s = state.subscribe(() => undefined);
-
-  //     await vi.advanceTimersByTimeAsync(500);
-  //     expect(state.get()).toEqual({ bar: 'hello' });
-  //     expect(window.location.hash).toEqual('#foo=%7B%22bar%22%3A%22hello%22%7D');
-  //     expect(storage.itemsWithoutVersion).toEqual(new Map([['test:["bar"]', '"hello"']]));
-  //   });
-  // });
+      await act(() => vi.runAllTimersAsync());
+      expect(result.current[0]).toEqual({ bar: 'hello' });
+      expect(getHash()).toEqual('#foo=%7B%22bar%22%3A%22hello%22%7D');
+      expect(localStorage.getItem(persistKey)).toBe('{"bar":"hello"}');
+    });
+  });
 });

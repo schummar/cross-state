@@ -29,7 +29,7 @@ export function useUrlParam<T>(
   const params = new URLSearchParams(url[type].slice(1));
   const urlValue = params.get(key);
 
-  const storageKey = persist && `cross-state:url:${persist.id}:${key}`;
+  const storageKey = persist && createStorageKey(persist.id, key);
   const storageValue = storageKey ? localStorage.getItem(storageKey) : null;
 
   const [localValue, setLocalValue] = useState(() => {
@@ -136,4 +136,8 @@ function parseLocation(location: Location) {
   }
 
   return new URL(location, window.location.origin);
+}
+
+export function createStorageKey(id: string, key: string) {
+  return `cross-state:url:${id}:${key}`;
 }
