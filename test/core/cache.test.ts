@@ -1,8 +1,9 @@
+import { deepEqual } from '@index';
+import { hash } from '@lib/hash';
 import { afterEach, assert, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createStore, type CalculationActions } from '../../src/core';
 import { Cache, createCache } from '../../src/core/cache';
 import { flushPromises, sleep } from '../testHelpers';
-import { hash } from '@lib/hash';
 
 const originalDefaultOptions = { ...createCache.defaultOptions };
 
@@ -635,6 +636,16 @@ describe('cache', () => {
       expect(cache(1).state.get().isStale).toBe(true);
     });
 
+    test('invalidateAll all with certain args', async () => {
+      const cache = createCache(async (x?: number) => x);
+      await cache.get();
+      await cache(1).get();
+      cache.invalidateAll({ filter: (x) => deepEqual(x.args, [1]) });
+
+      expect(cache.state.get().isStale).toBe(false);
+      expect(cache(1).state.get().isStale).toBe(true);
+    });
+
     test('clearAll', async () => {
       const cache = createCache(async (x?: number) => x);
       await cache.get();
@@ -664,6 +675,11 @@ describe('cache', () => {
       expect(instances).toHaveLength(2);
       expect(instances).toContain(cache);
       expect(instances).toContain(cache(1));
+    });
+
+    test('get args', async () => {
+      const cache = createCache(async (x: number, y: number) => x + y);
+      expect(cache(1, 2).args).toEqual([1, 2]);
     });
   });
 

@@ -92,7 +92,7 @@ export interface CacheOptions<T, Args extends any[]> extends StoreOptions<Promis
   getCacheKey?: (...args: NoInfer<Args>) => unknown;
 }
 
-export class Cache<T> extends Store<Promise<T>> {
+export class Cache<T, Args extends any[] = unknown[]> extends Store<Promise<T>> {
   readonly state: Store<CacheState<T>> = createStore<CacheState<T>>({
     status: 'pending',
     isStale: true,
@@ -106,9 +106,10 @@ export class Cache<T> extends Store<Promise<T>> {
 
   constructor(
     getter: Calculate<Promise<T>>,
-    public readonly options: CacheOptions<T, any> = {},
+    public readonly args: Args,
+    public readonly options: CacheOptions<T, Args> = {},
     public readonly derivedFromCache?: {
-      cache: Cache<any>;
+      cache: Cache<any, any>;
       selectors: (Selector<any, any> | AnyPath)[];
     },
     _call?: (...args: any[]) => any,
@@ -189,9 +190,11 @@ export class Cache<T> extends Store<Promise<T>> {
     super.invalidate(recursive);
   }
 
-  mapValue<S>(selector: Selector<T, S>): Cache<S>;
+  mapValue<S>(selector: Selector<T, S>): Cache<S, Args>;
 
-  mapValue<const P extends AnyPath>(selector: P extends Path<T> ? P : Path<T>): Cache<Value<T, P>>;
+  mapValue<const P extends AnyPath>(
+    selector: P extends Path<T> ? P : Path<T>,
+  ): Cache<Value<T, P>, Args>;
 
   mapValue(selector: Selector<any, any> | AnyPath) {
     return mapValue(this, selector);
@@ -313,7 +316,11 @@ export class Cache<T> extends Store<Promise<T>> {
   }
 }
 
-function mapValue<T, S>(cache: Cache<T>, _selector: Selector<T, S> | AnyPath, get?: any): Cache<S> {
+function mapValue<T, S, Args extends any[]>(
+  cache: Cache<T, Args>,
+  _selector: Selector<T, S> | AnyPath,
+  get?: any,
+): Cache<S, Args> {
   const selector = makeSelector(_selector);
   const derivedFromCache = {
     cache: cache.derivedFromCache ? cache.derivedFromCache.cache : cache,
@@ -322,11 +329,12 @@ function mapValue<T, S>(cache: Cache<T>, _selector: Selector<T, S> | AnyPath, ge
       : [_selector],
   };
 
-  return new Cache(
+  return new Cache<S, Args>(
     async ({ use }) => {
       const value = await use(cache);
       return selector(value);
     },
+    cache.args,
     {
       equals: cache.options.equals,
     },
@@ -336,20 +344,20 @@ function mapValue<T, S>(cache: Cache<T>, _selector: Selector<T, S> | AnyPath, ge
 }
 
 export type CreateCacheResult<T, Args extends any[]> = [] extends Args
-  ? CacheBundle<T, Args> & Cache<T>
+  ? CacheBundle<T, Args> & Cache<T, Args>
   : CacheBundle<T, Args>;
 
-export interface InvalidationOptions<T> {
-  filter?: (cache: Cache<T>) => boolean;
+export interface InvalidationOptions<T, Args extends any[]> {
+  filter?: (cache: Cache<T, Args>) => boolean;
 }
 
 export type CacheBundle<T, Args extends any[]> = {
-  (...args: Args): Cache<T>;
+  (...args: Args): Cache<T, Args>;
   mapCache<S>(selector: Selector<T, S>): CreateCacheResult<S, Args>;
   mapValue<const P>(selector: Constrain<P, Path<T>>): CreateCacheResult<Value<T, P>, Args>;
-  invalidateAll: (options?: InvalidationOptions<T>) => void;
-  clearAll: (options?: InvalidationOptions<T>) => void;
-  getInstances: () => Cache<T>[];
+  invalidateAll: (options?: InvalidationOptions<T, Args>) => void;
+  clearAll: (options?: InvalidationOptions<T, Args>) => void;
+  getInstances: () => Cache<T, Args>[];
 };
 
 function create<T, Args extends any[] = []>(
@@ -368,10 +376,10 @@ function internalCreate<T, Args extends any[] = []>(
   options = { ...createCache.defaultOptions, ...options };
   const { clearUnusedAfter, resourceGroup } = options ?? {};
 
-  let baseInstance: CacheBundle<T, Args> & Cache<T>;
+  let baseInstance: CacheBundle<T, Args> & Cache<T, Args>;
 
-  const instanceCache = new InstanceCache<Args, Cache<T>>(
-    (...args: Args): Cache<T> => {
+  const instanceCache = new InstanceCache<Args, Cache<T, Args>>(
+    (...args: Args): Cache<T, Args> => {
       if (Array.isArray(source)) {
         const [cache, selector] = source;
         return mapValue(cache(...args), selector, get);
@@ -387,6 +395,7 @@ function internalCreate<T, Args extends any[] = []>(
 
           return result;
         },
+        args,
         options,
         undefined,
         args.length === 0 ? get : undefined,
@@ -409,7 +418,7 @@ function internalCreate<T, Args extends any[] = []>(
     return internalCreate([baseInstance, selector]);
   };
 
-  const invalidateAll = ({ filter = () => true }: InvalidationOptions<T> = {}) => {
+  const invalidateAll = ({ filter = () => true }: InvalidationOptions<T, Args> = {}) => {
     for (const instance of instanceCache.values()) {
       if (filter(instance)) {
         instance.invalidate();
@@ -417,7 +426,7 @@ function internalCreate<T, Args extends any[] = []>(
     }
   };
 
-  const clearAll = ({ filter = () => true }: InvalidationOptions<T> = {}) => {
+  const clearAll = ({ filter = () => true }: InvalidationOptions<T, Args> = {}) => {
     for (const instance of instanceCache.values()) {
       if (filter(instance)) {
         instance.clear();
@@ -434,7 +443,7 @@ function internalCreate<T, Args extends any[] = []>(
     invalidateAll,
     clearAll,
     getInstances,
-  }) as CacheBundle<T, Args> & Cache<T>;
+  }) as CacheBundle<T, Args> & Cache<T, Args>;
 
   const groups = Array.isArray(resourceGroup)
     ? resourceGroup

@@ -42,7 +42,7 @@ export interface UseCacheOptions<T> extends UseStoreOptions<UseCacheArray<T> & C
 }
 
 export function useCache<T>(
-  cache: Cache<T>,
+  cache: Cache<T, any>,
   {
     passive,
     disabled,
@@ -58,7 +58,7 @@ export function useCache<T>(
   }
 
   const { rootCache, selector } = useMemo(() => {
-    const rootCache: Cache<any> = cache.derivedFromCache?.cache ?? cache;
+    const rootCache: Cache<any, any> = cache.derivedFromCache?.cache ?? cache;
     let selector = (x: any) => x;
 
     if (cache.derivedFromCache) {
