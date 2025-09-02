@@ -438,12 +438,27 @@ function internalCreate<T, Args extends any[] = []>(
     return instanceCache.values();
   };
 
-  baseInstance = Object.assign(get(...([] as unknown as Args)), {
-    mapCache,
-    invalidateAll,
-    clearAll,
-    getInstances,
-  }) as CacheBundle<T, Args> & Cache<T, Args>;
+  baseInstance = new Proxy(
+    Object.assign(() => undefined, {
+      mapCache,
+      invalidateAll,
+      clearAll,
+      getInstances,
+    }),
+    {
+      apply(_target, _thisArg, argArray) {
+        return get(...(argArray as unknown as Args));
+      },
+      get(target, p, receiver) {
+        if (Reflect.has(target, p)) {
+          return Reflect.get(target, p, receiver);
+        }
+
+        const baseCache = get(...([] as unknown as Args));
+        return Reflect.get(baseCache, p, baseCache);
+      },
+    },
+  ) as unknown as CacheBundle<T, Args> & Cache<T, Args>;
 
   const groups = Array.isArray(resourceGroup)
     ? resourceGroup

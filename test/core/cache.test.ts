@@ -19,7 +19,7 @@ afterEach(() => {
 describe('cache', () => {
   test('create', () => {
     const cache = createCache(async () => 1);
-    expect(cache).toBeInstanceOf(Cache);
+    expect(cache()).toBeInstanceOf(Cache);
   });
 
   describe('get', () => {
@@ -570,13 +570,13 @@ describe('cache', () => {
 
     test('same instance for when not calling as when calling without args', async () => {
       const cache = createCache(async () => 1);
-      expect(cache).toBe(cache());
+      expect(cache.state).toBe(cache().state);
     });
 
     test('same instance for when called with only undefined args', async () => {
       const cache = createCache(async (x?: number) => x ?? 0);
       expect(cache()).toBe(cache(undefined));
-      expect(cache).toBe(cache(undefined));
+      expect(cache.state).toBe(cache(undefined).state);
     });
 
     test('same instance for when called with trailing undefined args', async () => {
@@ -597,16 +597,26 @@ describe('cache', () => {
         },
       );
 
-      expect(cache).toBe(cache());
-      expect(cache).toBe(cache({}));
-      expect(cache).toBe(cache({ x: undefined }));
-      expect(cache).toBe(cache({ x: 0 }));
-      expect(cache).toBe(cache({ y: undefined }));
-      expect(cache).toBe(cache({ y: 0 }));
-      expect(cache).toBe(cache({ x: 0, y: 0 }));
-      expect(cache).not.toBe(cache({ x: 1 }));
+      expect(cache.state).toBe(cache().state);
+      expect(cache()).toBe(cache({}));
+      expect(cache()).toBe(cache({ x: undefined }));
+      expect(cache()).toBe(cache({ x: 0 }));
+      expect(cache()).toBe(cache({ y: undefined }));
+      expect(cache()).toBe(cache({ y: 0 }));
+      expect(cache()).toBe(cache({ x: 0, y: 0 }));
+      expect(cache()).not.toBe(cache({ x: 1 }));
       expect(cache({ x: 1 })).toBe(cache({ x: 1, y: undefined }));
       expect(cache({ x: 1 })).toBe(cache({ x: 1, y: 0 }));
+    });
+
+    test(`getCacheKey is not called for the base instance if it isn't used`, async () => {
+      const getCacheKey = vi.fn((...args) => args);
+      const cache = createCache(async (x?: number) => x, { getCacheKey });
+      await cache(1).get();
+      assert(
+        getCacheKey.mock.calls.every((x) => x.length > 0),
+        'getCacheKey should only be called with at least one argument',
+      );
     });
 
     test('customer hash function for args', async () => {
@@ -672,9 +682,15 @@ describe('cache', () => {
       await cache(1).get();
       const instances = cache.getInstances();
 
-      expect(instances).toHaveLength(2);
-      expect(instances).toContain(cache);
-      expect(instances).toContain(cache(1));
+      expect(instances).toEqual([cache(), cache(1)]);
+    });
+
+    test(`getInstances doesn't return the base instance if it hasn't been used`, async () => {
+      const cache = createCache(async (x?: number) => x);
+      await cache(1).get();
+      const instances = cache.getInstances();
+
+      expect(instances).toEqual([cache(1)]);
     });
 
     test('get args', async () => {
