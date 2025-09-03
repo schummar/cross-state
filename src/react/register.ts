@@ -8,7 +8,7 @@ type StoreMethods = typeof storeMethods;
 type CacheMethods = typeof cacheMethods;
 type ScopeMethods = typeof scopeMethods;
 
-declare module '@core' {
+declare module '..' {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface Store<T> extends StoreMethods {}
 
