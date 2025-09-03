@@ -1,6 +1,6 @@
 import { createStore } from '@core';
 import { UrlProvider, useStore, useUrlParam } from '@react';
-import { createStorageKey } from '@react/url/useUrlParam';
+import { createStorageKey } from '@react/url/urlHelpers';
 import { renderHook } from '@testing-library/react';
 import { act, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -52,9 +52,6 @@ describe('url store', () => {
     expect(result.current[0]).toBe('bar');
 
     act(() => result.current[1]('baz'));
-    expect(getHash()).toEqual('#foo=%22bar%22');
-
-    await act(() => vi.runAllTimersAsync());
     expect(getHash()).toEqual('#foo=%22baz%22');
   });
 

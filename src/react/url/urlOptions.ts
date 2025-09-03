@@ -1,5 +1,3 @@
-import { type Duration } from '@core';
-
 export interface UrlOptions<T> {
   key: string;
   type?: 'search' | 'hash';
@@ -8,7 +6,6 @@ export interface UrlOptions<T> {
   defaultValue: T;
   writeDefaultValue?: boolean;
   onCommit?: (value: T) => void;
-  debounce?: Duration;
   persist?: { id: string };
 }
 
