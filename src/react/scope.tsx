@@ -8,7 +8,7 @@ import { useStore, type UseStoreOptions } from './useStore';
 
 export type ScopeProps<T> = { scope: Scope<T>; store?: Store<T>; children?: ReactNode };
 
-declare module '@core' {
+declare module '..' {
   interface Scope<T> {
     context?: Context<Store<T>>;
   }
