@@ -1,7 +1,6 @@
-import { connectUrl, createStore, type Store, type Update, type UrlStoreOptions } from '@core';
+import { createStore, type Store, type Update } from '@core';
 import { autobind } from '@lib/autobind';
 import { deepEqual } from '@lib/equals';
-import { simpleHash } from '@lib/hash';
 import { isObject } from '@lib/helpers';
 import {
   type Path,
@@ -51,7 +50,6 @@ export interface FormOptions<TDraft, TOriginal> {
   defaultValue: TDraft;
   validations?: Validations<TDraft, TOriginal>;
   localizeError?: (error: string, field: string) => string | undefined;
-  urlState?: boolean | UrlStoreOptions<TDraft>;
   autoSave?: FormAutosaveOptions<TDraft, TOriginal>;
   transform?: Transform<TDraft>[];
   validatedClass?: string;
@@ -428,7 +426,6 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     defaultValue,
     validations,
     localizeError,
-    urlState,
     autoSave,
     transform,
     validatedClass,
@@ -437,7 +434,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     original?: TOriginal;
     onSubmit?: (event: FormEvent<HTMLFormElement>, form: FormInstance<TDraft, TOriginal>) => void;
   } & Partial<FormOptions<TDraft, TOriginal>> &
-    Omit<HTMLProps<HTMLFormElement>, 'defaultValue' | 'autoSave' | 'onSubmit'>): JSX.Element {
+    Omit<HTMLProps<HTMLFormElement>, 'defaultValue' | 'autoSave' | 'onSubmit'>): React.JSX.Element {
     const options: FormOptions<TDraft, TOriginal> = {
       defaultValue: { ...this.options.defaultValue, ...defaultValue },
       validations: { ...this.options.validations, ...validations } as Validations<
@@ -529,17 +526,6 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
 
     context.getField = (path) => lazy(path, () => getField(context, path));
 
-    useEffect(() => {
-      if (urlState) {
-        return connectUrl(
-          formState.map('draft'),
-          typeof urlState === 'object' ? urlState : { key: 'form' },
-        );
-      }
-
-      return undefined;
-    }, [formState, simpleHash(urlState)]);
-
     // useEffect(() => {
     //   const handles = options.transform?.map(({ trigger, update }) => {
     //     const draft = derivedState.map('draft');
@@ -575,24 +561,24 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
   }: {
     selector: (form: FormInstance<TDraft, TOriginal>) => S;
     children: (selectedState: S) => ReactNode;
-  }): JSX.Element {
+  }): React.JSX.Element {
     const selectedState = this.useFormState(selector);
     return <>{children(selectedState)}</>;
   }
 
   Field<const TPath extends string>(
     props: FormFieldPropsWithRender<TDraft, TOriginal, TPath>,
-  ): JSX.Element;
+  ): React.JSX.Element;
 
   Field<const TPath extends string, const TComponent extends FormFieldComponent = 'input'>(
     props: FormFieldPropsWithComponent<TDraft, TOriginal, TPath, TComponent>,
-  ): JSX.Element;
+  ): React.JSX.Element;
 
-  Field(props: any): JSX.Element {
+  Field(props: any): React.JSX.Element {
     return Reflect.apply(FormField, this, [{ component: 'input', ...props }]);
   }
 
-  ForEach<const TPath extends string>(props: FormForEachProps<TDraft, TPath>): JSX.Element {
+  ForEach<const TPath extends string>(props: FormForEachProps<TDraft, TPath>): React.JSX.Element {
     return Reflect.apply(FormForEach, this, [props]);
   }
 

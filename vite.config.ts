@@ -21,45 +21,4 @@ export default defineConfig({
       },
     },
   },
-
-  build: {
-    emptyOutDir: false,
-    sourcemap: true,
-    minify: false,
-    target: 'esnext',
-
-    lib: {
-      entry: {
-        index: 'src/index.ts',
-        'react/index': 'src/react/index.ts',
-        'react/register': 'src/react/register.ts',
-        'mutative/index': 'src/mutative/index.ts',
-        'mutative/register': 'src/mutative/register.ts',
-        'patches/index': 'src/patches/index.ts',
-        'patches/register': 'src/patches/register.ts',
-        'persist/register': 'src/persist/register.ts',
-      },
-    },
-
-    rollupOptions: {
-      output: [
-        {
-          format: 'es',
-          entryFileNames: '[format]/[name].mjs',
-          chunkFileNames: '[format]/[name].mjs',
-        },
-        {
-          format: 'cjs',
-          entryFileNames: '[format]/[name].cjs',
-          chunkFileNames: '[format]/[name].cjs',
-        },
-      ],
-      external: [
-        //
-        'react',
-        'react/jsx-runtime',
-        'mutative',
-      ],
-    },
-  },
 });

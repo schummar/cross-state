@@ -10,100 +10,62 @@
   },
   "type": "module",
   "sideEffects": [
-    "dist/es/react/register.mjs",
-    "dist/cjs/react/register.cjs",
-    "dist/es/mutative/register.mjs",
-    "dist/cjs/mutative/register.cjs",
-    "dist/es/patches/register.mjs",
-    "dist/cjs/patches/register.cjs",
-    "dist/es/persist/register.mjs",
-    "dist/cjs/persist/register.cjs"
+    "dist/react/register.js",
+    "dist/react/register.cjs",
+    "dist/mutative/register.js",
+    "dist/mutative/register.cjs",
+    "dist/patches/register.js",
+    "dist/patches/register.cjs",
+    "dist/persist/register.js",
+    "dist/persist/register.cjs"
   ],
   "files": [
     "dist"
   ],
-  "main": "dist/cjs/index.cjs",
-  "module": "dist/es/index.mjs",
-  "types": "dist/types/index.d.ts",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.cts",
   "exports": {
     ".": {
-      "types": "./dist/types/index.d.ts",
-      "require": "./dist/cjs/index.cjs",
-      "default": "./dist/es/index.mjs"
-    },
-    "./react": {
-      "types": "./dist/types/react/index.d.ts",
-      "require": "./dist/cjs/react/index.cjs",
-      "default": "./dist/es/react/index.mjs"
-    },
-    "./react/register": {
-      "types": "./dist/types/react/register.d.ts",
-      "require": "./dist/cjs/react/register.cjs",
-      "default": "./dist/es/react/register.mjs"
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
     },
     "./mutative": {
-      "types": "./dist/types/mutative/index.d.ts",
-      "require": "./dist/cjs/mutative/index.cjs",
-      "default": "./dist/es/mutative/index.mjs"
+      "import": "./dist/mutative/index.js",
+      "require": "./dist/mutative/index.cjs"
     },
     "./mutative/register": {
-      "types": "./dist/types/mutative/register.d.ts",
-      "require": "./dist/cjs/mutative/register.cjs",
-      "default": "./dist/es/mutative/register.mjs"
+      "import": "./dist/mutative/register.js",
+      "require": "./dist/mutative/register.cjs"
     },
     "./patches": {
-      "types": "./dist/types/patches/index.d.ts",
-      "require": "./dist/cjs/patches/index.cjs",
-      "default": "./dist/es/patches/index.mjs"
+      "import": "./dist/patches/index.js",
+      "require": "./dist/patches/index.cjs"
     },
     "./patches/register": {
-      "types": "./dist/types/patches/register.d.ts",
-      "require": "./dist/cjs/patches/register.cjs",
-      "default": "./dist/es/patches/register.mjs"
+      "import": "./dist/patches/register.js",
+      "require": "./dist/patches/register.cjs"
     },
     "./persist/register": {
-      "types": "./dist/types/persist/register.d.ts",
-      "require": "./dist/cjs/persist/register.cjs",
-      "default": "./dist/es/persist/register.mjs"
-    }
-  },
-  "typesVersions": {
-    "*": {
-      "index.d.ts": [
-        "dist/types/index.d.ts"
-      ],
-      "react": [
-        "dist/types/react/index.d.ts"
-      ],
-      "react/register": [
-        "dist/types/react/register.d.ts"
-      ],
-      "mutative": [
-        "dist/types/mutative/index.d.ts"
-      ],
-      "mutative/register": [
-        "dist/types/mutative/register.d.ts"
-      ],
-      "patches": [
-        "dist/types/patches/index.d.ts"
-      ],
-      "patches/register": [
-        "dist/types/patches/register.d.ts"
-      ],
-      "persist/register": [
-        "dist/types/persist/register.d.ts"
-      ]
-    }
+      "import": "./dist/persist/register.js",
+      "require": "./dist/persist/register.cjs"
+    },
+    "./react": {
+      "import": "./dist/react/index.js",
+      "require": "./dist/react/index.cjs"
+    },
+    "./react/register": {
+      "import": "./dist/react/register.js",
+      "require": "./dist/react/register.cjs"
+    },
+    "./package.json": "./package.json"
   },
   "scripts": {
-    "start": "runp tsc :pf \"vite build --watch\" \"tsc --watch\" \"tsc-alias --watch\"",
-    "build": "runp -i build:clean :p build:compile:*",
-    "build:clean": "rimraf dist",
-    "build:compile:js": "vite build",
-    "build:compile:types": "tsc && tsc-alias",
+    "start": "tsdown --watch",
+    "build": "tsdown",
     "lint": "runp -i lint:*",
     "lint:prettier": "prettier -l src",
-    "lint:eslint": "lint",
+    "lint:oxlint": "oxlint",
     "lint:tsc": "tsc --noEmit --emitDeclarationOnly false",
     "lint:tsc:tests": "tsc --noEmit --emitDeclarationOnly false -p test/tsconfig.json",
     "size": "size-limit",
@@ -116,7 +78,8 @@
   "peerDependencies": {
     "@types/react": ">=16.8.0",
     "mutative": ">=1.0.3",
-    "react": ">=16.8.0"
+    "react": ">=16.8.0",
+    "use-sync-external-store": "1.5.0"
   },
   "peerDependenciesMeta": {
     "@types/react": {
@@ -127,131 +90,125 @@
     },
     "react": {
       "optional": true
+    },
+    "use-sync-external-store": {
+      "optional": true
     }
   },
   "devDependencies": {
-    "@emotion/styled": "11.13.0",
-    "@mantine/core": "7.16.3",
-    "@mantine/hooks": "^7.16.3",
-    "@mui/material": "6.1.2",
-    "@schummar/eslint-config": "github:schummar/eslint-config",
+    "@emotion/styled": "11.14.1",
+    "@mantine/core": "8.2.8",
+    "@mantine/hooks": "^8.2.8",
+    "@mui/material": "7.3.1",
     "@schummar/prettier-config": "github:schummar/prettier-config",
-    "@schummar/runp": "2.0.7",
-    "@size-limit/preset-small-lib": "11.1.6",
-    "@testing-library/react": "16.0.1",
-    "@types/react": "18.3.11",
-    "@types/react-dom": "18.3.0",
+    "@schummar/runp": "2.2.2",
+    "@size-limit/preset-small-lib": "11.2.0",
+    "@testing-library/react": "16.3.0",
+    "@types/react": "19.1.12",
+    "@types/react-dom": "19.1.9",
     "@types/seedrandom": "3.0.8",
-    "@types/use-sync-external-store": "0.0.6",
-    "@types/ws": "8.5.12",
-    "@vitejs/plugin-react": "4.3.4",
-    "@vitest/coverage-v8": "3.0.5",
-    "@vitest/ui": "^3.0.5",
-    "esbuild": "0.24.0",
-    "eslint": "8.57.0",
-    "happy-dom": "15.7.4",
-    "jsdom": "25.0.1",
-    "mutative": "1.0.11",
-    "prettier": "3.3.3",
-    "publint": "0.2.11",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
+    "@types/use-sync-external-store": "1.5.0",
+    "@types/ws": "8.18.1",
+    "@vitejs/plugin-react": "5.0.2",
+    "@vitest/coverage-v8": "3.2.4",
+    "@vitest/ui": "^3.2.4",
+    "esbuild": "0.25.9",
+    "happy-dom": "18.0.1",
+    "jsdom": "26.1.0",
+    "mutative": "^1.2.0",
+    "oxlint": "^1.14.0",
+    "prettier": "3.6.2",
+    "publint": "0.3.12",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
     "rimraf": "6.0.1",
     "seedrandom": "3.0.5",
-    "semantic-release": "24.1.2",
-    "size-limit": "11.1.6",
-    "tsc-alias": "1.8.10",
-    "typescript": "5.8.3",
-    "use-sync-external-store": "1.2.2",
-    "vite": "6.1.0",
+    "semantic-release": "24.2.7",
+    "size-limit": "11.2.0",
+    "tsdown": "^0.14.2",
+    "typescript": "5.9.2",
+    "use-sync-external-store": "^1.5.0",
+    "vite": "7.1.4",
     "vite-tsconfig-paths": "5.1.4",
-    "vitest": "3.0.5"
+    "vitest": "3.2.4"
   },
   "volta": {
     "node": "22.13.1",
     "pnpm": "10.2.1"
   },
-  "eslintConfig": {
-    "extends": [
-      "@schummar/eslint-config"
-    ],
-    "rules": {
-      "unicorn/expiring-todo-comments": "off"
-    }
-  },
   "prettier": "@schummar/prettier-config",
   "size-limit": [
     {
       "name": "core",
-      "path": "dist/es/index.mjs",
-      "limit": "8.1 KB"
+      "path": "dist/index.js",
+      "limit": "8.2 KB"
     },
     {
       "name": "core: Store",
-      "path": "dist/es/index.mjs",
+      "path": "dist/index.js",
       "import": "{createStore}",
       "limit": "4 KB"
     },
     {
       "name": "core: Cache",
-      "path": "dist/es/index.mjs",
+      "path": "dist/index.js",
       "import": "{createCache}",
       "limit": "5.5 KB"
     },
     {
       "name": "core: Persist",
-      "path": "dist/es/index.mjs",
+      "path": "dist/index.js",
       "import": "{persist}",
       "limit": "3.5 KB"
     },
     {
       "name": "core: InstanceCache",
-      "path": "dist/es/index.mjs",
+      "path": "dist/index.js",
       "import": "{InstanceCache}",
       "limit": "610 B"
     },
     {
       "name": "core: calcDuration",
-      "path": "dist/es/index.mjs",
+      "path": "dist/index.js",
       "import": "{calcDuration}",
       "limit": "100 B"
     },
     {
-      "name": "core: urlStore",
-      "path": "dist/es/index.mjs",
-      "import": "{createUrlStore}",
-      "limit": "5 KB"
-    },
-    {
       "name": "react",
-      "path": "dist/es/react/index.mjs",
-      "limit": "10 KB"
+      "path": "dist/react/index.js",
+      "limit": "12 KB"
     },
     {
       "name": "react: useStore",
-      "path": "dist/es/react/index.mjs",
+      "path": "dist/react/index.js",
       "import": "{useStore}",
       "limit": "6 KB"
     },
     {
       "name": "react: useCache",
-      "path": "dist/es/react/index.mjs",
+      "path": "dist/react/index.js",
       "import": "{useCache}",
       "limit": "6 KB"
     },
     {
+      "name": "react: urlStore",
+      "path": "dist/react/index.js",
+      "import": "{createUrlStore}",
+      "limit": "1 KB"
+    },
+    {
       "name": "/mutative",
-      "path": "dist/es/mutative/index.mjs",
+      "path": "dist/mutative/index.js",
       "limit": "250 B"
     },
     {
       "name": "/patches",
-      "path": "dist/es/patches/index.mjs",
+      "path": "dist/patches/index.js",
       "limit": "2 KB"
     },
     {
       "name": "empty",
-      "path": "dist/es/index.mjs",
+      "path": "dist/index.js",
       "import": "{}",
       "limit": "0"
     }

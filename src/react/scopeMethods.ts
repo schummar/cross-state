@@ -54,7 +54,7 @@ function boundUseScopeProp(this: Scope<any>, ...args: any[]) {
   return useScopeProp(this, ...args);
 }
 
-function Provider<T>(this: Scope<T>, props: Omit<ScopeProps<T>, 'scope'>): JSX.Element {
+function Provider<T>(this: Scope<T>, props: Omit<ScopeProps<T>, 'scope'>): React.JSX.Element {
   return ScopeProvider({ ...props, scope: this });
 }
 

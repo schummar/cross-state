@@ -152,7 +152,7 @@ export function FormField<
   }:
     | FormFieldPropsWithRender<TDraft, TOriginal, TPath>
     | FormFieldPropsWithComponent<TDraft, TOriginal, TPath, TComponent>,
-): JSX.Element | null {
+): React.JSX.Element | null {
   type T = FieldChangeValue<TComponent>;
 
   const form = this.useForm();

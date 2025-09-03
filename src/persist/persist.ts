@@ -8,7 +8,7 @@ import promiseChain from '@lib/promiseChain';
 import { castArrayPath, get, remove, set } from '@lib/propAccess';
 import { queue } from '@lib/queue';
 import { subscribePatches } from '@patches/patchMethods';
-import { isAncestor, split } from './persistPathHelpers';
+import { isAncestor, split } from '@persist/persistPathHelpers';
 import {
   normalizeStorage,
   type PersistStorage,
@@ -29,6 +29,7 @@ export interface PersistOptions<T> {
   storage: PersistStorage;
   paths?: PathOption<T>[];
   throttle?: Duration;
+  persistInitialState?: boolean;
 }
 
 export class Persist<T> {
@@ -144,7 +145,7 @@ export class Persist<T> {
             } else {
               const updatedValues = split(patch.value, path.slice(patch.path.length));
               const removedValues = split(
-                reversePatch?.op !== 'remove' ? reversePatch?.value : {},
+                reversePatch?.op !== 'remove' ? (reversePatch?.value ?? {}) : {},
                 path.slice(patch.path.length),
               ).filter((v) => !updatedValues.some((u) => shallowEqual(u.path, v.path)));
 
@@ -158,30 +159,33 @@ export class Persist<T> {
           }
         }
       },
-      { runNow: false, passive: true, throttle },
+      { runNow: this.options.persistInitialState ?? false, passive: true, throttle },
     ]);
 
     this.handles.add(cancel);
   }
 
   private async watchStorage() {
-    let items = this.storage.listItems();
-    if (isPromise(items)) {
-      items = await items;
+    if (!this.options.persistInitialState) {
+      let items = this.storage.listItems();
+      if (isPromise(items)) {
+        items = await items;
+      }
+
+      if (this.stopped) {
+        return;
+      }
+
+      const toLoad = new Map(
+        [...items.entries()]
+          .sort((a, b) => b[1].length - a[1].length)
+          .map(([key, value]) => [this.parseKey(key), value])
+          .filter(([key]) => key) as [Key, string][],
+      );
+
+      this.queue(() => this.load(toLoad));
     }
 
-    if (this.stopped) {
-      return;
-    }
-
-    const toLoad = new Map(
-      [...items.entries()]
-        .sort((a, b) => b[1].length - a[1].length)
-        .map(([key, value]) => [this.parseKey(key), value])
-        .filter(([key]) => key) as [Key, string][],
-    );
-
-    this.queue(() => this.load(toLoad));
     this.queue(() => this.resolveInitialized?.());
 
     const listener = (event: MessageEvent) => {
@@ -218,19 +222,19 @@ export class Persist<T> {
             (key) =>
               promiseChain(() => {
                 return this.storage.getItem(this.buildKey(key));
-              }).then((value) => [key, value] as const).value,
+              }).next((value) => [key, value] as const).value,
           );
 
           return entries.some(isPromise)
             ? Promise.all(entries)
             : (entries as [Key, string | null][]);
-        }).then((entries) => {
+        }).next((entries) => {
           return entries.filter((entry) => entry !== null) as [Key, string][];
         }).value;
       } else {
         return [...items.entries()];
       }
-    }).then((entries) => {
+    }).next((entries) => {
       if (this.stopped) {
         return;
       }
@@ -302,14 +306,14 @@ export class Persist<T> {
     const value = get(this.store.get() as any, path);
 
     return promiseChain(value)
-      .then((value) => {
+      .next((value) => {
         if (value === undefined) {
           return this.storage.removeItem(key);
         } else {
           return this.storage.setItem(key, toExtendedJsonString(value));
         }
       })
-      .then(() => {
+      .next(() => {
         this.channel.postMessage(path);
 
         if (this.store.version) {

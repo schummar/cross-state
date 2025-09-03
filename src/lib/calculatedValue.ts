@@ -1,5 +1,5 @@
 import type { Cache } from '@core';
-import type { AsyncConnectionActions, Cancel, Connection } from '@core/commonTypes';
+import type { AsyncConnectionActions, Cancel, Connection, StoreLike } from '@core/commonTypes';
 import type { Store } from '@core/store';
 import { Deferred } from '@lib/deferred';
 import isPromise from '@lib/isPromise';
@@ -15,8 +15,12 @@ export interface CalculatedValue<T> {
 }
 
 export function calculatedValue<T>(store: Store<T>, notify: () => void): CalculatedValue<T> {
+  if (!(store.getter instanceof Function)) {
+    return staticValue(store.getter);
+  }
+
   let active = false;
-  const deps = new Array<{ store: Store<any>; value: any; on: () => void; off: () => void }>();
+  const deps = new Array<{ store: StoreLike<any>; value: any; on: () => void; off: () => void }>();
   let value: T | undefined;
   const whenConnected = new Deferred();
   const whenExecuted = new Deferred();
@@ -60,7 +64,7 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
     };
   });
 
-  function use<S>(dep: Store<S>) {
+  function use<S>(dep: StoreLike<S>) {
     const value = dep.get();
     let cancel: Cancel | undefined;
 
@@ -187,20 +191,16 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
     return whenConnected;
   }
 
-  if (store.getter instanceof Function) {
-    try {
-      value = store.getter({ signal: ac.signal, use, connect });
-    } catch (error) {
-      value = PromiseWithState.reject(error) as T;
+  try {
+    value = store.getter({ signal: ac.signal, use, connect });
+  } catch (error) {
+    value = PromiseWithState.reject(error) as T;
 
-      if (connection) {
-        connection.active = false;
-        connection.cancel?.();
-        q.clear();
-      }
+    if (connection) {
+      connection.active = false;
+      connection.cancel?.();
+      q.clear();
     }
-  } else {
-    value = store.getter;
   }
 
   if (isPromise(value)) {

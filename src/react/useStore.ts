@@ -44,7 +44,7 @@ export function useStore<T, S>(store: Store<T>, argument1?: any, argument2?: any
     typeof argument1 === 'object' ? argument1 : (argument2 ?? {})
   ) as UseStoreOptions<S>;
 
-  const lastEqualsRef = useRef<(newValue: S) => boolean>();
+  const lastEqualsRef = useRef<(newValue: S) => boolean | undefined>(undefined);
 
   if (store.derivedFrom) {
     return useStore(

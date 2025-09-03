@@ -19,7 +19,7 @@ export function useFormAutosave<TDraft, TOriginal extends TDraft>(
   const { formState, options, getDraft } = form;
   const debounceTime = calcDuration(options.autoSave?.debounce ?? 2_000);
   const latestRef = useRef({ options });
-  const lastValue = useRef<TDraft>();
+  const lastValue = useRef<TDraft | undefined>(undefined);
   const q = useMemo(() => queue(), []);
 
   const run = useMemo(

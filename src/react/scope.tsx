@@ -23,7 +23,7 @@ export function ScopeProvider<T>({
   scope,
   store: inputStore,
   children,
-}: ScopeProps<T>): JSX.Element {
+}: ScopeProps<T>): React.JSX.Element {
   const context = getScopeContext(scope);
   const currentStore = useMemo(
     () => inputStore ?? createStore(scope.defaultValue),

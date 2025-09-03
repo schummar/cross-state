@@ -43,26 +43,26 @@ export function normalizeStorage(storage: PersistStorage): PersistStorageWithLis
           return promiseChain(
             storage.length instanceof Function ? storage.length() : storage.length,
           )
-            .then((length) => {
+            .next((length) => {
               const keys = Array.from({ length }, (_, index) => storage.key(index));
               return keys.some(isPromise) ? Promise.all(keys) : (keys as (string | null)[]);
             })
-            .then((keys) => {
+            .next((keys) => {
               return keys.filter((key): key is string => typeof key === 'string');
             }).value;
         }
       })
-        .then((keys) => {
+        .next((keys) => {
           const results = keys.map(
             (key) =>
-              promiseChain(storage.getItem(key)).then((value) => [key, value] as const).value,
+              promiseChain(storage.getItem(key)).next((value) => [key, value] as const).value,
           );
 
           return results.some(isPromise)
             ? Promise.all(results)
             : (results as [string, string | null][]);
         })
-        .then((results) => {
+        .next((results) => {
           return new Map(results.filter(([, value]) => value !== null) as [string, string][]);
         }).value;
     },
