@@ -1,12 +1,11 @@
 import type { Update, UpdateFunction } from '@core';
 import { useUrlContext } from '@react/url/urlContext';
+import { createStorageKey, parseLocation } from '@react/url/urlHelpers';
 import {
-  createStorageKey,
-  defaultDeserializer,
-  defaultSerializer,
-  parseLocation,
-} from '@react/url/urlHelpers';
-import type { UrlOptions, UrlOptionsWithoutDefaults } from '@react/url/urlOptions';
+  createUrlOptions,
+  type UrlOptions,
+  type UrlOptionsWithoutDefaults,
+} from '@react/url/urlOptions';
 import type { UrlStore } from '@react/url/urlStore';
 import { useEffect, useMemo } from 'react';
 
@@ -18,16 +17,8 @@ export function useUrlParam<T>(
 export function useUrlParam<T>(
   input: UrlStore<T> | UrlOptionsWithoutDefaults<T>,
 ): [T, update: UpdateFunction<T>] {
-  const {
-    key,
-    type = 'hash',
-    serialize = defaultSerializer,
-    deserialize = defaultDeserializer,
-    defaultValue,
-    writeDefaultValue,
-    onCommit,
-    persist,
-  } = 'options' in input ? input.options : (input as UrlOptions<T>);
+  const { key, type, serialize, deserialize, defaultValue, writeDefaultValue, onCommit, persist } =
+    createUrlOptions('options' in input ? input.options : (input as UrlOptions<T>));
 
   const { location, navigate } = useUrlContext();
   const url = parseLocation(location);

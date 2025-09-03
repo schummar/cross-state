@@ -1,3 +1,5 @@
+import type { Location } from '@react/url/urlContext';
+import { parseLocation } from '@react/url/urlHelpers';
 import {
   createUrlOptions,
   type UrlOptions,
@@ -6,7 +8,7 @@ import {
 import { useUrlParam } from '@react/url/useUrlParam';
 
 export class UrlStore<T> {
-  constructor(public readonly options: UrlOptions<T>) {}
+  constructor(public readonly options: Required<UrlOptions<T>>) {}
 
   useStore(): T {
     return useUrlParam(this)[0];
@@ -14,6 +16,13 @@ export class UrlStore<T> {
 
   useProp(): [T, update: (value: T) => void] {
     return useUrlParam(this);
+  }
+
+  parse(location: Location): T | undefined {
+    const url = parseLocation(location);
+    const params = new URLSearchParams(url[this.options.type].slice(1));
+    const urlValue = params.get(this.options.key);
+    return urlValue !== null ? this.options.deserialize(urlValue) : undefined;
   }
 }
 export function createUrlStore<T>(options: UrlOptions<T>): UrlStore<T>;
