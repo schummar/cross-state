@@ -92,7 +92,7 @@ export interface CacheOptions<T, Args extends any[]> extends StoreOptions<Promis
   getCacheKey?: (...args: NoInfer<Args>) => unknown;
 }
 
-export class Cache<T, Args extends any[] = unknown[]> extends Store<Promise<T>> {
+export class Cache<T, Args extends any[] = []> extends Store<Promise<T>> {
   readonly state: Store<CacheState<T>> = createStore<CacheState<T>>({
     status: 'pending',
     isStale: true,
