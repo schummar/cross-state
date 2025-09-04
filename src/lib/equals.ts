@@ -1,16 +1,28 @@
+export interface EqualityOptions {
+  /** Treat undefined values as absent
+   * @default false
+   */
+  undefinedEqualsAbsent?: boolean;
+}
+
 export function strictEqual(a: any, b: any): boolean {
   return a === b;
 }
 
-export function shallowEqual(a: any, b: any): boolean {
-  return internalEqual(strictEqual)(a, b);
+export function shallowEqual(a: any, b: any, options?: EqualityOptions): boolean {
+  return internalEqual(a, b, strictEqual, options);
 }
 
-export function deepEqual(a: any, b: any): boolean {
-  return internalEqual(deepEqual)(a, b);
+export function deepEqual(a: any, b: any, options?: EqualityOptions): boolean {
+  return internalEqual(a, b, deepEqual, options);
 }
 
-const internalEqual = (comp: (a: any, b: any) => boolean) => (a: any, b: any) => {
+const internalEqual = (
+  a: any,
+  b: any,
+  comp: (a: any, b: any) => boolean,
+  { undefinedEqualsAbsent = false }: EqualityOptions = {},
+) => {
   if (a === b) {
     return true;
   }
@@ -25,8 +37,14 @@ const internalEqual = (comp: (a: any, b: any) => boolean) => (a: any, b: any) =>
   }
 
   if (a.constructor === Object || Array.isArray(a)) {
-    const entries1 = Object.entries(a);
-    const entries2 = Object.entries(b);
+    let entries1 = Object.entries(a);
+    let entries2 = Object.entries(b);
+
+    if (undefinedEqualsAbsent) {
+      entries1 = entries1.filter(([_, value]) => value !== undefined);
+      entries2 = entries2.filter(([_, value]) => value !== undefined);
+    }
+
     return (
       entries1.length === entries2.length &&
       entries1.every(([key, value]) => key in b && comp(value, b[key]))
@@ -42,9 +60,17 @@ const internalEqual = (comp: (a: any, b: any) => boolean) => (a: any, b: any) =>
   }
 
   if (a instanceof Map) {
+    let entries1 = [...a.entries()];
+    let entries2 = [...b.entries()];
+
+    if (undefinedEqualsAbsent) {
+      entries1 = entries1.filter(([_, value]) => value !== undefined);
+      entries2 = entries2.filter(([_, value]) => value !== undefined);
+    }
+
     return (
-      a.size === b.size &&
-      [...a.entries()].every(([key, value]) => b.has(key) && comp(value, b.get(key)))
+      entries1.length === entries2.length &&
+      entries1.every(([key, value]) => b.has(key) && comp(value, b.get(key)))
     );
   }
 

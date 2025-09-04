@@ -72,6 +72,7 @@ export type Field<TDraft, TOriginal, TPath extends string> = {
   originalValue: Value<TOriginal, TPath> | undefined;
   value: Value<TDraft, TPath>;
   setValue: (value: Update<Value<TDraft, TPath>>) => void;
+  removeValue: () => void;
   hasChange: boolean;
   errors: string[];
 } & (Value<TDraft, TPath> extends Object_ ? FieldHelperMethods<TDraft, TPath> : {});
@@ -255,7 +256,7 @@ function getField<TDraft, TOriginal extends TDraft, TPath extends string>(
     },
 
     get hasChange() {
-      return !deepEqual(this.originalValue, this.value);
+      return !deepEqual(this.originalValue, this.value, { undefinedEqualsAbsent: true });
     },
 
     get errors() {
@@ -501,7 +502,10 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
       hasChanges() {
         return lazy(
           'hasChanges',
-          () => !deepEqual(this.getDraft(), original ?? options.defaultValue),
+          () =>
+            !deepEqual(this.getDraft(), original ?? options.defaultValue, {
+              undefinedEqualsAbsent: true,
+            }),
         );
       },
 
