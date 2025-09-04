@@ -108,6 +108,12 @@ describe('deepEqual', () => {
     expect(deepEqual(a, b, { undefinedEqualsAbsent: true })).toBe(true);
   });
 
+  test('should return true if a and b are deeply equal except for undefined object values nested', () => {
+    const a = { c: { a: undefined } };
+    const b = { c: { b: undefined } };
+    expect(deepEqual(a, b, { undefinedEqualsAbsent: true })).toBe(true);
+  });
+
   test('should return true if a and b are deeply equal except for undefined map values', () => {
     const a = new Map([[1, undefined]]);
     const b = new Map([[2, undefined]]);

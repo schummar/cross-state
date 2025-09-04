@@ -14,7 +14,7 @@ export function shallowEqual(a: any, b: any, options?: EqualityOptions): boolean
 }
 
 export function deepEqual(a: any, b: any, options?: EqualityOptions): boolean {
-  return internalEqual(a, b, deepEqual, options);
+  return internalEqual(a, b, (a, b) => deepEqual(a, b, options), options);
 }
 
 const internalEqual = (
