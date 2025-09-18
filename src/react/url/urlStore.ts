@@ -1,3 +1,4 @@
+import type { UpdateFunction } from '@core';
 import type { Location } from '@react/url/urlContext';
 import { parseLocation } from '@react/url/urlHelpers';
 import {
@@ -14,7 +15,7 @@ export class UrlStore<T> {
     return useUrlParam(this)[0];
   }
 
-  useProp(): [T, update: (value: T) => void] {
+  useProp(): [T, update: UpdateFunction<T>] {
     return useUrlParam(this);
   }
 
