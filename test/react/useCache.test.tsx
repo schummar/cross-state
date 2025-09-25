@@ -1,9 +1,13 @@
 import { act, render, screen } from '@testing-library/react';
-import { describe, expect, test, vi } from 'vitest';
-import { createCache } from '../../src';
-import { useCache } from '../../src/react';
-import { flushPromises } from '../testHelpers';
 import { useState } from 'react';
+import { afterEach, describe, expect, test, vi } from 'vitest';
+import { createCache, createPagedCache } from '../../src';
+import { useCache } from '../../src/react';
+import { flushPromises, sleep } from '../testHelpers';
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe('useCache', () => {
   test('value', async () => {
@@ -264,6 +268,63 @@ describe('useCache', () => {
 
         expect(div.textContent).toBe('x=2');
       });
+    });
+  });
+
+  describe('with paged cache', () => {
+    test('pages are loaded', async () => {
+      vi.useFakeTimers();
+
+      const cache = createPagedCache<number>({
+        fetchPage: async ({ pages }) => {
+          await sleep(1);
+          return pages.length;
+        },
+      });
+
+      const Component = vi.fn(function Component() {
+        const [value, , isUpdating] = useCache(cache);
+
+        return (
+          <div data-testid="div">
+            {JSON.stringify(value)}
+            {isUpdating ? 'loading' : null}
+          </div>
+        );
+      });
+
+      render(<Component />);
+      const div = screen.getByTestId('div');
+
+      expect(div.textContent).toBe('loading');
+
+      await act(async () => await vi.advanceTimersByTimeAsync(1));
+
+      expect(div.textContent).toBe('[0]');
+
+      await act(async () => {
+        cache.fetchNextPage();
+      });
+
+      expect(div.textContent).toBe('[0]loading');
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+
+      expect(div.textContent).toBe('[0,1]');
+
+      await act(async () => {
+        cache.fetchNextPage();
+      });
+
+      expect(div.textContent).toBe('[0,1]loading');
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+
+      expect(div.textContent).toBe('[0,1,2]');
     });
   });
 });

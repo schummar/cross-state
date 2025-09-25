@@ -26,6 +26,14 @@ export type {
   UpdateFunction,
   Use,
 } from './commonTypes';
+export {
+  createPagedCache,
+  type PageCacheFunction,
+  type PageCacheFunctionProps,
+  type PagedCache,
+  type PagedCacheDefinition,
+  type PagedCacheDefinitionFunction,
+} from './pagedCache';
 export { allResources, createResourceGroup, ResourceGroup, type Resource } from './resourceGroup';
 export { createScope, Scope } from './scope';
 export {

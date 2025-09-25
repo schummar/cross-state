@@ -340,51 +340,36 @@ function mapValue<T, S, Args extends any[]>(
   );
 }
 
-export type CreateCacheResult<T, Args extends any[]> = [] extends Args
-  ? CacheBundle<T, Args> & Cache<T, Args>
-  : CacheBundle<T, Args>;
+export type CreateCacheResult<
+  T,
+  Args extends any[],
+  TCache extends Cache<T, Args>,
+> = [] extends Args ? CacheBundle<T, Args, TCache> & TCache : CacheBundle<T, Args, TCache>;
 
-export interface InvalidationOptions<T, Args extends any[]> {
-  filter?: (cache: Cache<T, Args>) => boolean;
+export interface InvalidationOptions<T, Args extends any[], TCache extends Cache<T, Args>> {
+  filter?: (cache: TCache) => boolean;
 }
 
-export type CacheBundle<T, Args extends any[]> = {
-  (...args: Args): Cache<T, Args>;
-  mapCache<S>(selector: Selector<T, S>): CreateCacheResult<S, Args>;
-  mapValue<const P>(selector: Constrain<P, Path<T>>): CreateCacheResult<Value<T, P>, Args>;
-  invalidateAll: (options?: InvalidationOptions<T, Args>) => void;
-  clearAll: (options?: InvalidationOptions<T, Args>) => void;
-  getInstances: () => Cache<T, Args>[];
+export type CacheBundle<T, Args extends any[], TCache extends Cache<T, Args>> = {
+  (...args: Args): TCache;
+  mapCache<S>(selector: Selector<T, S>): CreateCacheResult<S, Args, Cache<S, Args>>;
+  mapValue<const P>(
+    selector: Constrain<P, Path<T>>,
+  ): CreateCacheResult<Value<T, P>, Args, Cache<Value<T, P>, Args>>;
+  invalidateAll: (options?: InvalidationOptions<T, Args, TCache>) => void;
+  clearAll: (options?: InvalidationOptions<T, Args, TCache>) => void;
+  getInstances: () => TCache[];
 };
 
 function create<T, Args extends any[] = []>(
   cacheFunction: CacheFunction<T, Args>,
   options?: CacheOptions<T, Args>,
-): CreateCacheResult<T, Args> {
-  return internalCreate<T, Args>(cacheFunction, options);
-}
-
-function internalCreate<T, Args extends any[] = []>(
-  source:
-    | CacheFunction<T, Args>
-    | [cache: CacheBundle<any, Args>, selector: Selector<any, T> | AnyPath],
-  options?: CacheOptions<T, Args>,
-): CreateCacheResult<T, Args> {
-  options = { ...createCache.defaultOptions, ...options };
-  const { clearUnusedAfter, resourceGroup } = options ?? {};
-
-  let baseInstance: CacheBundle<T, Args> & Cache<T, Args>;
-
-  const instanceCache = new InstanceCache<Args, Cache<T, Args>>(
-    (...args: Args): Cache<T, Args> => {
-      if (Array.isArray(source)) {
-        const [cache, selector] = source;
-        return mapValue(cache(...args), selector);
-      }
-
-      return new Cache(
+): CreateCacheResult<T, Args, Cache<T, Args>> {
+  return internalCreate<T, Args, Cache<T, Args>>(
+    (args, options) =>
+      new Cache(
         (helpers) => {
-          const result = source.apply(helpers, args);
+          const result = cacheFunction.apply(helpers, args);
 
           if (result instanceof Function) {
             return result(helpers);
@@ -395,8 +380,22 @@ function internalCreate<T, Args extends any[] = []>(
         args,
         options,
         undefined,
-      );
-    },
+      ),
+    options,
+  );
+}
+
+export function internalCreate<T, Args extends any[], TCache extends Cache<T, Args>>(
+  factory: (args: Args, options: CacheOptions<T, Args>) => TCache,
+  options?: CacheOptions<T, Args>,
+): CreateCacheResult<T, Args, TCache> {
+  options = { ...createCache.defaultOptions, ...options };
+  const { clearUnusedAfter, resourceGroup } = options ?? {};
+
+  let baseInstance: CacheBundle<T, Args, TCache> & TCache;
+
+  const instanceCache = new InstanceCache<Args, TCache>(
+    (...args) => factory(args, options),
     clearUnusedAfter ? calcDuration(clearUnusedAfter) : undefined,
   );
 
@@ -411,10 +410,12 @@ function internalCreate<T, Args extends any[] = []>(
   }
 
   const mapCache = (selector: any) => {
-    return internalCreate([baseInstance, selector]);
+    return internalCreate<any, Args, Cache<any, Args>>((args: Args) =>
+      mapValue(baseInstance(...args), selector),
+    );
   };
 
-  const invalidateAll = ({ filter = () => true }: InvalidationOptions<T, Args> = {}) => {
+  const invalidateAll = ({ filter = () => true }: InvalidationOptions<T, Args, TCache> = {}) => {
     for (const instance of instanceCache.values()) {
       if (filter(instance)) {
         instance.invalidate();
@@ -422,7 +423,7 @@ function internalCreate<T, Args extends any[] = []>(
     }
   };
 
-  const clearAll = ({ filter = () => true }: InvalidationOptions<T, Args> = {}) => {
+  const clearAll = ({ filter = () => true }: InvalidationOptions<T, Args, TCache> = {}) => {
     for (const instance of instanceCache.values()) {
       if (filter(instance)) {
         instance.clear();
@@ -454,7 +455,7 @@ function internalCreate<T, Args extends any[] = []>(
         return Reflect.get(baseCache, p, baseCache);
       },
     },
-  ) as unknown as CacheBundle<T, Args> & Cache<T, Args>;
+  ) as unknown as CacheBundle<T, Args, TCache> & TCache;
 
   const groups = Array.isArray(resourceGroup)
     ? resourceGroup
@@ -469,12 +470,14 @@ function internalCreate<T, Args extends any[] = []>(
   return baseInstance;
 }
 
+export const defaultCacheOptions: CacheOptions<any, any> = {
+  invalidateOnWindowFocus: true,
+  clearUnusedAfter: { days: 1 },
+  retain: { milliseconds: 1 },
+  equals: deepEqual,
+};
+
 export const createCache: typeof create & { defaultOptions: CacheOptions<any, any> } =
   /* @__PURE__ */ Object.assign(create, {
-    defaultOptions: {
-      invalidateOnWindowFocus: true,
-      clearUnusedAfter: { days: 1 },
-      retain: { milliseconds: 1 },
-      equals: deepEqual,
-    } as CacheOptions<any, any>,
+    defaultOptions: defaultCacheOptions,
   });
