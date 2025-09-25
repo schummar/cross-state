@@ -300,31 +300,31 @@ describe('useCache', () => {
 
       await act(async () => await vi.advanceTimersByTimeAsync(1));
 
-      expect(div.textContent).toBe('[0]');
+      expect(div.textContent).toBe('{"pages":[0],"hasMore":true,"pageCount":null}');
 
       await act(async () => {
         cache.fetchNextPage();
       });
 
-      expect(div.textContent).toBe('[0]loading');
+      expect(div.textContent).toBe('{"pages":[0],"hasMore":true,"pageCount":null}loading');
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(1);
       });
 
-      expect(div.textContent).toBe('[0,1]');
+      expect(div.textContent).toBe('{"pages":[0,1],"hasMore":true,"pageCount":null}');
 
       await act(async () => {
         cache.fetchNextPage();
       });
 
-      expect(div.textContent).toBe('[0,1]loading');
+      expect(div.textContent).toBe('{"pages":[0,1],"hasMore":true,"pageCount":null}loading');
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(1);
       });
 
-      expect(div.textContent).toBe('[0,1,2]');
+      expect(div.textContent).toBe('{"pages":[0,1,2],"hasMore":true,"pageCount":null}');
     });
   });
 });
