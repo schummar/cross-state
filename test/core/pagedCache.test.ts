@@ -320,4 +320,24 @@ describe('pageCache', () => {
       await expect(cache.fetchNextPage()).resolves.toBeUndefined();
     });
   });
+
+  test('bug: return same values for different args', async () => {
+    const cache = createPagedCache<string, [string]>((id) => ({
+      async fetchPage({ pages }) {
+        return id + pages.length;
+      },
+    }));
+
+    await expect(cache('1-').get()).resolves.toStrictEqual({
+      pages: ['1-0'],
+      hasMore: true,
+      pageCount: null,
+    });
+
+    await expect(cache('2-').get()).resolves.toStrictEqual({
+      pages: ['2-0'],
+      hasMore: true,
+      pageCount: null,
+    });
+  });
 });

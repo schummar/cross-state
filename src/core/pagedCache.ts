@@ -157,10 +157,11 @@ function createPaged<T, Args extends any[] = []>(
   options?: CacheOptions<PagedState<T>, Args>,
 ): CreateCacheResult<PagedState<T>, Args, PagedCache<T, Args>> {
   return internalCreate<PagedState<T>, Args, PagedCache<T, Args>>((args, options) => {
-    if (definition instanceof Function) {
-      definition = definition(...args);
+    let currentDefinition = definition;
+    if (currentDefinition instanceof Function) {
+      currentDefinition = currentDefinition(...args);
     }
-    return new PagedCache(definition, args, options);
+    return new PagedCache(currentDefinition, args, options);
   }, options);
 }
 
