@@ -184,6 +184,32 @@ describe('pageCache', () => {
       });
     });
 
+    test('throws when fetchNextPage is called after the last page and throwOnError is true', async () => {
+      const cache = createPagedCache<number>({
+        fetchPage: async ({ pages }) => {
+          return pages.length === 0 ? 0 : null;
+        },
+      });
+
+      await expect(cache.fetchNextPage({ throwOnError: true })).resolves.toBeUndefined();
+      await expect(cache.fetchNextPage({ throwOnError: true })).resolves.toBeUndefined();
+      await expect(cache.fetchNextPage({ throwOnError: true })).rejects.toThrow(
+        'No more pages to fetch',
+      );
+    });
+
+    test(`doesn't throw when fetchNextPage is called after the last page and throwOnError is false`, async () => {
+      const cache = createPagedCache<number>({
+        fetchPage: async ({ pages }) => {
+          return pages.length === 0 ? 0 : null;
+        },
+      });
+
+      await expect(cache.fetchNextPage({ throwOnError: false })).resolves.toBeUndefined();
+      await expect(cache.fetchNextPage({ throwOnError: false })).resolves.toBeUndefined();
+      await expect(cache.fetchNextPage({ throwOnError: false })).resolves.toBeUndefined();
+    });
+
     test('start again from the beginning when invalidated', async () => {
       const cache = createPagedCache<number>({
         fetchPage: async ({ pages }) => {
@@ -244,7 +270,7 @@ describe('pageCache', () => {
       });
     });
 
-    test('throws when fetchNextPage is called while in error state', async () => {
+    test('throws when fetchNextPage is called while in error state and throwOnError is true', async () => {
       const cache = createPagedCache<number>({
         fetchPage: async () => {
           throw new Error('Failed to load page');
@@ -252,12 +278,12 @@ describe('pageCache', () => {
       });
 
       await expect(cache.get()).rejects.toThrow('Failed to load page');
-      await expect(cache.fetchNextPage()).rejects.toThrow(
+      await expect(cache.fetchNextPage({ throwOnError: true })).rejects.toThrow(
         'Cannot fetch next page while cache is in error state',
       );
     });
 
-    test(`doesn't throw when fetchNextPage is called while in error state and ignoreErrors is true`, async () => {
+    test(`doesn't throw when fetchNextPage is called while in error state and throwOnError is false`, async () => {
       const cache = createPagedCache<number>({
         fetchPage: async () => {
           throw new Error('Failed to load page');
@@ -265,10 +291,10 @@ describe('pageCache', () => {
       });
 
       await expect(cache.get()).rejects.toThrow('Failed to load page');
-      await expect(cache.fetchNextPage({ ignoreErrors: true })).resolves.toBeUndefined();
+      await expect(cache.fetchNextPage()).resolves.toBeUndefined();
     });
 
-    test('throws when fetchNextPage is called while update is already running', async () => {
+    test('throws when fetchNextPage is called while update is already running and throwOnError is true', async () => {
       const cache = createPagedCache<number>({
         fetchPage: async ({ pages }) => {
           return pages.length;
@@ -277,12 +303,12 @@ describe('pageCache', () => {
 
       cache.fetchNextPage();
       expect(cache.state.get().isUpdating).toBe(true);
-      await expect(cache.fetchNextPage()).rejects.toThrow(
+      await expect(cache.fetchNextPage({ throwOnError: true })).rejects.toThrow(
         'Cannot fetch next page while another page is being fetched',
       );
     });
 
-    test(`doesn't throw when fetchNextPage is called while update is already running and ignoreErrors is true`, async () => {
+    test(`doesn't throw when fetchNextPage is called while update is already running and throwOnError is false`, async () => {
       const cache = createPagedCache<number>({
         fetchPage: async ({ pages }) => {
           return pages.length;
@@ -291,7 +317,7 @@ describe('pageCache', () => {
 
       cache.fetchNextPage();
       expect(cache.state.get().isUpdating).toBe(true);
-      await expect(cache.fetchNextPage({ ignoreErrors: true })).resolves.toBeUndefined();
+      await expect(cache.fetchNextPage()).resolves.toBeUndefined();
     });
   });
 });
