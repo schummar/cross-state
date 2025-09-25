@@ -8,7 +8,7 @@ import {
 import type { CalculationActions } from '@core/commonTypes';
 import { autobind } from '@lib/autobind';
 
-export interface PageCacheFunctionProps<T> extends CalculationActions<Promise<PagedState<T>>> {
+export interface PageCacheFunctionProps<T> extends CalculationActions<Promise<PagedCacheState<T>>> {
   /**
    * Previously fetched pages (in order).
    */
@@ -44,7 +44,7 @@ export interface PagedCacheDefinitionFunction<T, Args extends any[]> {
   (...args: Args): PagedCacheDefinition<T, Args>;
 }
 
-export interface PagedState<T> {
+export interface PagedCacheState<T> {
   pages: T[];
   hasMore: boolean;
   pageCount: number | null;
@@ -57,11 +57,11 @@ export interface FetchNextPageOptions {
   throwOnError?: boolean;
 }
 
-export class PagedCache<T, Args extends any[] = []> extends Cache<PagedState<T>, Args> {
+export class PagedCache<T, Args extends any[] = []> extends Cache<PagedCacheState<T>, Args> {
   constructor(
     public readonly definition: PagedCacheDefinition<T, Args>,
     args: Args,
-    options: CacheOptions<PagedState<T>, Args> = {},
+    options: CacheOptions<PagedCacheState<T>, Args> = {},
   ) {
     super(async (helpers) => loadPage(this, helpers, []), args, options, undefined);
     autobind(PagedCache);
@@ -120,7 +120,7 @@ export class PagedCache<T, Args extends any[] = []> extends Cache<PagedState<T>,
 
 async function loadPage<T, Args extends any[]>(
   cache: PagedCache<T, Args>,
-  helpers: CalculationActions<Promise<PagedState<T>>>,
+  helpers: CalculationActions<Promise<PagedCacheState<T>>>,
   oldPages: T[],
 ) {
   const { fetchPage, hasMorePages, getPageCount } = cache.definition;
@@ -144,19 +144,19 @@ async function loadPage<T, Args extends any[]>(
 
 function createPaged<T, Args extends any[] = []>(
   definition: PagedCacheDefinitionFunction<T, Args>,
-  options?: CacheOptions<PagedState<T>, Args>,
-): CreateCacheResult<PagedState<T>, Args, PagedCache<T, Args>>;
+  options?: CacheOptions<PagedCacheState<T>, Args>,
+): CreateCacheResult<PagedCacheState<T>, Args, PagedCache<T, Args>>;
 
 function createPaged<T>(
   definition: PagedCacheDefinition<T, []>,
-  options?: CacheOptions<PagedState<T>, []>,
-): CreateCacheResult<PagedState<T>, [], PagedCache<T, []>>;
+  options?: CacheOptions<PagedCacheState<T>, []>,
+): CreateCacheResult<PagedCacheState<T>, [], PagedCache<T, []>>;
 
 function createPaged<T, Args extends any[] = []>(
   definition: PagedCacheDefinitionFunction<T, Args> | PagedCacheDefinition<T, Args>,
-  options?: CacheOptions<PagedState<T>, Args>,
-): CreateCacheResult<PagedState<T>, Args, PagedCache<T, Args>> {
-  return internalCreate<PagedState<T>, Args, PagedCache<T, Args>>((args, options) => {
+  options?: CacheOptions<PagedCacheState<T>, Args>,
+): CreateCacheResult<PagedCacheState<T>, Args, PagedCache<T, Args>> {
+  return internalCreate<PagedCacheState<T>, Args, PagedCache<T, Args>>((args, options) => {
     let currentDefinition = definition;
     if (currentDefinition instanceof Function) {
       currentDefinition = currentDefinition(...args);

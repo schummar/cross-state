@@ -28,11 +28,13 @@ export type {
 } from './commonTypes';
 export {
   createPagedCache,
+  type FetchNextPageOptions,
   type PageCacheFunction,
   type PageCacheFunctionProps,
   type PagedCache,
   type PagedCacheDefinition,
   type PagedCacheDefinitionFunction,
+  type PagedCacheState,
 } from './pagedCache';
 export { allResources, createResourceGroup, ResourceGroup, type Resource } from './resourceGroup';
 export { createScope, Scope } from './scope';
