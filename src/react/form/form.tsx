@@ -3,7 +3,6 @@ import { autobind } from '@lib/autobind';
 import { deepEqual } from '@lib/equals';
 import { isObject } from '@lib/helpers';
 import {
-  type Path,
   type PathAsString,
   type Value,
   type WildcardPathAsString,
@@ -38,20 +37,16 @@ import { useFormAutosave, type FormAutosaveOptions } from './useFormAutosave';
 // Form types
 /// /////////////////////////////////////////////////////////////////////////////
 
-export type Transform<TDraft> = Path<TDraft> | '' extends infer TPath
-  ? TPath extends TPath
-    ? {
-        update: (value: Value<TDraft, TPath>, store: Store<TDraft>) => void | TDraft;
-      } & (TPath extends '' ? { trigger?: '' } : { trigger: TPath })
-    : never
-  : never;
+export interface Transform<TDraft> {
+  (value: TDraft, store: Store<TDraft>): void | TDraft;
+}
 
 export interface FormOptions<TDraft, TOriginal> {
   defaultValue: TDraft;
   validations?: Validations<TDraft, TOriginal>;
   localizeError?: (error: string, field: string) => string | undefined;
   autoSave?: FormAutosaveOptions<TDraft, TOriginal>;
-  transform?: Transform<TDraft>[];
+  transform?: Transform<TDraft>;
   validatedClass?: string;
 }
 
@@ -530,25 +525,25 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
 
     context.getField = (path) => lazy(path, () => getField(context, path));
 
-    // useEffect(() => {
-    //   const handles = options.transform?.map(({ trigger, update }) => {
-    //     const draft = derivedState.map('draft');
-    //     const triggerStore = trigger ? draft.map(trigger as any) : draft;
+    useEffect(() => {
+      const transform = options.transform;
+      if (!transform) {
+        return;
+      }
 
-    //     return triggerStore.subscribe(() => {
-    //       const value = trigger ? get(draft.get(), trigger as any) : draft.get();
-    //       const result = update(value as any, draft);
+      const store = formState.map(
+        (state) => state.draft ?? original ?? options.defaultValue,
+        (draft) => (state) => ({ ...state, draft }),
+      );
 
-    //       if (result !== undefined) {
-    //         draft.set(result);
-    //       }
-    //     });
-    //   });
+      return store.subscribe((value) => {
+        const result = transform(value, store);
 
-    //   return () => {
-    //     handles?.forEach((handle) => handle());
-    //   };
-    // }, [original,options.transform]);
+        if (result !== undefined && !deepEqual(result, value)) {
+          store.set(result);
+        }
+      });
+    }, [original, defaultValue, options.transform]);
 
     useFormAutosave(context);
 
