@@ -1,4 +1,5 @@
 import type { Update, UpdateFunction } from '@core';
+import useLatestRef from '@react/lib/useLatestRef';
 import { useUrlContext } from '@react/url/urlContext';
 import { createStorageKey, parseLocation } from '@react/url/urlHelpers';
 import {
@@ -7,7 +8,7 @@ import {
   type UrlOptionsWithoutDefaults,
 } from '@react/url/urlOptions';
 import type { UrlStore } from '@react/url/urlStore';
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 
 export function useUrlParam<T>(store: UrlStore<T>): [T, update: UpdateFunction<T>];
 export function useUrlParam<T>(options: UrlOptions<T>): [T, update: UpdateFunction<T>];
@@ -62,13 +63,16 @@ export function useUrlParam<T>(
     onCommit?.(value);
   }
 
-  function update(update: Update<T>) {
+  const latestValue = useLatestRef(value);
+  const latestCommit = useLatestRef(commit);
+
+  const update = useCallback((update: Update<T>) => {
     if (update instanceof Function) {
-      update = update(value);
+      update = update(latestValue.current);
     }
 
-    commit(update);
-  }
+    latestCommit.current(update);
+  }, []);
 
   useEffect(() => {
     if (urlValue !== null) {
