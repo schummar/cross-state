@@ -121,7 +121,11 @@ export class Cache<T, Args extends any[] = []> extends Store<Promise<T>> {
   }
 
   get({ update = 'whenStale', backgroundUpdate = false }: CacheGetOptions = {}): Promise<T> {
-    this.calculatedValue?.check();
+    if (!this.calculatedValue?.check()) {
+      this.calculatedValue?.stop();
+      this.calculatedValue = undefined;
+    }
+
     const promise = this.calculatedValue?.value;
     const stalePromise = this.stalePromise;
 

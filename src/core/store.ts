@@ -34,6 +34,7 @@ export interface StoreOptions<T> {
   retain?: Duration;
   equals?: SubscribeOptions['equals'];
   effect?: Effect<Store<T>> | { effect: Effect<Store<T>>; retain?: Duration };
+  cacheValue?: boolean;
 }
 
 export interface StoreOptionsWithMethods<T, Methods extends StoreMethods> extends StoreOptions<T> {
@@ -116,7 +117,10 @@ export class Store<T> {
   }
 
   get(): T {
-    this.calculatedValue?.check();
+    if (!this.calculatedValue?.check()) {
+      this.calculatedValue?.stop();
+      this.calculatedValue = undefined;
+    }
 
     if (!this.calculatedValue) {
       this.calculatedValue = calculatedValue(this, this.notify);

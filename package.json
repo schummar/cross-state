@@ -193,8 +193,8 @@
     {
       "name": "react: urlStore",
       "path": "dist/react/index.js",
-      "import": "{createUrlStore}",
-      "limit": "1 KB"
+      "import": "{createUrlParam}",
+      "limit": "5 KB"
     },
     {
       "name": "/mutative",

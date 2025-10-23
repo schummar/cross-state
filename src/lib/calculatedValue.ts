@@ -210,12 +210,16 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
   }
 
   function check() {
+    if (store.options.cacheValue === false) {
+      return false;
+    }
+
     for (const dep of deps) {
       if (!deepEqual(dep.store.get(), dep.value)) {
-        store.invalidate();
-        return;
+        return false;
       }
     }
+    return true;
   }
 
   function stop() {
@@ -250,7 +254,16 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
 export function staticValue<T>(value: T): CalculatedValue<T> {
   return {
     value,
-    check: () => undefined,
+    check: () => true,
+    stop: () => undefined,
+    invalidateDependencies: () => undefined,
+  };
+}
+
+export function staleValue<T>(value: T): CalculatedValue<T> {
+  return {
+    value,
+    check: () => false,
     stop: () => undefined,
     invalidateDependencies: () => undefined,
   };

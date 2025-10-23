@@ -1,4 +1,5 @@
-import { defaultDeserializer, defaultSerializer } from '@react/url/urlHelpers';
+import { castArray } from '@lib/castArray';
+import { defaultDeserializer, defaultSerializer, normalizePath } from '@react/url/urlHelpers';
 
 export interface UrlOptions<T> {
   key: string;
@@ -9,6 +10,7 @@ export interface UrlOptions<T> {
   writeDefaultValue?: boolean;
   onCommit?: (value: T) => void;
   persist?: { id: string } | null;
+  path?: string | RegExp | (string | RegExp)[] | null;
 }
 
 export interface UrlOptionsWithoutDefaults<T>
@@ -29,6 +31,7 @@ export function createUrlOptions<T>({
   writeDefaultValue = false,
   onCommit = () => undefined,
   persist = null,
+  path = null,
 }: UrlOptionsWithoutDefaults<T>): Required<UrlOptionsWithoutDefaults<T>> {
   return {
     key,
@@ -39,5 +42,6 @@ export function createUrlOptions<T>({
     writeDefaultValue,
     onCommit,
     persist,
+    path: path === null ? null : castArray(path).map(normalizePath),
   };
 }
