@@ -1,6 +1,5 @@
 import { createUrlParam } from '@react';
 import '@react/register';
-import { createStorageKey } from '@react/url/urlParamStore';
 import { renderHook } from '@testing-library/react';
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -126,7 +125,7 @@ test(`urlStore will save value in storage even when outside of its path`, () => 
   });
 
   expect(result.current[0]).toEqual('foo');
-  expect(localStorage.getItem(createStorageKey('test', 'foo'))).toEqual('"bar"');
+  expect(localStorage.getItem(urlParam.storageKey!)).toEqual('"bar"');
   expect(getHash()).toEqual('');
 
   act(() => {
@@ -174,8 +173,6 @@ test(`urlStore doesn't write url when outside of its path`, () => {
 });
 
 describe('url store persistence', () => {
-  const persistKey = createStorageKey('test', 'foo');
-
   test('persists store changes', async () => {
     const urlParam = createUrlParam({
       key: 'foo',
@@ -187,15 +184,15 @@ describe('url store persistence', () => {
     const { result } = renderHook(() => urlParam.useProp());
 
     expect(getHash()).toEqual('#foo=%7B%22bar%22%3A%22default%22%7D');
-    expect(localStorage.getItem(persistKey)).toBe('{"bar":"default"}');
+    expect(localStorage.getItem(urlParam.storageKey!)).toBe('{"bar":"default"}');
 
     act(() => result.current[1]({ bar: 'baz' }));
     expect(getHash()).toEqual('#foo=%7B%22bar%22%3A%22baz%22%7D');
-    expect(localStorage.getItem(persistKey)).toBe('{"bar":"baz"}');
+    expect(localStorage.getItem(urlParam.storageKey!)).toBe('{"bar":"baz"}');
 
     act(() => result.current[1]({ bar: 'default' }));
     expect(getHash()).toEqual('#foo=%7B%22bar%22%3A%22default%22%7D');
-    expect(localStorage.getItem(persistKey)).toBe('{"bar":"default"}');
+    expect(localStorage.getItem(urlParam.storageKey!)).toBe('{"bar":"default"}');
   });
 
   test('persists url changes while active', async () => {
@@ -209,11 +206,11 @@ describe('url store persistence', () => {
     renderHook(() => urlParam.useProp());
 
     expect(getHash()).toEqual('#foo=%7B%22bar%22%3A%22default%22%7D');
-    expect(localStorage.getItem(persistKey)).toBe('{"bar":"default"}');
+    expect(localStorage.getItem(urlParam.storageKey!)).toBe('{"bar":"default"}');
 
     setUrlParams({ foo: { bar: 'baz' } });
     expect(getHash()).toEqual('#foo=%7B%22bar%22%3A%22baz%22%7D');
-    expect(localStorage.getItem(persistKey)).toBe('{"bar":"baz"}');
+    expect(localStorage.getItem(urlParam.storageKey!)).toBe('{"bar":"baz"}');
   });
 
   test(`don't persists url changes while inactive`, async () => {
@@ -227,17 +224,15 @@ describe('url store persistence', () => {
     const { unmount } = renderHook(() => urlParam.useProp());
 
     expect(getHash()).toEqual('#foo=%7B%22bar%22%3A%22default%22%7D');
-    expect(localStorage.getItem(persistKey)).toBe('{"bar":"default"}');
+    expect(localStorage.getItem(urlParam.storageKey!)).toBe('{"bar":"default"}');
 
     unmount();
     setUrlParams({ foo: { bar: 'baz' } });
     expect(getHash()).toEqual('#foo=%7B%22bar%22%3A%22baz%22%7D');
-    expect(localStorage.getItem(persistKey)).toBe('{"bar":"default"}');
+    expect(localStorage.getItem(urlParam.storageKey!)).toBe('{"bar":"default"}');
   });
 
   test('restores persisted value', async () => {
-    localStorage.setItem(persistKey, '{"bar":"baz"}');
-
     const urlParam = createUrlParam({
       key: 'foo',
       type: 'hash',
@@ -245,17 +240,15 @@ describe('url store persistence', () => {
       writeDefaultValue: true,
       persist: { id: 'test' },
     });
+    localStorage.setItem(urlParam.storageKey!, '{"bar":"baz"}');
     const { result } = renderHook(() => urlParam.useProp());
 
     expect(result.current[0]).toEqual({ bar: 'baz' });
     expect(getHash()).toEqual('#foo=%7B%22bar%22%3A%22baz%22%7D');
-    expect(localStorage.getItem(persistKey)).toBe('{"bar":"baz"}');
+    expect(localStorage.getItem(urlParam.storageKey!)).toBe('{"bar":"baz"}');
   });
 
   test(`doesn't restore persisted value if url is set`, async () => {
-    localStorage.setItem(persistKey, '{"bar":"baz"}');
-    setUrlParams({ foo: { bar: 'hello' } });
-
     const urlParam = createUrlParam({
       key: 'foo',
       type: 'hash',
@@ -263,12 +256,26 @@ describe('url store persistence', () => {
       writeDefaultValue: true,
       persist: { id: 'test' },
     });
+    localStorage.setItem(urlParam.storageKey!, '{"bar":"baz"}');
+    setUrlParams({ foo: { bar: 'hello' } });
+
     const { result } = renderHook(() => urlParam.useProp());
 
     expect(result.current[0]).toEqual({ bar: 'hello' });
     expect(getHash()).toEqual('#foo=%7B%22bar%22%3A%22hello%22%7D');
-    expect(localStorage.getItem(persistKey)).toBe('{"bar":"hello"}');
+    expect(localStorage.getItem(urlParam.storageKey!)).toBe('{"bar":"hello"}');
   });
+});
+
+test('parse', () => {
+  const urlParam = createUrlParam<number>({
+    key: 'foo',
+    type: 'hash',
+    defaultValue: 0,
+  });
+
+  expect(urlParam.parse('/path#foo=42')).toBe(42);
+  expect(urlParam.parse('/path')).toBe(0);
 });
 
 describe('bugs', () => {

@@ -31,81 +31,81 @@ export const urlStore: Store<string> = createStore(() => window.location.href, {
 });
 
 export class UrlParamStore<T> extends Store<T> {
+  readonly storageKey: string | null;
   private lastHref?: string;
   private lastStorageValue?: string | null;
   private lastValue?: T;
-  private storageKey: string | null;
 
   constructor(public readonly urlOptions: Required<UrlOptions<T>>) {
     super(() => this.calc(), { cacheValue: false });
     autobind(UrlParamStore);
 
-    this.storageKey = urlOptions.persist && createStorageKey(urlOptions.persist.id, urlOptions.key);
+    this.storageKey =
+      urlOptions.persist && `cross-state:url:${urlOptions.persist.id}:${urlOptions.key}`;
+    this.addEffect(this.watch);
+  }
 
-    this.addEffect(() => {
-      let isActive = false;
-      let urlValue = this.getUrlValue();
-      let storageValue = this.getStorageValue();
+  private watch() {
+    let isActive = false;
+    let urlValue = this.getUrlValue();
+    let storageValue = this.getStorageValue();
 
-      const update = () => {
-        const oldIsActive = isActive;
-        isActive = this.isPathActive();
-        const oldUrlValue = urlValue;
-        urlValue = this.getUrlValue();
-        const oldStorageValue = storageValue;
-        storageValue = this.getStorageValue();
+    const update = () => {
+      const oldIsActive = isActive;
+      isActive = this.isPathActive();
+      const oldUrlValue = urlValue;
+      urlValue = this.getUrlValue();
+      const oldStorageValue = storageValue;
+      storageValue = this.getStorageValue();
 
-        // If inactive => ignore changes
-        if (!isActive) {
-          return;
+      // If inactive => ignore changes
+      if (!isActive) {
+        return;
+      }
+
+      // No changes => ignore
+      if (
+        isActive === oldIsActive &&
+        urlValue === oldUrlValue &&
+        storageValue === oldStorageValue
+      ) {
+        return;
+      }
+
+      if (!oldIsActive) {
+        // Became active =>
+        // - if url has value => update storage
+        // - else if storage has value or writeDefaultValue => update url
+        if (urlValue !== null) {
+          this.updateStorage(this.urlOptions.deserialize(urlValue));
+        } else if (storageValue !== null) {
+          this.updateUrl(this.urlOptions.deserialize(storageValue));
+        } else if (this.urlOptions.writeDefaultValue) {
+          this.updateUrl(this.urlOptions.defaultValue);
+        }
+      } else if (urlValue !== oldUrlValue) {
+        // Url change while active =>
+        // - if url has no value and writeDefaultValue => update url
+        // - update storage
+        if (urlValue === null && this.urlOptions.writeDefaultValue) {
+          this.updateUrl(this.urlOptions.defaultValue);
         }
 
-        // No changes => ignore
-        if (
-          isActive === oldIsActive &&
-          urlValue === oldUrlValue &&
-          storageValue === oldStorageValue
-        ) {
-          return;
-        }
+        this.updateStorage(
+          urlValue !== null ? this.urlOptions.deserialize(urlValue) : this.urlOptions.defaultValue,
+        );
+      }
 
-        if (!oldIsActive) {
-          // Became active =>
-          // - if url has value => update storage
-          // - else if storage has value or writeDefaultValue => update url
-          if (urlValue !== null) {
-            this.updateStorage(this.urlOptions.deserialize(urlValue));
-          } else if (storageValue !== null) {
-            this.updateUrl(this.urlOptions.deserialize(storageValue));
-          } else if (this.urlOptions.writeDefaultValue) {
-            this.updateUrl(this.urlOptions.defaultValue);
-          }
-        } else if (urlValue !== oldUrlValue) {
-          // Url change while active =>
-          // - if url has no value and writeDefaultValue => update url
-          // - update storage
-          if (urlValue === null && this.urlOptions.writeDefaultValue) {
-            this.updateUrl(this.urlOptions.defaultValue);
-          }
+      this.invalidate();
+    };
 
-          this.updateStorage(
-            urlValue !== null
-              ? this.urlOptions.deserialize(urlValue)
-              : this.urlOptions.defaultValue,
-          );
-        }
+    const cancel = urlStore.subscribe(update);
+    window.addEventListener('storage', update);
 
-        this.invalidate();
-      };
-
-      const cancel = urlStore.subscribe(update);
-      window.addEventListener('storage', update);
-
-      return () => {
-        cancel();
-        window.removeEventListener('storage', update);
-      };
-    });
+    return () => {
+      cancel();
+      window.removeEventListener('storage', update);
+    };
   }
 
   private getUrlValue() {
@@ -214,6 +214,13 @@ export class UrlParamStore<T> extends Store<T> {
       this.updateStorage(update);
     }
   }
+
+  parse(path: string): T {
+    const url = new URL(path, window.location.href);
+    const params = new URLSearchParams(url[this.urlOptions.type].slice(1) || '');
+    const urlValue = params.get(this.urlOptions.key);
+    return urlValue !== null ? this.urlOptions.deserialize(urlValue) : this.urlOptions.defaultValue;
+  }
 }
 
 export function createUrlParam<T>(options: UrlOptions<T>): UrlParamStore<T>;
@@ -222,8 +229,4 @@ export function createUrlParam<T>(
 ): UrlParamStore<T | undefined>;
 export function createUrlParam<T>(options: UrlOptionsWithoutDefaults<T>) {
   return new UrlParamStore(createUrlOptions(options));
-}
-
-export function createStorageKey(id: string, key: string) {
-  return `cross-state:url:${id}:${key}`;
 }
