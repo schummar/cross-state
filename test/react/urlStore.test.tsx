@@ -269,25 +269,25 @@ describe('url store persistence', () => {
     expect(getHash()).toEqual('#foo=%7B%22bar%22%3A%22hello%22%7D');
     expect(localStorage.getItem(persistKey)).toBe('{"bar":"hello"}');
   });
+});
 
-  test('updates url when localStorage is changed externally', async () => {
+describe('bugs', () => {
+  test('url change to defaultValue was ignored when writeDefaultValue is false and storage has value', () => {
+    localStorage.setItem('cross-state:url:test:foo', 'false');
+
     const urlParam = createUrlParam({
       key: 'foo',
       type: 'hash',
-      defaultValue: { bar: 'default' },
-      writeDefaultValue: true,
+      defaultValue: true,
       persist: { id: 'test' },
     });
-    renderHook(() => urlParam.useProp());
 
-    expect(getHash()).toEqual('#foo=%7B%22bar%22%3A%22default%22%7D');
-    expect(localStorage.getItem(persistKey)).toBe('{"bar":"default"}');
+    const { result } = renderHook(() => urlParam.useProp());
+    expect(result.current[0]).toBe(false);
 
-    act(() => {
-      localStorage.setItem(persistKey, '{"bar":"baz"}');
-      window.dispatchEvent(new StorageEvent('storage', { key: persistKey }));
-    });
-
-    expect(getHash()).toEqual('#foo=%7B%22bar%22%3A%22baz%22%7D');
+    act(() => result.current[1](true));
+    expect(getHash()).toBe('');
+    expect(localStorage.getItem('cross-state:url:test:foo')).toBe('true');
+    expect(result.current[0]).toBe(true);
   });
 });

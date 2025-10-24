@@ -69,8 +69,6 @@ export class UrlParamStore<T> extends Store<T> {
           return;
         }
 
-        this.invalidate();
-
         if (!oldIsActive) {
           // Became active =>
           // - if url has value => update storage
@@ -81,24 +79,23 @@ export class UrlParamStore<T> extends Store<T> {
             this.updateUrl(this.urlOptions.deserialize(storageValue));
           } else if (this.urlOptions.writeDefaultValue) {
             this.updateUrl(this.urlOptions.defaultValue);
-            this.updateStorage(this.urlOptions.defaultValue);
           }
-        } else {
-          // Change while active =>
-          // - if url changed => update storage
-          // - else if storage changed => update url
-          if (urlValue !== oldUrlValue) {
-            if (urlValue === null && this.urlOptions.writeDefaultValue) {
-              this.updateUrl(this.urlOptions.defaultValue);
-            }
-            this.updateStorage();
-          } else if (storageValue !== null) {
-            if (storageValue === null && this.urlOptions.writeDefaultValue) {
-              this.updateUrl(this.urlOptions.defaultValue);
-            }
-            this.updateUrl(this.urlOptions.deserialize(storageValue));
+        } else if (urlValue !== oldUrlValue) {
+          // Url change while active =>
+          // - if url has no value and writeDefaultValue => update url
+          // - update storage
+          if (urlValue === null && this.urlOptions.writeDefaultValue) {
+            this.updateUrl(this.urlOptions.defaultValue);
           }
+
+          this.updateStorage(
+            urlValue !== null
+              ? this.urlOptions.deserialize(urlValue)
+              : this.urlOptions.defaultValue,
+          );
         }
+
+        this.invalidate();
       };
 
       const cancel = urlStore.subscribe(update);
