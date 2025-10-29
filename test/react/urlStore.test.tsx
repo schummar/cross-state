@@ -275,6 +275,7 @@ test('parse', () => {
   });
 
   expect(urlParam.parse('/path#foo=42')).toBe(42);
+  expect(urlParam.parse('#foo=42')).toBe(42);
   expect(urlParam.parse('/path')).toBe(0);
 });
 

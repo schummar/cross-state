@@ -262,8 +262,8 @@ describe('static store', () => {
       const state = createStore(0);
       const value = state.once();
 
-      state.set(1);
-      await expect(value).resolves.toBe(1);
+      state.set(0);
+      await expect(value).resolves.toBe(0);
     });
 
     test('store.once with condition', async () => {

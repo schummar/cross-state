@@ -253,12 +253,12 @@ export class Store<T> {
 
   once(condition: (value: T) => boolean, options?: OnceOptions): PromiseWithCancel<T>;
 
-  once(options?: OnceOptions): PromiseWithCancel<T>;
+  once(options?: OnceOptions): PromiseWithCancel<Exclude<T, undefined>>;
 
   once(
     ...args: [condition: (value: any) => boolean, options?: OnceOptions] | [options?: OnceOptions]
   ): PromiseWithCancel<any> {
-    const condition = args[0] instanceof Function ? args[0] : Boolean;
+    const condition = args[0] instanceof Function ? args[0] : (x: T) => x !== undefined;
     const options = args[0] instanceof Function ? args[1] : args[0];
 
     return new PromiseWithCancel<T>((resolve, reject, signal) => {
