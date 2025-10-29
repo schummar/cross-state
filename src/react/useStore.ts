@@ -2,12 +2,11 @@ import type { Selector, SubscribeOptions } from '@core/commonTypes';
 import type { Store } from '@core/store';
 import type { Constrain } from '@lib/constrain';
 import { deepEqual } from '@lib/equals';
-import { simpleHash } from '@lib/hash';
 import { makeSelector } from '@lib/makeSelector';
 import { type Path, type Value } from '@lib/path';
 import { trackingProxy } from '@lib/trackingProxy';
-import { useCallback, useDebugValue, useLayoutEffect, useRef } from 'react';
-import { useSyncExternalStoreWithSelector } from 'use-sync-external-store/shim/with-selector.js';
+import useMemoEquals from '@react/lib/useMemoEquals';
+import { useCallback, useDebugValue, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
 
 export interface UseStoreOptions<S> extends Omit<SubscribeOptions, 'runNow' | 'passive'> {
   /**
@@ -66,7 +65,26 @@ export function useStore<T, S>(store: Store<T>, argument1?: any, argument2?: any
     ...options
   } = allOptions;
 
-  const subOptions = { ...options, runNow: false };
+  const snapshot = useRef<{ storeValue: T; selectedValue: S }>(undefined);
+
+  const get = useCallback(() => {
+    const storeValue = store.get();
+    const selectedValue = selector(storeValue);
+
+    const hasChanged =
+      !snapshot.current ||
+      (storeValue !== snapshot.current.storeValue &&
+        !(lastEqualsRef.current?.(selectedValue) ?? false));
+
+    if (hasChanged) {
+      snapshot.current = { storeValue, selectedValue };
+    }
+
+    return snapshot.current!.selectedValue;
+  }, [store, selector]);
+
+  const subOptions = useMemoEquals({ ...options, runNow: false });
+
   const subscribe = useCallback(
     (listener: () => void) => {
       let _listener: (value: any) => void = listener;
@@ -113,17 +131,11 @@ export function useStore<T, S>(store: Store<T>, argument1?: any, argument2?: any
         cancel();
       };
     },
-    [store, simpleHash(subOptions)],
+    [store, withViewTransition, equals, subOptions],
   );
 
-  let value = useSyncExternalStoreWithSelector<T, S>(
-    //
-    subscribe,
-    store.get,
-    undefined,
-    (x) => selector(x),
-    (_v, newValue) => lastEqualsRef.current?.(newValue) ?? false,
-  );
+  let value = useSyncExternalStore<S>(subscribe, get, get);
+
   let lastEquals = (newValue: S) => equals(newValue, value);
   let revoke: (() => void) | undefined;
 
