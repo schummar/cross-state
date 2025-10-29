@@ -285,7 +285,7 @@ describe('static store', () => {
     });
 
     test('store.once cancel', async () => {
-      const state = createStore(0);
+      const state = createStore(undefined);
       const value = state.once();
 
       value.cancel();
@@ -293,7 +293,7 @@ describe('static store', () => {
     });
 
     test('store.once cancel with reason', async () => {
-      const state = createStore(0);
+      const state = createStore(undefined);
       const value = state.once();
 
       value.cancel('reason');
@@ -301,7 +301,7 @@ describe('static store', () => {
     });
 
     test('store.once with signal', async () => {
-      const state = createStore(0);
+      const state = createStore(undefined);
       const controller = new AbortController();
       const value = state.once({ signal: controller.signal });
 
@@ -310,7 +310,7 @@ describe('static store', () => {
     });
 
     test('store.once with signal and reason', async () => {
-      const state = createStore(0);
+      const state = createStore(undefined);
       const controller = new AbortController();
       const value = state.once({ signal: controller.signal });
 
@@ -321,7 +321,7 @@ describe('static store', () => {
     test('store.once with timeout', async () => {
       vi.useRealTimers();
 
-      const state = createStore(0);
+      const state = createStore(undefined);
       const value = state.once({ timeout: { milliseconds: 1 } });
 
       await expect(value).rejects.toThrow('timeout');
