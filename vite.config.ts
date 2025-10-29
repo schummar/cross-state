@@ -20,5 +20,9 @@ export default defineConfig({
         execArgv: ['--expose-gc'],
       },
     },
+    typecheck: {
+      tsconfig: 'test/tsconfig.json',
+      enabled: true,
+    },
   },
 });

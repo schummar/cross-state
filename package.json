@@ -67,7 +67,6 @@
     "lint:prettier": "prettier -l src",
     "lint:oxlint": "oxlint",
     "lint:tsc": "tsc --noEmit --emitDeclarationOnly false",
-    "lint:tsc:tests": "tsc --noEmit --emitDeclarationOnly false -p test/tsconfig.json",
     "size": "size-limit",
     "prepublishOnly": "runp -i lint test build :p size publint",
     "test": "vitest run --coverage",
