@@ -2,6 +2,8 @@ import { afterEach, assert, beforeEach, describe, expect, test, vi } from 'vites
 import { InstanceCache } from '../../src/lib/instanceCache';
 import { sleep } from '../testHelpers';
 
+declare const gc: (() => void) | undefined;
+
 beforeEach(() => {
   vi.useFakeTimers();
   vi.spyOn(InstanceCache.prototype, 'now' as any).mockImplementation(() => Date.now());

@@ -81,6 +81,7 @@ export function useCache<T>(
     if (updateOnMount) {
       rootCache.invalidate();
     }
+    // oxlint-disable-next-line exhaustive-deps
   }, []);
 
   const result = useStore(
@@ -119,7 +120,7 @@ export function useCache<T>(
 
   useEffect(
     () => rootCache.subscribe(() => undefined, { passive: passive || disabled }),
-    [rootCache, passive || disabled],
+    [rootCache, passive, disabled],
   );
 
   useLoadingBoundary(loadingBoundary && !disabled && result.status === 'pending');

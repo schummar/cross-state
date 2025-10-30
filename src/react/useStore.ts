@@ -3,10 +3,17 @@ import type { Store } from '@core/store';
 import type { Constrain } from '@lib/constrain';
 import { deepEqual } from '@lib/equals';
 import { makeSelector } from '@lib/makeSelector';
-import { type Path, type Value } from '@lib/path';
+import { isAnyPath, type AnyPath, type Path, type Value } from '@lib/path';
 import { trackingProxy } from '@lib/trackingProxy';
 import useMemoEquals from '@react/lib/useMemoEquals';
-import { useCallback, useDebugValue, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
+import {
+  useCallback,
+  useDebugValue,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useSyncExternalStore,
+} from 'react';
 
 export interface UseStoreOptions<S> extends Omit<SubscribeOptions, 'runNow' | 'passive'> {
   /**
@@ -34,15 +41,21 @@ export function useStore<T, const P>(
 
 export function useStore<T>(store: Store<T>, option?: UseStoreOptions<T>): T;
 
-export function useStore<T, S>(store: Store<T>, argument1?: any, argument2?: any): S {
-  const selector = makeSelector<T, S>(
-    typeof argument1 === 'function' || typeof argument1 === 'string' ? argument1 : undefined,
-  );
+export function useStore<T, S>(
+  store: Store<T>,
+  ...args: [Selector<T, S> | AnyPath, UseStoreOptions<S>?] | [UseStoreOptions<S>?]
+): S {
+  let selectorRaw: Selector<T, S> | AnyPath | undefined;
+  let allOptions: UseStoreOptions<S>;
 
-  const allOptions = (
-    typeof argument1 === 'object' ? argument1 : (argument2 ?? {})
-  ) as UseStoreOptions<S>;
+  if (typeof args[0] === 'function' || isAnyPath(args[0])) {
+    selectorRaw = args[0];
+    allOptions = args[1] ?? {};
+  } else {
+    allOptions = args[0] ?? {};
+  }
 
+  const selector = useMemo(() => makeSelector<T, S>(selectorRaw), [selectorRaw]);
   const lastEqualsRef = useRef<(newValue: S) => boolean | undefined>(undefined);
 
   if (store.derivedFrom) {
@@ -135,7 +148,6 @@ export function useStore<T, S>(store: Store<T>, argument1?: any, argument2?: any
   );
 
   let value = useSyncExternalStore<S>(subscribe, get, get);
-
   let lastEquals = (newValue: S) => equals(newValue, value);
   let revoke: (() => void) | undefined;
 
