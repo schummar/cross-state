@@ -1,4 +1,5 @@
 import { type PathAsString, type Value } from '@lib/path';
+import useLatestFunction from '@react/lib/useLatestFunction';
 import {
   createElement,
   useEffect,
@@ -170,8 +171,9 @@ export function FormField<
     return defaultValue;
   });
 
-  const setValue = (x: FieldChangeValue<TComponent>) =>
-    form.getField(name as any).setValue(deserialize(x, getFormState()));
+  const setValue = useLatestFunction((x: FieldChangeValue<TComponent>) =>
+    form.getField(name as any).setValue(deserialize(x, getFormState())),
+  );
 
   const hasTriggeredValidations = this.useFormState((form) => form.hasTriggeredValidations);
 
@@ -186,7 +188,7 @@ export function FormField<
     }, commitDebounce);
 
     return () => clearTimeout(timeout);
-  }, [localValue, commitDebounce]);
+  }, [localValue, commitDebounce, setValue]);
 
   const props = {
     name,
