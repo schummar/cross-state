@@ -79,19 +79,6 @@ export function useStore<T, S>(
   const selector = useMemo(() => makeSelector<T, S>(selectorMemoized), [selectorMemoized]);
   const lastEqualsRef = useRef<(newValue: S) => boolean | undefined>(undefined);
 
-  if (store.derivedFrom) {
-    return useStore(
-      store.derivedFrom.store,
-      (value) => {
-        for (const selector of store.derivedFrom!.selectors) {
-          value = makeSelector(selector)(value);
-        }
-        return selector(value);
-      },
-      allOptions,
-    );
-  }
-
   const {
     enableTrackingProxy,
     equals = store.options.equals ?? deepEqual,
@@ -123,6 +110,7 @@ export function useStore<T, S>(
     return snapshot.current!.selectedValue;
   }, [store, storeValueEquals, selector]);
 
+  const rootStore = store.derivedFrom?.store ?? store;
   const subOptions = useMemoEquals({ ...options, runNow: false });
 
   const subscribe = useCallback(
@@ -165,13 +153,13 @@ export function useStore<T, S>(
         };
       }
 
-      const cancel = store.subscribe(_listener, subOptions);
+      const cancel = rootStore.subscribe(_listener, subOptions);
       return () => {
         stopped = true;
         cancel();
       };
     },
-    [store, withViewTransition, equals, subOptions],
+    [rootStore, withViewTransition, equals, subOptions],
   );
 
   let value = useSyncExternalStore<S>(subscribe, get, get);

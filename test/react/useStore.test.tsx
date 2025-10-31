@@ -300,4 +300,91 @@ describe('useStore', () => {
     expect(div.textContent).toBe('1');
     expect(selector.mock.calls.length).toBe(2);
   });
+
+  test(`mapped store's selector is not evaluated unnecessarily`, () => {
+    const store = createStore(0);
+    const selector = vi.fn((x: number) => x + 1);
+    const mappedStore = store.map(selector);
+
+    const Component = function Component() {
+      const v1 = useStore(mappedStore);
+      const v2 = useStore(mappedStore);
+
+      return (
+        <div data-testid="div">
+          {v1},{v2}
+        </div>
+      );
+    };
+
+    render(<Component />);
+    const div = screen.getByTestId('div');
+
+    expect(div.textContent).toBe('1,1');
+    expect(selector.mock.calls.length).toBe(1);
+
+    act(() => {
+      store.set(1);
+    });
+
+    expect(div.textContent).toBe('2,2');
+    expect(selector.mock.calls.length).toBe(2);
+  });
+
+  test(`mapped store is not subscribed to unnecessarily`, () => {
+    let subscribedCount = 0;
+    const store = createStore(0, {
+      effect() {
+        subscribedCount++;
+      },
+    });
+    const mappedStore = store.map((x) => x + 1);
+
+    const Component = function Component() {
+      const value = useStore(mappedStore);
+
+      return <div data-testid="div">{value}</div>;
+    };
+
+    render(<Component />);
+    const div = screen.getByTestId('div');
+
+    expect(div.textContent).toBe('1');
+    expect(subscribedCount).toBe(1);
+
+    act(() => {
+      store.set(1);
+    });
+
+    expect(div.textContent).toBe('2');
+    expect(subscribedCount).toBe(1);
+  });
+
+  test(`inline mapped store is not subscribed to unnecessarily`, () => {
+    let subscribedCount = 0;
+    const store = createStore(0, {
+      effect() {
+        subscribedCount++;
+      },
+    });
+
+    const Component = function Component() {
+      const value = useStore(store.map((x) => x + 1));
+
+      return <div data-testid="div">{value}</div>;
+    };
+
+    render(<Component />);
+    const div = screen.getByTestId('div');
+
+    expect(div.textContent).toBe('1');
+    expect(subscribedCount).toBe(1);
+
+    act(() => {
+      store.set(1);
+    });
+
+    expect(div.textContent).toBe('2');
+    expect(subscribedCount).toBe(1);
+  });
 });
