@@ -4,6 +4,9 @@ on:
     branches:
       - master
       - next
+env:
+  VOLTA_FEATURE_PNPM: 1
+
 jobs:
   release:
     name: Release
@@ -14,16 +17,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9.x
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20.x
-          cache: pnpm
+      - uses: volta-cli/action@v4
 
       - name: Install dependencies
         run: pnpm i --frozen-lockfile

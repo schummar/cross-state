@@ -122,8 +122,8 @@
     "vitest": "4.0.5"
   },
   "volta": {
-    "node": "22.13.1",
-    "pnpm": "10.2.1"
+    "node": "24.11.0",
+    "pnpm": "10.20.0"
   },
   "prettier": "@schummar/prettier-config",
   "size-limit": [
