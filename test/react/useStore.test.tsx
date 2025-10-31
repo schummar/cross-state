@@ -1,5 +1,5 @@
 import { act, render, screen } from '@testing-library/react';
-import type { ReactNode } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import { describe, expect, test, vi } from 'vitest';
 import { createStore, strictEqual } from '../../src';
 import { useStore } from '../../src/react';
@@ -67,7 +67,7 @@ describe('useStore', () => {
       const store = createStore(before);
 
       const Component = vi.fn(function Component() {
-        const v = useStore(store, { disableTrackingProxy: false });
+        const v = useStore(store, { enableTrackingProxy: true });
 
         return <div data-testid="div">{select(v)}</div>;
       });
@@ -185,5 +185,119 @@ describe('useStore', () => {
 
     expect(div.textContent).toBe('1');
     expect(Component.mock.calls.length).toBe(2);
+  });
+
+  test('useStore with external value', () => {
+    const store = createStore(0);
+
+    const Component = vi.fn(function Component() {
+      const [otherValue, setOtherValue] = useState(0);
+      const value = useStore(store, (x) => x + otherValue);
+
+      return (
+        <div data-testid="div" onClick={() => setOtherValue(1)}>
+          {value}
+        </div>
+      );
+    });
+
+    render(<Component />);
+    const div = screen.getByTestId('div');
+
+    expect(div.textContent).toBe('0');
+    expect(Component.mock.calls.length).toBe(1);
+
+    act(() => {
+      div.click();
+    });
+
+    expect(div.textContent).toBe('1');
+    expect(Component.mock.calls.length).toBe(2);
+  });
+
+  test('memoized selector helps to avoid reevaluations', () => {
+    const store = createStore(0);
+    let evaluationCount = 0;
+
+    const Component = function Component() {
+      const [otherValue, setOtherValue] = useState(0);
+      const halfValue = Math.floor(otherValue / 2);
+
+      const selector = useCallback(
+        (x: number) => {
+          evaluationCount++;
+          return x + halfValue;
+        },
+        [halfValue],
+      );
+
+      const value = useStore(store, selector);
+
+      return (
+        <div data-testid="div" onClick={() => setOtherValue((v) => v + 1)}>
+          {value}
+        </div>
+      );
+    };
+
+    render(<Component />);
+    const div = screen.getByTestId('div');
+
+    expect(div.textContent).toBe('0');
+    expect(evaluationCount).toBe(1);
+
+    act(() => {
+      div.click();
+    });
+
+    expect(div.textContent).toBe('0');
+    expect(evaluationCount).toBe(1);
+
+    act(() => {
+      div.click();
+    });
+
+    expect(div.textContent).toBe('1');
+    expect(evaluationCount).toBe(2);
+
+    act(() => {
+      store.set(1);
+    });
+
+    expect(div.textContent).toBe('2');
+    expect(evaluationCount).toBe(3);
+  });
+
+  test('storeValueEquals help to avoid expensive selector reevaluations', () => {
+    const store = createStore({ x: 0, y: 0 });
+    const selector = vi.fn((s: { x: number; y: number }) => s.x);
+
+    const Component = function Component() {
+      const value = useStore(store, selector, {
+        storeValueEquals: (a, b) => a.x === b.x,
+      });
+
+      return <div data-testid="div">{value}</div>;
+    };
+
+    render(<Component />);
+    const div = screen.getByTestId('div');
+
+    expect(div.textContent).toBe('0');
+    expect(selector.mock.calls.length).toBe(1);
+
+    act(() => {
+      store.set({ x: 0, y: 1 });
+    });
+
+    expect(div.textContent).toBe('0');
+    expect(selector.mock.calls.length).toBe(1);
+
+    act(() => {
+      store.set({ x: 1, y: 1 });
+    });
+
+    expect(div.textContent).toBe('1');
+    expect(selector.mock.calls.length).toBe(2);
   });
 });

@@ -1,7 +1,7 @@
 import type { Selector, SubscribeOptions } from '@core/commonTypes';
 import type { Store } from '@core/store';
 import type { Constrain } from '@lib/constrain';
-import { deepEqual } from '@lib/equals';
+import { deepEqual, strictEqual } from '@lib/equals';
 import { makeSelector } from '@lib/makeSelector';
 import { isAnyPath, type AnyPath, type Path, type Value } from '@lib/path';
 import { trackingProxy } from '@lib/trackingProxy';
@@ -15,38 +15,58 @@ import {
   useSyncExternalStore,
 } from 'react';
 
-export interface UseStoreOptions<S> extends Omit<SubscribeOptions, 'runNow' | 'passive'> {
+export interface UseStoreOptions<T> extends Omit<SubscribeOptions, 'runNow' | 'passive'> {
   /**
    * If true, the cache content can be consumed but no fetch will be triggered.
    * @default false
    */
+
   passive?: boolean;
 
-  disableTrackingProxy?: boolean;
+  /**
+   * (experimental) If true, the a rerender will only be triggered when a property of the returned value changes that was
+   * actually accessed during the last render.
+   * @default false
+   */
+  enableTrackingProxy?: boolean;
 
-  withViewTransition?: boolean | ((value: S) => unknown);
+  /**
+   * (experimental) If provided, a rerender will be wrapped in a browser view transition.
+   */
+  withViewTransition?: boolean | ((value: T) => unknown);
+}
+
+export interface UseStoreOptionsWithSelector<T, S> extends UseStoreOptions<S> {
+  /**
+   * Equality function to compare the raw store values before reevaluating the selector.
+   * Can be used to avoid unnecessary selector evaluations.
+   * @default strictEqual
+   */
+  storeValueEquals?: (newValue: T, oldValue: T) => boolean;
 }
 
 export function useStore<T, S>(
   store: Store<T>,
   selector: Selector<T, S>,
-  option?: UseStoreOptions<S>,
+  option?: UseStoreOptionsWithSelector<T, S>,
 ): S;
 
 export function useStore<T, const P>(
   store: Store<T>,
   selector: Constrain<P, Path<T>>,
-  option?: UseStoreOptions<Value<T, P>>,
+  option?: UseStoreOptionsWithSelector<T, Value<T, P>>,
 ): Value<T, P>;
 
 export function useStore<T>(store: Store<T>, option?: UseStoreOptions<T>): T;
 
 export function useStore<T, S>(
   store: Store<T>,
-  ...args: [Selector<T, S> | AnyPath, UseStoreOptions<S>?] | [UseStoreOptions<S>?]
+  ...args:
+    | [Selector<T, S> | AnyPath, UseStoreOptionsWithSelector<T, S>?]
+    | [UseStoreOptionsWithSelector<T, S>?]
 ): S {
   let selectorRaw: Selector<T, S> | AnyPath | undefined;
-  let allOptions: UseStoreOptions<S>;
+  let allOptions: UseStoreOptionsWithSelector<T, S>;
 
   if (typeof args[0] === 'function' || isAnyPath(args[0])) {
     selectorRaw = args[0];
@@ -55,7 +75,8 @@ export function useStore<T, S>(
     allOptions = args[0] ?? {};
   }
 
-  const selector = useMemo(() => makeSelector<T, S>(selectorRaw), [selectorRaw]);
+  const selectorMemoized = useMemoEquals(selectorRaw);
+  const selector = useMemo(() => makeSelector<T, S>(selectorMemoized), [selectorMemoized]);
   const lastEqualsRef = useRef<(newValue: S) => boolean | undefined>(undefined);
 
   if (store.derivedFrom) {
@@ -72,29 +93,35 @@ export function useStore<T, S>(
   }
 
   const {
-    disableTrackingProxy = true,
+    enableTrackingProxy,
     equals = store.options.equals ?? deepEqual,
     withViewTransition,
+    storeValueEquals = strictEqual,
     ...options
   } = allOptions;
 
-  const snapshot = useRef<{ storeValue: T; selectedValue: S }>(undefined);
+  const snapshot = useRef<{ storeValue: T; selector: (value: T) => S; selectedValue: S }>(
+    undefined,
+  );
 
   const get = useCallback(() => {
     const storeValue = store.get();
+
+    if (
+      snapshot.current &&
+      storeValueEquals(storeValue, snapshot.current.storeValue) &&
+      selector === snapshot.current.selector
+    ) {
+      return snapshot.current.selectedValue;
+    }
+
     const selectedValue = selector(storeValue);
-
-    const hasChanged =
-      !snapshot.current ||
-      (storeValue !== snapshot.current.storeValue &&
-        !(lastEqualsRef.current?.(selectedValue) ?? false));
-
-    if (hasChanged) {
-      snapshot.current = { storeValue, selectedValue };
+    if (!(lastEqualsRef.current?.(selectedValue) ?? false)) {
+      snapshot.current = { storeValue, selector, selectedValue };
     }
 
     return snapshot.current!.selectedValue;
-  }, [store, selector]);
+  }, [store, storeValueEquals, selector]);
 
   const subOptions = useMemoEquals({ ...options, runNow: false });
 
@@ -151,7 +178,7 @@ export function useStore<T, S>(
   let lastEquals = (newValue: S) => equals(newValue, value);
   let revoke: (() => void) | undefined;
 
-  if (!disableTrackingProxy) {
+  if (enableTrackingProxy) {
     [value, lastEquals, revoke] = trackingProxy(value, equals);
   }
 
