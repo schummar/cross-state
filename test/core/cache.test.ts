@@ -5,6 +5,8 @@ import { createStore, type CalculationActions } from '../../src/core';
 import { Cache, createCache } from '../../src/core/cache';
 import { flushPromises, sleep } from '../testHelpers';
 
+declare const gc: (() => void) | undefined;
+
 const originalDefaultOptions = { ...createCache.defaultOptions };
 
 beforeEach(() => {

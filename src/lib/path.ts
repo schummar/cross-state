@@ -235,3 +235,7 @@ export type SettableValue<T, P> = P extends readonly []
                 ? SettableValue<T[First], Rest>
                 : never
           : never;
+
+export function isAnyPath(path: any): path is AnyPath {
+  return typeof path === 'string' || Array.isArray(path);
+}

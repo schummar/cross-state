@@ -1,8 +1,9 @@
-import { startTransition, useEffect, useMemo, useRef, useState } from 'react';
 import { type Duration } from '@core';
 import { debounce } from '@lib/debounce';
-import { simpleHash } from '@lib/hash';
 import { throttle } from '@lib/throttle';
+import useLatestFunction from '@react/lib/useLatestFunction';
+import useMemoEquals from '@react/lib/useMemoEquals';
+import { startTransition, useMemo, useState } from 'react';
 
 export interface UseDecoupledStateOptions<T> {
   debounce?: Duration;
@@ -16,27 +17,25 @@ export function useDecoupledState<T>(
   options: UseDecoupledStateOptions<T> = {},
 ): [state: T, setState: (value: T) => void] {
   const [dirty, setDirty] = useState<{ v: T }>();
-  const ref = useRef({ onChange, onCommit: options.onCommit });
+  const latestOnChange = useLatestFunction(onChange);
+  const latestOnCommit = useLatestFunction(options.onCommit ?? (() => {}));
 
-  useEffect(() => {
-    ref.current = { onChange, onCommit: options.onCommit };
-  }, [onChange]);
+  const debounceOptions = useMemoEquals(options.debounce);
+  const throttleOptions = useMemoEquals(options.throttle);
 
   const update = useMemo(() => {
-    const { onChange, onCommit } = ref.current;
-
     const update = (value: T) => {
-      onChange(value);
+      latestOnChange(value);
       setDirty(undefined);
-      onCommit?.(value);
+      latestOnCommit(value);
     };
 
     let delayedUpdate: (value: T) => void;
 
-    if (options.debounce) {
-      delayedUpdate = debounce(update, options.debounce);
-    } else if (options.throttle) {
-      delayedUpdate = throttle(update, options.throttle);
+    if (debounceOptions) {
+      delayedUpdate = debounce(update, debounceOptions);
+    } else if (throttleOptions) {
+      delayedUpdate = throttle(update, throttleOptions);
     } else {
       delayedUpdate = (value) => startTransition(() => update(value));
     }
@@ -45,7 +44,7 @@ export function useDecoupledState<T>(
       setDirty({ v: value });
       delayedUpdate(value);
     };
-  }, [simpleHash([options.debounce, options.throttle])]);
+  }, [latestOnChange, latestOnCommit, debounceOptions, throttleOptions]);
 
   return [dirty ? dirty.v : value, update];
 }

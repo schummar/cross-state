@@ -39,7 +39,7 @@ export function FormForEach<TDraft, TPath extends string>(
       const field = form.getField(name as any) as any;
       field.add(...args);
     },
-    [form],
+    [form, name],
   );
 
   const remove = useCallback(
@@ -47,7 +47,7 @@ export function FormForEach<TDraft, TPath extends string>(
       const field = form.getField(name as any) as any;
       field.remove(key);
     },
-    [form],
+    [form, name],
   );
 
   const setValue = useCallback(
@@ -55,7 +55,7 @@ export function FormForEach<TDraft, TPath extends string>(
       const field = form.getField(name as any) as any;
       field.setValue(value);
     },
-    [form],
+    [form, name],
   );
 
   return (

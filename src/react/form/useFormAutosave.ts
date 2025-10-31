@@ -4,6 +4,7 @@ import { debounce } from '@lib/debounce';
 import { deepEqual } from '@lib/equals';
 import type { MaybePromise } from '@lib/maybePromise';
 import { queue } from '@lib/queue';
+import useLatestRef from '@react/lib/useLatestRef';
 import { useEffect, useMemo, useRef } from 'react';
 import type { FormContext } from './form';
 
@@ -16,18 +17,16 @@ export interface FormAutosaveOptions<TDraft, TOriginal> {
 export function useFormAutosave<TDraft, TOriginal extends TDraft>(
   form: FormContext<TDraft, TOriginal>,
 ): void {
-  const { formState, options, getDraft } = form;
-  const debounceTime = calcDuration(options.autoSave?.debounce ?? 2_000);
-  const latestRef = useRef({ options });
+  const debounceTime = calcDuration(form.options.autoSave?.debounce ?? 2_000);
+  const latestRef = useLatestRef(form);
   const lastValue = useRef<TDraft | undefined>(undefined);
   const q = useMemo(() => queue(), []);
 
   const run = useMemo(
     () =>
       debounce(async () => {
-        const { options } = latestRef.current;
-        const save = options.autoSave?.save;
-        const draft = getDraft();
+        const save = latestRef.current.options.autoSave?.save;
+        const draft = latestRef.current.getDraft();
 
         lastValue.current = draft;
 
@@ -35,45 +34,41 @@ export function useFormAutosave<TDraft, TOriginal extends TDraft>(
 
         q(async () => {
           try {
-            formState.set('saveInProgress', true);
-            await save?.(draft, form);
+            latestRef.current.formState.set('saveInProgress', true);
+            await save?.(draft, latestRef.current);
 
-            if (q.size === 0 && options.autoSave?.resetAfterSave) {
-              form.reset();
+            if (q.size === 0 && latestRef.current.options.autoSave?.resetAfterSave) {
+              latestRef.current.reset();
             }
           } finally {
-            formState.set('saveInProgress', false);
+            latestRef.current.formState.set('saveInProgress', false);
 
             if (q.size === 0) {
-              formState.set('saveScheduled', false);
+              latestRef.current.formState.set('saveScheduled', false);
             }
           }
         });
       }, debounceTime),
-    [formState, debounceTime],
+    [latestRef, debounceTime, q],
   );
 
   useEffect(() => {
-    if (!options.autoSave?.save) {
+    if (!latestRef.current.options.autoSave?.save) {
       return;
     }
 
-    return formState
+    return latestRef.current.formState
       .map((state) => state.draft)
       .subscribe(
         () => {
-          if (deepEqual(getDraft(), lastValue.current)) {
+          if (deepEqual(latestRef.current.getDraft(), lastValue.current)) {
             return;
           }
 
           run();
-          formState.set('saveScheduled', true);
+          latestRef.current.formState.set('saveScheduled', true);
         },
         { runNow: false },
       );
-  }, [formState]);
-
-  useEffect(() => {
-    latestRef.current = { options };
-  });
+  }, [latestRef, run]);
 }

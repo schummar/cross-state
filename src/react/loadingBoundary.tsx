@@ -73,5 +73,6 @@ export function useLoadingBoundary(isLoading: boolean | undefined, label?: React
         return newEntries;
       });
     };
-  }, [isLoading]);
+    // oxlint-disable-next-line exhaustive-deps
+  }, [store, isLoading]);
 }

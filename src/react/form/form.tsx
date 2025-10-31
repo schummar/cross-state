@@ -11,6 +11,7 @@ import {
 import { get, join, set } from '@lib/propAccess';
 import type { Object_ } from '@lib/typeHelpers';
 import { getWildCardMatches } from '@lib/wildcardMatch';
+import useLatestFunction from '@react/lib/useLatestFunction';
 import {
   createContext,
   useContext,
@@ -143,42 +144,44 @@ function FormContainer({
 
   const formRef = useRef<HTMLFormElement>(null);
 
-  function updateValidity(errors: Map<string, string[]>, buttonElement?: HTMLButtonElement) {
-    const formElement = formRef.current;
-    if (!formElement) {
-      return;
-    }
-
-    const localizedErrors = new Map(
-      [...errors.entries()].map(
-        ([field, errors]) =>
-          [
-            field,
-            errors.map((error) => formInstance.options.localizeError?.(error, field) ?? error),
-          ] as const,
-      ),
-    );
-
-    for (const element of Array.from(formElement.elements)) {
-      if ('name' in element && 'setCustomValidity' in element) {
-        (element as HTMLObjectElement).setCustomValidity(
-          localizedErrors.get((element as HTMLObjectElement).name)?.join('\n') ?? '',
-        );
+  const updateValidity = useLatestFunction(
+    (errors: Map<string, string[]>, buttonElement?: HTMLButtonElement) => {
+      const formElement = formRef.current;
+      if (!formElement) {
+        return;
       }
-    }
 
-    if (buttonElement && 'setCustomValidity' in buttonElement) {
-      const errorString = [...errors.values()].flat().join('\n');
+      const localizedErrors = new Map(
+        [...errors.entries()].map(
+          ([field, errors]) =>
+            [
+              field,
+              errors.map((error) => formInstance.options.localizeError?.(error, field) ?? error),
+            ] as const,
+        ),
+      );
 
-      buttonElement.setCustomValidity(errorString);
-    }
-  }
+      for (const element of Array.from(formElement.elements)) {
+        if ('name' in element && 'setCustomValidity' in element) {
+          (element as HTMLObjectElement).setCustomValidity(
+            localizedErrors.get((element as HTMLObjectElement).name)?.join('\n') ?? '',
+          );
+        }
+      }
+
+      if (buttonElement && 'setCustomValidity' in buttonElement) {
+        const errorString = [...errors.values()].flat().join('\n');
+
+        buttonElement.setCustomValidity(errorString);
+      }
+    },
+  );
 
   useEffect(() => {
     return formInstance.formState
       .map(() => formInstance.getErrors())
       .subscribe((errors) => updateValidity(errors));
-  }, []);
+  }, [formInstance, updateValidity]);
 
   return (
     <form
@@ -543,7 +546,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
           store.set(result);
         }
       });
-    }, [original, defaultValue, options.transform]);
+    }, [original, options.defaultValue, options.transform, formState]);
 
     useFormAutosave(context);
 
