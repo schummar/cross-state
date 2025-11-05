@@ -298,4 +298,17 @@ describe('bugs', () => {
     expect(localStorage.getItem('cross-state:url:test:foo')).toBe('true');
     expect(result.current[0]).toBe(true);
   });
+
+  test('update url value with undefined', () => {
+    const urlParam = createUrlParam<string | undefined>({
+      key: 'foo',
+      type: 'hash',
+      defaultValue: 'foo',
+    });
+    const { result } = renderHook(() => urlParam.useProp());
+
+    act(() => result.current[1](undefined));
+    expect(getHash()).toBe('#foo=undefined');
+    expect(result.current[0]).toBeUndefined();
+  });
 });

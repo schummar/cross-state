@@ -164,7 +164,7 @@ export class UrlParamStore<T> extends Store<T> {
     return value;
   }
 
-  private updateUrl(value = this.calc()) {
+  private updateUrl(value: T) {
     const serializedValue = this.urlOptions.serialize(value);
 
     const url = new URL(window.location.href);
@@ -184,7 +184,7 @@ export class UrlParamStore<T> extends Store<T> {
     window.dispatchEvent(new PopStateEvent('popstate'));
   }
 
-  private updateStorage(value = this.calc()) {
+  private updateStorage(value: T) {
     if (this.storageKey === null) {
       return;
     }
