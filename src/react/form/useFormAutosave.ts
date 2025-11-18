@@ -1,5 +1,5 @@
 import type { Duration } from '@core';
-import { calcDuration } from '@lib/calcDuration';
+import { calcDuration } from '@lib/duration';
 import { debounce } from '@lib/debounce';
 import { deepEqual } from '@lib/equals';
 import type { MaybePromise } from '@lib/maybePromise';

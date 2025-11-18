@@ -44,15 +44,17 @@ export interface DisposableCancel {
   [Symbol.dispose](): void;
 }
 
-export type Duration =
-  | number
-  | {
-      milliseconds?: number;
-      seconds?: number;
-      minutes?: number;
-      hours?: number;
-      days?: number;
-    };
+export interface DurationObject {
+  milliseconds?: number;
+  seconds?: number;
+  minutes?: number;
+  hours?: number;
+  days?: number;
+  months?: number;
+  years?: number;
+}
+
+export type Duration = number | string | DurationObject;
 
 export type UpdateFrom<Value, From extends any[]> = Value | ((...args: From) => Value);
 export type Update<Value> = UpdateFrom<Value, [Value]>;

@@ -130,25 +130,25 @@
     {
       "name": "core",
       "path": "dist/index.js",
-      "limit": "8.2 KB"
+      "limit": "9 KB"
     },
     {
       "name": "core: Store",
       "path": "dist/index.js",
       "import": "{createStore}",
-      "limit": "4 KB"
+      "limit": "5 KB"
     },
     {
       "name": "core: Cache",
       "path": "dist/index.js",
       "import": "{createCache}",
-      "limit": "5.5 KB"
+      "limit": "6 KB"
     },
     {
       "name": "core: Persist",
       "path": "dist/index.js",
       "import": "{persist}",
-      "limit": "3.5 KB"
+      "limit": "4 KB"
     },
     {
       "name": "core: InstanceCache",
@@ -160,7 +160,7 @@
       "name": "core: calcDuration",
       "path": "dist/index.js",
       "import": "{calcDuration}",
-      "limit": "100 B"
+      "limit": "600 B"
     },
     {
       "name": "react",
@@ -183,7 +183,7 @@
       "name": "react: urlStore",
       "path": "dist/react/index.js",
       "import": "{createUrlParam}",
-      "limit": "5 KB"
+      "limit": "6 KB"
     },
     {
       "name": "/mutative",

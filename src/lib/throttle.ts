@@ -1,4 +1,4 @@
-import { calcDuration } from './calcDuration';
+import { calcDuration } from './duration';
 import type { Duration } from '@core';
 
 export function throttle<Args extends any[]>(

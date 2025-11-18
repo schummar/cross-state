@@ -1,5 +1,5 @@
 import { autobind } from '@lib/autobind';
-import { calcDuration } from '@lib/calcDuration';
+import { calcDuration } from '@lib/duration';
 import { calculatedValue, staticValue, type CalculatedValue } from '@lib/calculatedValue';
 import type { Constrain } from '@lib/constrain';
 import { debounce } from '@lib/debounce';

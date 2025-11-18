@@ -1,6 +1,6 @@
 import { autobind } from '@lib/autobind';
 import type { CacheState, ErrorState, ValueState } from '@lib/cacheState';
-import { calcDuration } from '@lib/calcDuration';
+import { calcDuration } from '@lib/duration';
 import { calculatedValue } from '@lib/calculatedValue';
 import type { Constrain } from '@lib/constrain';
 import { deepEqual } from '@lib/equals';

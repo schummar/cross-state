@@ -1,5 +1,5 @@
 import { type Cancel, type Duration, type Store } from '@core';
-import { calcDuration } from '@lib/calcDuration';
+import { calcDuration } from '@lib/duration';
 import { shallowEqual } from '@lib/equals';
 import { fromExtendedJsonString, toExtendedJsonString } from '@lib/extendedJson';
 import isPromise from '@lib/isPromise';
@@ -77,7 +77,7 @@ export class Persist<T> {
         if (isPlainPath(p)) {
           return {
             path: castArrayPath(p),
-            throttle: options.throttle && calcDuration(options.throttle),
+            throttle: options.throttle ? calcDuration(options.throttle) : undefined,
           };
         }
 
@@ -86,8 +86,8 @@ export class Persist<T> {
         return {
           path: castArrayPath(_p.path),
           throttle:
-            (_p.throttle && calcDuration(_p.throttle)) ??
-            (options.throttle && calcDuration(options.throttle)),
+            (_p.throttle ? calcDuration(_p.throttle) : undefined) ??
+            (options.throttle ? calcDuration(options.throttle) : undefined),
         };
       })
       .sort((a, b) => b.path.length - a.path.length);
@@ -95,7 +95,7 @@ export class Persist<T> {
     if (this.paths.length === 0) {
       this.paths.push({
         path: ['*'],
-        throttle: options.throttle && calcDuration(options.throttle),
+        throttle: options.throttle ? calcDuration(options.throttle) : undefined,
       });
     }
 
