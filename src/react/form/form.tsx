@@ -49,6 +49,9 @@ export interface FormOptions<TDraft, TOriginal> {
   autoSave?: FormAutosaveOptions<TDraft, TOriginal>;
   transform?: Transform<TDraft>;
   validatedClass?: string;
+  original?: TOriginal;
+  onSubmit?: (event: FormEvent<HTMLFormElement>, form: FormInstance<TDraft, TOriginal>) => void;
+  reportValidity?: boolean;
 }
 
 export type Validations<TDraft, TOriginal> = {
@@ -141,6 +144,7 @@ function FormContainer({
 } & Omit<HTMLProps<HTMLFormElement>, 'form' | 'onSubmit'>) {
   const formInstance = form.useForm();
   const hasTriggeredValidations = form.useFormState((state) => state.hasTriggeredValidations);
+  const hasErrors = form.useFormState((state) => hasTriggeredValidations && state.errors.size > 0);
 
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -178,6 +182,10 @@ function FormContainer({
   );
 
   useEffect(() => {
+    if (!formInstance.options.reportValidity) {
+      return;
+    }
+
     return formInstance.formState
       .map(() => formInstance.getErrors())
       .subscribe((errors) => updateValidity(errors));
@@ -194,6 +202,8 @@ function FormContainer({
       ]
         .filter(Boolean)
         .join(' ')}
+      data-validated={hasTriggeredValidations || undefined}
+      data-valid={hasErrors ? 'false' : hasTriggeredValidations ? 'true' : undefined}
       onSubmit={async (event) => {
         if (formInstance.saveInProgress()) {
           return;
@@ -203,16 +213,17 @@ function FormContainer({
           formInstance.formState.set('saveInProgress', true);
           event.preventDefault();
 
-          const formElement = event.currentTarget;
-          const buttonElement =
-            event.nativeEvent instanceof SubmitEvent &&
-            event.nativeEvent.submitter instanceof HTMLButtonElement
-              ? event.nativeEvent.submitter
-              : undefined;
+          if (formInstance.options.reportValidity) {
+            const formElement = event.currentTarget;
+            const buttonElement =
+              event.nativeEvent instanceof SubmitEvent &&
+              event.nativeEvent.submitter instanceof HTMLButtonElement
+                ? event.nativeEvent.submitter
+                : undefined;
 
-          updateValidity(formInstance.getErrors(), buttonElement);
-
-          formElement.reportValidity();
+            updateValidity(formInstance.getErrors(), buttonElement);
+            formElement.reportValidity();
+          }
 
           const isValid = formInstance.validate();
           if (isValid) {
@@ -421,18 +432,17 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
   // ///////////////////////////////////////////////////////////////////////////
 
   Form({
-    original,
     defaultValue,
     validations,
     localizeError,
     autoSave,
     transform,
     validatedClass,
+    original,
+    onSubmit,
+    reportValidity,
     ...formProps
-  }: {
-    original?: TOriginal;
-    onSubmit?: (event: FormEvent<HTMLFormElement>, form: FormInstance<TDraft, TOriginal>) => void;
-  } & Partial<FormOptions<TDraft, TOriginal>> &
+  }: Partial<FormOptions<TDraft, TOriginal>> &
     Omit<HTMLProps<HTMLFormElement>, 'defaultValue' | 'autoSave' | 'onSubmit'>): React.JSX.Element {
     const options: FormOptions<TDraft, TOriginal> = {
       defaultValue: { ...this.options.defaultValue, ...defaultValue },
@@ -444,6 +454,9 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
       autoSave: autoSave ?? this.options.autoSave,
       transform: transform ?? this.options.transform,
       validatedClass: validatedClass ?? this.options.validatedClass,
+      original: original ?? this.options.original,
+      onSubmit: onSubmit ?? this.options.onSubmit,
+      reportValidity: reportValidity ?? this.options.reportValidity ?? true,
     };
 
     const formState = useMemo(() => {
@@ -475,14 +488,14 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     const context: FormContext<TDraft, TOriginal> = {
       formState,
       options,
-      original,
+      original: options.original,
 
       getField() {
         throw new Error('Not implemented');
       },
 
       getDraft() {
-        return formState.get().draft ?? original ?? options.defaultValue;
+        return formState.get().draft ?? options.original ?? options.defaultValue;
       },
 
       hasTriggeredValidations() {
@@ -501,14 +514,16 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
         return lazy(
           'hasChanges',
           () =>
-            !deepEqual(this.getDraft(), original ?? options.defaultValue, {
+            !deepEqual(this.getDraft(), options.original ?? options.defaultValue, {
               undefinedEqualsAbsent: true,
             }),
         );
       },
 
       getErrors() {
-        return lazy('getErrors', () => getErrors(this.getDraft(), original, options.validations));
+        return lazy('getErrors', () =>
+          getErrors(this.getDraft(), options.original, options.validations),
+        );
       },
 
       isValid() {
@@ -535,7 +550,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
       }
 
       const store = formState.map(
-        (state) => state.draft ?? original ?? options.defaultValue,
+        (state) => state.draft ?? options.original ?? options.defaultValue,
         (draft) => (state) => ({ ...state, draft }),
       );
 
@@ -546,7 +561,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
           store.set(result);
         }
       });
-    }, [original, options.defaultValue, options.transform, formState]);
+    }, [options.defaultValue, options.original, options.transform, formState]);
 
     useFormAutosave(context);
 
