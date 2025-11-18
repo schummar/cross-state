@@ -182,10 +182,6 @@ function FormContainer({
   );
 
   useEffect(() => {
-    if (!formInstance.options.reportValidity) {
-      return;
-    }
-
     return formInstance.formState
       .map(() => formInstance.getErrors())
       .subscribe((errors) => updateValidity(errors));
@@ -213,15 +209,16 @@ function FormContainer({
           formInstance.formState.set('saveInProgress', true);
           event.preventDefault();
 
-          if (formInstance.options.reportValidity) {
-            const formElement = event.currentTarget;
-            const buttonElement =
-              event.nativeEvent instanceof SubmitEvent &&
-              event.nativeEvent.submitter instanceof HTMLButtonElement
-                ? event.nativeEvent.submitter
-                : undefined;
+          const formElement = event.currentTarget;
+          const buttonElement =
+            event.nativeEvent instanceof SubmitEvent &&
+            event.nativeEvent.submitter instanceof HTMLButtonElement
+              ? event.nativeEvent.submitter
+              : undefined;
 
-            updateValidity(formInstance.getErrors(), buttonElement);
+          updateValidity(formInstance.getErrors(), buttonElement);
+
+          if (formInstance.options.reportValidity) {
             formElement.reportValidity();
           }
 
