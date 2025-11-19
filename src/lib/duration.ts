@@ -27,7 +27,7 @@ export function calcDuration(t: Duration): number {
 const plainNumberStyle = /^-?\d+(\.\d+)?$/;
 const golangStyle = /^-?(\d+(\.\d+)?(h|m|s|ms|us|µs|ns))+$/;
 const dotnetStyle =
-  /^(?<sign>-)?((?<D>\d+)\.)?(?<h>\d{1,2}):(?<m>\d{1,2}):(?<s>\d{1,2})?(\.(?<ms>\d{1,3}))?$/;
+  /^(?<sign>-)?((?<D>\d+)\.)?(?<h>\d{1,2}):(?<m>\d{1,2})(:(?<s>\d{1,2}))?(\.(?<ms>\d{1,3}))?$/;
 const iso8601Style =
   /^(?<sign>-)?P((?<Y>\d+)Y)?((?<M>\d+)M)?((?<D>\d+)D)?T?((?<h>\d+)H)?((?<m>\d+)M)?((?<s>\d+(\.\d+)?)S)?$/;
 
