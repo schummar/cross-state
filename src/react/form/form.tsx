@@ -28,6 +28,8 @@ import { useStore, type UseStoreOptions } from '../useStore';
 import {
   FormField,
   type FormFieldComponent,
+  type FormFieldComponentProps,
+  type FormFieldInfos,
   type FormFieldPropsWithComponent,
   type FormFieldPropsWithRender,
 } from './formField';
@@ -52,11 +54,24 @@ export interface FormOptions<TDraft, TOriginal> {
   original?: TOriginal;
   onSubmit?: (event: FormEvent<HTMLFormElement>, form: FormInstance<TDraft, TOriginal>) => void;
   reportValidity?: boolean;
+  transformFieldProps?: <TPath extends string>(
+    props: FormFieldComponentProps<Value<TDraft, TPath>, TPath>,
+    info: FormFieldInfos<TDraft, TOriginal, TPath>,
+    form: FormContext<TDraft, TOriginal>,
+  ) => FormFieldComponentProps<Value<TDraft, TPath>, TPath>;
 }
 
-export type Validations<TDraft, TOriginal> = {
-  [TPath in WildcardPathAsString<TDraft>]?: Record<string, Validation<TDraft, TOriginal, TPath>>;
-} & Record<string, Record<string, Validation<TDraft, TOriginal, any>>>;
+export type Validations<TDraft, TOriginal> =
+  | ((context: { draft: TDraft; original: TOriginal | undefined }) => Iterable<{
+      name: string;
+      error: string;
+    }>)
+  | {
+      [TPath in WildcardPathAsString<TDraft>]?: Record<
+        string,
+        Validation<TDraft, TOriginal, TPath>
+      >;
+    };
 
 export type Validation<TDraft, TOriginal, TPath> = (
   value: WildcardValue<TDraft, TPath>,
@@ -335,6 +350,18 @@ function getErrors<TDraft, TOriginal>(
 ) {
   const errors = new Map<string, string[]>();
 
+  if (typeof validations === 'function') {
+    const issues = validations({ draft, original });
+
+    for (const { name, error } of issues) {
+      const fieldErrors = errors.get(name) ?? [];
+      fieldErrors.push(error);
+      errors.set(name, fieldErrors);
+    }
+
+    return errors;
+  }
+
   for (const [path, block] of Object.entries(validations ?? {})) {
     for (const [validationName, validate] of Object.entries(
       block as Record<string, Validation<any, any, any>>,
@@ -438,15 +465,18 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     original,
     onSubmit,
     reportValidity,
+    transformFieldProps,
     ...formProps
   }: Partial<FormOptions<TDraft, TOriginal>> &
     Omit<HTMLProps<HTMLFormElement>, 'defaultValue' | 'autoSave' | 'onSubmit'>): React.JSX.Element {
     const options: FormOptions<TDraft, TOriginal> = {
       defaultValue: { ...this.options.defaultValue, ...defaultValue },
-      validations: { ...this.options.validations, ...validations } as Validations<
-        TDraft,
-        TOriginal
-      >,
+      validations:
+        typeof validations === 'function'
+          ? validations
+          : validations
+            ? ({ ...this.options.validations, ...validations } as Validations<TDraft, TOriginal>)
+            : this.options.validations,
       localizeError: localizeError ?? this.options.localizeError,
       autoSave: autoSave ?? this.options.autoSave,
       transform: transform ?? this.options.transform,
@@ -454,6 +484,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
       original: original ?? this.options.original,
       onSubmit: onSubmit ?? this.options.onSubmit,
       reportValidity: reportValidity ?? this.options.reportValidity ?? true,
+      transformFieldProps: transformFieldProps ?? this.options.transformFieldProps,
     };
 
     const formState = useMemo(() => {

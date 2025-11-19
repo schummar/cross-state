@@ -190,7 +190,7 @@ export function FormField<
     return () => clearTimeout(timeout);
   }, [localValue, commitDebounce, setValue]);
 
-  const props = {
+  let props = {
     name,
     value: localValue ?? value,
     onChange: (event: { target: { value: T } } | T, ...moreArgs: any[]) => {
@@ -220,6 +220,14 @@ export function FormField<
       onBlur?.(...args);
     },
   } as FormFieldComponentProps<Value<TDraft, TPath>, TPath>;
+
+  if (this.options.transformFieldProps) {
+    props = this.options.transformFieldProps(
+      props,
+      { ...form.getField(name as any), hasTriggeredValidations } as any,
+      form,
+    );
+  }
 
   if (render) {
     return (
