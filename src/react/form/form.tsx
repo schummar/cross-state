@@ -66,12 +66,12 @@ export type Validations<TDraft, TOriginal> =
       name: string;
       error: string;
     }>)
-  | {
+  | ({
       [TPath in WildcardPathAsString<TDraft>]?: Record<
         string,
         Validation<TDraft, TOriginal, TPath>
       >;
-    };
+    } & Record<string, Record<string, Validation<TDraft, TOriginal, any>>>);
 
 export type Validation<TDraft, TOriginal, TPath> = (
   value: WildcardValue<TDraft, TPath>,
