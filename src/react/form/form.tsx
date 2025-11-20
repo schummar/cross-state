@@ -98,7 +98,7 @@ export type FieldHelperMethods<TDraft, TPath extends string> = {
     : NonNullable<Value<TDraft, TPath>> extends Record<infer K, infer V>
       ? (key: K, value: V) => void
       : never;
-  remove: Value<TDraft, TPath> extends readonly any[]
+  remove: NonNullable<Value<TDraft, TPath>> extends readonly any[]
     ? (index: number) => void
     : (key: string) => void;
 };
@@ -287,10 +287,6 @@ function getField<TDraft, TOriginal extends TDraft, TPath extends string>(
 
     get names(): any {
       const { value } = this;
-
-      if (Array.isArray(value)) {
-        return value.map((_, index) => join(path, String(index)));
-      }
 
       if (isObject(value)) {
         return Object.keys(value).map((key) => join(path, key));

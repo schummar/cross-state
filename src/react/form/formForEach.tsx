@@ -13,7 +13,11 @@ export interface FormForEachProps<TDraft, TPath extends string> {
     key: `${GetKeys<NonNullable<Value<TDraft, TPath>>> & (string | number)}`;
     index: number;
     remove: () => void;
+    count: number;
   }) => ReactNode;
+  renderAdditionalElement?: NonNullable<Value<TDraft, TPath>> extends readonly any[]
+    ? boolean
+    : never;
   children?: (
     props: {
       setValue: (
@@ -25,13 +29,19 @@ export interface FormForEachProps<TDraft, TPath extends string> {
 
 export function FormForEach<TDraft, TPath extends string>(
   this: Form<TDraft, any>,
-  { name, renderElement, children }: FormForEachProps<TDraft, TPath>,
+  { name, renderElement, renderAdditionalElement, children }: FormForEachProps<TDraft, TPath>,
 ): React.JSX.Element {
   const form = this.useForm();
 
   const names = this.useFormState(() => {
-    const field = form.getField(name as any) as any;
-    return field.names as any[];
+    const field = form.getField(name);
+    const names = (field as any).names as string[];
+
+    if (renderAdditionalElement && Array.isArray(names)) {
+      names.push(`${name}.${names.length}`);
+    }
+
+    return names;
   });
 
   const add = useCallback(
@@ -67,10 +77,11 @@ export function FormForEach<TDraft, TPath extends string>(
           return (
             <Fragment key={key}>
               {renderElement({
-                name,
-                key,
+                name: name as any,
+                key: key as any,
                 index,
                 remove: () => remove(key),
+                count: names.length,
               })}
             </Fragment>
           );
