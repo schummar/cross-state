@@ -1,5 +1,6 @@
 export { cacheMethods } from './cacheMethods';
 export * from './form';
+export { useForm } from './form/generalFormContext';
 export {
   LoadingBoundary,
   useLoadingBoundary,

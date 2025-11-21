@@ -15,6 +15,8 @@ import {
   type FormContext,
   type FormInstance,
 } from './form';
+import type { Duration } from '@core';
+import { calcDuration } from '@lib/duration';
 
 export interface FormFieldComponentProps<TValue, TPath> {
   name: TPath;
@@ -55,7 +57,7 @@ type MakeOptional<T, Keys extends string> = Omit<T, Keys> & Partial<Pick<T, Keys
 export type FormFieldProps<TPath, TDraft> = {
   name: TPath & PathAsString<TDraft>;
   commitOnBlur?: boolean;
-  commitDebounce?: number;
+  commitDebounce?: Duration;
 };
 
 export type FormFieldPropsWithRender<TDraft, TOriginal, TPath extends string> = FormFieldProps<
@@ -177,18 +179,19 @@ export function FormField<
 
   const hasTriggeredValidations = this.useFormState((form) => form.hasTriggeredValidations);
 
+  const commitDebounceMs = commitDebounce !== undefined ? calcDuration(commitDebounce) : undefined;
   useEffect(() => {
-    if (localValue === undefined || !commitDebounce) {
+    if (localValue === undefined || commitDebounceMs === undefined || commitDebounceMs <= 0) {
       return;
     }
 
     const timeout = setTimeout(() => {
       setValue(localValue);
       setLocalValue(undefined);
-    }, commitDebounce);
+    }, commitDebounceMs);
 
     return () => clearTimeout(timeout);
-  }, [localValue, commitDebounce, setValue]);
+  }, [localValue, commitDebounceMs, setValue]);
 
   let props = {
     name,
