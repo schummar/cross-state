@@ -1,5 +1,5 @@
 import { useDecoupledState } from '@react/useDecoupledState';
-import { render } from '@testing-library/react';
+import { render, renderHook } from '@testing-library/react';
 import { act } from 'react';
 import { beforeAll, expect, test, vi } from 'vitest';
 
@@ -42,4 +42,27 @@ test('useDecoupledState', () => {
   });
   expect(onChange).toHaveBeenCalledTimes(1);
   expect(onChange).toHaveBeenCalledWith(2);
+});
+
+test('keepLocal', () => {
+  const { result, rerender } = renderHook(() =>
+    useDecoupledState(0, () => {}, { debounce: 100, keepLocal: 100 }),
+  );
+
+  expect(result.current[0]).toBe(0);
+
+  act(() => {
+    result.current[1](1);
+  });
+  expect(result.current[0]).toBe(1);
+
+  act(() => {
+    vi.advanceTimersByTime(100);
+  });
+  expect(result.current[0]).toBe(1);
+
+  act(() => {
+    vi.advanceTimersByTime(100);
+  });
+  expect(result.current[0]).toBe(0);
 });
