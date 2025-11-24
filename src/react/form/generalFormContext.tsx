@@ -9,12 +9,6 @@ export const GeneralFormContext: Context<FormContext<any, any> | null> = createC
 export function useForm<TDraft, TOriginal extends TDraft = TDraft>(): FormContext<
   TDraft,
   TOriginal
-> {
-  const context = useContext(GeneralFormContext) as FormContext<TDraft, TOriginal>;
-
-  if (!context) {
-    throw new Error('useForm must be used within a FormContext');
-  }
-
-  return context;
+> | null {
+  return useContext(GeneralFormContext) as FormContext<TDraft, TOriginal>;
 }
