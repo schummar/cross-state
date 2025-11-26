@@ -593,7 +593,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     return (
       <GeneralFormContext.Provider value={context}>
         <this.context.Provider value={context}>
-          <FormContainer {...formProps} form={this} />
+          <FormContainer {...formProps} form={this} onSubmit={options.onSubmit} />
         </this.context.Provider>
       </GeneralFormContext.Provider>
     );

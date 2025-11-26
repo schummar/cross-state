@@ -51,11 +51,7 @@ export function FormForEach<TDraft, TPath extends string>(
   const items = this.useFormState(() => {
     const field = form.getField(name);
 
-    if (!isObject(field.value)) {
-      return [];
-    }
-
-    let keys: (string | number)[] = Object.keys(field.value);
+    let keys: (string | number)[] = isObject(field.value) ? Object.keys(field.value) : [];
     const count = keys.length;
 
     if (Array.isArray(field.value)) {
@@ -68,7 +64,7 @@ export function FormForEach<TDraft, TPath extends string>(
       );
     }
 
-    if (renderAdditionalElement && Array.isArray(field.value)) {
+    if (renderAdditionalElement) {
       keys.push(count);
     }
 

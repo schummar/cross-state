@@ -78,6 +78,12 @@ export function useFormAutosave<TDraft, TOriginal extends TDraft>(
       );
   }, [isActive, form.formState, scheduleSave]);
 
+  useEffect(() => {
+    return () => {
+      scheduleSave.flush();
+    };
+  }, [scheduleSave]);
+
   return {
     flush() {
       scheduleSave.flush();
