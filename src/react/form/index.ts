@@ -17,6 +17,6 @@ export {
   type FormFieldComponentProps,
   type FormFieldInfos,
   type FormFieldProps,
-  type FormFieldPropsWithComponent,
+  type FormFieldPropsWithChildren,
   type FormFieldPropsWithRender,
 } from './formField';
