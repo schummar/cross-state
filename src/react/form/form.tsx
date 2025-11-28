@@ -11,8 +11,9 @@ import {
 import { get, join, set } from '@lib/propAccess';
 import type { Object_ } from '@lib/typeHelpers';
 import { getWildCardMatches } from '@lib/wildcardMatch';
-import { GeneralFormContext } from '@react/form/generalFormContext';
+import { GeneralFormContext } from '@react/form/closestFormContext';
 import useLatestFunction from '@react/lib/useLatestFunction';
+import { create, type Draft } from 'mutative';
 import {
   createContext,
   useContext,
@@ -41,8 +42,8 @@ import { useFormAutosave, type FormAutosaveOptions } from './useFormAutosave';
 // Form types
 /// /////////////////////////////////////////////////////////////////////////////
 
-export interface Transform<TDraft> {
-  (value: TDraft, store: Store<TDraft>): void | TDraft;
+export interface Transform<TDraft, TOriginal> {
+  (value: Draft<TDraft>, form: FormContext<TDraft, TOriginal>): void | TDraft;
 }
 
 export interface FormOptions<TDraft, TOriginal> {
@@ -50,7 +51,7 @@ export interface FormOptions<TDraft, TOriginal> {
   validations?: Validations<TDraft, TOriginal>;
   localizeError?: (error: string, field: string) => string | undefined;
   autoSave?: FormAutosaveOptions<TDraft, TOriginal>;
-  transform?: Transform<TDraft>;
+  transform?: Transform<TDraft, TOriginal>;
   validatedClass?: string;
   original?: TOriginal;
   onSubmit?: (event: FormEvent<HTMLFormElement>, form: FormInstance<TDraft, TOriginal>) => void;
@@ -564,34 +565,20 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
         return;
       }
 
-      const store = formState.map(
-        (state) => state.draft ?? options.original ?? options.defaultValue,
-        (draft) => (state) => {
-          const draftBefore = state.draft ?? options.original ?? options.defaultValue;
-          if (deepEqual(draftBefore, draft, { undefinedEqualsAbsent: true })) {
-            return state;
-          }
+      return context.formState.subscribe((state) => {
+        const value = state.draft ?? options.original ?? options.defaultValue;
+        const result = create(value, (draft) => transform(draft, context)) as TDraft;
 
-          return {
-            ...state,
-            draft,
-          };
-        },
-      );
-
-      return store.subscribe((value) => {
-        const result = transform(value, store);
-
-        if (result !== undefined && !deepEqual(result, value)) {
-          store.set(result);
+        if (!deepEqual(result, value)) {
+          context.formState.set('draft', result);
         }
       });
-    }, [options.defaultValue, options.original, options.transform, formState]);
+    });
 
     const autosave = useFormAutosave(context);
 
     return (
-      <GeneralFormContext.Provider value={context}>
+      <GeneralFormContext.Provider value={this}>
         <this.context.Provider value={context}>
           <FormContainer {...formProps} form={this} onSubmit={options.onSubmit} />
         </this.context.Provider>
