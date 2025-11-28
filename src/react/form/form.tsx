@@ -11,7 +11,9 @@ import {
 import { get, join, set } from '@lib/propAccess';
 import type { Object_ } from '@lib/typeHelpers';
 import { getWildCardMatches } from '@lib/wildcardMatch';
+import { GeneralFormContext } from '@react/form/closestFormContext';
 import useLatestFunction from '@react/lib/useLatestFunction';
+import { create, type Draft } from 'mutative';
 import {
   createContext,
   useContext,
@@ -40,8 +42,8 @@ import { useFormAutosave, type FormAutosaveOptions } from './useFormAutosave';
 // Form types
 /// /////////////////////////////////////////////////////////////////////////////
 
-export interface Transform<TDraft> {
-  (value: TDraft, store: Store<TDraft>): void | TDraft;
+export interface Transform<TDraft, TOriginal> {
+  (value: Draft<TDraft>, form: FormContext<TDraft, TOriginal>): void | TDraft;
 }
 
 export interface FormOptions<TDraft, TOriginal> {
@@ -49,7 +51,7 @@ export interface FormOptions<TDraft, TOriginal> {
   validations?: Validations<TDraft, TOriginal>;
   localizeError?: (error: string, field: string) => string | undefined;
   autoSave?: FormAutosaveOptions<TDraft, TOriginal>;
-  transform?: Transform<TDraft>;
+  transform?: Transform<TDraft, TOriginal>;
   validatedClass?: string;
   original?: TOriginal;
   onSubmit?: (event: FormEvent<HTMLFormElement>, form: FormInstance<TDraft, TOriginal>) => void;
@@ -106,14 +108,12 @@ export type FieldHelperMethods<TDraft, TPath extends string> = {
 export interface FormState<TDraft> {
   draft: TDraft | undefined;
   hasTriggeredValidations: boolean;
-  saveScheduled: boolean;
   saveInProgress: boolean;
 }
 
 export interface FormDerivedState<TDraft> {
   draft: TDraft;
   hasTriggeredValidations: boolean;
-  saveScheduled: boolean;
   saveInProgress: boolean;
   hasChanges: boolean;
   errors: Map<string, string[]>;
@@ -127,8 +127,8 @@ export interface FormContext<TDraft, TOriginal> {
   getField: <TPath extends string>(path: TPath) => Field<TDraft, TOriginal, TPath>;
   getDraft: () => TDraft;
   hasTriggeredValidations: () => boolean;
-  saveScheduled: () => boolean;
   saveInProgress: () => boolean;
+  flushAutosave: () => Promise<void>;
   hasChanges: () => boolean;
   getErrors: () => Map<string, string[]>;
   isValid: () => boolean;
@@ -170,20 +170,10 @@ function FormContainer({
         return;
       }
 
-      const localizedErrors = new Map(
-        [...errors.entries()].map(
-          ([field, errors]) =>
-            [
-              field,
-              errors.map((error) => formInstance.options.localizeError?.(error, field) ?? error),
-            ] as const,
-        ),
-      );
-
       for (const element of Array.from(formElement.elements)) {
         if ('name' in element && 'setCustomValidity' in element) {
           (element as HTMLObjectElement).setCustomValidity(
-            localizedErrors.get((element as HTMLObjectElement).name)?.join('\n') ?? '',
+            errors.get((element as HTMLObjectElement).name)?.join('\n') ?? '',
           );
         }
       }
@@ -341,8 +331,7 @@ function getField<TDraft, TOriginal extends TDraft, TPath extends string>(
 
 function getErrors<TDraft, TOriginal>(
   draft: TDraft,
-  original: TOriginal | undefined,
-  validations: FormOptions<TDraft, TOriginal>['validations'],
+  { original, validations, localizeError }: FormOptions<TDraft, TOriginal>,
 ) {
   const errors = new Map<string, string[]>();
 
@@ -354,32 +343,39 @@ function getErrors<TDraft, TOriginal>(
       fieldErrors.push(error);
       errors.set(name, fieldErrors);
     }
+  } else {
+    for (const [path, block] of Object.entries(validations ?? {})) {
+      for (const [validationName, validate] of Object.entries(
+        block as Record<string, Validation<any, any, any>>,
+      )) {
+        let matched = false;
 
-    return errors;
+        for (const [field, value] of Object.entries(getWildCardMatches(draft, path))) {
+          matched = true;
+          if (!validate(value, { draft, original, field })) {
+            const fieldErrors = errors.get(field) ?? [];
+            fieldErrors.push(validationName);
+            errors.set(field, fieldErrors);
+          }
+        }
+
+        if (!matched && !path.includes('*')) {
+          if (!validate(undefined, { draft, original, field: path })) {
+            const fieldErrors = errors.get(path) ?? [];
+            fieldErrors.push(validationName);
+            errors.set(path, fieldErrors);
+          }
+        }
+      }
+    }
   }
 
-  for (const [path, block] of Object.entries(validations ?? {})) {
-    for (const [validationName, validate] of Object.entries(
-      block as Record<string, Validation<any, any, any>>,
-    )) {
-      let matched = false;
-
-      for (const [field, value] of Object.entries(getWildCardMatches(draft, path))) {
-        matched = true;
-        if (!validate(value, { draft, original, field })) {
-          const fieldErrors = errors.get(field) ?? [];
-          fieldErrors.push(validationName);
-          errors.set(field, fieldErrors);
-        }
-      }
-
-      if (!matched && !path.includes('*')) {
-        if (!validate(undefined, { draft, original, field: path })) {
-          const fieldErrors = errors.get(path) ?? [];
-          fieldErrors.push(validationName);
-          errors.set(path, fieldErrors);
-        }
-      }
+  if (localizeError) {
+    for (const [field, fieldErrors] of errors.entries()) {
+      errors.set(
+        field,
+        fieldErrors.map((error) => localizeError(error, field) ?? error),
+      );
     }
   }
 
@@ -392,7 +388,6 @@ export function getDerivedState<TDraft>(
   return {
     draft: instance.getDraft(),
     hasTriggeredValidations: instance.hasTriggeredValidations(),
-    saveScheduled: instance.saveScheduled(),
     saveInProgress: instance.saveInProgress(),
     hasChanges: instance.hasChanges(),
     errors: instance.getErrors(),
@@ -487,7 +482,6 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
       return createStore<FormState<TDraft>>({
         draft: undefined,
         hasTriggeredValidations: false,
-        saveScheduled: false,
         saveInProgress: false,
       });
     }, []);
@@ -526,12 +520,12 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
         return formState.get().hasTriggeredValidations;
       },
 
-      saveScheduled() {
-        return formState.get().saveScheduled;
-      },
-
       saveInProgress() {
         return formState.get().saveInProgress;
+      },
+
+      flushAutosave() {
+        return autosave.flush();
       },
 
       hasChanges() {
@@ -545,9 +539,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
       },
 
       getErrors() {
-        return lazy('getErrors', () =>
-          getErrors(this.getDraft(), options.original, options.validations),
-        );
+        return lazy('getErrors', () => getErrors(this.getDraft(), options));
       },
 
       isValid() {
@@ -573,26 +565,24 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
         return;
       }
 
-      const store = formState.map(
-        (state) => state.draft ?? options.original ?? options.defaultValue,
-        (draft) => (state) => ({ ...state, draft }),
-      );
+      return context.formState.subscribe((state) => {
+        const value = state.draft ?? options.original ?? options.defaultValue;
+        const result = create(value, (draft) => transform(draft, context)) as TDraft;
 
-      return store.subscribe((value) => {
-        const result = transform(value, store);
-
-        if (result !== undefined && !deepEqual(result, value)) {
-          store.set(result);
+        if (!deepEqual(result, value)) {
+          context.formState.set('draft', result);
         }
       });
-    }, [options.defaultValue, options.original, options.transform, formState]);
+    });
 
-    useFormAutosave(context);
+    const autosave = useFormAutosave(context);
 
     return (
-      <this.context.Provider value={context}>
-        <FormContainer {...formProps} form={this} />
-      </this.context.Provider>
+      <GeneralFormContext.Provider value={this}>
+        <this.context.Provider value={context}>
+          <FormContainer {...formProps} form={this} onSubmit={options.onSubmit} />
+        </this.context.Provider>
+      </GeneralFormContext.Provider>
     );
   }
 

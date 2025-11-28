@@ -1,10 +1,14 @@
 import { type GetKeys, type Join, type PathAsString, type Value } from '@lib/path';
 import { Fragment, useCallback, type ReactNode } from 'react';
 import { type FieldHelperMethods, type Form } from './form';
+import { isObject } from '@lib/helpers';
+import { join } from '@lib/propAccess';
 
 export type ElementName<TDraft, TPath extends string> = keyof {
   [Path in TPath as Join<Path, GetKeys<NonNullable<Value<TDraft, Path>>> & (string | number)>]: 1;
 };
+
+type ItemValue<T> = T extends readonly (infer U)[] ? U : T[keyof T];
 
 export interface FormForEachProps<TDraft, TPath extends string> {
   name: TPath & PathAsString<TDraft>;
@@ -18,6 +22,11 @@ export interface FormForEachProps<TDraft, TPath extends string> {
   renderAdditionalElement?: NonNullable<Value<TDraft, TPath>> extends readonly any[]
     ? boolean
     : never;
+  filter?: (
+    item: ItemValue<NonNullable<Value<TDraft, TPath>>>,
+    key: GetKeys<NonNullable<Value<TDraft, TPath>>>,
+    parent: NonNullable<Value<TDraft, TPath>>,
+  ) => boolean;
   children?: (
     props: {
       setValue: (
@@ -29,19 +38,40 @@ export interface FormForEachProps<TDraft, TPath extends string> {
 
 export function FormForEach<TDraft, TPath extends string>(
   this: Form<TDraft, any>,
-  { name, renderElement, renderAdditionalElement, children }: FormForEachProps<TDraft, TPath>,
+  {
+    name,
+    renderElement,
+    renderAdditionalElement,
+    filter,
+    children,
+  }: FormForEachProps<TDraft, TPath>,
 ): React.JSX.Element {
   const form = this.useForm();
 
-  const names = this.useFormState(() => {
+  const items = this.useFormState(() => {
     const field = form.getField(name);
-    const names = (field as any).names as string[];
 
-    if (renderAdditionalElement && Array.isArray(names)) {
-      names.push(`${name}.${names.length}`);
+    let keys: (string | number)[] = isObject(field.value) ? Object.keys(field.value) : [];
+    const count = keys.length;
+
+    if (Array.isArray(field.value)) {
+      keys = keys.map(Number);
     }
 
-    return names;
+    if (filter) {
+      keys = keys.filter((key, index) =>
+        filter((field.value as any)[index], key as any, field.value as any),
+      );
+    }
+
+    if (renderAdditionalElement) {
+      keys.push(count);
+    }
+
+    return keys.map((key) => ({
+      key,
+      name: join(name, String(key)),
+    }));
   });
 
   const add = useCallback(
@@ -71,9 +101,7 @@ export function FormForEach<TDraft, TPath extends string>(
   return (
     <>
       {renderElement &&
-        names.map((name, index) => {
-          const key = name.split('.').pop();
-
+        items.map(({ key, name }, index) => {
           return (
             <Fragment key={key}>
               {renderElement({
@@ -81,14 +109,14 @@ export function FormForEach<TDraft, TPath extends string>(
                 key: key as any,
                 index,
                 remove: () => remove(key),
-                count: names.length,
+                count: items.length,
               })}
             </Fragment>
           );
         })}
 
       {children?.({
-        names,
+        names: items.map((item) => item.name),
         add,
         remove,
         setValue,

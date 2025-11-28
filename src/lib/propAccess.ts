@@ -51,6 +51,14 @@ export function set<T, const P>(
     return value as T;
   }
 
+  if (object === undefined) {
+    if (typeof first === 'number' || (typeof first === 'string' && /^\d+$/.test(first))) {
+      object = [] as T;
+    } else {
+      object = {} as T;
+    }
+  }
+
   if (object instanceof Map) {
     const copy = flatClone(object);
     const child = copy.get(first);
@@ -65,7 +73,7 @@ export function set<T, const P>(
     return new Set(copy) as any;
   }
 
-  if (isObject(object) || object === undefined) {
+  if (isObject(object)) {
     const copy = flatClone(object ?? ({} as T));
     copy[first as keyof T] = set(copy[first as keyof T], rest as any, value as any, rootPath);
     return copy;
