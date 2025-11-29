@@ -33,6 +33,15 @@ export interface SubscribeOptions {
   /** Provide a custom equality function. By default a strict equals (===) will be used.
    */
   equals?: (a: any, b: any) => boolean;
+  /** An optional AbortSignal that can be used to unsubscribe the listener automatically. */
+  signal?: AbortSignal;
+}
+
+export interface EffectOptions {
+  /** If provided, delay tearing down effects when the last subscriber is removed. This is useful if a short gap in subscriber coverage is supposed to be ignored. E.g. when switching pages, the old page might unsubscribe, while the new page subscribes immediately after. */
+  retain?: Duration;
+  /** An optional AbortSignal that can be used to cancel the effect. */
+  signal?: AbortSignal;
 }
 
 export interface Cancel {

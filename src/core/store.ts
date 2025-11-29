@@ -19,6 +19,7 @@ import type {
   DisposableCancel,
   Duration,
   Effect,
+  EffectOptions,
   Listener,
   Selector,
   SubscribeOptions,
@@ -112,7 +113,7 @@ export class Store<T> {
     if (options.effect instanceof Function) {
       this.addEffect(options.effect);
     } else if (options.effect) {
-      this.addEffect(options.effect.effect, options.effect.retain);
+      this.addEffect(options.effect.effect);
     }
   }
 
@@ -176,7 +177,12 @@ export class Store<T> {
       throttle: throttleOption,
       debounce: debounceOption,
       equals = this.options.equals ?? deepEqual,
+      signal,
     } = options ?? {};
+
+    if (signal?.aborted) {
+      return disposable(() => {});
+    }
 
     let isSetup = false;
     let previousValue: { value: T } | undefined;
@@ -243,6 +249,7 @@ export class Store<T> {
         : { value: this.get() };
     }
 
+    signal?.addEventListener('abort', cancel);
     return disposable(cancel);
   }
 
@@ -361,14 +368,18 @@ export class Store<T> {
    */
   addEffect(
     effect: Effect<Store<T>>,
-    retain: Duration | undefined = this.options.retain,
+    { retain = this.options.retain, signal }: EffectOptions = {},
   ): DisposableCancel {
+    if (signal?.aborted) {
+      return disposable(() => {});
+    }
+
     this.effects.set(effect, {
       handle: this.isActive() ? (effect.apply(this, [this]) ?? noop) : undefined,
       retain: retain !== undefined ? calcDuration(retain) : undefined,
     });
 
-    return disposable(() => {
+    const cancel = () => {
       const { handle, timeout } = this.effects.get(effect) ?? {};
       handle?.();
 
@@ -377,7 +388,10 @@ export class Store<T> {
       }
 
       this.effects.delete(effect);
-    });
+    };
+
+    signal?.addEventListener('abort', cancel);
+    return disposable(cancel);
   }
 
   /** Return whether the store is currently active, which means whether it has at least one subscriber. */
