@@ -12,16 +12,18 @@ import { get, join, set } from '@lib/propAccess';
 import type { Object_ } from '@lib/typeHelpers';
 import { getWildCardMatches } from '@lib/wildcardMatch';
 import { GeneralFormContext } from '@react/form/closestFormContext';
-import useLatestFunction from '@react/lib/useLatestFunction';
+import { LegacyFormField, type FormFieldPropsWithComponent } from '@react/form/legacyFormField';
 import { create, type Draft } from 'mutative';
 import {
   createContext,
+  forwardRef,
   useContext,
   useEffect,
   useMemo,
   useRef,
   type Context,
   type FormEvent,
+  type ForwardedRef,
   type FunctionComponent,
   type HTMLProps,
   type ReactNode,
@@ -29,10 +31,12 @@ import {
 import { useStore, type UseStoreOptions } from '../useStore';
 import {
   FormField,
+  useFormFieldProps,
   type FormFieldComponent,
   type FormFieldComponentProps,
   type FormFieldInfos,
-  type FormFieldPropsWithComponent,
+  type FormFieldProps,
+  type FormFieldPropsWithChildren,
   type FormFieldPropsWithRender,
 } from './formField';
 import { FormForEach, type ElementName, type FormForEachProps } from './formForEach';
@@ -47,15 +51,17 @@ export interface Transform<TDraft, TOriginal> {
 }
 
 export interface FormOptions<TDraft, TOriginal> {
+  id?: string;
   defaultValue: TDraft;
   validations?: Validations<TDraft, TOriginal>;
+  initiallyTriggerValidations?: boolean;
   localizeError?: (error: string, field: string) => string | undefined;
   autoSave?: FormAutosaveOptions<TDraft, TOriginal>;
   transform?: Transform<TDraft, TOriginal>;
   validatedClass?: string;
   original?: TOriginal;
   onSubmit?: (event: FormEvent<HTMLFormElement>, form: FormInstance<TDraft, TOriginal>) => void;
-  reportValidity?: boolean;
+  reportValidity?: boolean | 'browser' | 'scrollTo';
   transformFieldProps?: <TPath extends string>(
     props: FormFieldComponentProps<Value<TDraft, TPath>, TPath>,
     info: FormFieldInfos<TDraft, TOriginal, TPath>,
@@ -124,16 +130,29 @@ export interface FormContext<TDraft, TOriginal> {
   formState: Store<FormState<TDraft>>;
   options: FormOptions<TDraft, TOriginal>;
   original: TOriginal | undefined;
-  getField: <TPath extends string>(path: TPath) => Field<TDraft, TOriginal, TPath>;
+  getField: <TPath extends string>(
+    name: TPath extends PathAsString<TDraft> ? TPath : PathAsString<TDraft>,
+    options?: FieldOptions,
+  ) => Field<TDraft, TOriginal, TPath>;
   getDraft: () => TDraft;
   hasTriggeredValidations: () => boolean;
   saveInProgress: () => boolean;
   flushAutosave: () => Promise<void>;
+  cancelAutosave: () => void;
   hasChanges: () => boolean;
   getErrors: () => Map<string, string[]>;
   isValid: () => boolean;
-  validate: () => boolean;
+  validate: (options?: ValidateOptions) => boolean;
   reset: () => void;
+}
+
+export interface FieldOptions {
+  includeNestedErrors?: boolean;
+}
+
+export interface ValidateOptions {
+  reportValidity?: boolean | 'browser' | 'scrollTo';
+  button?: HTMLButtonElement;
 }
 
 export interface FormInstance<TDraft, TOriginal>
@@ -147,54 +166,26 @@ export interface FormInstance<TDraft, TOriginal>
 // Implementation
 /// /////////////////////////////////////////////////////////////////////////////
 
-function FormContainer({
-  form,
-  ...formProps
-}: {
-  form: Form<any, any>;
-  onSubmit?: (
-    event: FormEvent<HTMLFormElement>,
-    form: FormInstance<any, any>,
-  ) => void | Promise<void>;
-} & Omit<HTMLProps<HTMLFormElement>, 'form' | 'onSubmit'>) {
+const FormContainer = forwardRef(function FormContainer(
+  {
+    form,
+    ...formProps
+  }: {
+    form: Form<any, any>;
+    onSubmit?: (
+      event: FormEvent<HTMLFormElement>,
+      form: FormInstance<any, any>,
+    ) => void | Promise<void>;
+  } & Omit<HTMLProps<HTMLFormElement>, 'form' | 'onSubmit'>,
+  ref: ForwardedRef<HTMLFormElement>,
+) {
   const formInstance = form.useForm();
   const hasTriggeredValidations = form.useFormState((state) => state.hasTriggeredValidations);
   const hasErrors = form.useFormState((state) => hasTriggeredValidations && state.errors.size > 0);
 
-  const formRef = useRef<HTMLFormElement>(null);
-
-  const updateValidity = useLatestFunction(
-    (errors: Map<string, string[]>, buttonElement?: HTMLButtonElement) => {
-      const formElement = formRef.current;
-      if (!formElement) {
-        return;
-      }
-
-      for (const element of Array.from(formElement.elements)) {
-        if ('name' in element && 'setCustomValidity' in element) {
-          (element as HTMLObjectElement).setCustomValidity(
-            errors.get((element as HTMLObjectElement).name)?.join('\n') ?? '',
-          );
-        }
-      }
-
-      if (buttonElement && 'setCustomValidity' in buttonElement) {
-        const errorString = [...errors.values()].flat().join('\n');
-
-        buttonElement.setCustomValidity(errorString);
-      }
-    },
-  );
-
-  useEffect(() => {
-    return formInstance.formState
-      .map(() => formInstance.getErrors())
-      .subscribe((errors) => updateValidity(errors));
-  }, [formInstance, updateValidity]);
-
   return (
     <form
-      ref={formRef}
+      ref={ref}
       noValidate
       {...formProps}
       className={[
@@ -214,20 +205,13 @@ function FormContainer({
           formInstance.formState.set('saveInProgress', true);
           event.preventDefault();
 
-          const formElement = event.currentTarget;
-          const buttonElement =
+          const button =
             event.nativeEvent instanceof SubmitEvent &&
             event.nativeEvent.submitter instanceof HTMLButtonElement
               ? event.nativeEvent.submitter
               : undefined;
 
-          updateValidity(formInstance.getErrors(), buttonElement);
-
-          if (formInstance.options.reportValidity) {
-            formElement.reportValidity();
-          }
-
-          const isValid = formInstance.validate();
+          const isValid = formInstance.validate({ button });
           if (isValid) {
             await formProps.onSubmit?.(event, {
               ...formInstance,
@@ -240,29 +224,30 @@ function FormContainer({
       }}
     />
   );
-}
+});
 
 function getField<TDraft, TOriginal extends TDraft, TPath extends string>(
   form: FormContext<TDraft, TOriginal>,
-  path: TPath,
+  name: TPath extends PathAsString<TDraft> ? TPath : PathAsString<TDraft>,
+  { includeNestedErrors }: FieldOptions = {},
 ): Field<TDraft, TOriginal, TPath> {
   const field = {
     get originalValue() {
-      return form.original !== undefined ? get(form.original as any, path as any) : undefined;
+      return form.original !== undefined ? get(form.original as any, name as any) : undefined;
     },
 
     get value() {
       const draft = form.getDraft();
-      return get(draft ?? form.original ?? form.options.defaultValue, path as any);
+      return get(draft ?? form.original ?? form.options.defaultValue, name as any);
     },
 
     setValue(update: Update<Value<TDraft, TPath>>) {
       form.formState.set('draft', (draft = form.original ?? form.options.defaultValue) => {
         if (update instanceof Function) {
-          update = update(get(draft, path as any) as Value<TDraft, TPath>);
+          update = update(get(draft, name as any) as Value<TDraft, TPath>);
         }
 
-        return set(draft, path as any, update as any);
+        return set(draft, name as any, update as any);
       });
     },
 
@@ -272,14 +257,21 @@ function getField<TDraft, TOriginal extends TDraft, TPath extends string>(
 
     get errors() {
       const errors = form.getErrors();
-      return errors.get(path) ?? [];
+
+      if (includeNestedErrors) {
+        return Array.from(errors.entries())
+          .filter(([key]) => key === name || key.startsWith(`${name}.`))
+          .flatMap(([, value]) => value);
+      } else {
+        return errors.get(name) ?? [];
+      }
     },
 
     get names(): any {
       const { value } = this;
 
       if (isObject(value)) {
-        return Object.keys(value).map((key) => join(path, key));
+        return Object.keys(value).map((key) => join(name, key));
       }
 
       return [];
@@ -434,12 +426,24 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
   }
 
   useField<TPath extends string>(
-    path: TPath,
-    useStoreOptions?: UseStoreOptions<any>,
+    name: TPath extends PathAsString<TDraft> ? TPath : PathAsString<TDraft>,
+    { includeNestedErrors, ...useStoreOptions }: FieldOptions & UseStoreOptions<unknown> = {},
   ): Field<TDraft, TOriginal, TPath> {
     const form = this.useForm();
-    this.useFormState((form) => [form.getField(path).value, form.original], useStoreOptions);
-    return form.getField(path);
+    this.useFormState((form) => [form.getField(name).value, form.original], useStoreOptions);
+
+    return form.getField(name, { includeNestedErrors });
+  }
+
+  useFieldProps<TPath extends string>(
+    name: TPath extends PathAsString<TDraft> ? TPath : PathAsString<TDraft>,
+    options?: Omit<FormFieldProps<TPath, TDraft>, 'name'>,
+  ): FormFieldComponentProps<Value<TDraft, TPath>, TPath> {
+    return useFormFieldProps.call<
+      Form<TDraft, TOriginal>,
+      [FormFieldProps<TPath, TDraft>],
+      FormFieldComponentProps<Value<TDraft, TPath>, TPath>
+    >(this, { name, ...options } as any);
   }
 
   // ///////////////////////////////////////////////////////////////////////////
@@ -449,6 +453,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
   Form({
     defaultValue,
     validations,
+    initiallyTriggerValidations,
     localizeError,
     autoSave,
     transform,
@@ -474,17 +479,20 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
       validatedClass: validatedClass ?? this.options.validatedClass,
       original: original ?? this.options.original,
       onSubmit: onSubmit ?? this.options.onSubmit,
-      reportValidity: reportValidity ?? this.options.reportValidity ?? true,
+      reportValidity: reportValidity ?? this.options.reportValidity ?? 'browser',
       transformFieldProps: transformFieldProps ?? this.options.transformFieldProps,
     };
 
     const formState = useMemo(() => {
       return createStore<FormState<TDraft>>({
         draft: undefined,
-        hasTriggeredValidations: false,
+        hasTriggeredValidations: initiallyTriggerValidations ?? false,
         saveInProgress: false,
       });
+      // oxlint-disable-next-line exhaustive-deps
     }, []);
+
+    const formRef = useRef<HTMLFormElement>(null);
 
     let lastDraft: TDraft | undefined;
     const cache = new Map<string, unknown>();
@@ -528,6 +536,10 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
         return autosave.flush();
       },
 
+      cancelAutosave() {
+        return autosave.cancel();
+      },
+
       hasChanges() {
         return lazy(
           'hasChanges',
@@ -546,8 +558,28 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
         return lazy('isValid', () => this.getErrors().size === 0);
       },
 
-      validate() {
+      validate({ reportValidity = options.reportValidity, button }: ValidateOptions = {}) {
         formState.set('hasTriggeredValidations', true);
+
+        updateValidity(this.getErrors(), button);
+
+        switch (reportValidity) {
+          case 'browser':
+            formRef.current?.reportValidity();
+            break;
+
+          case true:
+          case 'scrollTo':
+            {
+              const invalidElement = document.querySelector(':invalid, [data-invalid="true"]');
+              if (invalidElement && invalidElement instanceof HTMLElement) {
+                invalidElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                invalidElement.focus({ preventScroll: true });
+              }
+            }
+            break;
+        }
+
         return this.isValid();
       },
 
@@ -557,7 +589,8 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
       },
     };
 
-    context.getField = (path) => lazy(path, () => getField(context, path));
+    context.getField = (path, options) =>
+      lazy(`${path}:${options?.includeNestedErrors}`, () => getField(context, path, options));
 
     useEffect(() => {
       const transform = options.transform;
@@ -573,6 +606,31 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
           context.formState.set('draft', result);
         }
       });
+    });
+
+    function updateValidity(errors: Map<string, string[]>, buttonElement?: HTMLButtonElement) {
+      const formElement = formRef.current;
+      if (!formElement) {
+        return;
+      }
+
+      for (const element of Array.from(formElement.elements)) {
+        if ('name' in element && 'setCustomValidity' in element) {
+          (element as HTMLObjectElement).setCustomValidity(
+            errors.get((element as HTMLObjectElement).name)?.join('\n') ?? '',
+          );
+        }
+      }
+
+      if (buttonElement && 'setCustomValidity' in buttonElement) {
+        const errorString = [...errors.values()].flat().join('\n');
+
+        buttonElement.setCustomValidity(errorString);
+      }
+    }
+
+    useEffect(() => {
+      return formState.map(() => context.getErrors()).subscribe((errors) => updateValidity(errors));
     });
 
     const autosave = useFormAutosave(context);
@@ -601,12 +659,21 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     props: FormFieldPropsWithRender<TDraft, TOriginal, TPath>,
   ): React.JSX.Element;
 
+  Field<const TPath extends string>(
+    props: FormFieldPropsWithChildren<TDraft, TOriginal, TPath>,
+  ): React.JSX.Element;
+
+  /** @deprecated */
   Field<const TPath extends string, const TComponent extends FormFieldComponent = 'input'>(
     props: FormFieldPropsWithComponent<TDraft, TOriginal, TPath, TComponent>,
   ): React.JSX.Element;
 
   Field(props: any): React.JSX.Element {
-    return Reflect.apply(FormField, this, [{ component: 'input', ...props }]);
+    if (props.component) {
+      return Reflect.apply(LegacyFormField, this, [props]);
+    }
+
+    return Reflect.apply(FormField, this, [props]);
   }
 
   ForEach<const TPath extends string>(props: FormForEachProps<TDraft, TPath>): React.JSX.Element {

@@ -72,7 +72,12 @@ describe('form', () => {
             },
           }}
         >
-          <form.Field name="firstName" aria-label="first name" inputFilter={() => true} />
+          <form.Field
+            component="input"
+            name="firstName"
+            aria-label="first name"
+            inputFilter={() => true}
+          />
           <div data-testid="firstName-errors">
             <form.FormState
               selector={(form) =>
@@ -147,12 +152,14 @@ describe('form', () => {
           </form.FormState>
 
           <form.Field
+            component="input"
             name=""
             serialize={(x) => x.firstName}
             deserialize={(string, form) => ({ ...form.draft, firstName: string })}
           />
 
           <form.Field
+            component="input"
             name=""
             serialize={(x) => x.firstName}
             deserialize={(string, form) => ({ ...form.draft, firstName: string })}
@@ -169,9 +176,9 @@ describe('form', () => {
     // @ts-expect-error needs additional props
     <form.Field name="age" component={CustomInput} />;
 
-    <form.Field defaultValue="" name="optional" />;
-    <form.Field serialize={(x) => x ?? ''} name="optional" />;
-    <form.Field defaultValue="" serialize={(x) => x ?? ''} name="optional" />;
+    <form.Field component="input" defaultValue="" name="optional" />;
+    <form.Field component="input" serialize={(x) => x ?? ''} name="optional" />;
+    <form.Field component="input" defaultValue="" serialize={(x) => x ?? ''} name="optional" />;
     // @ts-expect-error needs default value
     <form.Field name="optional" />;
 
