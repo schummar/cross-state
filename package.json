@@ -68,6 +68,7 @@
     "lint:oxlint": "oxlint",
     "lint:ts": "tsgo --noEmit --emitDeclarationOnly false",
     "size": "size-limit",
+    "publint": "publint",
     "test": "vitest run --coverage",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
