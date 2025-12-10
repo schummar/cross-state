@@ -6,8 +6,8 @@ on:
       - next
 
 permissions:
-  id-token: write # Required for OIDC
-  contents: read
+  id-token: write
+  contents: write
 
 env:
   VOLTA_FEATURE_PNPM: 1
