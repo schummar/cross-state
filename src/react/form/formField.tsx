@@ -35,8 +35,11 @@ export interface FormFieldProps<TPath, TDraft> extends FieldOptions {
   commitDebounce?: Duration;
 }
 
-export interface FormFieldPropsWithRender<TDraft, TOriginal, TPath extends string>
-  extends FormFieldProps<TPath, TDraft> {
+export interface FormFieldPropsWithRender<
+  TDraft,
+  TOriginal,
+  TPath extends string,
+> extends FormFieldProps<TPath, TDraft> {
   render: NoInfer<
     (
       props: FormFieldComponentProps<Value<TDraft, TPath>, TPath>,
@@ -47,8 +50,11 @@ export interface FormFieldPropsWithRender<TDraft, TOriginal, TPath extends strin
   children?: undefined;
 }
 
-export interface FormFieldPropsWithChildren<TDraft, TOriginal, TPath extends string>
-  extends FormFieldProps<TPath, TDraft> {
+export interface FormFieldPropsWithChildren<
+  TDraft,
+  TOriginal,
+  TPath extends string,
+> extends FormFieldProps<TPath, TDraft> {
   render?: undefined;
   children: NoInfer<
     (

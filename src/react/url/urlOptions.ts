@@ -13,8 +13,10 @@ export interface UrlOptions<T> {
   path?: string | RegExp | (string | RegExp)[] | null;
 }
 
-export interface UrlOptionsWithoutDefaults<T>
-  extends Omit<UrlOptions<T | undefined>, 'defaultValue'> {
+export interface UrlOptionsWithoutDefaults<T> extends Omit<
+  UrlOptions<T | undefined>,
+  'defaultValue'
+> {
   defaultValue?: T | undefined;
 }
 

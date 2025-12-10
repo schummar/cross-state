@@ -156,7 +156,8 @@ export interface ValidateOptions {
 }
 
 export interface FormInstance<TDraft, TOriginal>
-  extends FormDerivedState<TDraft>,
+  extends
+    FormDerivedState<TDraft>,
     Pick<
       FormContext<TDraft, TOriginal>,
       'options' | 'original' | 'getField' | 'validate' | 'reset'
