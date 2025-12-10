@@ -471,10 +471,16 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
         typeof validations === 'function'
           ? validations
           : validations
-            ? ({ ...this.options.validations, ...validations } as Validations<TDraft, TOriginal>)
+            ? ({ enabled: true, ...this.options.validations, ...validations } as Validations<
+                TDraft,
+                TOriginal
+              >)
             : this.options.validations,
       localizeError: localizeError ?? this.options.localizeError,
-      autoSave: autoSave ?? this.options.autoSave,
+      autoSave:
+        this.options.autoSave || autoSave
+          ? ({ ...this.options.autoSave, ...autoSave } as FormAutosaveOptions<TDraft, TOriginal>)
+          : undefined,
       transform: transform ?? this.options.transform,
       validatedClass: validatedClass ?? this.options.validatedClass,
       original: original ?? this.options.original,

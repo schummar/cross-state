@@ -9,9 +9,11 @@ import type { FormContext } from './form';
 import { deepEqual } from '@lib/equals';
 
 export interface FormAutosaveOptions<TDraft, TOriginal> {
-  save: (draft: TDraft, prev: TDraft, form: FormContext<TDraft, TOriginal>) => MaybePromise<void>;
+  enabled?: boolean;
+  save?: (draft: TDraft, prev: TDraft, form: FormContext<TDraft, TOriginal>) => MaybePromise<void>;
   debounce?: Duration;
   resetAfterSave?: boolean;
+  equals?: (a: any, b: any) => boolean;
 }
 
 export function useFormAutosave<TDraft, TOriginal extends TDraft>(
@@ -20,15 +22,17 @@ export function useFormAutosave<TDraft, TOriginal extends TDraft>(
   flush(): Promise<void>;
   cancel(): Promise<void>;
 } {
-  const isActive = !!form.options.autoSave;
+  const isActive = !!form.options.autoSave?.enabled && !!form.options.autoSave?.save;
   const debounceTime = calcDuration(form.options.autoSave?.debounce ?? 2_000);
   const prev = useRef(form.getDraft());
   const q = useMemo(() => queue(), []);
 
   const latestSave = useLatestFunction(async () => {
     const draft = form.getDraft();
+    const equals =
+      form.options.autoSave?.equals ?? ((a, b) => deepEqual(a, b, { undefinedEqualsAbsent: true }));
 
-    if (deepEqual(draft, prev.current, { undefinedEqualsAbsent: true })) {
+    if (!isActive || equals(draft, prev.current) || equals(draft, form.options.original)) {
       return;
     }
 
