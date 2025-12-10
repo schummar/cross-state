@@ -4,6 +4,11 @@ on:
     branches:
       - master
       - next
+
+permissions:
+  id-token: write # Required for OIDC
+  contents: read
+
 env:
   VOLTA_FEATURE_PNPM: 1
 
@@ -22,8 +27,13 @@ jobs:
       - name: Install dependencies
         run: pnpm i --frozen-lockfile
 
+      - run: pnpm run lint
+      - run: pnpm run test
+      - run: pnpm run build
+      - run: pnpm run size
+      - run: pnpm run publint
+
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npx semantic-release
+        run: pnpm nx release -y
