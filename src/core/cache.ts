@@ -89,7 +89,7 @@ export interface CacheOptions<T, Args extends any[]> extends StoreOptions<Promis
    * });
    * ```
    */
-  getCacheKey?: (...args: NoInfer<Args>) => unknown;
+  getCacheKey?: (...args: Args) => unknown;
 }
 
 export class Cache<T, Args extends any[] = []> extends Store<Promise<T>> {
@@ -367,7 +367,7 @@ export type CacheBundle<T, Args extends any[], TCache extends Cache<T, Args>> = 
 
 function create<T, Args extends any[] = []>(
   cacheFunction: CacheFunction<T, Args>,
-  options?: CacheOptions<T, Args>,
+  options?: NoInfer<CacheOptions<T, Args>>,
 ): CreateCacheResult<T, Args, Cache<T, Args>> {
   return internalCreate<T, Args, Cache<T, Args>>(
     (args, options) =>
