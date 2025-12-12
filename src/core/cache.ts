@@ -271,12 +271,13 @@ export class Cache<T, Args extends any[] = []> extends Store<Promise<T>> {
     this.invalidationTimer = undefined;
 
     const state = this.state.get();
-    let { invalidateAfter } = this.options;
-    const ref = new WeakRef(this);
 
-    if (state.status === 'pending') {
+    if (state.status === 'pending' || state.isStale) {
       return;
     }
+
+    let { invalidateAfter } = this.options;
+    const ref = new WeakRef(this);
 
     if (invalidateAfter instanceof Function) {
       invalidateAfter = invalidateAfter(state);

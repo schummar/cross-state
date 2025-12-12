@@ -724,4 +724,23 @@ describe('cache', () => {
     expect(cache.state.get().value).toBe(7);
     expect(calculate).toHaveBeenCalledTimes(7);
   });
+
+  test('bug: invalidateAfter is evaluated with stale data', async () => {
+    let value = 1;
+    const seenValues: (number | undefined)[] = [];
+
+    const cache = createCache(async () => value++, {
+      invalidateAfter(state) {
+        seenValues.push(state.value);
+        return 1;
+      },
+    });
+
+    await cache.get();
+    vi.advanceTimersByTime(1);
+    await cache.get();
+    vi.advanceTimersByTime(1);
+
+    expect(seenValues).toEqual([1, 2]);
+  });
 });
