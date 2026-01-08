@@ -31,7 +31,7 @@ export function useFormAutosave<TDraft, TOriginal extends TDraft>(
   const q = useMemo(() => queue(), []);
 
   const latestSave = useLatestFunction(async () => {
-    if (validateBeforeSave && !form.isValid()) {
+    if (validateBeforeSave && !form.validate()) {
       return;
     }
 
