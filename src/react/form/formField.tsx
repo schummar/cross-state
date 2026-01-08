@@ -114,17 +114,19 @@ export function useFormFieldProps<TDraft, TPath extends string>(
   const form = this.useForm();
   const field = this.useField(name, { includeNestedErrors });
   const hasTriggeredValidations = this.useFormState((form) => form.hasTriggeredValidations);
-  const [localValue, setLocalValue] = useState<T>();
+  const [localValue, setLocalValue] = useState<{ v: T }>();
 
   const commitDebounceMs = commitDebounce !== undefined ? calcDuration(commitDebounce) : undefined;
 
   const commitLocalValue = useLatestFunction(() => {
-    field.setValue(localValue as any);
-    setLocalValue(undefined);
+    if (localValue) {
+      field.setValue(localValue.v);
+      setLocalValue(undefined);
+    }
   });
 
   useEffect(() => {
-    if (localValue === undefined || commitDebounceMs === undefined || commitDebounceMs <= 0) {
+    if (!localValue || commitDebounceMs === undefined || commitDebounceMs <= 0) {
       return;
     }
 
@@ -134,7 +136,7 @@ export function useFormFieldProps<TDraft, TPath extends string>(
 
   let props = {
     name,
-    value: localValue ?? field.value,
+    value: localValue ? localValue.v : field.value,
     onChange: useLatestFunction((event: { target: { value: T } } | T) => {
       const value =
         typeof event === 'object' && event !== null && 'target' in event
@@ -142,13 +144,13 @@ export function useFormFieldProps<TDraft, TPath extends string>(
           : event;
 
       if (commitOnBlur || (commitDebounceMs !== undefined && commitDebounceMs > 0)) {
-        setLocalValue(value);
+        setLocalValue({ v: value });
       } else {
         field.setValue(value as any);
       }
     }),
     onBlur: useLatestFunction(() => {
-      if (localValue !== undefined) {
+      if (localValue) {
         commitLocalValue();
       }
     }),
