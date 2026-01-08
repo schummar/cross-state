@@ -472,10 +472,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
         typeof validations === 'function'
           ? validations
           : validations
-            ? ({ enabled: true, ...this.options.validations, ...validations } as Validations<
-                TDraft,
-                TOriginal
-              >)
+            ? ({ ...this.options.validations, ...validations } as Validations<TDraft, TOriginal>)
             : this.options.validations,
       localizeError: localizeError ?? this.options.localizeError,
       autoSave:

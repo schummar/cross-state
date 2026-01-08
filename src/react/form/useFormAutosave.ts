@@ -1,15 +1,16 @@
 import type { Duration } from '@core';
 import { debounce } from '@lib/debounce';
 import { calcDuration } from '@lib/duration';
+import { deepEqual } from '@lib/equals';
 import type { MaybePromise } from '@lib/maybePromise';
 import { queue } from '@lib/queue';
 import useLatestFunction from '@react/lib/useLatestFunction';
 import { useEffect, useMemo, useRef } from 'react';
 import type { FormContext } from './form';
-import { deepEqual } from '@lib/equals';
 
 export interface FormAutosaveOptions<TDraft, TOriginal> {
   enabled?: boolean;
+  validateBeforeSave?: boolean;
   save?: (draft: TDraft, prev: TDraft, form: FormContext<TDraft, TOriginal>) => MaybePromise<void>;
   debounce?: Duration;
   resetAfterSave?: boolean;
@@ -22,12 +23,18 @@ export function useFormAutosave<TDraft, TOriginal extends TDraft>(
   flush(): Promise<void>;
   cancel(): Promise<void>;
 } {
-  const isActive = (form.options.autoSave?.enabled ?? true) && !!form.options.autoSave?.save;
+  const { enabled = true, validateBeforeSave = true } = form.options.autoSave ?? {};
+
+  const isActive = enabled && !!form.options.autoSave?.save;
   const debounceTime = calcDuration(form.options.autoSave?.debounce ?? 2_000);
   const prev = useRef(form.getDraft());
   const q = useMemo(() => queue(), []);
 
   const latestSave = useLatestFunction(async () => {
+    if (validateBeforeSave && !form.isValid()) {
+      return;
+    }
+
     const draft = form.getDraft();
     const equals =
       form.options.autoSave?.equals ?? ((a, b) => deepEqual(a, b, { undefinedEqualsAbsent: true }));
