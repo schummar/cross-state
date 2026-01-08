@@ -22,7 +22,7 @@ export function useFormAutosave<TDraft, TOriginal extends TDraft>(
   flush(): Promise<void>;
   cancel(): Promise<void>;
 } {
-  const isActive = !!form.options.autoSave?.enabled && !!form.options.autoSave?.save;
+  const isActive = (form.options.autoSave?.enabled ?? true) && !!form.options.autoSave?.save;
   const debounceTime = calcDuration(form.options.autoSave?.debounce ?? 2_000);
   const prev = useRef(form.getDraft());
   const q = useMemo(() => queue(), []);
