@@ -7,8 +7,12 @@ export interface Resource {
 
 export class ResourceGroup {
   private refMap = new WeakMap<Resource, WeakRef<Resource>>();
-
   private refSet = new Set<WeakRef<Resource>>();
+  private timer = setInterval(this.cleanup, 60_000);
+
+  private registry = new FinalizationRegistry<WeakRef<Resource>>((ref) => {
+    this.refSet.delete(ref);
+  });
 
   constructor(public readonly name?: string) {
     autobind(ResourceGroup);
@@ -18,6 +22,7 @@ export class ResourceGroup {
     const ref = new WeakRef(resource);
     this.refMap.set(resource, ref);
     this.refSet.add(ref);
+    this.registry.register(resource, ref, resource);
   }
 
   delete(resource: Resource): void {
@@ -25,6 +30,7 @@ export class ResourceGroup {
     if (ref) {
       this.refMap.delete(resource);
       this.refSet.delete(ref);
+      this.registry.unregister(resource);
     }
   }
 
@@ -48,6 +54,19 @@ export class ResourceGroup {
         this.refSet.delete(ref);
       }
     }
+  }
+
+  cleanup(): void {
+    for (const ref of this.refSet) {
+      if (!ref.deref()) {
+        this.refSet.delete(ref);
+      }
+    }
+  }
+
+  stop(): void {
+    clearInterval(this.timer);
+    this.refSet.clear();
   }
 }
 
