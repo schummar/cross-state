@@ -743,4 +743,54 @@ describe('cache', () => {
 
     expect(seenValues).toEqual([1, 2]);
   });
+
+  describe('invalidateOnActivation', () => {
+    test('triggers when the cache becomes active', async () => {
+      const fn = vi.fn(async () => 1);
+      const cache = createCache(fn, { invalidateOnActivation: true });
+
+      expect(fn).toHaveBeenCalledTimes(0);
+
+      {
+        expect(cache.isActive()).toBe(false);
+        using _cancel = cache.subscribe(() => undefined);
+        expect(cache.isActive()).toBe(true);
+      }
+
+      expect(fn).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+
+      {
+        expect(cache.isActive()).toBe(false);
+        using _cancel = cache.subscribe(() => undefined);
+        expect(cache.isActive()).toBe(true);
+      }
+
+      expect(fn).toHaveBeenCalledTimes(2);
+    });
+
+    test('does not trigger invalidation when cache becomes active if invalidateOnActivation is false', async () => {
+      const fn = vi.fn(async () => 1);
+      const cache = createCache(fn, { invalidateOnActivation: false });
+
+      expect(fn).toHaveBeenCalledTimes(0);
+
+      {
+        expect(cache.isActive()).toBe(false);
+        using _ = cache.subscribe(() => undefined);
+        expect(cache.isActive()).toBe(true);
+      }
+
+      expect(fn).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+
+      {
+        expect(cache.isActive()).toBe(false);
+        using _ = cache.subscribe(() => undefined);
+        expect(cache.isActive()).toBe(true);
+      }
+
+      expect(fn).toHaveBeenCalledTimes(1);
+    });
+  });
 });

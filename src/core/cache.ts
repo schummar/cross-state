@@ -54,6 +54,11 @@ export interface CacheOptions<T, Args extends any[]> extends StoreOptions<Promis
   invalidateOnWindowFocus?: boolean;
 
   /**
+   * If set, the cache will be invalidated when it becomes active - e.g. when it is subscribed to or a component using the cache mounts.
+   */
+  invalidateOnActivation?: boolean;
+
+  /**
    * If set, the cached value will be cleared when the cache is invalidated.
    * Without this option, the cache will keep the last value as stale until a new value becomes available.
    */
@@ -118,6 +123,7 @@ export class Cache<T, Args extends any[] = []> extends Store<Promise<T>> {
 
     this.watchPromise();
     this.watchFocus();
+    this.addEffect(this.onActivation);
   }
 
   get({ update = 'whenStale', backgroundUpdate = false }: CacheGetOptions = {}): Promise<T> {
@@ -317,6 +323,12 @@ export class Cache<T, Args extends any[] = []> extends Store<Promise<T>> {
     };
 
     document.addEventListener('visibilitychange', onFocus);
+  }
+
+  protected onActivation(): void {
+    if (this.options.invalidateOnActivation) {
+      this.invalidate();
+    }
   }
 }
 
