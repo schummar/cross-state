@@ -8,7 +8,7 @@ export interface Resource {
 export class ResourceGroup {
   private refMap = new WeakMap<Resource, WeakRef<Resource>>();
   private refSet = new Set<WeakRef<Resource>>();
-  private timer = setInterval(this.cleanup, 60_000);
+  private timer = setInterval(() => this.cleanup(), 60_000);
 
   private registry = new FinalizationRegistry<WeakRef<Resource>>((ref) => {
     this.refSet.delete(ref);
@@ -57,6 +57,7 @@ export class ResourceGroup {
   }
 
   cleanup(): void {
+    console.log('clean', this.refSet);
     for (const ref of this.refSet) {
       if (!ref.deref()) {
         this.refSet.delete(ref);
