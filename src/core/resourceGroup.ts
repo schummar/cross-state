@@ -57,7 +57,6 @@ export class ResourceGroup {
   }
 
   cleanup(): void {
-    console.log('clean', this.refSet);
     for (const ref of this.refSet) {
       if (!ref.deref()) {
         this.refSet.delete(ref);
