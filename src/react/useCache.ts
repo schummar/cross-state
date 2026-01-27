@@ -1,6 +1,7 @@
 import type { Cache } from '@core';
 import type { CacheState } from '@lib/cacheState';
 import { makeSelector } from '@lib/makeSelector';
+import useMemoEquals from '@react/lib/useMemoEquals';
 import { useLoadingBoundary } from '@react/loadingBoundary';
 import { useEffect, useMemo, useRef } from 'react';
 import { useStore, type UseStoreOptions } from './useStore';
@@ -117,6 +118,12 @@ export function useCache<T>(
     },
     { ...options, withViewTransition, passive: passive || disabled },
   );
+
+  // Memoize value and error to keep their identity stable
+  result[0] = useMemoEquals(result[0]);
+  result.value = result[0];
+  result[1] = useMemoEquals(result[1]);
+  result.error = result[1];
 
   useEffect(
     () => rootCache.subscribe(() => undefined, { passive: passive || disabled }),

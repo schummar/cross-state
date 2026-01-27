@@ -1,5 +1,5 @@
 import { act, render, screen } from '@testing-library/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { createCache, createPagedCache } from '../../src';
 import { useCache } from '../../src/react';
@@ -326,5 +326,59 @@ describe('useCache', () => {
 
       expect(div.textContent).toBe('{"pages":[0,1,2],"hasMore":true,"pageCount":null}');
     });
+  });
+
+  test('value identity stability', async () => {
+    const cache = createCache(async () => ({ a: 1 }));
+    await cache.get();
+
+    let effectCount = 0;
+    function Component() {
+      const [value] = useCache(cache);
+
+      useEffect(() => {
+        effectCount++;
+      }, [value]);
+
+      return null;
+    }
+
+    render(<Component />);
+    expect(effectCount).toBe(1);
+
+    await act(async () => {
+      cache.invalidateAll();
+      await cache.get();
+    });
+
+    expect(effectCount).toBe(1);
+  });
+
+  test('error identity stability', async () => {
+    const cache = createCache(async () => {
+      throw { error: 'foo' };
+    });
+    await cache.get().catch(() => {});
+
+    let effectCount = 0;
+    function Component() {
+      const [, error] = useCache(cache);
+
+      useEffect(() => {
+        effectCount++;
+      }, [error]);
+
+      return null;
+    }
+
+    render(<Component />);
+    expect(effectCount).toBe(1);
+
+    await act(async () => {
+      cache.invalidateAll();
+      await cache.get().catch(() => {});
+    });
+
+    expect(effectCount).toBe(1);
   });
 });
