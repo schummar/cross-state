@@ -427,8 +427,18 @@ export function internalCreate<T, Args extends any[], TCache extends Cache<T, Ar
   }
 
   const mapCache = (selector: any) => {
-    return internalCreate<any, Args, Cache<any, Args>>((args: Args) =>
-      mapValue(baseInstance(...args), selector),
+    return internalCreate<any, Args, Cache<any, Args>>(
+      (args: Args) =>
+        new Cache(
+          async ({ use }) => {
+            const baseValue = await use(get(...args));
+            return selector(baseValue);
+          },
+          args,
+          options,
+          undefined,
+        ),
+      options,
     );
   };
 
