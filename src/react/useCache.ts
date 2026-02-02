@@ -120,10 +120,10 @@ export function useCache<T>(
   );
 
   // Memoize value and error to keep their identity stable
-  result[0] = useMemoEquals(result[0]);
-  result.value = result[0];
-  result[1] = useMemoEquals(result[1]);
-  result.error = result[1];
+  // result[0] = useMemoEquals(result[0], options.equals);
+  // result.value = result[0];
+  // result[1] = useMemoEquals(result[1], options.equals);
+  // result.error = result[1];
 
   useEffect(
     () => rootCache.subscribe(() => undefined, { passive: passive || disabled }),

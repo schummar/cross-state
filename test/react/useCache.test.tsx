@@ -1,7 +1,7 @@
-import { act, render, screen } from '@testing-library/react';
-import { useEffect, useState } from 'react';
+import { act, render, renderHook, screen } from '@testing-library/react';
+import { useState } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { createCache, createPagedCache } from '../../src';
+import { createCache, createPagedCache, deepEqual } from '../../src';
 import { useCache } from '../../src/react';
 import { flushPromises, sleep } from '../testHelpers';
 
@@ -328,57 +328,86 @@ describe('useCache', () => {
     });
   });
 
-  test('value identity stability', async () => {
-    const cache = createCache(async () => ({ a: 1 }));
-    await cache.get();
+  describe('identity stability', () => {
+    test('value identity stability', async () => {
+      const cache = createCache(async () => ({ a: 1 }));
+      const value = await cache.get();
 
-    let effectCount = 0;
-    function Component() {
-      const [value] = useCache(cache);
+      const { rerender, result } = renderHook(() => useCache(cache));
+      expect(result.current[0]).toBe(value);
 
-      useEffect(() => {
-        effectCount++;
-      }, [value]);
+      rerender();
+      expect(result.current[0]).toBe(value);
 
-      return null;
-    }
+      await act(() => cache.get({ update: 'force' }));
+      expect(result.current[0]).toBe(value);
+    });
 
-    render(<Component />);
-    expect(effectCount).toBe(1);
+    test('error identity stability', async () => {
+      const cache = createCache(async () => {
+        throw { error: 'foo' };
+      });
+      const error = await cache.get().catch((e) => e);
 
-    await act(async () => {
-      cache.invalidateAll();
+      const { rerender, result } = renderHook(() => useCache(cache));
+      expect(result.current[1]).toBe(error);
+
+      rerender();
+      expect(result.current[1]).toBe(error);
+
+      await act(() => cache.get({ update: 'force' }).catch((e) => e));
+      expect(result.current[1]).toBe(error);
+    });
+
+    test('bug: equals function is always run while cache value stays equal', async () => {
+      let expensiveComparisons = 0;
+
+      const equals = (a: any, b: any) => {
+        if (Array.isArray(a) && a[0] !== b[0]) {
+          // Compares return value of mapCache => expensive if values have different refs
+          expensiveComparisons++;
+        } else if (!Array.isArray(a) && a !== b) {
+          // Compares values alone => expensive if values have different refs
+          expensiveComparisons++;
+        }
+
+        return deepEqual(a, b);
+      };
+
+      const cache = createCache(async () => ({ a: 1 }));
       await cache.get();
+
+      const { rerender } = renderHook(() => useCache(cache, { equals }));
+      // Value is the original value => comparison is cheap because refs are equal
+      expect(expensiveComparisons).toBe(0);
+
+      rerender();
+      // Even after rerendering without changes, refs are still equal => comparison is cheap
+      expect(expensiveComparisons).toBe(0);
+
+      await act(async () => {
+        // await mappedCache.get({ update: 'force' });
+        await cache.get({ update: 'force' });
+      });
+      // After cache refresh, refs are different => expensive comparison once
+      expect(expensiveComparisons).toBeGreaterThan(0);
+      const lastExpensiveComparisons = expensiveComparisons;
+
+      rerender();
+      // After rerendering without changes, refs are still equal => comparison is cheap
+      expect(expensiveComparisons).toBe(lastExpensiveComparisons);
     });
 
-    expect(effectCount).toBe(1);
-  });
+    test('mapped cache value identity stability', async () => {
+      const cache = createCache(async () => ({ a: 1 }));
+      const mappedCache = cache.mapCache((value) => ({ value }));
+      const value = await mappedCache.get();
 
-  test('error identity stability', async () => {
-    const cache = createCache(async () => {
-      throw { error: 'foo' };
+      const { result, rerender } = renderHook(() => useCache(mappedCache));
+      expect(result.current[0]).toBe(value);
+
+      rerender();
+      expect(result.current[0]).toBe(value);
     });
-    await cache.get().catch(() => {});
-
-    let effectCount = 0;
-    function Component() {
-      const [, error] = useCache(cache);
-
-      useEffect(() => {
-        effectCount++;
-      }, [error]);
-
-      return null;
-    }
-
-    render(<Component />);
-    expect(effectCount).toBe(1);
-
-    await act(async () => {
-      cache.invalidateAll();
-      await cache.get().catch(() => {});
-    });
-
-    expect(effectCount).toBe(1);
   });
 });

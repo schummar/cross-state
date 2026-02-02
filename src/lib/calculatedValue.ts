@@ -1,4 +1,4 @@
-import type { Cache } from '@core';
+import { Cache } from '@core';
 import type { AsyncConnectionActions, Cancel, Connection, StoreLike } from '@core/commonTypes';
 import type { Store } from '@core/store';
 import { Deferred } from '@lib/deferred';
@@ -205,6 +205,18 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
 
   if (isPromise(value)) {
     value.finally(() => whenExecuted.resolve()).catch(() => undefined);
+
+    if (store instanceof Cache && store.state.get().status === 'value') {
+      const oldValue = store.state.get().value;
+
+      value = value.then((newValue) => {
+        const equals = store.options.equals ?? deepEqual;
+        if (equals(oldValue, newValue)) {
+          return oldValue;
+        }
+        return newValue;
+      }) as T;
+    }
   } else {
     whenExecuted.resolve();
   }
