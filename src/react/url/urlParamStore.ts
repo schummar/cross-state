@@ -181,7 +181,7 @@ export class UrlParamStore<T> extends Store<T> {
 
     url[this.urlOptions.type] = params.toString();
     window.history.replaceState(window.history.state, '', url.toString());
-    window.dispatchEvent(new PopStateEvent('popstate'));
+    window.dispatchEvent(new PopStateEvent('popstate', { state: window.history.state }));
   }
 
   private updateStorage(value: T) {
