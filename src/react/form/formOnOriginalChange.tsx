@@ -1,6 +1,6 @@
 import { diff } from '@lib/diff';
 import type { FormContext } from './form';
-import { get, set } from '@lib/propAccess';
+import { get, remove, set } from '@lib/propAccess';
 import { deepEqual } from '@lib/equals';
 
 export interface OnOriginalChangeHandler<TDraft, TOriginal> {
@@ -39,8 +39,15 @@ export function onOriginalChangeMerge<TDraft, TOriginal>(
     const oldValue = get(oldOriginal, p.path as any);
 
     if (deepEqual(draftValue, oldValue)) {
-      const newValue = p.op === 'remove' ? undefined : p.value;
-      draft = set(draft, p.path as any, newValue);
+      switch (p.op) {
+        case 'remove':
+          draft = remove(draft, p.path as any);
+          break;
+
+        default:
+          draft = set(draft, p.path as any, p.value);
+          break;
+      }
     }
   }
 

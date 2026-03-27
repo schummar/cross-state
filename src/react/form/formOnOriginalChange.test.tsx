@@ -110,6 +110,15 @@ describe('onOriginalChangeMerge', () => {
     const result = onOriginalChangeMerge(oldOriginal, newOriginal, draft, mockForm);
     expect(result).toEqual({ address: { city: 'LA', zip: '10001' } });
   });
+
+  test('handles arrays element deletions', () => {
+    const oldOriginal = { items: ['a', 'b', 'c'] };
+    const newOriginal = { items: ['a', 'c'] };
+    const draft = { items: ['a', 'b', 'c'] };
+
+    const result = onOriginalChangeMerge(oldOriginal, newOriginal, draft, mockForm);
+    expect(result).toEqual({ items: ['a', 'c'] });
+  });
 });
 
 describe('resolveOnOriginalChange', () => {
