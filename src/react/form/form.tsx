@@ -19,7 +19,6 @@ import {
   forwardRef,
   useContext,
   useEffect,
-  useEffectEvent,
   useMemo,
   useRef,
   type Context,

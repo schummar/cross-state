@@ -65,7 +65,7 @@
     "build": "tsdown",
     "lint": "runp -i lint:*",
     "lint:prettier": "prettier -l src",
-    "lint:oxlint": "oxlint",
+    "lint:oxlint": "oxlint --max-warnings 0",
     "lint:ts": "tsgo --noEmit --emitDeclarationOnly false",
     "size": "size-limit",
     "publint": "publint",
