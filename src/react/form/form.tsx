@@ -19,6 +19,7 @@ import {
   forwardRef,
   useContext,
   useEffect,
+  useEffectEvent,
   useMemo,
   useRef,
   type Context,
@@ -40,6 +41,7 @@ import {
   type FormFieldPropsWithRender,
 } from './formField';
 import { FormForEach, type ElementName, type FormForEachProps } from './formForEach';
+import { resolveOnOriginalChange, type OnOriginalChange } from './formOnOriginalChange';
 import { useFormAutosave, type FormAutosaveOptions } from './useFormAutosave';
 
 /// /////////////////////////////////////////////////////////////////////////////
@@ -67,6 +69,7 @@ export interface FormOptions<TDraft, TOriginal> {
     info: FormFieldInfos<TDraft, TOriginal, TPath>,
     form: FormContext<TDraft, TOriginal>,
   ) => FormFieldComponentProps<Value<TDraft, TPath>, TPath>;
+  onOriginalChange?: OnOriginalChange<TDraft, TOriginal>;
 }
 
 export type Validations<TDraft, TOriginal> =
@@ -463,6 +466,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     onSubmit,
     reportValidity,
     transformFieldProps,
+    onOriginalChange,
     ...formProps
   }: Partial<FormOptions<TDraft, TOriginal>> &
     Omit<HTMLProps<HTMLFormElement>, 'defaultValue' | 'autoSave' | 'onSubmit'>): React.JSX.Element {
@@ -485,6 +489,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
       onSubmit: onSubmit ?? this.options.onSubmit,
       reportValidity: reportValidity ?? this.options.reportValidity ?? 'browser',
       transformFieldProps: transformFieldProps ?? this.options.transformFieldProps,
+      onOriginalChange: onOriginalChange ?? this.options.onOriginalChange ?? 'default',
     };
 
     const formState = useMemo(() => {
@@ -611,6 +616,24 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
         }
       });
     });
+
+    const lastOriginal = useRef(options.original);
+
+    useEffect(() => {
+      const draft = formState.get().draft;
+
+      if (draft !== undefined && !deepEqual(options.original, lastOriginal.current)) {
+        const handler = resolveOnOriginalChange(options.onOriginalChange);
+        const result = handler(lastOriginal.current, options.original, draft, context);
+
+        if (result !== undefined && !deepEqual(result, draft)) {
+          formState.set('draft', result);
+        }
+      }
+
+      lastOriginal.current = options.original;
+      // oxlint-disable-next-line exhaustive-deps
+    }, [options.original]);
 
     function updateValidity(errors: Map<string, string[]>, buttonElement?: HTMLButtonElement) {
       const formElement = formRef.current;

@@ -9,6 +9,7 @@ export type Patch =
 
 export interface DiffOptions {
   stopAt?: number | ((path: KeyType[]) => boolean);
+  diffArrays?: boolean;
 }
 
 export function diff(
@@ -73,7 +74,7 @@ function* _diff(
     ];
   }
 
-  if (Array.isArray(a) && Array.isArray(b)) {
+  if (!options.diffArrays && Array.isArray(a) && Array.isArray(b)) {
     if (deepEqual(a, b)) {
       return;
     }
@@ -84,7 +85,11 @@ function* _diff(
     ];
   }
 
-  if (isObject(a) && isObject(b) && !Array.isArray(a) && !Array.isArray(b)) {
+  if (
+    isObject(a) &&
+    isObject(b) &&
+    (options.diffArrays || (!Array.isArray(a) && !Array.isArray(b)))
+  ) {
     return yield* objectDiff(a, b, options, prefix);
   }
 
