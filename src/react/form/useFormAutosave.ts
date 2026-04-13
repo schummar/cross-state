@@ -39,7 +39,7 @@ export function useFormAutosave<TDraft, TOriginal extends TDraft>(
     const equals =
       form.options.autoSave?.equals ?? ((a, b) => deepEqual(a, b, { undefinedEqualsAbsent: true }));
 
-    if (!isActive || equals(draft, prev.current) || equals(draft, form.options.original)) {
+    if (!isActive || equals(draft, prev.current)) {
       return;
     }
 
