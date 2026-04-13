@@ -48,7 +48,11 @@ import { useFormAutosave, type FormAutosaveOptions } from './useFormAutosave';
 /// /////////////////////////////////////////////////////////////////////////////
 
 export interface Transform<TDraft, TOriginal> {
-  (value: Draft<TDraft>, form: FormContext<TDraft, TOriginal>): void | TDraft;
+  (value: Draft<TDraft>, context: TransformContext<TDraft, TOriginal>): void | TDraft;
+}
+
+export interface TransformContext<TDraft, TOriginal> extends FormContext<TDraft, TOriginal> {
+  previousValue: TDraft;
 }
 
 export interface FormOptions<TDraft, TOriginal> {
@@ -606,9 +610,12 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
         return;
       }
 
-      return context.formState.subscribe((state) => {
+      return context.formState.subscribe((state, prev) => {
         const value = state.draft ?? options.original ?? options.defaultValue;
-        const result = create(value, (draft) => transform(draft, context)) as TDraft;
+        const previousValue = prev?.draft ?? options.original ?? options.defaultValue;
+        const result = create(value, (draft) =>
+          transform(draft, { ...context, previousValue }),
+        ) as TDraft;
 
         if (!deepEqual(result, value)) {
           context.formState.set('draft', result);
