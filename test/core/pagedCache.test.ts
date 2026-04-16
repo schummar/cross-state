@@ -340,4 +340,18 @@ describe('pageCache', () => {
       pageCount: null,
     });
   });
+
+  test('bug: pages that are arrays are flattened', async () => {
+    const cache = createPagedCache<number[]>({
+      async fetchPage({ pages }) {
+        return [pages.length];
+      },
+    });
+
+    await expect(cache.get()).resolves.toStrictEqual({
+      pages: [[0]],
+      hasMore: true,
+      pageCount: null,
+    });
+  });
 });

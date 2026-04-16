@@ -131,7 +131,7 @@ async function loadPage<T, Args extends any[]>(
     prevPage: oldPages.length > 0 ? oldPages[oldPages.length - 1]! : null,
   });
 
-  const pages = page === null ? oldPages : oldPages.concat(page);
+  const pages = page === null ? oldPages : oldPages.concat([page]);
   const pageCount = getPageCount?.call(cache, pages) ?? null;
   const hasMore = hasMorePages
     ? hasMorePages.call(cache, pages)
