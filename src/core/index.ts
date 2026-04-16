@@ -28,10 +28,10 @@ export type {
 } from './commonTypes';
 export {
   createPagedCache,
+  PagedCache,
   type FetchNextPageOptions,
   type PageCacheFunction,
   type PageCacheFunctionProps,
-  type PagedCache,
   type PagedCacheDefinition,
   type PagedCacheDefinitionFunction,
   type PagedCacheState,
