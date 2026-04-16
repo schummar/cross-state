@@ -215,12 +215,30 @@ export class Cache<T, Args extends any[] = []> extends Store<Promise<T>> {
         if (promise instanceof PromiseWithState && promise.state.status !== 'pending') {
           promise.catch(() => undefined);
 
-          this.state.set((state) => ({
-            ...promise.state,
-            isStale: false,
-            isUpdating: false,
-            isConnected: state.isConnected,
-          }));
+          this.state.set((state) => {
+            const newState = {
+              ...promise.state,
+              isStale: false,
+              isUpdating: false,
+              isConnected: state.isConnected,
+            };
+            // Memoize value and error to keep their identity stable if they're equal
+            if (
+              newState.status === 'value' &&
+              state.status === 'value' &&
+              deepEqual(state.value, newState.value)
+            ) {
+              newState.value = state.value;
+            }
+            if (
+              newState.status === 'error' &&
+              state.status === 'error' &&
+              deepEqual(state.error, newState.error)
+            ) {
+              newState.error = state.error;
+            }
+            return newState;
+          });
 
           delete this.stalePromise;
           this.setTimers();
@@ -241,13 +259,17 @@ export class Cache<T, Args extends any[] = []> extends Store<Promise<T>> {
             return;
           }
 
-          this.state.set((state) => ({
-            status: 'value',
-            value,
-            isStale: false,
-            isUpdating: false,
-            isConnected: state.isConnected,
-          }));
+          this.state.set((state) => {
+            const newValue =
+              state.status === 'value' && deepEqual(state.value, value) ? state.value : value;
+            return {
+              status: 'value',
+              value: newValue,
+              isStale: false,
+              isUpdating: false,
+              isConnected: state.isConnected,
+            };
+          });
           delete this.stalePromise;
           this.setTimers();
         } catch (error) {
@@ -255,13 +277,17 @@ export class Cache<T, Args extends any[] = []> extends Store<Promise<T>> {
             return;
           }
 
-          this.state.set((state) => ({
-            status: 'error',
-            error,
-            isStale: false,
-            isUpdating: false,
-            isConnected: state.isConnected,
-          }));
+          this.state.set((state) => {
+            const newError =
+              state.status === 'error' && deepEqual(state.error, error) ? state.error : error;
+            return {
+              status: 'error',
+              error: newError,
+              isStale: false,
+              isUpdating: false,
+              isConnected: state.isConnected,
+            };
+          });
           delete this.stalePromise;
           this.setTimers();
         }
