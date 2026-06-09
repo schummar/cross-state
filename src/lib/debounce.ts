@@ -6,7 +6,7 @@ export type DebounceOptions =
   | {
       wait: Duration;
       maxWait?: Duration;
-      waitOnRunNow?: boolean;
+      leading?: boolean;
     };
 
 export function debounce<Args extends any[]>(
@@ -28,9 +28,12 @@ export function debounce<Args extends any[]>(
       ? calcDuration(options.maxWait)
       : undefined;
 
+  const leading = typeof options === 'object' && 'leading' in options ? options.leading : false;
+
   let run: (() => void) | undefined;
   let timeout: ReturnType<typeof setTimeout> | undefined;
   let timeoutStarted: number | undefined;
+  let isFirstRun = true;
 
   function flush() {
     if (timeout !== undefined) {
@@ -55,6 +58,12 @@ export function debounce<Args extends any[]>(
   }
 
   function debounce(...args: Args) {
+    if (leading && isFirstRun) {
+      isFirstRun = false;
+      action(...args);
+      return;
+    }
+
     const now = Date.now();
     timeoutStarted ??= now;
 

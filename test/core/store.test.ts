@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { createStore, type Cancel, type Listener } from '../../src';
+import { createStore } from '../../src/core/store';
 import { shallowEqual, strictEqual } from '../../src/lib/equals';
 import { flushPromises } from '../testHelpers';
+import type { Cancel, Listener } from '@index';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -156,7 +157,7 @@ describe('static store', () => {
     test('store.subscribe debounce with waitOnRunNow=false', async () => {
       const state = createStore(1);
       const listener = vi.fn();
-      state.subscribe(listener, { debounce: { wait: 2, maxWait: 2, waitOnRunNow: false } });
+      state.subscribe(listener, { debounce: { wait: 2, maxWait: 2, leading: true } });
       state.set(2);
       vi.advanceTimersByTime(1);
       state.set(3);

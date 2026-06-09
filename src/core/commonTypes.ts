@@ -13,6 +13,11 @@ export interface Effect<T> {
   (this: T, context: T): void | Cancel;
 }
 
+export interface EffectRecord<T> {
+  run: Effect<T>;
+  cancel?: void | Cancel;
+}
+
 export interface SubscribeOptions {
   /** If set, this listener does not activate the store.
    * @default false
@@ -108,4 +113,15 @@ export interface CalculationActions<T> {
   signal: AbortSignal;
   use: Use;
   connect(connection: Connection<T>): Promise<void>;
+}
+
+export type MakeOptional<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
+
+export interface ReadStore<T> {
+  get(): T;
+  subscribe(listener: () => void): DisposableCancel;
+}
+
+export interface WriteStore<T> {
+  set(value: T): void;
 }
