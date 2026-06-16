@@ -1,5 +1,5 @@
-import { describe, expect, test } from 'vitest';
 import { trackingProxy } from '../../src/lib/trackingProxy';
+import { describe, expect, test } from 'vite-plus/test';
 
 describe('trackingProxy', () => {
   test('using nothing', () => {

@@ -1,17 +1,17 @@
+import type { Duration, Selector } from './commonTypes';
+import { allResources, type ResourceGroup } from './resourceGroup';
+import { Store, createStore, type Calculate, type StoreOptions } from './store';
 import { autobind } from '@lib/autobind';
 import type { CacheState, ErrorState, ValueState } from '@lib/cacheState';
-import { calcDuration } from '@lib/duration';
 import { calculatedValue } from '@lib/calculatedValue';
 import type { Constrain } from '@lib/constrain';
+import { calcDuration } from '@lib/duration';
 import { deepEqual } from '@lib/equals';
 import { InstanceCache } from '@lib/instanceCache';
 import { makeSelector } from '@lib/makeSelector';
 import { type MaybePromise } from '@lib/maybePromise';
 import type { AnyPath, Path, Value } from '@lib/path';
 import { PromiseWithState } from '@lib/promiseWithState';
-import type { Duration, Selector } from './commonTypes';
-import { allResources, type ResourceGroup } from './resourceGroup';
-import { Store, createStore, type Calculate, type StoreOptions } from './store';
 
 export interface CacheGetOptions {
   /**

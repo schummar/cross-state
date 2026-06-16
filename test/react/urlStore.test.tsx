@@ -2,7 +2,7 @@ import { createUrlParam } from '@react';
 import '@react/register';
 import { renderHook } from '@testing-library/react';
 import { act } from 'react';
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test';
 
 function getHash() {
   const url = new URL(window.location.href);

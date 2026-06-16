@@ -1,7 +1,7 @@
 import { useDecoupledState } from '@react/useDecoupledState';
 import { render, renderHook } from '@testing-library/react';
 import { act } from 'react';
-import { beforeAll, expect, test, vi } from 'vitest';
+import { beforeAll, expect, test, vi } from 'vite-plus/test';
 
 beforeAll(() => {
   vi.useFakeTimers();

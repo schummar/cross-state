@@ -4,7 +4,7 @@ import { autobind } from '@lib/autobind';
 import { patchMethods } from '@patches';
 import '@patches/register';
 import { persist } from '@persist';
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test';
 
 function register() {
   Object.assign(Store.prototype, patchMethods);
@@ -234,7 +234,7 @@ describe('patch methods', () => {
 
       cancel2();
       const callback = vi.fn(store2.acceptSync);
-      using cancel3 = store1.sync((message) => setTimeout(() => callback(message), 1), {
+      using _cancel3 = store1.sync((message) => setTimeout(() => callback(message), 1), {
         startAt: store2.version,
       });
       vi.advanceTimersByTime(1);
@@ -284,7 +284,7 @@ describe('patch methods', () => {
         }
       });
       let i = 0;
-      using cancel2 = store1.sync((message) =>
+      using _cancel2 = store1.sync((message) =>
         setTimeout(() => {
           if (i++ === 2) return; // drop the second message
           callback(message);
@@ -308,7 +308,7 @@ describe('patch methods', () => {
       });
       const store2 = createStore({});
 
-      using cancel2 = store1.sync((message) => {
+      using _cancel2 = store1.sync((message) => {
         message = JSON.parse(JSON.stringify(message));
         setTimeout(() => store2.acceptSync(message), 1);
       });
@@ -346,7 +346,7 @@ describe('patch methods', () => {
     test('sync with debounce starts immediately', () => {
       const store = createStore({ a: 1, b: 2 });
       const callback = vi.fn();
-      using sync = store.sync(callback, { debounce: 2 });
+      using _sync = store.sync(callback, { debounce: 2 });
 
       store.set('a', 2);
       vi.advanceTimersByTime(1);

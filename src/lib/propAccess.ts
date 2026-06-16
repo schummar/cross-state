@@ -1,7 +1,7 @@
-import type { Constrain } from '@lib/constrain';
-import { isObject } from '@lib/helpers';
 import { flatClone } from './clone';
 import type { KeyType, Path, SettablePath, SettableValue, Value } from './path';
+import type { Constrain } from '@lib/constrain';
+import { isObject } from '@lib/helpers';
 
 export function castArrayPath(path: string | KeyType[]): KeyType[] {
   if (Array.isArray(path)) {
@@ -35,14 +35,13 @@ export function get<T, const P>(object: T, path: Constrain<P, Path<T>>): Value<T
     return get(object[first as keyof T], rest as any) as Value<T, P>;
   }
 
-  throw new Error(`Could not get ${path} of ${object}`);
+  throw new Error(`Could not get ${JSON.stringify(path)} of ${JSON.stringify(object)}`);
 }
 
 export function set<T, const P>(
   object: T,
   path: Constrain<P, SettablePath<T>>,
   value: SettableValue<T, P>,
-  rootPath: string | readonly KeyType[] = path,
 ): T {
   const _path = castArrayPath(path as any);
   const [first, ...rest] = _path;
@@ -62,24 +61,24 @@ export function set<T, const P>(
   if (object instanceof Map) {
     const copy = flatClone(object);
     const child = copy.get(first);
-    copy.set(first, set(child, rest as any, value, rootPath));
+    copy.set(first, set(child, rest as any, value));
     return copy;
   }
 
   if (object instanceof Set) {
     const copy = [...object];
     const child = copy[Number(first)];
-    copy[Number(first)] = set(child, rest as any, value, rootPath);
+    copy[Number(first)] = set(child, rest as any, value);
     return new Set(copy) as any;
   }
 
   if (isObject(object)) {
     const copy = flatClone(object ?? ({} as T));
-    copy[first as keyof T] = set(copy[first as keyof T], rest as any, value as any, rootPath);
+    copy[first as keyof T] = set(copy[first as keyof T], rest as any, value as any);
     return copy;
   }
 
-  throw new Error(`Could not set ${path} of ${object}`);
+  throw new Error(`Could not set ${JSON.stringify(path)} of ${JSON.stringify(object)}`);
 }
 
 export function remove<T, const P>(object: T, path: Constrain<P, Path<T, true>>): T {

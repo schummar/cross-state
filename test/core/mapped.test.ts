@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createStore, strictEqual } from '../../src';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test';
 
 beforeEach(() => {
   vi.useFakeTimers();

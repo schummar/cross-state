@@ -1,7 +1,7 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createStore, type Cancel, type Listener } from '../../src';
 import { shallowEqual, strictEqual } from '../../src/lib/equals';
 import { flushPromises } from '../testHelpers';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -350,7 +350,7 @@ describe('static store', () => {
 
   test('connect', async () => {
     const state = createStore(({ connect }) => {
-      connect(({ set }) => {
+      void connect(({ set }) => {
         set(2);
         return () => undefined;
       });

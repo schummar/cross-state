@@ -1,8 +1,8 @@
-import { act, render, screen } from '@testing-library/react';
-import { describe, expect, test, vi } from 'vitest';
 import { createScope, createStore } from '../../src';
-import '../../src/react/register';
+import { act, render, screen } from '@testing-library/react';
 import { useMemo } from 'react';
+import '../../src/react/register';
+import { describe, expect, test, vi } from 'vite-plus/test';
 
 describe('register react methods', () => {
   test('useStore', async () => {

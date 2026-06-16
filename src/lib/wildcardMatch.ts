@@ -1,6 +1,6 @@
-import { isObject } from '@lib/helpers';
 import { type KeyType } from './path';
 import { castArrayPath } from './propAccess';
+import { isObject } from '@lib/helpers';
 
 export function wildcardMatch(s: KeyType[] | string, w: KeyType[] | string): boolean {
   if (typeof s === 'string') {

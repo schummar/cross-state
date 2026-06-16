@@ -3,11 +3,14 @@
   "version": "1.0.0",
   "description": "(React) state library",
   "license": "ISC",
-  "repository": "schummar/cross-state",
   "author": {
     "name": "Marco Schumacher",
     "email": "marco@schumacher.dev"
   },
+  "repository": "git+https://github.com/schummar/cross-state.git",
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "sideEffects": [
     "dist/react/register.js",
@@ -19,60 +22,81 @@
     "dist/persist/register.js",
     "dist/persist/register.cjs"
   ],
-  "files": [
-    "dist"
-  ],
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.cts",
   "exports": {
     ".": {
-      "require": "./dist/index.cjs",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
     },
     "./mutative": {
-      "require": "./dist/mutative/index.cjs",
-      "import": "./dist/mutative/index.js"
+      "import": "./dist/mutative/index.js",
+      "require": "./dist/mutative/index.cjs"
     },
     "./mutative/register": {
-      "require": "./dist/mutative/register.cjs",
-      "import": "./dist/mutative/register.js"
+      "import": "./dist/mutative/register.js",
+      "require": "./dist/mutative/register.cjs"
     },
     "./patches": {
-      "require": "./dist/patches/index.cjs",
-      "import": "./dist/patches/index.js"
+      "import": "./dist/patches/index.js",
+      "require": "./dist/patches/index.cjs"
     },
     "./patches/register": {
-      "require": "./dist/patches/register.cjs",
-      "import": "./dist/patches/register.js"
+      "import": "./dist/patches/register.js",
+      "require": "./dist/patches/register.cjs"
     },
     "./persist/register": {
-      "require": "./dist/persist/register.cjs",
-      "import": "./dist/persist/register.js"
+      "import": "./dist/persist/register.js",
+      "require": "./dist/persist/register.cjs"
     },
     "./react": {
-      "require": "./dist/react/index.cjs",
-      "import": "./dist/react/index.js"
+      "import": "./dist/react/index.js",
+      "require": "./dist/react/index.cjs"
     },
     "./react/register": {
-      "require": "./dist/react/register.cjs",
-      "import": "./dist/react/register.js"
+      "import": "./dist/react/register.js",
+      "require": "./dist/react/register.cjs"
     },
     "./package.json": "./package.json"
   },
   "scripts": {
-    "start": "tsdown --watch",
-    "build": "tsdown",
-    "lint": "runp -i lint:*",
-    "lint:prettier": "prettier -l src",
-    "lint:oxlint": "oxlint --max-warnings 0",
-    "lint:ts": "tsgo --noEmit --emitDeclarationOnly false",
+    "start": "vp pack --watch",
+    "build": "vp pack",
+    "lint": "vp check",
     "size": "size-limit",
-    "publint": "publint",
-    "test": "vitest run --coverage",
-    "test:watch": "vitest",
-    "test:ui": "vitest --ui",
-    "test:export": "pnpm test:watch run --coverage --reporter=verbose --reporter=junit --outputFile=test/testResults.xml"
+    "test": "vp test run --coverage",
+    "test:watch": "vp test",
+    "test:ui": "vp test --ui",
+    "test:export": "vp test run --coverage --reporter=verbose --reporter=junit --outputFile=test/testResults.xml"
+  },
+  "devDependencies": {
+    "@emotion/styled": "11.14.1",
+    "@mantine/core": "8.3.10",
+    "@mantine/hooks": "^8.3.10",
+    "@mui/material": "7.3.6",
+    "@nx/js": "^22.2.0",
+    "@size-limit/preset-small-lib": "12.0.0",
+    "@testing-library/react": "16.3.0",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "@types/seedrandom": "3.0.8",
+    "@types/ws": "8.18.1",
+    "@typescript/native-preview": "7.0.0-dev.20251210.1",
+    "@vitest/coverage-v8": "4.1.9",
+    "@vitest/ui": "^4.1.9",
+    "happy-dom": "20.0.11",
+    "mutative": "^1.3.0",
+    "nx": "^22.2.0",
+    "publint": "0.3.16",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "rimraf": "6.1.2",
+    "seedrandom": "3.0.5",
+    "size-limit": "12.0.0",
+    "swc-node": "^1.0.0",
+    "typescript": "^5.9.3",
+    "vite-plus": "^0.1.24"
   },
   "peerDependencies": {
     "mutative": ">=1.0.3",
@@ -86,50 +110,6 @@
       "optional": true
     }
   },
-  "devDependencies": {
-    "@emotion/styled": "11.14.1",
-    "@mantine/core": "8.3.10",
-    "@mantine/hooks": "^8.3.10",
-    "@mui/material": "7.3.6",
-    "@nx/js": "^22.2.0",
-    "@schummar/prettier-config": "github:schummar/prettier-config",
-    "@schummar/runp": "2.2.4",
-    "@size-limit/preset-small-lib": "12.0.0",
-    "@testing-library/react": "16.3.0",
-    "@types/react": "19.2.7",
-    "@types/react-dom": "19.2.3",
-    "@types/seedrandom": "3.0.8",
-    "@types/ws": "8.18.1",
-    "@typescript/native-preview": "7.0.0-dev.20251210.1",
-    "@vitejs/plugin-react": "5.1.2",
-    "@vitest/coverage-v8": "4.0.15",
-    "@vitest/ui": "^4.0.15",
-    "esbuild": "0.27.1",
-    "happy-dom": "20.0.11",
-    "jsdom": "27.3.0",
-    "mutative": "^1.3.0",
-    "nx": "^22.2.0",
-    "oxlint": "^1.32.0",
-    "prettier": "3.7.4",
-    "publint": "0.3.16",
-    "react": "^19.2.1",
-    "react-dom": "^19.2.1",
-    "rimraf": "6.1.2",
-    "seedrandom": "3.0.5",
-    "size-limit": "12.0.0",
-    "swc-node": "^1.0.0",
-    "tsdown": "^0.17.2",
-    "typescript": "^5.9.3",
-    "vite": "^7.2.7",
-    "vite-tsconfig-paths": "5.1.4",
-    "vitest": "4.0.15"
-  },
-  "volta": {
-    "node": "24.11.1",
-    "pnpm": "10.25.0",
-    "npm": "11.7.0"
-  },
-  "prettier": "@schummar/prettier-config",
   "size-limit": [
     {
       "name": "core",
@@ -205,5 +185,6 @@
       "import": "{}",
       "limit": "0"
     }
-  ]
+  ],
+  "packageManager": "pnpm@11.7.0"
 }

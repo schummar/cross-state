@@ -1,18 +1,3 @@
-import { autobind } from '@lib/autobind';
-import { calcDuration } from '@lib/duration';
-import { calculatedValue, staticValue, type CalculatedValue } from '@lib/calculatedValue';
-import type { Constrain } from '@lib/constrain';
-import { debounce } from '@lib/debounce';
-import disposable from '@lib/disposable';
-import { deepEqual } from '@lib/equals';
-import { forwardError } from '@lib/forwardError';
-import { isObject } from '@lib/helpers';
-import { makeSelector } from '@lib/makeSelector';
-import type { AnyPath, Path, SettablePath, Value } from '@lib/path';
-import { PromiseWithCancel } from '@lib/promiseWithCancel';
-import { get, set } from '@lib/propAccess';
-import { arrayMethods, mapMethods, recordMethods, setMethods } from '@lib/standardMethods';
-import { throttle } from '@lib/throttle';
 import type {
   CalculationActions,
   Cancel,
@@ -25,6 +10,21 @@ import type {
   SubscribeOptions,
   Update,
 } from './commonTypes';
+import { autobind } from '@lib/autobind';
+import { calculatedValue, staticValue, type CalculatedValue } from '@lib/calculatedValue';
+import type { Constrain } from '@lib/constrain';
+import { debounce } from '@lib/debounce';
+import disposable from '@lib/disposable';
+import { calcDuration } from '@lib/duration';
+import { deepEqual } from '@lib/equals';
+import { forwardError } from '@lib/forwardError';
+import { isObject } from '@lib/helpers';
+import { makeSelector } from '@lib/makeSelector';
+import type { AnyPath, Path, SettablePath, Value } from '@lib/path';
+import { PromiseWithCancel } from '@lib/promiseWithCancel';
+import { get, set } from '@lib/propAccess';
+import { arrayMethods, mapMethods, recordMethods, setMethods } from '@lib/standardMethods';
+import { throttle } from '@lib/throttle';
 
 export type StoreMethods = Record<string, (...args: any[]) => any>;
 

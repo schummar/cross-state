@@ -1,6 +1,6 @@
-import { afterEach, assert, beforeEach, describe, expect, test, vi } from 'vitest';
 import { InstanceCache } from '../../src/lib/instanceCache';
 import { sleep } from '../testHelpers';
+import { afterEach, assert, beforeEach, describe, expect, test, vi } from 'vite-plus/test';
 
 declare const gc: (() => void) | undefined;
 

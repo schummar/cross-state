@@ -1,5 +1,5 @@
-import { describe, expect, test } from 'vitest';
 import { allResources, createCache, createResourceGroup, ResourceGroup } from '../../src';
+import { describe, expect, test } from 'vite-plus/test';
 
 describe('resourceGroup', () => {
   describe('allResources', () => {

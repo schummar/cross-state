@@ -16,7 +16,7 @@ export class PromiseWithCancel<T> extends Promise<T> {
       signal: AbortSignal,
     ) => void,
   ) {
-    autobind(PromiseWithCancel);
+    void autobind(PromiseWithCancel);
     const abortController = new AbortController();
 
     super((resolve, reject) => {

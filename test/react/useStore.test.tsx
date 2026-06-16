@@ -1,15 +1,21 @@
-import { act, render, screen } from '@testing-library/react';
-import { useCallback, useState, type ReactNode } from 'react';
-import { describe, expect, test, vi } from 'vitest';
 import { createStore, strictEqual } from '../../src';
 import { useStore } from '../../src/react';
+import { act, render, screen } from '@testing-library/react';
+import { useCallback, useState } from 'react';
+import { describe, expect, test, vi } from 'vite-plus/test';
 
-function c<T>(name: string, before: T, after1: T, after2: T, select: (t: T) => ReactNode) {
+function c<T>(
+  name: string,
+  before: T,
+  after1: T,
+  after2: T,
+  select: (t: T) => string | number | undefined,
+) {
   return [name, before, after1, after2, select] as const;
 }
 
 describe('useStore', () => {
-  describe.each<readonly [string, any, any, any, (t: any) => ReactNode]>([
+  describe.each<readonly [string, any, any, any, (t: any) => string | number | undefined]>([
     //
     c('primitive', 0, 1, 0, (s) => s),
     c('object', { x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, (s) => s.x),

@@ -1,6 +1,6 @@
-import { isObject } from '@lib/helpers';
 import { deepEqual } from './equals';
 import type { KeyType } from './path';
+import { isObject } from '@lib/helpers';
 
 export type Patch =
   | { op: 'add'; path: KeyType[]; value: any }

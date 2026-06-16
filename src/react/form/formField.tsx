@@ -1,9 +1,9 @@
+import { Form, type Field, type FieldOptions, type FormContext } from './form';
 import type { Duration } from '@core';
 import { calcDuration } from '@lib/duration';
 import { type PathAsString, type Value } from '@lib/path';
 import useLatestFunction from '@react/lib/useLatestFunction';
 import { useEffect, useState, type Component, type ReactNode } from 'react';
-import { Form, type Field, type FieldOptions, type FormContext } from './form';
 
 export interface FormFieldComponentProps<TValue, TPath> {
   name: TPath;
@@ -68,7 +68,7 @@ export interface FormFieldPropsWithChildren<
 export function FormField<TDraft, TOriginal extends TDraft, TPath extends string>(
   this: Form<TDraft, any>,
   {
-    name = '' as any,
+    name,
     commitOnBlur,
     commitDebounce,
     children,
@@ -102,12 +102,7 @@ export function FormField<TDraft, TOriginal extends TDraft, TPath extends string
 
 export function useFormFieldProps<TDraft, TPath extends string>(
   this: Form<TDraft, any>,
-  {
-    name = '' as any,
-    commitOnBlur,
-    commitDebounce,
-    includeNestedErrors,
-  }: FormFieldProps<TPath, TDraft>,
+  { name, commitOnBlur, commitDebounce, includeNestedErrors }: FormFieldProps<TPath, TDraft>,
 ): FormFieldComponentProps<Value<TDraft, TPath>, TPath> {
   type T = Value<TDraft, TPath>;
 

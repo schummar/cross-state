@@ -1,5 +1,5 @@
-import { vi } from 'vitest';
 import { sleep } from './testHelpers';
+import { vi } from 'vite-plus/test';
 
 export default function useMockBroadcastChannel(): void {
   const broadcastChannelInstances: any[] = [];

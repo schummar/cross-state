@@ -1,5 +1,5 @@
 import { deepEqual, shallowEqual, strictEqual } from '@index';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test } from 'vite-plus/test';
 
 describe('strictEqual', () => {
   test('should return true if a and b are strictly equal', () => {

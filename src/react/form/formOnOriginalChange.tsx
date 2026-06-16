@@ -1,7 +1,7 @@
-import { diff } from '@lib/diff';
 import type { FormContext } from './form';
-import { get, remove, set } from '@lib/propAccess';
+import { diff } from '@lib/diff';
 import { deepEqual } from '@lib/equals';
+import { get, remove, set } from '@lib/propAccess';
 
 export interface OnOriginalChangeHandler<TDraft, TOriginal> {
   (

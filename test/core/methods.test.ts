@@ -1,6 +1,6 @@
-import { describe, expect, test } from 'vitest';
 import { createStore } from '../../src/core/store';
 import { mutativeMethods } from '../../src/mutative';
+import { describe, expect, test } from 'vite-plus/test';
 import '../../src/mutative/register';
 
 describe('store methods', () => {

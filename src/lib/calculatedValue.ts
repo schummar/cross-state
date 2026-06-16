@@ -1,3 +1,4 @@
+import { deepEqual } from './equals';
 import type { Cache } from '@core';
 import type { AsyncConnectionActions, Cancel, Connection, StoreLike } from '@core/commonTypes';
 import type { Store } from '@core/store';
@@ -5,7 +6,6 @@ import { Deferred } from '@lib/deferred';
 import isPromise from '@lib/isPromise';
 import { PromiseWithState } from '@lib/promiseWithState';
 import { queue } from '@lib/queue';
-import { deepEqual } from './equals';
 
 export interface CalculatedValue<T> {
   value: T;
@@ -27,7 +27,7 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
   const ac = new AbortController();
   let connection: { active: boolean; cancel?: Cancel } | undefined;
   const q = queue();
-  q(() => whenExecuted);
+  void q(() => whenExecuted);
 
   const cancelEffect = store.addEffect(() => {
     if (connection) {
@@ -94,7 +94,7 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
 
     const actions: AsyncConnectionActions<any> = {
       set(_value) {
-        q(() => {
+        void q(() => {
           if (!connection?.active) {
             return;
           }
@@ -104,7 +104,7 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
         });
       },
       updateValue(update) {
-        q(async () => {
+        void q(async () => {
           if (!connection?.active) {
             return;
           }
@@ -132,7 +132,7 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
         });
       },
       updateError(error) {
-        q(() => {
+        void q(() => {
           if (!connection?.active) {
             return;
           }
@@ -159,7 +159,7 @@ export function calculatedValue<T>(store: Store<T>, notify: () => void): Calcula
           whenConnected.resolve();
         }
 
-        q(() => {
+        void q(() => {
           if (!connection?.active) {
             return;
           }

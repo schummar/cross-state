@@ -1,14 +1,14 @@
+import { storeMethods } from './storeMethods';
 import { Cache, Scope, Store } from '@core';
 import { autobind } from '@lib/autobind';
 import { cacheMethods } from '@react/cacheMethods';
 import { scopeMethods } from '@react/scopeMethods';
-import { storeMethods } from './storeMethods';
 
 type StoreMethods = typeof storeMethods;
 type CacheMethods = typeof cacheMethods;
 type ScopeMethods = typeof scopeMethods;
 
-declare module '..' {
+declare module '@core' {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface Store<T> extends StoreMethods {}
 

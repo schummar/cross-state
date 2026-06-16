@@ -1,6 +1,6 @@
-import isPromise from '@lib/isPromise';
 import { type ErrorState, type PendingState, type ValueState } from './cacheState';
 import { type MaybePromise } from './maybePromise';
+import isPromise from '@lib/isPromise';
 
 export class PromiseWithState<T> extends Promise<T> {
   static override resolve(): PromiseWithState<void>;
@@ -21,7 +21,7 @@ export class PromiseWithState<T> extends Promise<T> {
   ) {
     super((resolve) => resolve(value));
 
-    Object.defineProperty(PromiseWithState, Symbol.species, {
+    void Object.defineProperty(PromiseWithState, Symbol.species, {
       value: Promise,
     });
 

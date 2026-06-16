@@ -1,14 +1,14 @@
+import { useProp } from './useProp';
+import { useStore, type UseStoreOptions } from './useStore';
 import type { Scope, Selector, Update } from '@core';
 import { createStore, type Store } from '@core/store';
 import type { Constrain } from '@lib/constrain';
 import type { Path, Value } from '@lib/path';
 import { createContext, useContext, useMemo, type Context, type ReactNode } from 'react';
-import { useProp } from './useProp';
-import { useStore, type UseStoreOptions } from './useStore';
 
 export type ScopeProps<T> = { scope: Scope<T>; store?: Store<T>; children?: ReactNode };
 
-declare module '..' {
+declare module '@core' {
   interface Scope<T> {
     context?: Context<Store<T>>;
   }

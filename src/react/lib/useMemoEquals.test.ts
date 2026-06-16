@@ -1,6 +1,6 @@
 import useMemoEquals from '@react/lib/useMemoEquals';
 import { renderHook } from '@testing-library/react';
-import { expect, test } from 'vitest';
+import { expect, test } from 'vite-plus/test';
 
 test('useMemoEquals', () => {
   const firstValue = { a: 1 };

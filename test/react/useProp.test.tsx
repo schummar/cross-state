@@ -1,7 +1,7 @@
-import { act, render, screen } from '@testing-library/react';
-import { describe, expect, test, vi } from 'vitest';
 import { createStore } from '../../src';
 import { useProp } from '../../src/react';
+import { act, render, screen } from '@testing-library/react';
+import { describe, expect, test, vi } from 'vite-plus/test';
 
 describe('useProp', () => {
   test('get and set value', async () => {

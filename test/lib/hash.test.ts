@@ -1,5 +1,5 @@
-import { describe, expect, test } from 'vitest';
 import { hash, simpleHash } from '../../src/lib/hash';
+import { describe, expect, test } from 'vite-plus/test';
 
 describe('hash', () => {
   test('Set', () => {

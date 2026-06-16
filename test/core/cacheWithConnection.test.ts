@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { createCache } from '../../src';
 import { flushPromises, sleep } from '../testHelpers';
+import { beforeEach, describe, expect, test, vi } from 'vite-plus/test';
 
 class MockWebSocket {
   listeners = new Set<{ event: string; callback: (event: any) => void }>();
@@ -107,7 +107,7 @@ describe('cache with connection', () => {
       await connect(({ updateValue, updateIsConnected }) => {
         let stopped = false;
 
-        (async () => {
+        void (async () => {
           for (const action of [
             () => {
               updateIsConnected(true);

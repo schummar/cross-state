@@ -1,7 +1,7 @@
 import useLatestRef from '@react/lib/useLatestRef';
 import { renderHook } from '@testing-library/react';
 import { useEffect } from 'react';
-import { expect, test } from 'vitest';
+import { expect, test } from 'vite-plus/test';
 
 test('useLatestRef', () => {
   let getter: (() => number) | undefined;

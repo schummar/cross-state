@@ -1,4 +1,3 @@
-import { describe, expectTypeOf, test } from 'vitest';
 import type {
   GetKeys,
   Path,
@@ -9,6 +8,7 @@ import type {
   WildcardPathAsString,
   WildcardValue,
 } from '../../src/lib/path';
+import { describe, expectTypeOf, test } from 'vite-plus/test';
 
 type EmptyPath = readonly [] | '';
 
