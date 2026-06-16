@@ -1,3 +1,4 @@
+import { tmpdir } from 'os';
 import { defineConfig } from 'vite-plus';
 
 export default defineConfig({
@@ -11,7 +12,7 @@ export default defineConfig({
     exclude: ['**/_*'],
     setupFiles: ['./test/testSetup.ts'],
     pool: 'forks',
-    execArgv: ['--expose-gc'],
+    execArgv: ['--expose-gc', `--localstorage-file=${tmpdir()}/cross-state-localstorage`],
     typecheck: {
       tsconfig: 'test/tsconfig.json',
       enabled: true,
