@@ -18,20 +18,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - uses: volta-cli/action@v4
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          cache: true
 
-      - name: Install dependencies
-        run: pnpm i --frozen-lockfile
-
-      - run: pnpm run lint
-      - run: pnpm run test
-      - run: pnpm run build
-      - run: pnpm run size
-      - run: pnpm run publint
+      - run: vp install --frozen-lockfile
+      - run: vp run lint
+      - run: vp run test
+      - run: vp run build
+      - run: vp run size
 
       - name: Setup git user
         run: |
@@ -41,4 +40,4 @@ jobs:
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: pnpm nx release -y
+        run: vp exec nx release -y
