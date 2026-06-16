@@ -8,7 +8,7 @@ import { createContext, useContext, useMemo, type Context, type ReactNode } from
 
 export type ScopeProps<T> = { scope: Scope<T>; store?: Store<T>; children?: ReactNode };
 
-declare module '@core' {
+declare module '..' {
   interface Scope<T> {
     context?: Context<Store<T>>;
   }

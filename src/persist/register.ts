@@ -1,7 +1,7 @@
 import { Store } from '@core';
 import { persist, type Persist, type PersistOptions } from '@persist/persist';
 
-declare module '@core' {
+declare module '..' {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface StoreOptions<T> {
     persist?: PersistOptions<T>;
