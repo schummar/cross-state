@@ -586,6 +586,13 @@ describe('cache', () => {
       expect(cache(1)).toBe(cache(1, undefined));
     });
 
+    test('same instance when called with present but undefined properties', async () => {
+      const cache = createCache(
+        async (options: { x?: number; y?: number }) => (options.x ?? 0) + (options.y ?? 0),
+      );
+      expect(cache({})).toBe(cache({ x: undefined, y: undefined }));
+    });
+
     test('same instance with getCacheKey', async () => {
       const cache = createCache(
         async (filter?: { x?: number; y?: number }) => (filter?.x ?? 0) + (filter?.y ?? 0),
