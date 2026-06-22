@@ -1,16 +1,16 @@
 import type { CollectionClient } from '@collection/client';
-import type { AnyCollection } from '@collection/collection';
-import type { GetIdType, GetItem, GetQuery } from '@collection/types';
+import type { Collection } from '@collection/collection';
+import type { GetIdType, GetParam } from '@collection/types';
 import { useSyncExternalStore } from 'react';
 
-export interface UseCollectionOptions<TCollection extends AnyCollection> {
-  query: GetQuery<TCollection>;
+export interface UseCollectionOptions<TCollection extends Collection> {
+  query: GetParam<TCollection, 'query'>;
 }
 
-export function useCollection<TCollection extends AnyCollection>(
+export function useCollection<TCollection extends Collection>(
   client: CollectionClient<TCollection>,
   useOptions: UseCollectionOptions<TCollection>,
-): GetItem<TCollection>[] {
+): GetParam<TCollection, 'item'>[] {
   const set = client.getSet(useOptions.query);
 
   return useSyncExternalStore(
@@ -20,9 +20,9 @@ export function useCollection<TCollection extends AnyCollection>(
   );
 }
 
-export function useCollectionItem<TCollection extends AnyCollection>(
+export function useCollectionItem<TCollection extends Collection>(
   client: CollectionClient<TCollection>,
   id: GetIdType<TCollection>,
-): GetItem<TCollection> | null {
+): GetParam<TCollection, 'item'> | null {
   return null;
 }

@@ -1,35 +1,36 @@
-import type { AnyCollection } from '@collection/collection';
+import type { Collection } from '@collection/collection';
 import type { ServerConnection } from '@collection/connection';
 import type { DB } from '@collection/db';
-import type { GetCombinedUser } from '@collection/types';
+import type { GetParam, GetParamIntersection, GetParamUnion } from '@collection/types';
 import type { DisposableCancel } from '@core';
 import disposable from '@lib/disposable';
 
-export interface CollectionServerOptions<TCollections extends AnyCollection[]> {
+export interface CollectionServerOptions<TCollections extends Collection[]> {
   collections: TCollections;
   db: DB<TCollections>;
 }
 
-export class CollectionServer<const TCollections extends AnyCollection[]> {
+export abstract class CollectionServer<TCollections extends Collection[]> {
   connections: Set<ServerConnection<any>> = new Set();
 
-  constructor(public readonly options: CollectionServerOptions<TCollections>) {
-    this.start();
-  }
+  //   constructor(public readonly options: CollectionServerOptions<TCollections>) {
+  //     this.start();
+  //   }
 
   protected start(): void {}
 
-  connect(connection: ServerConnection<GetCombinedUser<TCollections>>): DisposableCancel {
+  connect(
+    connection: ServerConnection<GetParamIntersection<TCollections, 'user'>>,
+  ): DisposableCancel {
     this.connections.add(connection);
 
     return disposable(() => {
       this.connections.delete(connection);
     });
   }
-}
 
-export function createCollectionServer<const TCollections extends AnyCollection[]>(
-  options: CollectionServerOptions<TCollections>,
-): CollectionServer<TCollections> {
-  return new CollectionServer<TCollections>(options);
+  abstract list<TDomain extends GetParamUnion<TCollections, 'domain'>>(
+    domain: TDomain,
+    query: GetParam<GetParamIntersection<TCollections, 'domain'>, 'query'>,
+  ): Promise<GetParam<GetParamIntersection<TCollections, 'domain'>, 'item'>[]>;
 }

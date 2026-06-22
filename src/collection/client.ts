@@ -1,23 +1,23 @@
-import type { AnyCollection } from '@collection/collection';
+import type { Collection } from '@collection/collection';
 import { type ClientConnection, type CollectionDownMessage } from '@collection/connection';
-import type { GetItem, GetQuery } from '@collection/types';
+import type { GetParam } from '@collection/types';
 import { Computed } from '@core/store';
 import { deepEqual } from '@lib/equals';
 import { simpleHash } from '@lib/hash';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 
-export interface CollectionClientOptions<TCollection extends AnyCollection> {
+export interface CollectionClientOptions<TCollection extends Collection> {
   collection: TCollection;
   connection: ClientConnection;
 }
 
-class CollSet<TCollection extends AnyCollection> extends Computed<GetItem<TCollection>[]> {
+class CollSet<TCollection extends Collection> extends Computed<GetParam<TCollection, 'item'>[]> {
   isInitialized = false;
   t: number | null = null;
 
   constructor(
     public readonly client: CollectionClient<TCollection>,
-    public readonly query: GetQuery<TCollection>,
+    public readonly query: GetParam<TCollection, 'query'>,
   ) {
     super({
       compute: () => {
@@ -26,7 +26,7 @@ class CollSet<TCollection extends AnyCollection> extends Computed<GetItem<TColle
         }
 
         return Array.from(client.items.values()).filter((item) => {
-          return client.options.collection.options.matches(item, this.query);
+          return client.options.collection.matches(item, this.query);
         });
       },
       dependencies: [],
@@ -34,8 +34,8 @@ class CollSet<TCollection extends AnyCollection> extends Computed<GetItem<TColle
   }
 }
 
-export class CollectionClient<TCollection extends AnyCollection> implements Disposable {
-  items: Map<string, GetItem<TCollection>> = new Map();
+export class CollectionClient<TCollection extends Collection> implements Disposable {
+  items: Map<string, GetParam<TCollection, 'item'>> = new Map();
   dirty: Set<string> = new Set();
   sets: Map<string, CollSet<TCollection>> = new Map();
   disposables: DisposableStack = new DisposableStack();
@@ -48,13 +48,13 @@ export class CollectionClient<TCollection extends AnyCollection> implements Disp
     const { collection, connection } = this.options;
 
     this.disposables.use(
-      connection.onMessage(collection.options.domain, (message) => {
+      connection.onMessage(collection.domain, (message) => {
         this.receive(message);
       }),
     );
 
     this.disposables.use(
-      connection.onReconnect(collection.options.domain, () => {
+      connection.onReconnect(collection.domain, () => {
         this.reconnect();
       }),
     );
@@ -69,9 +69,9 @@ export class CollectionClient<TCollection extends AnyCollection> implements Disp
 
     switch (args[0]) {
       case 'update': {
-        const result = (await collection.options.schema['~standard'].validate(
+        const result = (await collection.schema['~standard'].validate(
           args[1],
-        )) as StandardSchemaV1.Result<GetItem<TCollection>>;
+        )) as StandardSchemaV1.Result<GetParam<TCollection, 'item'>>;
 
         if (result.issues) {
           console.error('Invalid item received from server:', result.issues);
@@ -80,7 +80,7 @@ export class CollectionClient<TCollection extends AnyCollection> implements Disp
 
         const newItem = result.value;
         const t = args[2];
-        const id = newItem[collection.options.id];
+        const id = newItem[collection.id];
         const key = simpleHash(id);
         const oldItem = this.items.get(key);
         const isDirty = this.dirty.has(key);
@@ -145,13 +145,13 @@ export class CollectionClient<TCollection extends AnyCollection> implements Disp
         continue;
       }
 
-      this.options.connection.send(this.options.collection.options.domain, [
+      this.options.connection.send(this.options.collection.domain, [
         ['enable', setKey, set.query, set.t],
       ]);
     }
   }
 
-  getSet(query: GetQuery<TCollection>): CollSet<TCollection> {
+  getSet(query: GetParam<TCollection, 'query'>): CollSet<TCollection> {
     const setKey = simpleHash(query);
     const set = this.sets.get(setKey);
 
@@ -162,14 +162,12 @@ export class CollectionClient<TCollection extends AnyCollection> implements Disp
     const newSet = new CollSet(this, query);
 
     newSet.addEffect(() => {
-      this.options.connection.send(this.options.collection.options.domain, [
+      this.options.connection.send(this.options.collection.domain, [
         ['enable', setKey, query, set!.t],
       ]);
 
       return () => {
-        this.options.connection.send(this.options.collection.options.domain, [
-          ['disable', setKey, query],
-        ]);
+        this.options.connection.send(this.options.collection.domain, [['disable', setKey, query]]);
       };
     });
 
@@ -177,13 +175,13 @@ export class CollectionClient<TCollection extends AnyCollection> implements Disp
     return newSet;
   }
 
-  protected notifyItem(item: GetItem<TCollection>, t: number): void {
+  protected notifyItem(item: GetParam<TCollection, 'item'>, t: number): void {
     for (const set of Array.from(this.sets.values())) {
       if (!set.isActive()) {
         continue;
       }
 
-      if (this.options.collection.options.matches(item, set.query)) {
+      if (this.options.collection.matches(item, set.query)) {
         set.t = t;
         set.invalidate();
       }
@@ -200,7 +198,7 @@ export class CollectionClient<TCollection extends AnyCollection> implements Disp
   }
 }
 
-export function createCollectionClient<TCollection extends AnyCollection>(
+export function createCollectionClient<TCollection extends Collection>(
   options: CollectionClientOptions<TCollection>,
 ): CollectionClient<TCollection> {
   return new CollectionClient<TCollection>(options);

@@ -3,7 +3,8 @@ import disposable from '@lib/disposable';
 
 export type CollectionMessage =
   | [op: 'update', update: unknown, t: number]
-  | [op: 'delete', id: unknown, t: number];
+  | [op: 'delete', id: unknown, t: number]
+  | [op: 'clear', t: number];
 
 export type CollectionUpMessage =
   | CollectionMessage

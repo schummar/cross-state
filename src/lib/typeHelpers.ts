@@ -43,3 +43,9 @@ export type OptionalProperties<T> = Pick<T, OptionalPropertyOf<T>>;
 export type IsAny<T> = 0 extends 1 & T ? true : false;
 
 export type IsNever<T> = [T] extends [never] ? true : false;
+
+export type ExtractFromTuple<T extends any[], U> = T extends [infer First, ...infer Rest]
+  ? First extends U
+    ? First
+    : ExtractFromTuple<Rest, U>
+  : never;

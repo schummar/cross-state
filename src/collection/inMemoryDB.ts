@@ -1,33 +1,38 @@
-import type { AnyCollection } from '@collection/collection';
+import type { Collection } from '@collection/collection';
 import { DB } from '@collection/db';
-import type {
-  GetCollectionByDomain,
-  GetCombinedDomain,
-  GetDomain,
-  GetIdType,
-  GetItem,
-} from '@collection/types';
+import type { GetCollectionByDomain, GetIdType, GetParam, GetParamUnion } from '@collection/types';
 
-export class InMemoryDB<const TCollections extends AnyCollection[]> extends DB<TCollections> {
-  protected data: Map<string, unknown[]> = new Map();
+export class InMemoryDB<const TCollections extends Collection[]> extends DB<TCollections> {
+  protected data: Map<string, Map<string, unknown>> = new Map();
 
   constructor(initialData?: {
-    [K in keyof TCollections & number as GetDomain<TCollections[K]>]?: GetItem<TCollections[K]>[];
+    [K in keyof TCollections & number as GetParam<TCollections[K], 'domain'>]?: GetParam<
+      TCollections[K],
+      'item'
+    >[];
   }) {
     super();
     if (initialData) {
-      this.data = new Map(Object.entries(initialData) as [string, unknown[]][]);
+      for (const [domain, items] of Object.entries(initialData)) {
+        const map = new Map<string, unknown>();
+
+        for (const item of items as unknown[]) {
+          const id = items.set(String(id), item);
+        }
+      }
     }
   }
 
-  update<TDomain extends GetCombinedDomain<TCollections>>(
+  update<TDomain extends GetParamUnion<TCollections, 'domain'>>(
     domain: TDomain,
     item: (
-      item: GetItem<GetCollectionByDomain<TCollections, TDomain>> | undefined,
-    ) => GetItem<GetCollectionByDomain<TCollections, TDomain>>,
-  ): void {}
+      item: GetParam<GetCollectionByDomain<TCollections, TDomain>, 'item'> | undefined,
+    ) => GetParam<GetCollectionByDomain<TCollections, TDomain>, 'item'>,
+  ): void {
+    return {} as any;
+  }
 
-  delete<TDomain extends GetCombinedDomain<TCollections>>(
+  delete<TDomain extends GetParamUnion<TCollections, 'domain'>>(
     domain: TDomain,
     id: GetIdType<GetCollectionByDomain<TCollections, TDomain>>,
   ): void {}

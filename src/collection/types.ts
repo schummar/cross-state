@@ -1,41 +1,58 @@
-import type { AnyCollection, Collection, CollParams } from '@collection/collection';
+import { type Collection } from '@collection/collection';
+import type { ExtractFromTuple } from '@lib/typeHelpers';
 
-export type TupleToIntersection<T extends any[]> = T extends [infer First, ...infer Rest]
-  ? First & TupleToIntersection<Rest>
-  : unknown;
+export type GetParams<T extends Collection> =
+  T extends Collection<
+    infer TDomain,
+    infer TItem,
+    infer TQuery,
+    infer TId,
+    infer TTime,
+    infer TDBQuery,
+    infer TUser
+  >
+    ? {
+        domain: TDomain;
+        item: TItem;
+        query: TQuery;
+        id: TId;
+        time: TTime;
+        dbQuery: TDBQuery;
+        user: TUser;
+      }
+    : never;
 
-export type ExtractFromTuple<T extends any[], U> = T extends [infer First, ...infer Rest]
-  ? First extends U
-    ? First
-    : ExtractFromTuple<Rest, U>
+type ParamKey = keyof GetParams<any>;
+
+export type GetParam<
+  TCollection extends Collection,
+  TParam extends ParamKey,
+> = GetParams<TCollection>[TParam];
+
+export type GetParamUnion<
+  TCollections extends Collection[],
+  TParam extends ParamKey,
+> = TCollections extends [infer First extends Collection, ...infer Rest extends Collection[]]
+  ? GetParam<First, TParam> | GetParamUnion<Rest, TParam>
   : never;
 
-export type GetParams<T extends AnyCollection> =
-  T extends Collection<infer TParams> ? TParams : never;
+export type GetParamIntersection<
+  TCollections extends Collection[],
+  TParam extends ParamKey,
+> = TCollections extends [infer First extends Collection, ...infer Rest extends Collection[]]
+  ? GetParam<First, TParam> & GetParamIntersection<Rest, TParam>
+  : unknown;
 
-export type GetDomain<T extends AnyCollection> = GetParams<T>['domain'];
-
-export type GetCombinedDomain<TCollections extends AnyCollection[]> = {
-  [K in keyof TCollections]: GetDomain<TCollections[K]>;
-}[keyof TCollections];
-
-export type GetItem<T extends AnyCollection> = GetParams<T>['item'];
-
-export type GetQuery<T extends AnyCollection> = GetParams<T>['query'];
-
-export type GetId<T extends AnyCollection> = GetParams<T>['id'];
-
-export type GetIdType<T extends AnyCollection> = GetItem<T>[GetId<T>];
-
-export type GetDBQuery<T extends AnyCollection> = GetParams<T>['dbQuery'];
-
-export type GetUser<T extends AnyCollection> = GetParams<T>['user'];
-
-export type GetCombinedUser<TCollections extends AnyCollection[]> = TupleToIntersection<{
-  [K in keyof TCollections]: GetUser<TCollections[K]>;
-}>;
+export type GetIdType<TCollection extends Collection> = GetParam<TCollection, 'item'>[GetParam<
+  TCollection,
+  'id'
+>];
 
 export type GetCollectionByDomain<
-  TCollections extends AnyCollection[],
+  TCollections extends Collection[],
   TDomain extends string,
-> = ExtractFromTuple<TCollections, Collection<CollParams<TDomain, any, any, any, any, any>>>;
+> = ExtractFromTuple<TCollections, { domain: TDomain }>;
+
+export type KeyOfType<TObject, TType> = keyof {
+  [K in keyof TObject as TObject[K] extends TType ? K : never]: any;
+};
