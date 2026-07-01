@@ -49,3 +49,11 @@ export type ExtractFromTuple<T extends any[], U> = T extends [infer First, ...in
     ? First
     : ExtractFromTuple<Rest, U>
   : never;
+
+export type UnionToIntersection<U> = (U extends any ? (x: U) => void : never) extends (
+  x: infer I,
+) => void
+  ? I
+  : never;
+
+export type TupleIndex<T extends any[]> = Exclude<keyof T, keyof any[]>;

@@ -101,6 +101,10 @@ abstract class BaseStore<T> implements ReadStore<T> {
       internalListener();
     }
 
+    options.signal?.addEventListener('abort', () => {
+      cancel();
+    });
+
     return cancel;
   }
 

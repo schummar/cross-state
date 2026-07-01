@@ -1,4 +1,4 @@
-import type { CollectionClient } from '@collection/client';
+import type { ClientCollection } from '@collection/client';
 import type { Collection } from '@collection/collection';
 import type { GetIdType, GetParam } from '@collection/types';
 import { useSyncExternalStore } from 'react';
@@ -8,7 +8,7 @@ export interface UseCollectionOptions<TCollection extends Collection> {
 }
 
 export function useCollection<TCollection extends Collection>(
-  client: CollectionClient<TCollection>,
+  client: ClientCollection<TCollection>,
   useOptions: UseCollectionOptions<TCollection>,
 ): GetParam<TCollection, 'item'>[] {
   const set = client.getSet(useOptions.query);
@@ -21,7 +21,7 @@ export function useCollection<TCollection extends Collection>(
 }
 
 export function useCollectionItem<TCollection extends Collection>(
-  client: CollectionClient<TCollection>,
+  client: ClientCollection<TCollection>,
   id: GetIdType<TCollection>,
 ): GetParam<TCollection, 'item'> | null {
   return null;

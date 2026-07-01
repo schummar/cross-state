@@ -1,39 +1,72 @@
 import type { Collection } from '@collection/collection';
-import { DB } from '@collection/db';
-import type { GetCollectionByDomain, GetIdType, GetParam, GetParamUnion } from '@collection/types';
+import { getTime, matchesTime } from '@collection/helpers';
+import { ServerCollection } from '@collection/server';
+import type { GetParam } from '@collection/types';
+import { simpleHash } from '@lib/hash';
 
-export class InMemoryDB<const TCollections extends Collection[]> extends DB<TCollections> {
-  protected data: Map<string, Map<string, unknown>> = new Map();
+export interface InMemoryServerCollectionOptions<TCollection extends Collection> {
+  collection: TCollection;
+  initialData?: readonly GetParam<TCollection, 'item'>[];
+}
 
-  constructor(initialData?: {
-    [K in keyof TCollections & number as GetParam<TCollections[K], 'domain'>]?: GetParam<
-      TCollections[K],
-      'item'
-    >[];
-  }) {
-    super();
-    if (initialData) {
-      for (const [domain, items] of Object.entries(initialData)) {
-        const map = new Map<string, unknown>();
+export class InMemoryServerCollection<
+  const TCollection extends Collection,
+> extends ServerCollection<TCollection> {
+  protected data: Map<string, GetParam<TCollection, 'item'>> = new Map();
 
-        for (const item of items as unknown[]) {
-          const id = items.set(String(id), item);
-        }
+  constructor(public readonly options: InMemoryServerCollectionOptions<TCollection>) {
+    super(options);
+
+    if (options.initialData) {
+      for (const item of options.initialData) {
+        const id = item[this.options.collection.id];
+        const key = simpleHash(id);
+        this.data.set(key, item);
       }
     }
   }
 
-  update<TDomain extends GetParamUnion<TCollections, 'domain'>>(
-    domain: TDomain,
-    item: (
-      item: GetParam<GetCollectionByDomain<TCollections, TDomain>, 'item'> | undefined,
-    ) => GetParam<GetCollectionByDomain<TCollections, TDomain>, 'item'>,
-  ): void {
-    return {} as any;
+  list(
+    include: GetParam<TCollection, 'query'>[],
+    exclude: GetParam<TCollection, 'query'>[],
+    t: number | null,
+  ): GetParam<TCollection, 'item'>[] {
+    const results: GetParam<TCollection, 'item'>[] = [];
+
+    for (const item of this.data.values()) {
+      if (
+        matchesTime(this.options.collection, item, t) &&
+        include.every((query) => this.options.collection.matches(item, query)) &&
+        exclude.every((query) => !this.options.collection.matches(item, query))
+      ) {
+        results.push(item);
+      }
+    }
+
+    return results.sort((a, b) => {
+      const timeA = getTime(this.options.collection, a);
+      const timeB = getTime(this.options.collection, b);
+
+      return timeA - timeB;
+    });
   }
 
-  delete<TDomain extends GetParamUnion<TCollections, 'domain'>>(
-    domain: TDomain,
-    id: GetIdType<GetCollectionByDomain<TCollections, TDomain>>,
-  ): void {}
+  update(item: GetParam<TCollection, 'item'>): GetParam<TCollection, 'item'> {
+    const id = item[this.options.collection.id];
+    const key = simpleHash(id);
+
+    item = {
+      ...item,
+      [this.options.collection.time]: new Date(),
+    };
+
+    this.data.set(key, item);
+    return item;
+  }
+
+  delete(id: GetParam<TCollection, 'id'>): number {
+    const key = simpleHash(id);
+    this.data.delete(key);
+    return Date.now();
+  }
 }

@@ -11,7 +11,9 @@ class Client<TUser> extends ClientConnection {
   }
 
   send(domain: string, messages: CollectionUpMessage[]): void {
-    this.getServer().receive(domain, messages);
+    setTimeout(() => {
+      this.getServer().receive(domain, messages);
+    });
   }
 }
 
@@ -21,7 +23,9 @@ class Server<TUser> extends ServerConnection<TUser> {
   }
 
   send(domain: string, messages: CollectionDownMessage[]): void {
-    this.getClient().receive(domain, messages);
+    setTimeout(() => {
+      this.getClient().receive(domain, messages);
+    });
   }
 }
 

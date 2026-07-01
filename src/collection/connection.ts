@@ -2,14 +2,14 @@ import type { DisposableCancel } from '@core';
 import disposable from '@lib/disposable';
 
 export type CollectionMessage =
-  | [op: 'update', update: unknown, t: number]
+  | [op: 'update', update: unknown]
   | [op: 'delete', id: unknown, t: number]
   | [op: 'clear', t: number];
 
 export type CollectionUpMessage =
   | CollectionMessage
   | [op: 'enable', setKey: string, query: unknown, t: number | null]
-  | [op: 'disable', setKey: string, query: unknown];
+  | [op: 'disable', setKey: string];
 
 export type CollectionDownMessage = CollectionMessage | [op: 'init', setKey: string];
 

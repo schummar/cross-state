@@ -8,7 +8,6 @@ export type GetParams<T extends Collection> =
     infer TQuery,
     infer TId,
     infer TTime,
-    infer TDBQuery,
     infer TUser
   >
     ? {
@@ -17,7 +16,6 @@ export type GetParams<T extends Collection> =
         query: TQuery;
         id: TId;
         time: TTime;
-        dbQuery: TDBQuery;
         user: TUser;
       }
     : never;
@@ -32,15 +30,15 @@ export type GetParam<
 export type GetParamUnion<
   TCollections extends Collection[],
   TParam extends ParamKey,
-> = TCollections extends [infer First extends Collection, ...infer Rest extends Collection[]]
-  ? GetParam<First, TParam> | GetParamUnion<Rest, TParam>
+> = TCollections extends [infer TFirst extends Collection, ...infer TRest extends Collection[]]
+  ? GetParam<TFirst, TParam> | GetParamUnion<TRest, TParam>
   : never;
 
 export type GetParamIntersection<
   TCollections extends Collection[],
   TParam extends ParamKey,
-> = TCollections extends [infer First extends Collection, ...infer Rest extends Collection[]]
-  ? GetParam<First, TParam> & GetParamIntersection<Rest, TParam>
+> = TCollections extends [infer TFirst extends Collection, ...infer TRest extends Collection[]]
+  ? GetParam<TFirst, TParam> & GetParamIntersection<TRest, TParam>
   : unknown;
 
 export type GetIdType<TCollection extends Collection> = GetParam<TCollection, 'item'>[GetParam<

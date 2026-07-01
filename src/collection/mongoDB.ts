@@ -1,56 +1,36 @@
 import type { Collection } from '@collection/collection';
-import { CollectionServer } from '@collection/server';
-import type {
-  GetCollectionByDomain,
-  GetParam,
-  GetParamIntersection,
-  GetParamUnion,
-} from '@collection/types';
-import { MongoClient, type Filter } from 'mongodb';
+import { ServerCollection } from '@collection/server';
+import type { GetParam } from '@collection/types';
+import { type Filter, type MongoClient } from 'mongodb';
 
-export interface MongoDBAdapterOptions<TCollection extends Collection> {
-  // collection: TCollection;
-  getListFilter: (query: GetParam<TCollection, 'query'>) => Filter<GetParam<TCollection, 'item'>>;
-}
-
-export class MongoDBAdapter<TCollection extends Collection> {
-  constructor(public readonly options: MongoDBAdapterOptions<TCollection>) {}
-}
-
-export interface MongoDBCollectionServerOptions<TCollections extends Collection[]> {
+export interface MongoDBServerCollectionOptions<TCollection extends Collection> {
+  collection: TCollection;
   client: MongoClient;
-  adapters: { [K in keyof TCollections]: MongoDBAdapter<TCollections[K]> };
+  db: string;
+  coll: string;
+  getListFilter(
+    query: GetParam<TCollection, 'query'>,
+    t: number | null,
+  ): Filter<GetParam<TCollection, 'item'>>;
 }
 
-export class MongoDBCollectionServer<
-  const TCollections extends Collection[],
-> extends CollectionServer<TCollections> {
-  constructor(public readonly options: MongoDBCollectionServerOptions<TCollections>) {
-    super();
+export class MongoDBServerCollection<
+  const TCollection extends Collection,
+> extends ServerCollection<TCollection> {
+  constructor(public readonly options: MongoDBServerCollectionOptions<TCollection>) {
+    super(options);
   }
 
-  async list<TDomain extends GetParamUnion<TCollections, 'domain'>>(
-    domain: TDomain,
-    query: GetParam<GetCollectionByDomain<TCollections, TDomain>, 'query'>,
-  ): Promise<GetParam<GetCollectionByDomain<TCollections, TDomain>, 'item'>[]> {
-    const adapter = Object.values(this.options.adapters).find(
-      (adapter) => adapter.options.collection.domain === domain,
-    );
+  async list(
+    query: GetParam<TCollection, 'query'>,
+    t: number | null,
+  ): Promise<GetParam<TCollection, 'item'>[]> {
+    const filter = this.options.getListFilter(query, t);
+    const collection = this.options.client
+      .db(this.options.db)
+      .collection<GetParam<TCollection, 'item'>>(this.options.coll);
 
-    if (!adapter) {
-      throw new Error(`No adapter found for domain ${domain}`);
-    }
-
-    const collectionName = adapter.options.collection.collectionName ?? domain;
-    const [dbName, collName] = collectionName.split('.');
-    if (!dbName || !collName) {
-      throw new Error(`Invalid collection name ${collectionName}`);
-    }
-
-    const coll = this.options.client
-      .db(dbName)
-      .collection<GetParam<GetParamIntersection<TCollections, 'domain'>, 'item'>>(collName);
-    const filter = adapter.options.getListFilter(query);
-    return await coll.find(filter).toArray();
+    const items = await collection.find(filter).toArray();
+    return items;
   }
 }

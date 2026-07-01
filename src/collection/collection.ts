@@ -6,8 +6,7 @@ export interface Collection<
   TItem extends object = any,
   TQuery = any,
   TId extends keyof TItem = any,
-  TTime extends KeyOfType<TItem, number | bigint | Date> = any,
-  TDBQuery = any,
+  TTime extends KeyOfType<TItem, Date> = any,
   TUser = any,
 > {
   domain: TDomain;
@@ -17,7 +16,6 @@ export interface Collection<
   id: TId;
   time: TTime;
   matches(item: TItem, query: TQuery): boolean;
-  createDBQuery?(query: TQuery): TDBQuery;
   auth?: (query: TQuery, user: TUser) => TQuery;
 }
 
@@ -27,10 +25,9 @@ export function createCollection<
   TQuery,
   TId extends keyof TItem,
   TTime extends KeyOfType<TItem, number | bigint | Date>,
-  TDBQuery,
   TUser,
 >(
-  collection: Collection<TDomain, TItem, TQuery, TId, TTime, TDBQuery, TUser>,
-): Collection<TDomain, TItem, TQuery, TId, TTime, TDBQuery, TUser> {
+  collection: Collection<TDomain, TItem, TQuery, TId, TTime, TUser>,
+): Collection<TDomain, TItem, TQuery, TId, TTime, TUser> {
   return collection;
 }
