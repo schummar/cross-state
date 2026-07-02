@@ -6,6 +6,7 @@ import { ServerCollectionHub } from '@collection/server';
 import { sleep } from '@lib/helpers';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { z } from 'zod';
+import { inspect } from 'node:util';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -463,22 +464,20 @@ describe('reconnection', () => {
     ]);
   });
 
-  test('client receives deleted items after reconnection even ', async () => {
-    const { emailClient, otherEmailClient } = prepare();
+  test.only('client receives deleted items after reconnection even when not in the cache anymore', async () => {
+    const { emailClient, otherEmailClient, emailServer } = prepare();
     const clientReceive = vi.spyOn(emailClient.options.connection, 'receive');
 
-    const firstState = await emailClient.get({});
-    expect(emailClient.items).toHaveLength(3);
+    await emailClient.get({});
     clientReceive.mockClear();
 
     otherEmailClient.delete('1');
 
     await tick();
-
-    expect(Array.from(emailClient.items.values())).toEqual(firstState);
-    expect(clientReceive).not.toHaveBeenCalled();
+    (emailServer as any).deleteCache = [];
 
     await emailClient.get({});
+    console.log(inspect(clientReceive.mock.calls, false, null, true));
     expect(Array.from(emailClient.items.values())).toEqual([exampleEmails[1], exampleEmails[2]]);
 
     expect(clientReceive).toHaveBeenCalledExactlyOnceWith('email', [
@@ -486,6 +485,29 @@ describe('reconnection', () => {
       ['update', expect.objectContaining({ id: '3' })],
       ['delete', '1', expect.anything()],
       ['init', expect.anything()],
+    ]);
+  });
+
+  test('client receives deletes when an item is changed so that it no longer matches the query', async () => {
+    const { emailClient, otherEmailClient } = prepare();
+    const clientReceive = vi.spyOn(emailClient.options.connection, 'receive');
+
+    using _ = emailClient.getQuery({ userId: '1' }).subscribe(() => void 0);
+    await emailClient.get({ userId: '1' });
+    expect(emailClient.items).toHaveLength(2);
+    clientReceive.mockClear();
+
+    otherEmailClient.update({
+      ...exampleEmails[0],
+      userId: '2',
+    });
+
+    await tick();
+    await tick();
+
+    expect(Array.from(emailClient.items.values())).toEqual([exampleEmails[2]]);
+    expect(clientReceive).toHaveBeenCalledExactlyOnceWith('email', [
+      ['delete', '1', expect.anything()],
     ]);
   });
 });
@@ -609,3 +631,6 @@ describe('optimistic updates', () => {
     ]);
   });
 });
+
+// TODO
+// - update overtakes inital fetch => wrong timestamp

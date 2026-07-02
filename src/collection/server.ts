@@ -1,6 +1,11 @@
 import type { Collection } from '@collection/collection';
-import type { CollectionDownMessage, ServerConnection } from '@collection/connection';
+import type {
+  CollectionDownMessage,
+  CollectionUpMessage,
+  ServerConnection,
+} from '@collection/connection';
 import { getTime } from '@collection/helpers';
+import MatchCache from '@collection/matchCache';
 import type { GetParam, GetParamIntersection } from '@collection/types';
 import type { DisposableCancel } from '@core';
 import disposable from '@lib/disposable';
@@ -24,7 +29,12 @@ interface QueryState<TCollection extends Collection> {
   initialFetchInProgress: boolean;
 }
 
-export interface DeleteCacheEntry<TCollection extends Collection> {
+export interface ServerUpdateResult<TCollection extends Collection> {
+  oldItem: GetParam<TCollection, 'item'> | null;
+  newItem: GetParam<TCollection, 'item'>;
+}
+
+export interface ServerDeleteResult<TCollection extends Collection> {
   item: GetParam<TCollection, 'item'>;
   t: number;
 }
@@ -35,7 +45,8 @@ export abstract class ServerCollection<TCollection extends Collection> {
     ConnectionState<TCollection>
   > = new Map();
 
-  protected deleteCache: DeleteCacheEntry<TCollection>[] = [];
+  protected deleteCache: ServerDeleteResult<TCollection>[] = [];
+  protected knownDeletionsThreshold: number = 0;
   protected updateQueue: Queue = queue();
 
   constructor(public readonly options: ServerCollectionOptions<TCollection>) {}
@@ -51,70 +62,7 @@ export abstract class ServerCollection<TCollection extends Collection> {
     this.connections.set(connection, state);
 
     const cancel = connection.onMessage(this.options.collection.domain, (message) => {
-      switch (message[0]) {
-        case 'enable':
-          {
-            const [, query, t] = message;
-            const queryKey = simpleHash(query);
-            if (state.queries.has(queryKey)) {
-              throw new Error(`Set key ${queryKey} already exists`);
-            }
-
-            state.queries.set(queryKey, {
-              query,
-              ac: new AbortController(),
-              initialFetchInProgress: true,
-            });
-
-            void this.initialFetchQuery(connection, queryKey, t).catch((error) => {
-              if (!state.queries.get(queryKey)?.ac.signal.aborted) {
-                console.error('Error during initial fetch query:', error);
-              }
-            });
-          }
-          break;
-
-        case 'disable':
-          {
-            const [, query] = message;
-            const queryKey = simpleHash(query);
-
-            const queryState = state.queries.get(queryKey);
-            queryState?.ac.abort();
-            state.queries.delete(queryKey);
-          }
-          break;
-
-        case 'update': {
-          const [, item] = message;
-
-          this.updateQueue(async () => {
-            const updatedItem = await this.update(item);
-            this.sendToMatchingConnections(updatedItem, ['update', updatedItem]);
-          });
-        }
-
-        case 'delete': {
-          const [, id] = message;
-
-          this.updateQueue(async () => {
-            const entry = await this.delete(id);
-
-            if (!entry) {
-              return;
-            }
-
-            this.deleteCache.push(entry);
-
-            const deleteCacheSize = this.options.deleteCacheSize ?? 100_000;
-            if (this.deleteCache.length > deleteCacheSize * 2) {
-              this.deleteCache = this.deleteCache.slice(-deleteCacheSize);
-            }
-
-            this.sendToMatchingConnections(entry.item, ['delete', id, entry.t]);
-          });
-        }
-      }
+      this.receive(connection, state, message);
     });
 
     return disposable(() => {
@@ -125,6 +73,81 @@ export abstract class ServerCollection<TCollection extends Collection> {
 
       cancel();
     });
+  }
+
+  protected receive(
+    connection: ServerConnection<GetParam<TCollection, 'user'>>,
+    state: ConnectionState<TCollection>,
+    message: CollectionUpMessage,
+  ): void {
+    switch (message[0]) {
+      case 'enable':
+        {
+          const [, query, t] = message;
+          const queryKey = simpleHash(query);
+          if (state.queries.has(queryKey)) {
+            throw new Error(`Set key ${queryKey} already exists`);
+          }
+
+          state.queries.set(queryKey, {
+            query,
+            ac: new AbortController(),
+            initialFetchInProgress: true,
+          });
+
+          void this.initialFetchQuery(connection, queryKey, t).catch((error) => {
+            if (!state.queries.get(queryKey)?.ac.signal.aborted) {
+              console.error('Error during initial fetch query:', error);
+            }
+          });
+        }
+        break;
+
+      case 'disable':
+        {
+          const [, query] = message;
+          const queryKey = simpleHash(query);
+
+          const queryState = state.queries.get(queryKey);
+          queryState?.ac.abort();
+          state.queries.delete(queryKey);
+        }
+        break;
+
+      case 'update': {
+        const [, item] = message;
+
+        this.updateQueue(async () => {
+          const { oldItem, newItem } = await this.update(item);
+          this.sendToMatchingConnections(
+            oldItem,
+            newItem,
+            getTime(this.options.collection, newItem),
+          );
+        });
+      }
+
+      case 'delete': {
+        const [, id] = message;
+
+        this.updateQueue(async () => {
+          const entry = await this.delete(id);
+
+          if (!entry) {
+            return;
+          }
+
+          this.deleteCache.push(entry);
+
+          const deleteCacheSize = this.options.deleteCacheSize ?? 100_000;
+          if (this.deleteCache.length > deleteCacheSize * 2) {
+            this.deleteCache = this.deleteCache.slice(-deleteCacheSize);
+          }
+
+          this.sendToMatchingConnections(entry.item, null, entry.t);
+        });
+      }
+    }
   }
 
   protected async initialFetchQuery(
@@ -193,23 +216,29 @@ export abstract class ServerCollection<TCollection extends Collection> {
   }
 
   protected sendToMatchingConnections(
-    item: GetParam<TCollection, 'item'>,
-    message: CollectionDownMessage,
+    oldItem: GetParam<TCollection, 'item'> | null,
+    newItem: GetParam<TCollection, 'item'> | null,
+    t: number,
   ): void {
-    const matchCache = new Map<string, boolean>();
+    const oldItemMatchCache = new MatchCache(this.options.collection);
+    const newItemMatchCache = new MatchCache(this.options.collection);
 
     for (const [connection, state] of this.connections) {
-      for (const [queryKey, queryState] of state.queries) {
-        let matches = matchCache.get(queryKey);
-        if (matches === undefined) {
-          matches = this.options.collection.matches(item, queryState.query);
-          matchCache.set(queryKey, matches);
-        }
-
-        if (matches) {
-          connection.send(this.options.collection.domain, [message]);
-          break;
-        }
+      if (
+        newItem !== null &&
+        state.queries.entries().some(([queryKey, queryState]) => {
+          return newItemMatchCache.matches(newItem, queryKey, queryState.query);
+        })
+      ) {
+        connection.send(this.options.collection.domain, [['update', newItem]]);
+      } else if (
+        oldItem !== null &&
+        state.queries.entries().some(([queryKey, queryState]) => {
+          return oldItemMatchCache.matches(oldItem, queryKey, queryState.query);
+        })
+      ) {
+        const id = oldItem[this.options.collection.id as keyof typeof oldItem];
+        connection.send(this.options.collection.domain, [['delete', id, t]]);
       }
     }
   }
@@ -222,11 +251,13 @@ export abstract class ServerCollection<TCollection extends Collection> {
     Iterable<GetParam<TCollection, 'item'>> | AsyncIterable<GetParam<TCollection, 'item'>>
   >;
 
-  abstract update(item: GetParam<TCollection, 'item'>): MaybePromise<GetParam<TCollection, 'item'>>;
+  abstract update(
+    item: GetParam<TCollection, 'item'>,
+  ): MaybePromise<ServerUpdateResult<TCollection>>;
 
   abstract delete(
     id: GetParam<TCollection, 'id'>,
-  ): MaybePromise<DeleteCacheEntry<TCollection> | null>;
+  ): MaybePromise<ServerDeleteResult<TCollection> | null>;
 }
 
 export interface ServerCollectionHubOptions<TCollections extends Collection[]> {

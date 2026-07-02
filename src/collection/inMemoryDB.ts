@@ -2,8 +2,9 @@ import type { Collection } from '@collection/collection';
 import { getTime, matchesTime } from '@collection/helpers';
 import {
   ServerCollection,
-  type DeleteCacheEntry,
   type ServerCollectionOptions,
+  type ServerDeleteResult,
+  type ServerUpdateResult,
 } from '@collection/server';
 import type { GetParam } from '@collection/types';
 import { simpleHash } from '@lib/hash';
@@ -59,9 +60,10 @@ export class InMemoryServerCollection<
     });
   }
 
-  update(item: GetParam<TCollection, 'item'>): GetParam<TCollection, 'item'> {
+  update(item: GetParam<TCollection, 'item'>): ServerUpdateResult<TCollection> {
     const id = item[this.options.collection.id];
     const key = simpleHash(id);
+    const oldItem = this.data.get(key) ?? null;
 
     item = {
       ...item,
@@ -69,10 +71,10 @@ export class InMemoryServerCollection<
     };
 
     this.data.set(key, item);
-    return item;
+    return { oldItem, newItem: item };
   }
 
-  delete(id: GetParam<TCollection, 'id'>): DeleteCacheEntry<TCollection> | null {
+  delete(id: GetParam<TCollection, 'id'>): ServerDeleteResult<TCollection> | null {
     const key = simpleHash(id);
     const item = this.data.get(key);
 
