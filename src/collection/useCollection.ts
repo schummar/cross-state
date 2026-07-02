@@ -11,7 +11,7 @@ export function useCollection<TCollection extends Collection>(
   client: ClientCollection<TCollection>,
   useOptions: UseCollectionOptions<TCollection>,
 ): GetParam<TCollection, 'item'>[] {
-  const set = client.getSet(useOptions.query);
+  const set = client.getQuery(useOptions.query);
 
   return useSyncExternalStore(
     (callback) => set.subscribe(callback),

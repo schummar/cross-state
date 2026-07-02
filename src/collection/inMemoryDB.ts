@@ -1,11 +1,17 @@
 import type { Collection } from '@collection/collection';
 import { getTime, matchesTime } from '@collection/helpers';
-import { ServerCollection } from '@collection/server';
+import {
+  ServerCollection,
+  type DeleteCacheEntry,
+  type ServerCollectionOptions,
+} from '@collection/server';
 import type { GetParam } from '@collection/types';
 import { simpleHash } from '@lib/hash';
+import type { MaybePromise } from '@lib/maybePromise';
 
-export interface InMemoryServerCollectionOptions<TCollection extends Collection> {
-  collection: TCollection;
+export interface InMemoryServerCollectionOptions<
+  TCollection extends Collection,
+> extends ServerCollectionOptions<TCollection> {
   initialData?: readonly GetParam<TCollection, 'item'>[];
 }
 
@@ -30,7 +36,9 @@ export class InMemoryServerCollection<
     include: GetParam<TCollection, 'query'>[],
     exclude: GetParam<TCollection, 'query'>[],
     t: number | null,
-  ): GetParam<TCollection, 'item'>[] {
+  ): MaybePromise<
+    Iterable<GetParam<TCollection, 'item'>> | AsyncIterable<GetParam<TCollection, 'item'>>
+  > {
     const results: GetParam<TCollection, 'item'>[] = [];
 
     for (const item of this.data.values()) {
@@ -64,9 +72,19 @@ export class InMemoryServerCollection<
     return item;
   }
 
-  delete(id: GetParam<TCollection, 'id'>): number {
+  delete(id: GetParam<TCollection, 'id'>): DeleteCacheEntry<TCollection> | null {
     const key = simpleHash(id);
+    const item = this.data.get(key);
+
+    if (!item) {
+      return null;
+    }
+
     this.data.delete(key);
-    return Date.now();
+
+    return {
+      item,
+      t: Date.now(),
+    };
   }
 }

@@ -16,3 +16,9 @@ export function isPlainObject(value: unknown): value is Record<string, unknown> 
     !(Symbol.iterator in value)
   );
 }
+
+export async function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}

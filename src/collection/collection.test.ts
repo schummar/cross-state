@@ -3,6 +3,7 @@ import { createCollection } from '@collection/collection';
 import { DirectConnection } from '@collection/directConnection';
 import { InMemoryServerCollection } from '@collection/inMemoryDB';
 import { ServerCollectionHub } from '@collection/server';
+import { sleep } from '@lib/helpers';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { z } from 'zod';
 
@@ -184,20 +185,18 @@ describe('fetching queries', () => {
 
     expect(emails).toHaveLength(2);
     expect(emailClient.items).toHaveLength(2);
-    expect(serverSend).toHaveBeenCalledExactlyOnceWith(
-      'email',
-      exampleEmails
-        .filter((x) => x.userId === '1')
-        .map((item) => ['update', item])
-        .concat([['init', expect.any(String)]]),
-    );
+    expect(serverSend).toHaveBeenCalledExactlyOnceWith('email', [
+      ['update', exampleEmails[0]],
+      ['update', exampleEmails[2]],
+      ['init', { userId: '1' }],
+    ]);
   });
 
   test('when a second query is fetched, only the new items are sent from the server', async () => {
     const { connection, emailClient } = prepare();
     const serverSend = vi.spyOn(connection.server, 'send');
 
-    using _ = emailClient.getSet({ userId: '1' }).subscribe(() => void 0);
+    using _ = emailClient.getQuery({ userId: '1' }).subscribe(() => void 0);
     await emailClient.get({ userId: '1' });
     serverSend.mockClear();
 
@@ -206,7 +205,7 @@ describe('fetching queries', () => {
     expect(emailClient.items).toHaveLength(3);
     expect(serverSend).toHaveBeenCalledExactlyOnceWith('email', [
       ['update', exampleEmails[1]],
-      ['init', expect.any(String)],
+      ['init', {}],
     ]);
   });
 
@@ -214,43 +213,95 @@ describe('fetching queries', () => {
     const { connection, emailClient } = prepare();
     const serverSend = vi.spyOn(connection.server, 'send');
 
-    using _ = emailClient.getSet({ userId: '1' }).subscribe(() => void 0);
+    using _ = emailClient.getQuery({ userId: '1' }).subscribe(() => void 0);
     await emailClient.get({ userId: '1' });
     serverSend.mockClear();
 
     await emailClient.get({ id: '1' });
 
     expect(emailClient.items).toHaveLength(2);
-    expect(serverSend).toHaveBeenCalledExactlyOnceWith('email', [['init', expect.any(String)]]);
+    expect(serverSend).toHaveBeenCalledExactlyOnceWith('email', [['init', { id: '1' }]]);
   });
 
-  test('edge case: first query is disabled while the second query is being fetched, the second query is still sent from the server', async () => {
+  test('when two queries are fetched at the same time, both are fully sent from the server', async () => {
     const { connection, emailClient, emailServer } = prepare();
-    const serverSend = vi.spyOn(connection.server, 'send');
+    const clientReceive = vi.spyOn(connection.client, 'receive');
+
     const originalSeverList = emailServer.list.bind(emailServer);
-    vi.spyOn(emailServer, 'list').mockImplementation(async function* (include, exclude, t) {
-      const items = originalSeverList(include, exclude, t);
-      yield items[0]!;
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      yield* items.slice(1);
+    vi.spyOn(emailServer, 'list').mockImplementation(async (include, exclude, t) => {
+      const items = await originalSeverList(include, exclude, t);
+      await tick();
+      return items;
     });
 
-    const q1 = emailClient.getSet({}).subscribe(() => void 0);
-    using _q2 = emailClient.getSet({ id: '1' }).subscribe(() => void 0);
-    q1();
+    using _q1 = emailClient.getQuery({}).subscribe(() => void 0);
+    using _q2 = emailClient.getQuery({ id: '3' }).subscribe(() => void 0);
 
-    const result = await emailClient.get({ id: '1' });
+    await tick();
+    await tick();
+    await tick();
 
-    expect(result).toHaveLength(1);
-
-    expect(serverSend).nthCalledWith(1, 'email', [
-      ['update', exampleEmails[0]],
-      ['init', expect.any(String)],
+    expect(clientReceive.mock.calls).toEqual([
+      [
+        'email',
+        [
+          ['update', exampleEmails[0]],
+          ['update', exampleEmails[1]],
+          ['update', exampleEmails[2]],
+          ['init', {}],
+        ],
+      ],
+      [
+        'email',
+        [
+          ['update', exampleEmails[2]],
+          ['init', { id: '3' }],
+        ],
+      ],
     ]);
-    expect(serverSend).toHaveBeenLastCalledWith('email', [
-      ['update', exampleEmails[0]],
-      ['init', expect.any(String)],
+  });
+
+  test('when an item is updated while a query is in progress, the latest state prevails', async () => {
+    vi.useFakeTimers();
+
+    const { connection, emailClient, otherEmailClient, emailServer } = prepare();
+    const clientReceive = vi.spyOn(connection.client, 'receive');
+
+    const originalSeverList = emailServer.list.bind(emailServer);
+    vi.spyOn(emailServer, 'list').mockImplementation(async (include, exclude, t) => {
+      const items = await originalSeverList(include, exclude, t);
+      await sleep(10);
+      return items;
+    });
+
+    using _ = emailClient.getQuery({}).subscribe(() => void 0);
+    await vi.advanceTimersByTimeAsync(5);
+
+    const updatedEmail = {
+      ...exampleEmails[0],
+      subject: 'Updated Subject',
+    };
+    otherEmailClient.update(updatedEmail);
+
+    await vi.advanceTimersByTimeAsync(10);
+
+    expect(clientReceive.mock.calls).toEqual([
+      ['email', [['update', expect.objectContaining({ subject: 'Updated Subject' })]]],
+      [
+        'email',
+        [
+          ['update', exampleEmails[0]],
+          ['update', exampleEmails[1]],
+          ['update', exampleEmails[2]],
+          ['init', {}],
+        ],
+      ],
     ]);
+
+    expect(Array.from(emailClient.items.values()).find((x) => x.id === '1')).toEqual({
+      ...updatedEmail,
+      modifiedOn: expect.any(Date),
+    });
   });
 });
 
@@ -258,7 +309,7 @@ describe('updates are forwarded', () => {
   test('updated item is sent to active client if it matches the query', async () => {
     const { emailClient, otherEmailClient } = prepare();
 
-    using _ = emailClient.getSet({ id: '1' }).subscribe(() => void 0);
+    using _ = emailClient.getQuery({ id: '1' }).subscribe(() => void 0);
     await emailClient.get({ id: '1' });
     expect(emailClient.items).toHaveLength(1);
 
@@ -299,7 +350,7 @@ describe('updates are forwarded', () => {
   test('updated item is not sent to client if it does not match the query', async () => {
     const { emailClient, otherEmailClient } = prepare();
 
-    using _ = emailClient.getSet({ id: '1' }).subscribe(() => void 0);
+    using _ = emailClient.getQuery({ id: '1' }).subscribe(() => void 0);
     await emailClient.get({ id: '1' });
     expect(emailClient.items).toHaveLength(1);
 
@@ -318,8 +369,8 @@ describe('updates are forwarded', () => {
     const { emailClient, otherEmailClient, connection } = prepare();
     const clientReceive = vi.spyOn(connection.client, 'receive');
 
-    using _1 = emailClient.getSet({ id: '1' }).subscribe(() => void 0);
-    using _2 = emailClient.getSet({ userId: '1' }).subscribe(() => void 0);
+    using _1 = emailClient.getQuery({ id: '1' }).subscribe(() => void 0);
+    using _2 = emailClient.getQuery({ userId: '1' }).subscribe(() => void 0);
     await emailClient.get({ id: '1' });
     await emailClient.get({ userId: '1' });
 
@@ -335,16 +386,16 @@ describe('updates are forwarded', () => {
     await tick();
     await tick();
 
+    expect(clientReceive).toHaveBeenCalledExactlyOnceWith('email', [
+      ['update', expect.objectContaining({ subject: 'Updated Subject' })],
+    ]);
+
     expect(Array.from(emailClient.items.values())).toEqual([
       {
         ...updatedEmail,
         modifiedOn: expect.any(Date),
       },
       exampleEmails[2],
-    ]);
-
-    expect(clientReceive).toHaveBeenCalledExactlyOnceWith('email', [
-      ['update', expect.objectContaining({ subject: 'Updated Subject' })],
     ]);
   });
 });
@@ -379,24 +430,182 @@ describe('reconnection', () => {
     ]);
 
     expect(clientReceive).toHaveBeenCalledExactlyOnceWith('email', [
-      // since it's a >= relatino with the last known timestamp, one item is sent again
+      // since it's a >= relation with the last known timestamp, one item is sent again
       ['update', expect.objectContaining({ id: '3' })],
       ['update', expect.objectContaining({ id: '1', subject: 'Updated Subject' })],
       ['init', expect.anything()],
     ]);
   });
+
+  test('client receives deleted items after reconnection', async () => {
+    const { emailClient, otherEmailClient } = prepare();
+    const clientReceive = vi.spyOn(emailClient.options.connection, 'receive');
+
+    const firstState = await emailClient.get({});
+    expect(emailClient.items).toHaveLength(3);
+    clientReceive.mockClear();
+
+    otherEmailClient.delete('1');
+
+    await tick();
+
+    expect(Array.from(emailClient.items.values())).toEqual(firstState);
+    expect(clientReceive).not.toHaveBeenCalled();
+
+    await emailClient.get({});
+    expect(Array.from(emailClient.items.values())).toEqual([exampleEmails[1], exampleEmails[2]]);
+
+    expect(clientReceive).toHaveBeenCalledExactlyOnceWith('email', [
+      // since it's a >= relation with the last known timestamp, one item is sent again
+      ['update', expect.objectContaining({ id: '3' })],
+      ['delete', '1', expect.anything()],
+      ['init', expect.anything()],
+    ]);
+  });
+
+  test('client receives deleted items after reconnection even ', async () => {
+    const { emailClient, otherEmailClient } = prepare();
+    const clientReceive = vi.spyOn(emailClient.options.connection, 'receive');
+
+    const firstState = await emailClient.get({});
+    expect(emailClient.items).toHaveLength(3);
+    clientReceive.mockClear();
+
+    otherEmailClient.delete('1');
+
+    await tick();
+
+    expect(Array.from(emailClient.items.values())).toEqual(firstState);
+    expect(clientReceive).not.toHaveBeenCalled();
+
+    await emailClient.get({});
+    expect(Array.from(emailClient.items.values())).toEqual([exampleEmails[1], exampleEmails[2]]);
+
+    expect(clientReceive).toHaveBeenCalledExactlyOnceWith('email', [
+      // since it's a >= relation with the last known timestamp, one item is sent again
+      ['update', expect.objectContaining({ id: '3' })],
+      ['delete', '1', expect.anything()],
+      ['init', expect.anything()],
+    ]);
+  });
 });
 
-// test('optimistic update', async () => {
-//   const { emailClient, emailServer } = prepare();
-//   await emailClient.get({});
+describe('optimistic updates', () => {
+  test('local item is updated immediately when update is called', async () => {
+    const { emailClient } = prepare();
+    await emailClient.get({});
 
-//   const updatedEmail = {
-//     ...exampleEmails[0],
-//     subject: 'Updated Subject',
-//   };
+    const updatedEmail = {
+      ...exampleEmails[0],
+      subject: 'Updated Subject',
+    };
 
-//   emailClient.update(updatedEmail);
-//   expect((await emailClient.get({}))[0]).toEqual(updatedEmail);
-//   expect(emailServer.list({}, null)).toEqual(exampleEmails);
-// });
+    emailClient.update(updatedEmail);
+    expect(Array.from(emailClient.items.values())).toEqual([
+      {
+        ...updatedEmail,
+        modifiedOn: expect.any(Date),
+      },
+      exampleEmails[1],
+      exampleEmails[2],
+    ]);
+  });
+
+  test('local item is removed immediately when delete is called', async () => {
+    const { emailClient } = prepare();
+    await emailClient.get({});
+
+    emailClient.delete('1');
+    expect(Array.from(emailClient.items.values())).toEqual([exampleEmails[1], exampleEmails[2]]);
+  });
+
+  test('Local update prevails even when not synchronized with the server yet', async () => {
+    const { emailClient } = prepare();
+
+    emailClient.update({
+      ...exampleEmails[0],
+      subject: 'Updated Subject',
+    });
+
+    expect(Array.from(emailClient.items.values())).toEqual([
+      {
+        ...exampleEmails[0],
+        subject: 'Updated Subject',
+      },
+    ]);
+
+    await emailClient.get({});
+
+    expect(Array.from(emailClient.items.values())).toEqual([
+      {
+        ...exampleEmails[0],
+        subject: 'Updated Subject',
+        modifiedOn: expect.any(Date),
+      },
+      exampleEmails[1],
+      exampleEmails[2],
+    ]);
+  });
+
+  test('The later update prevails when two clients update the same item at the same time', async () => {
+    const { emailClient, otherEmailClient } = prepare();
+    using _q1 = emailClient.getQuery({}).subscribe(() => void 0);
+    using _q2 = otherEmailClient.getQuery({}).subscribe(() => void 0);
+    await emailClient.get({});
+    await otherEmailClient.get({});
+
+    emailClient.update({
+      ...exampleEmails[0],
+      subject: 'Updated Subject',
+    });
+
+    otherEmailClient.update({
+      ...exampleEmails[0],
+      subject: 'Later Updated Subject',
+    });
+
+    await tick();
+
+    expect(Array.from(emailClient.items.values())).toEqual([
+      {
+        ...exampleEmails[0],
+        subject: 'Updated Subject',
+        modifiedOn: expect.any(Date),
+      },
+      exampleEmails[1],
+      exampleEmails[2],
+    ]);
+
+    expect(Array.from(otherEmailClient.items.values())).toEqual([
+      {
+        ...exampleEmails[0],
+        subject: 'Later Updated Subject',
+        modifiedOn: expect.any(Date),
+      },
+      exampleEmails[1],
+      exampleEmails[2],
+    ]);
+
+    await tick();
+
+    expect(Array.from(emailClient.items.values())).toEqual([
+      {
+        ...exampleEmails[0],
+        subject: 'Later Updated Subject',
+        modifiedOn: expect.any(Date),
+      },
+      exampleEmails[1],
+      exampleEmails[2],
+    ]);
+
+    expect(Array.from(otherEmailClient.items.values())).toEqual([
+      {
+        ...exampleEmails[0],
+        subject: 'Later Updated Subject',
+        modifiedOn: expect.any(Date),
+      },
+      exampleEmails[1],
+      exampleEmails[2],
+    ]);
+  });
+});

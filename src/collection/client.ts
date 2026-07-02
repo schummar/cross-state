@@ -1,7 +1,7 @@
 import type { Collection } from '@collection/collection';
 import { type ClientConnection, type CollectionDownMessage } from '@collection/connection';
 import { getTime } from '@collection/helpers';
-import type { GetParam } from '@collection/types';
+import type { GetIdType, GetParam } from '@collection/types';
 import { Computed } from '@core/store';
 import { deepEqual } from '@lib/equals';
 import { simpleHash } from '@lib/hash';
@@ -13,7 +13,7 @@ export interface ClientCollectionOptions<TCollection extends Collection> {
   connection: ClientConnection;
 }
 
-class CollSet<TCollection extends Collection> extends Computed<{
+class CollQuery<TCollection extends Collection> extends Computed<{
   items: GetParam<TCollection, 'item'>[];
   isInitialized: boolean;
 }> {
@@ -43,7 +43,7 @@ class CollSet<TCollection extends Collection> extends Computed<{
 export class ClientCollection<TCollection extends Collection> implements Disposable {
   items: Map<string, GetParam<TCollection, 'item'>> = new Map();
   dirty: Set<string> = new Set();
-  sets: Map<string, CollSet<TCollection>> = new Map();
+  queries: Map<string, CollQuery<TCollection>> = new Map();
   disposables: DisposableStack = new DisposableStack();
   protected q: Queue = queue();
 
@@ -97,12 +97,13 @@ export class ClientCollection<TCollection extends Collection> implements Disposa
         }
 
         case 'init': {
-          const [, setKey] = args;
-          const set = this.sets.get(setKey);
+          const [, query] = args;
+          const queryKey = simpleHash(query);
+          const collQuery = this.queries.get(queryKey);
 
-          if (set?.isActive()) {
-            set.isInitialized = true;
-            set.invalidate();
+          if (collQuery?.isActive()) {
+            collQuery.isInitialized = true;
+            collQuery.invalidate();
           }
         }
       }
@@ -114,19 +115,30 @@ export class ClientCollection<TCollection extends Collection> implements Disposa
     const key = simpleHash(id);
     const oldItem = this.items.get(key);
 
-    if (fromUpstream && this.dirty.has(key)) {
-      if (!oldItem || !deepEqual(oldItem, item)) {
+    if (fromUpstream) {
+      if (this.dirty.has(key)) {
+        if (!oldItem) {
+          return;
+        }
+
+        const _oldItem = { ...oldItem, modifiedOn: undefined };
+        const _item = { ...item, modifiedOn: undefined };
+        if (!deepEqual(_oldItem, _item)) {
+          return;
+        }
+
+        this.dirty.delete(key);
+      } else if (
+        oldItem &&
+        getTime(this.options.collection, oldItem) > getTime(this.options.collection, item)
+      ) {
         return;
       }
-
-      this.dirty.delete(key);
+    } else {
+      this.dirty.add(key);
     }
 
     this.items.set(key, item);
-
-    if (!fromUpstream) {
-      this.dirty.add(key);
-    }
 
     if (oldItem) {
       this.notifyItem(oldItem, null);
@@ -160,35 +172,35 @@ export class ClientCollection<TCollection extends Collection> implements Disposa
   }
 
   protected reconnect(): void {
-    for (const [setKey, set] of this.sets) {
-      if (!set.isActive()) {
+    for (const collQuery of this.queries.values()) {
+      if (!collQuery.isActive()) {
         continue;
       }
 
       this.options.connection.send(this.options.collection.domain, [
-        ['enable', setKey, set.query, set.t],
+        ['enable', collQuery.query, collQuery.t],
       ]);
     }
   }
 
   protected notifyItem(item: GetParam<TCollection, 'item'>, serverTime: number | null): void {
-    for (const set of Array.from(this.sets.values())) {
-      if (!set.isActive()) {
+    for (const collQuery of Array.from(this.queries.values())) {
+      if (!collQuery.isActive()) {
         continue;
       }
 
-      if (this.options.collection.matches(item, set.query)) {
+      if (this.options.collection.matches(item, collQuery.query)) {
         if (serverTime !== null) {
-          set.t = serverTime;
+          collQuery.t = serverTime;
         }
-        set.invalidate();
+        collQuery.invalidate();
       }
     }
   }
 
   async get(query: GetParam<TCollection, 'query'>): Promise<GetParam<TCollection, 'item'>[]> {
-    const set = this.getSet(query);
-    const result = await set.once((x) => x.isInitialized);
+    const collQuery = this.getQuery(query);
+    const result = await collQuery.once((x) => x.isInitialized);
     return result.items;
   }
 
@@ -197,35 +209,35 @@ export class ClientCollection<TCollection extends Collection> implements Disposa
     this.options.connection.send(this.options.collection.domain, [['update', item]]);
   }
 
-  delete(id: GetParam<TCollection, 'id'>): void {
+  delete(id: GetIdType<TCollection>): void {
     this.internalDelete(id, null);
     this.options.connection.send(this.options.collection.domain, [['delete', id, 0]]);
   }
 
-  getSet(query: GetParam<TCollection, 'query'>): CollSet<TCollection> {
-    const setKey = simpleHash(query);
-    const set = this.sets.get(setKey);
+  getQuery(query: GetParam<TCollection, 'query'>): CollQuery<TCollection> {
+    const queryKey = simpleHash(query);
+    const collQuery = this.queries.get(queryKey);
 
-    if (set) {
-      return set;
+    if (collQuery) {
+      return collQuery;
     }
 
-    const newSet = new CollSet(this, query);
+    const newCollQuery = new CollQuery(this, query);
 
-    newSet.addEffect(() => {
+    newCollQuery.addEffect(() => {
       this.options.connection.send(this.options.collection.domain, [
-        ['enable', setKey, query, newSet.t],
+        ['enable', query, newCollQuery.t],
       ]);
 
       return () => {
-        this.options.connection.send(this.options.collection.domain, [['disable', setKey]]);
-        newSet.isInitialized = false;
-        newSet.invalidate();
+        this.options.connection.send(this.options.collection.domain, [['disable', query]]);
+        newCollQuery.isInitialized = false;
+        newCollQuery.invalidate();
       };
     });
 
-    this.sets.set(setKey, newSet);
-    return newSet;
+    this.queries.set(queryKey, newCollQuery);
+    return newCollQuery;
   }
 }
 

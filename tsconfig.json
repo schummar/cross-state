@@ -1,19 +1,16 @@
 {
   "compilerOptions": {
     "module": "ES2020",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "esModuleInterop": true,
     "declaration": true,
-    "emitDeclarationOnly": true,
-    "outDir": "dist",
-    "declarationDir": "dist/types",
+    "noEmit": true,
 
     "strict": true,
     "noImplicitReturns": true,
     "noImplicitAny": true,
     "target": "ES2020",
     "lib": ["ESNext", "ESNext.WeakRef", "DOM"],
-    "downlevelIteration": true,
     "allowSyntheticDefaultImports": true,
     "noUncheckedIndexedAccess": true,
     "jsx": "react-jsx",

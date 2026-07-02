@@ -8,10 +8,10 @@ export type CollectionMessage =
 
 export type CollectionUpMessage =
   | CollectionMessage
-  | [op: 'enable', setKey: string, query: unknown, t: number | null]
-  | [op: 'disable', setKey: string];
+  | [op: 'enable', query: unknown, t: number | null]
+  | [op: 'disable', query: unknown];
 
-export type CollectionDownMessage = CollectionMessage | [op: 'init', setKey: string];
+export type CollectionDownMessage = CollectionMessage | [op: 'init', query: unknown];
 
 export abstract class Connection<TIn, TOut> {
   protected listeners: Set<{
