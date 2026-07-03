@@ -1,4 +1,5 @@
 {
-  "typescript.tsdk": "node_modules/typescript/lib",
-  "testing.automaticallyOpenPeekView": "never"
+  "js/ts.tsdk.path": "node_modules/typescript/lib",
+  "testing.automaticallyOpenPeekView": "never",
+  "editor.defaultFormatter": "oxc.oxc-vscode"
 }

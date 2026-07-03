@@ -46,6 +46,10 @@
       "import": "./dist/patches/register.js",
       "require": "./dist/patches/register.cjs"
     },
+    "./persist": {
+      "import": "./dist/persist/index.js",
+      "require": "./dist/persist/index.cjs"
+    },
     "./persist/register": {
       "import": "./dist/persist/register.js",
       "require": "./dist/persist/register.cjs"

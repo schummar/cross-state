@@ -51,6 +51,7 @@ export default defineConfig({
       'mutative/register': 'src/mutative/register.ts',
       'patches/index': 'src/patches/index.ts',
       'patches/register': 'src/patches/register.ts',
+      'persist/index': 'src/persist/index.ts',
       'persist/register': 'src/persist/register.ts',
     },
     platform: 'neutral',
