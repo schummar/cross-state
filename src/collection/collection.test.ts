@@ -464,7 +464,7 @@ describe('reconnection', () => {
     ]);
   });
 
-  test.only('client receives deleted items after reconnection even when not in the cache anymore', async () => {
+  test('client receives deleted items after reconnection even when not in the cache anymore', async () => {
     const { emailClient, otherEmailClient, emailServer } = prepare();
     const clientReceive = vi.spyOn(emailClient.options.connection, 'receive');
 

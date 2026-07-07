@@ -13,7 +13,6 @@ import type { Constrain } from '@lib/constrain';
 import { debounce } from '@lib/debounce';
 import disposable from '@lib/disposable';
 import { calcDuration } from '@lib/duration';
-import { calcDuration } from '@lib/duration';
 import { deepEqual } from '@lib/equals';
 import { forwardError } from '@lib/forwardError';
 import type { AnyPath, SettablePath, Value } from '@lib/path';
