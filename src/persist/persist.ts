@@ -1,3 +1,8 @@
+import {
+  normalizeStorage,
+  type PersistStorage,
+  type PersistStorageWithListItems,
+} from './persistStorage';
 import { type Cancel, type Duration, type Store } from '@core';
 import { calcDuration } from '@lib/duration';
 import { shallowEqual } from '@lib/equals';
@@ -9,11 +14,6 @@ import { castArrayPath, get, remove, set } from '@lib/propAccess';
 import { queue } from '@lib/queue';
 import { subscribePatches } from '@patches/patchMethods';
 import { isAncestor, split } from '@persist/persistPathHelpers';
-import {
-  normalizeStorage,
-  type PersistStorage,
-  type PersistStorageWithListItems,
-} from './persistStorage';
 
 type PathOption<T> =
   | WildcardPath<T>
@@ -104,7 +104,7 @@ export class Persist<T> {
     });
 
     this.watchStore();
-    this.watchStorage();
+    void this.watchStorage();
   }
 
   private watchStore() {
@@ -132,7 +132,7 @@ export class Persist<T> {
           for (const { path } of matchingPaths) {
             if (path.length <= patch.path.length) {
               const pathToSave = patch.path.slice(0, path.length);
-              this.queue(() => this.save(pathToSave), pathToSave);
+              void this.queue(() => this.save(pathToSave), pathToSave);
             } else if (patch.op === 'remove') {
               const subValues = split(
                 reversePatch?.op === 'add' ? reversePatch.value : {},
@@ -140,7 +140,10 @@ export class Persist<T> {
               );
 
               for (const { path } of subValues) {
-                this.queue(() => this.save([...patch.path, ...path]), [...patch.path, ...path]);
+                void this.queue(
+                  () => this.save([...patch.path, ...path]),
+                  [...patch.path, ...path],
+                );
               }
             } else {
               const updatedValues = split(patch.value, path.slice(patch.path.length));
@@ -150,10 +153,16 @@ export class Persist<T> {
               ).filter((v) => !updatedValues.some((u) => shallowEqual(u.path, v.path)));
 
               for (const { path } of updatedValues) {
-                this.queue(() => this.save([...patch.path, ...path]), [...patch.path, ...path]);
+                void this.queue(
+                  () => this.save([...patch.path, ...path]),
+                  [...patch.path, ...path],
+                );
               }
               for (const { path } of removedValues) {
-                this.queue(() => this.save([...patch.path, ...path]), [...patch.path, ...path]);
+                void this.queue(
+                  () => this.save([...patch.path, ...path]),
+                  [...patch.path, ...path],
+                );
               }
             }
           }
@@ -183,13 +192,13 @@ export class Persist<T> {
           .filter(([key]) => key) as [Key, string][],
       );
 
-      this.queue(() => this.load(toLoad));
+      void this.queue(() => this.load(toLoad));
     }
 
-    this.queue(() => this.resolveInitialized?.());
+    void this.queue(() => this.resolveInitialized?.());
 
     const listener = (event: MessageEvent) => {
-      this.queue(() => this.load([{ type: 'data', path: event.data }]));
+      void this.queue(() => this.load([{ type: 'data', path: event.data }]));
     };
 
     this.channel.addEventListener('message', listener);

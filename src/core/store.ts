@@ -8,20 +8,21 @@ import type {
   ReadStore,
   SubscribeOptions,
   WriteStore,
-} from '@core/commonTypes';
-import type { Constrain } from '@lib/constrain';
-import { debounce } from '@lib/debounce';
-import disposable from '@lib/disposable';
-import { calcDuration } from '@lib/duration';
-import { deepEqual } from '@lib/equals';
-import { forwardError } from '@lib/forwardError';
-import type { AnyPath, SettablePath, Value } from '@lib/path';
-import { get, set } from '@lib/propAccess';
-import { throttle } from '@lib/throttle';
+} from "@core/commonTypes";
+import type { Constrain } from "@lib/constrain";
+import { debounce } from "@lib/debounce";
+import disposable from "@lib/disposable";
+import { calcDuration } from "@lib/duration";
+import { calcDuration } from "@lib/duration";
+import { deepEqual } from "@lib/equals";
+import { forwardError } from "@lib/forwardError";
+import type { AnyPath, SettablePath, Value } from "@lib/path";
+import { get, set } from "@lib/propAccess";
+import { throttle } from "@lib/throttle";
 
 export interface StoreOptions<T> {
   retain?: Duration;
-  equals?: SubscribeOptions['equals'];
+  equals?: SubscribeOptions["equals"];
   effect?: Effect<T> | { effect: Effect<T>; retain?: Duration };
   cacheValue?: boolean;
 }
@@ -101,7 +102,7 @@ abstract class BaseStore<T> implements ReadStore<T> {
       internalListener();
     }
 
-    options.signal?.addEventListener('abort', () => {
+    options.signal?.addEventListener("abort", () => {
       cancel();
     });
 
@@ -121,13 +122,13 @@ abstract class BaseStore<T> implements ReadStore<T> {
     const options = args[0] instanceof Function ? args[1] : args[0];
     const ac = new AbortController();
 
-    options?.signal?.addEventListener('abort', () => {
-      ac.abort(ac.signal.reason ?? 'signal');
+    options?.signal?.addEventListener("abort", () => {
+      ac.abort(ac.signal.reason ?? "signal");
     });
 
     if (options?.timeout !== undefined) {
-      const timer = setTimeout(() => ac.abort('timeout'), calcDuration(options.timeout));
-      ac.signal.addEventListener('abort', () => clearTimeout(timer));
+      const timer = setTimeout(() => ac.abort("timeout"), calcDuration(options.timeout));
+      ac.signal.addEventListener("abort", () => clearTimeout(timer));
     }
 
     const promise = new Promise<T>((resolve, reject) => {
@@ -145,7 +146,7 @@ abstract class BaseStore<T> implements ReadStore<T> {
         },
       );
 
-      ac.signal.addEventListener('abort', () => {
+      ac.signal.addEventListener("abort", () => {
         reject(ac.signal.reason);
       });
     });
@@ -221,7 +222,7 @@ export class Atom<T> extends BaseStore<T> implements ReadStore<T>, WriteStore<T>
     let update: T | ((value: T) => T) = args.length === 2 ? args[1] : args[0];
     const oldValue = this.get();
 
-    if (typeof update === 'function') {
+    if (typeof update === "function") {
       const value = get<any, any>(oldValue, path);
       update = (update as (value: any) => any)(value);
     }
@@ -243,7 +244,7 @@ interface ComputedOptions<T, TDeps extends any[]> {
 }
 
 type ComputedOptionsInput<T, TDeps extends any[]> = TDeps extends []
-  ? MakeOptional<ComputedOptions<T, TDeps>, 'dependencies'>
+  ? MakeOptional<ComputedOptions<T, TDeps>, "dependencies">
   : ComputedOptions<T, TDeps>;
 
 export class Computed<T, TDeps extends any[] = []> extends BaseStore<T> implements ReadStore<T> {
@@ -289,7 +290,7 @@ export function createComputedStore<T, TDeps extends any[]>(
 export function createComputedStore<T, TDeps extends any[]>(
   arg: (() => T) | ComputedOptionsInput<T, TDeps>,
 ): Computed<T, TDeps> {
-  if (typeof arg === 'function') {
+  if (typeof arg === "function") {
     return new Computed<T, TDeps>({
       dependencies: [] as ComputedDependencies<TDeps>,
       compute: arg,

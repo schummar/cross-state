@@ -1,9 +1,9 @@
+import { useStore, type UseStoreOptions } from './useStore';
 import { type Selector, type Update } from '@core/commonTypes';
 import type { Store } from '@core/store';
 import type { Constrain } from '@lib/constrain';
 import { isAnyPath, type AnyPath, type SettablePath, type Value } from '@lib/path';
 import useLatestFunction from '@react/lib/useLatestFunction';
-import { useStore, type UseStoreOptions } from './useStore';
 
 export function useProp<T, S>(
   store: Store<T>,

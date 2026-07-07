@@ -1,5 +1,5 @@
-import { isPlainObject } from '@lib/helpers';
 import { deepEqual } from './equals';
+import { isPlainObject } from '@lib/helpers';
 
 const unwrapProxySymbol = /* @__PURE__ */ Symbol('unwrapProxy');
 

@@ -34,7 +34,11 @@ export function simpleHash(value: unknown): string {
   }
 
   if (isPlainObject(value)) {
-    return `o[${Object.entries(value).map(simpleHash).sort().join(',')}]`;
+    return `o[${Object.entries(value)
+      .filter(([, value]) => value !== undefined)
+      .map(simpleHash)
+      .sort()
+      .join(',')}]`;
   }
 
   return JSON.stringify(value);

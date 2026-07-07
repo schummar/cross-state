@@ -1,6 +1,6 @@
-import { autobind } from '@lib/autobind';
 import { mutativeMethods } from './mutativeMethods';
 import { Store } from '@core';
+import { autobind } from '@lib/autobind';
 
 type MutativeMethods = typeof mutativeMethods;
 

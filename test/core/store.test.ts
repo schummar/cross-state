@@ -1,8 +1,8 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { createStore } from '../../src/core/store';
-import { shallowEqual, strictEqual } from '../../src/lib/equals';
-import { flushPromises } from '../testHelpers';
-import type { Cancel, Listener } from '@index';
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { createStore } from "../../src/core/store";
+import { shallowEqual, strictEqual } from "../../src/lib/equals";
+import { flushPromises } from "../testHelpers";
+import type { Cancel, Listener } from "@index";
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -12,30 +12,30 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('static store', () => {
-  test('create store', () => {
+describe("static store", () => {
+  test("create store", () => {
     const state = createStore(1);
     expect(state).toBeTruthy();
   });
 
-  test('store.get', () => {
+  test("store.get", () => {
     const state = createStore(1);
     expect(state.get()).toBe(1);
   });
 
-  test('store.set', () => {
+  test("store.set", () => {
     const state = createStore(1);
     state.set(2);
     expect(state.get()).toBe(2);
   });
 
-  test('store.set as function', () => {
+  test("store.set as function", () => {
     const state = createStore(1);
     state.set((a) => a + 1);
     expect(state.get()).toBe(2);
   });
 
-  test('store.isActive', () => {
+  test("store.isActive", () => {
     const state = createStore(1);
     expect(state.isActive()).toBe(false);
     const cancel = state.subscribe(() => undefined);
@@ -44,8 +44,8 @@ describe('static store', () => {
     expect(state.isActive()).toBe(false);
   });
 
-  describe('addEffect', () => {
-    test('addEffect', () => {
+  describe("addEffect", () => {
+    test("addEffect", () => {
       const state = createStore(1);
       const effect = vi.fn();
       state.addEffect(effect);
@@ -55,7 +55,7 @@ describe('static store', () => {
       expect(effect).toHaveBeenCalledWith(state);
     });
 
-    test('store.addEffect resubscribed', () => {
+    test("store.addEffect resubscribed", () => {
       const state = createStore(1, { retain: 0 });
       const effect = vi.fn();
       state.addEffect(effect);
@@ -67,7 +67,7 @@ describe('static store', () => {
       expect(effect.mock.calls).toEqual([[state], [state]]);
     });
 
-    test('store.addEffect cancel while on', () => {
+    test("store.addEffect cancel while on", () => {
       const state = createStore(1);
       const cancelFunction = vi.fn();
       const effect = vi.fn(() => cancelFunction);
@@ -80,7 +80,7 @@ describe('static store', () => {
       expect(effect.mock.calls.length).toBe(1);
     });
 
-    test('store.addEffect cancel while off', () => {
+    test("store.addEffect cancel while off", () => {
       const state = createStore(1, { retain: 0 });
       const cancelFunction = vi.fn();
       const effect = vi.fn(() => cancelFunction);
@@ -95,8 +95,8 @@ describe('static store', () => {
     });
   });
 
-  describe('store.subscribe', () => {
-    test('store.subscribe', () => {
+  describe("store.subscribe", () => {
+    test("store.subscribe", () => {
       const state = createStore(1);
       const listener = vi.fn();
       state.subscribe(listener);
@@ -104,7 +104,7 @@ describe('static store', () => {
       expect(listener.mock.calls.map((x) => x[0])).toEqual([1, 2]);
     });
 
-    test('store.subscribe runNow=false', () => {
+    test("store.subscribe runNow=false", () => {
       const state = createStore(1);
       const listener = vi.fn();
       state.subscribe(listener, { runNow: false });
@@ -113,7 +113,7 @@ describe('static store', () => {
       expect(listener.mock.calls).toMatchObject([[2, 1]]);
     });
 
-    test('store.subscribe throttle', async () => {
+    test("store.subscribe throttle", async () => {
       const state = createStore(1);
       const listener = vi.fn();
       state.subscribe(listener, { throttle: 2 });
@@ -129,7 +129,7 @@ describe('static store', () => {
       ]);
     });
 
-    test('store.subscribe debounce', async () => {
+    test("store.subscribe debounce", async () => {
       const state = createStore(1);
       const listener = vi.fn();
       state.subscribe(listener, { debounce: 2 });
@@ -143,7 +143,7 @@ describe('static store', () => {
       expect(listener.mock.calls).toMatchObject([[3, undefined]]);
     });
 
-    test('store.subscribe debounce with maxWait', async () => {
+    test("store.subscribe debounce with maxWait", async () => {
       const state = createStore(1);
       const listener = vi.fn();
       state.subscribe(listener, { debounce: { wait: 2, maxWait: 2 } });
@@ -154,7 +154,7 @@ describe('static store', () => {
       expect(listener.mock.calls).toMatchObject([[3, undefined]]);
     });
 
-    test('store.subscribe debounce with waitOnRunNow=false', async () => {
+    test("store.subscribe debounce with waitOnRunNow=false", async () => {
       const state = createStore(1);
       const listener = vi.fn();
       state.subscribe(listener, { debounce: { wait: 2, maxWait: 2, leading: true } });
@@ -168,7 +168,7 @@ describe('static store', () => {
       ]);
     });
 
-    test('store.subscribe default equals', async () => {
+    test("store.subscribe default equals", async () => {
       const state = createStore({ a: 1 });
       const listener = vi.fn();
       state.subscribe(listener, { equals: strictEqual });
@@ -179,7 +179,7 @@ describe('static store', () => {
       ]);
     });
 
-    test('store.subscribe shallowEqual', async () => {
+    test("store.subscribe shallowEqual", async () => {
       const state = createStore({ a: 1 });
       const listener = vi.fn();
       state.subscribe(listener, { equals: shallowEqual });
@@ -187,7 +187,7 @@ describe('static store', () => {
       expect(listener.mock.calls).toMatchObject([[{ a: 1 }, undefined]]);
     });
 
-    test('store.subscribe fall back to store equals', async () => {
+    test("store.subscribe fall back to store equals", async () => {
       const state = createStore({ a: 1 }, { equals: strictEqual });
       const listener = vi.fn();
       state.subscribe(listener);
@@ -198,21 +198,21 @@ describe('static store', () => {
       ]);
     });
 
-    test('catch error', async () => {
+    test("catch error", async () => {
       const state = createStore(1);
       const nextListener = vi.fn();
       state.subscribe(() => {
-        throw new Error('error');
+        throw new Error("error");
       });
       state.subscribe(nextListener);
 
       state.set(2);
-      expect(() => vi.runAllTimers()).toThrow('error');
+      expect(() => vi.runAllTimers()).toThrow("error");
 
       expect(nextListener).toHaveBeenCalledTimes(2);
     });
 
-    test('store.subscribe cancel', () => {
+    test("store.subscribe cancel", () => {
       const state = createStore(1);
       const listener = vi.fn();
       const cancel = state.subscribe(listener);
@@ -221,7 +221,7 @@ describe('static store', () => {
       expect(listener.mock.calls).toMatchObject([[1, undefined]]);
     });
 
-    test('store.subscribe cancel twice', () => {
+    test("store.subscribe cancel twice", () => {
       const state = createStore(1);
       const listener = vi.fn();
       const cancel = state.subscribe(listener);
@@ -231,7 +231,7 @@ describe('static store', () => {
       expect(listener.mock.calls).toMatchObject([[1, undefined]]);
     });
 
-    test('store.subscribe cancel and resubscribe', () => {
+    test("store.subscribe cancel and resubscribe", () => {
       const state = createStore(1);
       const listener = vi.fn();
       const cancel = state.subscribe(listener);
@@ -248,7 +248,7 @@ describe('static store', () => {
       ]);
     });
 
-    test('store.subscribe cancel immediately', () => {
+    test("store.subscribe cancel immediately", () => {
       const state = createStore(1);
       const listener = vi.fn<Listener<number, { cancel: Cancel }>>(function () {
         this.cancel();
@@ -259,7 +259,7 @@ describe('static store', () => {
       expect(listener.mock.calls).toMatchObject([[1, undefined]]);
     });
 
-    test('store.once without condition', async () => {
+    test("store.once without condition", async () => {
       const state = createStore(0);
       const value = state.once();
 
@@ -267,7 +267,7 @@ describe('static store', () => {
       await expect(value).resolves.toBe(0);
     });
 
-    test('store.once with condition', async () => {
+    test("store.once with condition", async () => {
       const state = createStore(0);
       const value = state.once((x) => x > 1);
 
@@ -276,82 +276,82 @@ describe('static store', () => {
       await expect(value).resolves.toBe(2);
     });
 
-    test('store.once with type guard', async () => {
-      const state = createStore<string | number>('0');
-      const value = state.once((x): x is number => typeof x === 'number');
+    test("store.once with type guard", async () => {
+      const state = createStore<string | number>("0");
+      const value = state.once((x): x is number => typeof x === "number");
 
-      state.set('1');
+      state.set("1");
       state.set(2);
       await expect(value).resolves.toBe(2);
     });
 
-    test('store.once cancel', async () => {
+    test("store.once cancel", async () => {
       const state = createStore(undefined);
       const value = state.once();
 
       value.cancel();
-      await expect(value).rejects.toThrow('cancelled');
+      await expect(value).rejects.toThrow("cancelled");
     });
 
-    test('store.once cancel with reason', async () => {
+    test("store.once cancel with reason", async () => {
       const state = createStore(undefined);
       const value = state.once();
 
-      value.cancel('reason');
-      await expect(value).rejects.toThrow('reason');
+      value.cancel("reason");
+      await expect(value).rejects.toThrow("reason");
     });
 
-    test('store.once with signal', async () => {
+    test("store.once with signal", async () => {
       const state = createStore(undefined);
       const controller = new AbortController();
       const value = state.once({ signal: controller.signal });
 
       value.cancel();
-      await expect(value).rejects.toThrow('cancelled');
+      await expect(value).rejects.toThrow("cancelled");
     });
 
-    test('store.once with signal and reason', async () => {
+    test("store.once with signal and reason", async () => {
       const state = createStore(undefined);
       const controller = new AbortController();
       const value = state.once({ signal: controller.signal });
 
-      value.cancel('reason');
-      await expect(value).rejects.toThrow('reason');
+      value.cancel("reason");
+      await expect(value).rejects.toThrow("reason");
     });
 
-    test('store.once with timeout', async () => {
+    test("store.once with timeout", async () => {
       vi.useRealTimers();
 
       const state = createStore(undefined);
       const value = state.once({ timeout: { milliseconds: 1 } });
 
-      await expect(value).rejects.toThrow('timeout');
+      await expect(value).rejects.toThrow("timeout");
     });
   });
 
-  test('reactions', () => {
+  test("reactions", () => {
     const state = createStore({ x: 1, y: 0, z: 0 });
     const reaction1 = vi.fn((x) => {
-      state.set('y', x * 2);
+      state.set("y", x * 2);
     });
-    state.map('x').subscribe(reaction1);
+    state.map("x").subscribe(reaction1);
 
     const reaction2 = vi.fn((y) => {
-      state.set('z', y * 2);
+      state.set("z", y * 2);
     });
-    state.map('y').subscribe(reaction2);
+    state.map("y").subscribe(reaction2);
 
     expect(state.get()).toMatchObject({ x: 1, y: 2, z: 4 });
 
-    state.set('x', 2);
+    state.set("x", 2);
     expect(state.get()).toMatchObject({ x: 2, y: 4, z: 8 });
     expect(reaction1).toHaveBeenCalledTimes(2);
     expect(reaction2).toHaveBeenCalledTimes(2);
   });
 
-  test('connect', async () => {
+  test("connect", async () => {
     const state = createStore(({ connect }) => {
-      connect(({ set }) => {
+      void connect(({ set }) => {
         set(2);
         return () => undefined;
       });

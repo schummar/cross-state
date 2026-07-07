@@ -1,13 +1,13 @@
+import useMockBroadcastChannel from '../mockBroadcastChannel';
+import '@patches/register';
+import MockStorage from '../mockStorage';
+import { flushPromises } from '../testHelpers';
 // eslint-disable-next-line max-classes-per-file
 import { createStore } from '@core';
-import '@patches/register';
 import { persist, type PersistStorageWithLength } from '@persist';
 import { split } from '@persist/persistPathHelpers';
 import seedrandom from 'seedrandom';
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import useMockBroadcastChannel from '../mockBroadcastChannel';
-import MockStorage from '../mockStorage';
-import { flushPromises } from '../testHelpers';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test';
 
 beforeEach(() => {
   vi.useFakeTimers();

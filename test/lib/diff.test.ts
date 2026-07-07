@@ -1,5 +1,5 @@
-import { describe, expect, test } from 'vitest';
 import { diff } from '../../src/lib/diff';
+import { describe, expect, test } from 'vite-plus/test';
 
 describe('diff', () => {
   test('object', () => {

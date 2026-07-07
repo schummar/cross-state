@@ -2,7 +2,7 @@ import { Store, createStore } from '@core';
 import { mutativeMethods } from '@mutative';
 import '@patches/register';
 import type { Patch } from 'mutative';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test } from 'vite-plus/test';
 
 describe('mutative methods', () => {
   describe('update', () => {

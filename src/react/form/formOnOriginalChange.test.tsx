@@ -1,13 +1,13 @@
-import { render, act } from '@testing-library/react';
-import React from 'react';
-import { describe, expect, test, vi } from 'vitest';
+import { Form, type FormContext } from './form';
 import {
   onOriginalChangeDefault,
   onOriginalChangeMerge,
   onOriginalChangeOverwrite,
   resolveOnOriginalChange,
 } from './formOnOriginalChange';
-import { Form, type FormContext } from './form';
+import { render, act } from '@testing-library/react';
+import React from 'react';
+import { describe, expect, test, vi } from 'vite-plus/test';
 
 const mockForm = {} as FormContext<any, any>;
 

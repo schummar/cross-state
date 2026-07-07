@@ -1,6 +1,6 @@
-import { describe, expect, expectTypeOf, test } from 'vitest';
 import type { Path, Value } from '../../src/lib/path';
 import { get, remove, set } from '../../src/lib/propAccess';
+import { describe, expect, expectTypeOf, test } from 'vite-plus/test';
 
 function g<T extends Record<string | number, unknown> | readonly unknown[], P extends Path<T>>(
   name: string,

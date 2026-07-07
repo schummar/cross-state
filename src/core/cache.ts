@@ -1,7 +1,7 @@
-import type { MakeOptional, ReadStore } from '@core/commonTypes';
-import { Computed, type ComputedDependencies } from '@core/store';
-import { calcDuration } from '@lib/duration';
-import { InstanceCache } from '@lib/instanceCache';
+import type { MakeOptional, ReadStore } from "@core/commonTypes";
+import { Computed, type ComputedDependencies } from "@core/store";
+import { calcDuration } from "@lib/duration";
+import { InstanceCache } from "@lib/instanceCache";
 
 interface CacheOptions<T, TArgs extends any[], TDeps extends any[]> {
   args: TArgs;
@@ -11,8 +11,8 @@ interface CacheOptions<T, TArgs extends any[], TDeps extends any[]> {
 }
 
 type CacheOptionsInput<T, TArgs extends any[], TDeps extends any[]> = TDeps extends []
-  ? MakeOptional<Omit<CacheOptions<T, TArgs, TDeps>, 'args'>, 'dependencies'>
-  : Omit<CacheOptions<T, TArgs, TDeps>, 'args'>;
+  ? MakeOptional<Omit<CacheOptions<T, TArgs, TDeps>, "args">, "dependencies">
+  : Omit<CacheOptions<T, TArgs, TDeps>, "args">;
 
 class Cache<T, TArgs extends any[], TDeps extends any[]>
   extends Computed<Promise<T>, TDeps>
@@ -40,9 +40,9 @@ function createCache<T, TArgs extends any[] = [], TDeps extends any[] = []>(
 function createCache<T, TArgs extends any[], TDeps extends any[]>(
   arg: ((...args: TArgs) => Promise<T>) | CacheOptionsInput<T, TArgs, TDeps>,
 ): CacheBundle<T, TArgs, TDeps> {
-  let options: Omit<CacheOptions<T, TArgs, TDeps>, 'args'>;
+  let options: Omit<CacheOptions<T, TArgs, TDeps>, "args">;
 
-  if (typeof arg === 'function') {
+  if (typeof arg === "function") {
     options = {
       dependencies: [] as ComputedDependencies<TDeps>,
       fetch: arg as unknown as (...args: [...TArgs, ...TDeps]) => Promise<T>,

@@ -1,11 +1,11 @@
-import { sleep } from '@lib/helpers';
-import { vi } from 'vitest';
+import { sleep } from "@lib/helpers";
+import { vi } from "vitest";
 
 export default function useMockBroadcastChannel(): void {
   const broadcastChannelInstances: any[] = [];
 
   vi.stubGlobal(
-    'BroadcastChannel',
+    "BroadcastChannel",
     class {
       listener: any;
 

@@ -1,6 +1,6 @@
-import { describe, expect, test } from 'vitest';
 import { applyPatches } from '../../src/lib/applyPatches';
 import { diff } from '../../src/lib/diff';
+import { describe, expect, test } from 'vite-plus/test';
 
 describe('applyPatch', () => {
   test('object', () => {

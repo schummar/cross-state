@@ -1,3 +1,17 @@
+import { useStore, type UseStoreOptions } from '../useStore';
+import {
+  FormField,
+  useFormFieldProps,
+  type FormFieldComponent,
+  type FormFieldComponentProps,
+  type FormFieldInfos,
+  type FormFieldProps,
+  type FormFieldPropsWithChildren,
+  type FormFieldPropsWithRender,
+} from './formField';
+import { FormForEach, type ElementName, type FormForEachProps } from './formForEach';
+import { resolveOnOriginalChange, type OnOriginalChange } from './formOnOriginalChange';
+import { useFormAutosave, type FormAutosaveOptions } from './useFormAutosave';
 import { createStore, type Store, type Update } from '@core';
 import { autobind } from '@lib/autobind';
 import { deepEqual } from '@lib/equals';
@@ -28,20 +42,6 @@ import {
   type HTMLProps,
   type ReactNode,
 } from 'react';
-import { useStore, type UseStoreOptions } from '../useStore';
-import {
-  FormField,
-  useFormFieldProps,
-  type FormFieldComponent,
-  type FormFieldComponentProps,
-  type FormFieldInfos,
-  type FormFieldProps,
-  type FormFieldPropsWithChildren,
-  type FormFieldPropsWithRender,
-} from './formField';
-import { FormForEach, type ElementName, type FormForEachProps } from './formForEach';
-import { resolveOnOriginalChange, type OnOriginalChange } from './formOnOriginalChange';
-import { useFormAutosave, type FormAutosaveOptions } from './useFormAutosave';
 
 /// /////////////////////////////////////////////////////////////////////////////
 // Form types
@@ -267,7 +267,7 @@ function getField<TDraft, TOriginal extends TDraft, TPath extends string>(
 
       if (includeNestedErrors) {
         return Array.from(errors.entries())
-          .filter(([key]) => key === name || key.startsWith(`${name}.`))
+          .filter(([key]) => key === name || key.startsWith(`${name as string}.`))
           .flatMap(([, value]) => value);
       } else {
         return errors.get(name) ?? [];
@@ -479,7 +479,12 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
         typeof validations === 'function'
           ? validations
           : validations
-            ? ({ ...this.options.validations, ...validations } as Validations<TDraft, TOriginal>)
+            ? ({
+                ...(typeof this.options.validations === 'function'
+                  ? undefined
+                  : this.options.validations),
+                ...validations,
+              } as Validations<TDraft, TOriginal>)
             : this.options.validations,
       localizeError: localizeError ?? this.options.localizeError,
       autoSave:
@@ -602,7 +607,9 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     };
 
     context.getField = (path, options) =>
-      lazy(`${path}:${options?.includeNestedErrors}`, () => getField(context, path, options));
+      lazy(`${path as string}:${options?.includeNestedErrors}`, () =>
+        getField(context, path, options),
+      );
 
     useEffect(() => {
       const transform = options.transform;

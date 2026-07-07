@@ -1,9 +1,9 @@
+import { useStore, type UseStoreOptions } from './useStore';
 import type { Cache } from '@core';
 import type { CacheState } from '@lib/cacheState';
 import { makeSelector } from '@lib/makeSelector';
 import { useLoadingBoundary } from '@react/loadingBoundary';
 import { useEffect, useMemo, useRef } from 'react';
-import { useStore, type UseStoreOptions } from './useStore';
 
 export type UseCacheArray<T> = [
   value: T | undefined,

@@ -1,3 +1,4 @@
+import type { FormContext } from './form';
 import type { Duration } from '@core';
 import { debounce } from '@lib/debounce';
 import { calcDuration } from '@lib/duration';
@@ -6,7 +7,6 @@ import type { MaybePromise } from '@lib/maybePromise';
 import { queue } from '@lib/queue';
 import useLatestFunction from '@react/lib/useLatestFunction';
 import { useEffect, useMemo, useRef } from 'react';
-import type { FormContext } from './form';
 
 export interface FormAutosaveOptions<TDraft, TOriginal> {
   enabled?: boolean;
@@ -63,7 +63,7 @@ export function useFormAutosave<TDraft, TOriginal extends TDraft>(
     () =>
       debounce(() => {
         q.clear();
-        q(latestSave);
+        void q(latestSave);
       }, debounceTime),
     [q, latestSave, debounceTime],
   );

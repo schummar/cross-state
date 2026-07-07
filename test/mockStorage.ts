@@ -1,6 +1,6 @@
+import { sleep } from './testHelpers';
 import type { MaybePromise } from '@lib/maybePromise';
 import type { PersistStorageWithKeys } from '@persist';
-import { sleep } from './testHelpers';
 
 export default class MockStorage implements PersistStorageWithKeys {
   items: Map<string, string> = new Map();

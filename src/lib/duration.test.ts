@@ -1,5 +1,5 @@
 import { calcDuration } from '@lib/duration';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test } from 'vite-plus/test';
 
 describe('number durations', () => {
   test('returns the same number', () => {

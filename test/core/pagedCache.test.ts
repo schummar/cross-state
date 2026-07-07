@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createCache } from '../../src/core/cache';
 import { createPagedCache, PagedCache } from '../../src/core/pagedCache';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test';
 
 const originalDefaultOptions = { ...createCache.defaultOptions };
 
@@ -58,10 +58,10 @@ describe('pageCache', () => {
       const getter = vi.fn(async () => 1);
       const cache = createPagedCache({ fetchPage: getter });
       const promise1 = cache.get();
-      cache.get();
+      void cache.get();
 
       await promise1;
-      cache.get();
+      void cache.get();
 
       expect(getter.mock.calls.length).toBe(1);
     });
@@ -72,7 +72,7 @@ describe('pageCache', () => {
 
       await cache.get();
       cache.invalidate();
-      cache.get();
+      void cache.get();
 
       expect(getter.mock.calls.length).toBe(2);
     });
@@ -301,7 +301,7 @@ describe('pageCache', () => {
         },
       });
 
-      cache.fetchNextPage();
+      void cache.fetchNextPage();
       expect(cache.state.get().isUpdating).toBe(true);
       await expect(cache.fetchNextPage({ throwOnError: true })).rejects.toThrow(
         'Cannot fetch next page while another page is being fetched',
@@ -315,7 +315,7 @@ describe('pageCache', () => {
         },
       });
 
-      cache.fetchNextPage();
+      void cache.fetchNextPage();
       expect(cache.state.get().isUpdating).toBe(true);
       await expect(cache.fetchNextPage()).resolves.toBeUndefined();
     });

@@ -1,5 +1,5 @@
-import { assert, describe, expect, test } from 'vitest';
 import { ResourceGroup } from '../../src/core/resourceGroup';
+import { assert, describe, expect, test } from 'vite-plus/test';
 
 declare const gc: (() => void) | undefined;
 

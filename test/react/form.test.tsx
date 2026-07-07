@@ -1,3 +1,4 @@
+import { createForm } from '../../src/react';
 import {
   MantineProvider,
   TextInput as MantineTextInput,
@@ -7,8 +8,7 @@ import {
 import { TextField as MUITextField } from '@mui/material';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { forwardRef } from 'react';
-import { describe, expect, test } from 'vitest';
-import { createForm } from '../../src/react';
+import { describe, expect, test } from 'vite-plus/test';
 
 describe('form', () => {
   test('create form', async () => {

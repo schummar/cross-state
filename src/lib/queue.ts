@@ -1,6 +1,6 @@
-import isPromise from '@lib/isPromise';
 import type { MaybePromise } from './maybePromise';
 import type { Listener } from '@core';
+import isPromise from '@lib/isPromise';
 
 type Action<T> = () => MaybePromise<T>;
 
@@ -57,7 +57,7 @@ export function queue(): Queue {
     <T>(action: Action<T>, ref?: any) => {
       return new Promise<T>((resolve, reject) => {
         q.push({ action, resolve, reject, ref });
-        run();
+        void run();
       });
     },
     {

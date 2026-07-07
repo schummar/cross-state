@@ -1,9 +1,9 @@
-import { act, render, screen } from '@testing-library/react';
-import { useState } from 'react';
-import { afterEach, describe, expect, test, vi } from 'vitest';
 import { createCache, createPagedCache } from '../../src';
 import { useCache } from '../../src/react';
 import { flushPromises, sleep } from '../testHelpers';
+import { act, render, screen } from '@testing-library/react';
+import { useState } from 'react';
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -303,7 +303,7 @@ describe('useCache', () => {
       expect(div.textContent).toBe('{"pages":[0],"hasMore":true,"pageCount":null}');
 
       await act(async () => {
-        cache.fetchNextPage();
+        void cache.fetchNextPage();
       });
 
       expect(div.textContent).toBe('{"pages":[0],"hasMore":true,"pageCount":null}loading');
@@ -315,7 +315,7 @@ describe('useCache', () => {
       expect(div.textContent).toBe('{"pages":[0,1],"hasMore":true,"pageCount":null}');
 
       await act(async () => {
-        cache.fetchNextPage();
+        void cache.fetchNextPage();
       });
 
       expect(div.textContent).toBe('{"pages":[0,1],"hasMore":true,"pageCount":null}loading');

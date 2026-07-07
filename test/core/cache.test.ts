@@ -1,9 +1,9 @@
-import { deepEqual } from '@index';
-import { hash } from '@lib/hash';
-import { afterEach, assert, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createStore, type CalculationActions } from '../../src/core';
 import { Cache, createCache } from '../../src/core/cache';
 import { flushPromises, sleep } from '../testHelpers';
+import { deepEqual } from '@index';
+import { hash } from '@lib/hash';
+import { afterEach, assert, beforeEach, describe, expect, test, vi } from 'vite-plus/test';
 
 declare const gc: (() => void) | undefined;
 
@@ -48,10 +48,10 @@ describe('cache', () => {
       const getter = vi.fn(async () => 1);
       const cache = createCache(getter);
       const promise1 = cache.get();
-      cache.get();
+      void cache.get();
 
       await promise1;
-      cache.get();
+      void cache.get();
 
       expect(getter.mock.calls.length).toBe(1);
     });
@@ -62,7 +62,7 @@ describe('cache', () => {
 
       await cache.get();
       cache.invalidate();
-      cache.get();
+      void cache.get();
 
       expect(getter.mock.calls.length).toBe(2);
     });
@@ -83,7 +83,7 @@ describe('cache', () => {
       const cache = createCache(getter);
 
       await cache.get();
-      cache.get({ update: 'force' });
+      void cache.get({ update: 'force' });
 
       expect(getter.mock.calls.length).toBe(2);
     });
@@ -584,6 +584,13 @@ describe('cache', () => {
     test('same instance for when called with trailing undefined args', async () => {
       const cache = createCache(async (x: number, y?: number) => x + (y ?? 0));
       expect(cache(1)).toBe(cache(1, undefined));
+    });
+
+    test('same instance when called with present but undefined properties', async () => {
+      const cache = createCache(
+        async (options: { x?: number; y?: number }) => (options.x ?? 0) + (options.y ?? 0),
+      );
+      expect(cache({})).toBe(cache({ x: undefined, y: undefined }));
     });
 
     test('same instance with getCacheKey', async () => {

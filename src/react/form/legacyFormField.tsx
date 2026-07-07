@@ -83,7 +83,7 @@ export function LegacyFormField<
   this: Form<TDraft, any>,
   {
     // id,
-    name = '' as any,
+    name,
     component,
     commitOnBlur,
     commitDebounce,
