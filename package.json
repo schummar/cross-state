@@ -88,8 +88,6 @@
     "@types/seedrandom": "3.0.8",
     "@types/ws": "8.18.1",
     "@typescript/native-preview": "7.0.0-dev.20251210.1",
-    "@vitest/coverage-v8": "4.1.9",
-    "@vitest/ui": "^4.1.9",
     "happy-dom": "20.0.11",
     "jsdom": "27.3.0",
     "mongodb": "^7.3.0",
@@ -103,9 +101,7 @@
     "size-limit": "12.0.0",
     "swc-node": "^1.0.0",
     "typescript": "^5.9.3",
-    "vite": "^7.2.7",
-    "vite-tsconfig-paths": "5.1.4",
-    "vitest": "4.0.15",
+    "vite-plus": "^0.2.3",
     "zod": "^4.4.3"
   },
   "peerDependenciesMeta": {
