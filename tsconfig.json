@@ -2,10 +2,11 @@
   "compilerOptions": {
     "module": "ES2020",
     "moduleResolution": "bundler",
-    "moduleResolution": "bundler",
     "esModuleInterop": true,
     "declaration": true,
-    "noEmit": true,
+    "rootDir": ".",
+    "outDir": "dist",
+    "composite": true,
 
     "strict": true,
     "noImplicitReturns": true,
@@ -25,5 +26,6 @@
       "@*": ["./src/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src"],
+  "references": [{ "path": "./tsconfig.src.json" }, { "path": "./tsconfig.test.json" }]
 }

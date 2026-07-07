@@ -4,9 +4,9 @@ import { DirectConnection } from '@collection/directConnection';
 import { InMemoryServerCollection } from '@collection/inMemoryDB';
 import { ServerCollectionHub } from '@collection/server';
 import { sleep } from '@lib/helpers';
-import { afterEach, describe, expect, test, vi } from 'vitest';
-import { z } from 'zod';
 import { inspect } from 'node:util';
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test';
+import { z } from 'zod';
 
 afterEach(() => {
   vi.useRealTimers();
