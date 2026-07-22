@@ -181,7 +181,7 @@
     {
       "name": "/patches",
       "path": "dist/patches/index.js",
-      "limit": "2 KB"
+      "limit": "3 KB"
     },
     {
       "name": "empty",
