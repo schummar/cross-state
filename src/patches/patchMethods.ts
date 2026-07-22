@@ -15,15 +15,6 @@ export interface HistoryEntry extends SyncMessage {
   reversePatches: Patch[];
 }
 
-declare module '..' {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  interface Store<T> {
-    __patches?: PatchState<T>;
-  }
-
-  interface StoreOptions<T> extends PatchOptions {}
-}
-
 export interface PatchState<T> {
   value: T;
   version: string;
