@@ -1,7 +1,8 @@
-import type { Cancel, DisposableCancel, SubscribeOptions } from '@core/commonTypes';
+import type { Cancel, DisposableCancel, Duration, SubscribeOptions } from '@core/commonTypes';
 import type { Store } from '@core/store';
 import { applyPatches as _applyPatches } from '@lib/applyPatches';
 import { diff, type DiffOptions, type Patch } from '@lib/diff';
+import { calcDuration } from '@lib/duration';
 import { fromExtendedJson, toExtendedJson } from '@lib/extendedJson';
 import { Trie } from '@lib/trie';
 
@@ -12,6 +13,7 @@ export interface SyncMessage {
 }
 
 export interface HistoryEntry extends SyncMessage {
+  t: number;
   reversePatches: Patch[];
 }
 
@@ -22,7 +24,8 @@ export interface PatchState<T> {
 }
 
 export interface PatchOptions {
-  maxHistory?: number;
+  maxHistoryLength?: number;
+  maxHistoryAge?: Duration;
 }
 
 export interface SubscribePatchOptions extends SubscribeOptions, DiffOptions {
@@ -69,12 +72,21 @@ export function subscribePatches<T>(
 
         patches.history = patches.history
           .concat({
+            t: Date.now(),
             fromVersion: patches.version,
             toVersion: newVersion,
             patches: result[0],
             reversePatches: result[1],
           })
-          .slice(-(store.options.maxHistory ?? 1000));
+          .slice(-(store.options.maxHistoryLength ?? 1000));
+
+        if (store.options.maxHistoryAge) {
+          const min = Date.now() - calcDuration(store.options.maxHistoryAge);
+          const index = patches.history.findIndex((h) => h.t < min);
+          if (index !== -1) {
+            patches.history = patches.history.slice(index + 1);
+          }
+        }
 
         patches.version = newVersion;
       }
