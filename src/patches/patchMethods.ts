@@ -18,12 +18,20 @@ export interface HistoryEntry extends SyncMessage {
 declare module '..' {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface Store<T> {
-    __patches?: {
-      value: T;
-      version: string;
-      history: HistoryEntry[];
-    };
+    __patches?: PatchState<T>;
   }
+
+  interface StoreOptions<T> extends PatchOptions {}
+}
+
+export interface PatchState<T> {
+  value: T;
+  version: string;
+  history: HistoryEntry[];
+}
+
+export interface PatchOptions {
+  maxHistory?: number;
 }
 
 export interface SubscribePatchOptions extends SubscribeOptions, DiffOptions {
@@ -49,6 +57,7 @@ export function subscribePatches<T>(
   ) => void,
   options: SubscribePatchOptions = {},
 ): DisposableCancel {
+  const store = this;
   const patches = (this.__patches ??= {
     value: this.get(),
     version: genId(),
@@ -74,7 +83,7 @@ export function subscribePatches<T>(
             patches: result[0],
             reversePatches: result[1],
           })
-          .slice(-1000);
+          .slice(-(store.options.maxHistory ?? 1000));
 
         patches.version = newVersion;
       }

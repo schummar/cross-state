@@ -377,5 +377,33 @@ describe('patch methods', () => {
         ]
       `);
     });
+
+    test('sync maxHistory setting', () => {
+      const store1 = createStore({ a: 1, b: 2 }, { maxHistory: 1 });
+      const callback = vi.fn();
+      using _sync1 = store1.sync(() => undefined);
+      const version = store1.__patches?.version;
+
+      store1.set('a', 2);
+
+      {
+        using _sync2 = store1.sync(callback, { startAt: version });
+        expect(callback.mock.calls.map((x) => x[0].patches)).toEqual([
+          [{ op: 'replace', path: ['a'], value: 2 }],
+        ]);
+      }
+
+      vi.resetAllMocks();
+      store1.set('a', 3);
+
+      {
+        using _sync2 = store1.sync(callback, { startAt: version });
+        expect(callback.mock.calls.map((x) => x[0].patches)).toEqual([
+          [{ op: 'replace', path: [], value: { a: 3, b: 2 } }],
+        ]);
+      }
+
+      expect(store1.__patches?.history).toHaveLength(1);
+    });
   });
 });
