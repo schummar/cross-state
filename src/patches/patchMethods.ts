@@ -51,7 +51,7 @@ export function subscribePatches<T>(
   ) => void,
   options: SubscribePatchOptions = {},
 ): DisposableCancel {
-  const store = this;
+  const storeOptions = this.options;
   const patches = (this.__patches ??= {
     value: this.get(),
     version: genId(),
@@ -78,10 +78,10 @@ export function subscribePatches<T>(
             patches: result[0],
             reversePatches: result[1],
           })
-          .slice(-(store.options.maxHistoryLength ?? 1000));
+          .slice(-(storeOptions.maxHistoryLength ?? 1000));
 
-        if (store.options.maxHistoryAge) {
-          const min = Date.now() - calcDuration(store.options.maxHistoryAge);
+        if (storeOptions.maxHistoryAge) {
+          const min = Date.now() - calcDuration(storeOptions.maxHistoryAge);
           const index = patches.history.findIndex((h) => h.t < min);
           if (index !== -1) {
             patches.history = patches.history.slice(index + 1);
