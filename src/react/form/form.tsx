@@ -65,7 +65,7 @@ export interface FormOptions<TDraft, TOriginal> {
   transform?: Transform<TDraft, TOriginal>;
   validatedClass?: string;
   original?: TOriginal;
-  onSubmit?: (event: FormEvent<HTMLFormElement>, form: FormInstance<TDraft, TOriginal>) => void;
+  onSubmit?: (event: FormEvent<HTMLFormElement>, form: FormDerivedState<TDraft, TOriginal>) => void;
   reportValidity?: boolean | 'browser' | 'scrollTo';
   transformFieldProps?: <TPath extends string>(
     props: FormFieldComponentProps<Value<TDraft, TPath>, TPath>,
@@ -123,7 +123,8 @@ export interface FormState<TDraft> {
   saveInProgress: boolean;
 }
 
-export interface FormDerivedState<TDraft> {
+export interface FormDerivedState<TDraft, TOriginal> {
+  form: FormContext<TDraft, TOriginal>;
   draft: TDraft;
   hasTriggeredValidations: boolean;
   saveInProgress: boolean;
@@ -161,14 +162,6 @@ export interface ValidateOptions {
   button?: HTMLButtonElement;
 }
 
-export interface FormInstance<TDraft, TOriginal>
-  extends
-    FormDerivedState<TDraft>,
-    Pick<
-      FormContext<TDraft, TOriginal>,
-      'options' | 'original' | 'getField' | 'validate' | 'reset'
-    > {}
-
 /// /////////////////////////////////////////////////////////////////////////////
 // Implementation
 /// /////////////////////////////////////////////////////////////////////////////
@@ -181,7 +174,7 @@ const FormContainer = forwardRef(function FormContainer(
     form: Form<any, any>;
     onSubmit?: (
       event: FormEvent<HTMLFormElement>,
-      form: FormInstance<any, any>,
+      form: FormDerivedState<any, any>,
     ) => void | Promise<void>;
   } & Omit<HTMLProps<HTMLFormElement>, 'form' | 'onSubmit'>,
   ref: ForwardedRef<HTMLFormElement>,
@@ -220,10 +213,7 @@ const FormContainer = forwardRef(function FormContainer(
 
           const isValid = formInstance.validate({ button });
           if (isValid) {
-            await formProps.onSubmit?.(event, {
-              ...formInstance,
-              ...getDerivedState(formInstance),
-            });
+            await formProps.onSubmit?.(event, getDerivedState(formInstance));
           }
         } finally {
           formInstance.formState.set('saveInProgress', false);
@@ -381,16 +371,17 @@ function getErrors<TDraft, TOriginal>(
   return errors;
 }
 
-export function getDerivedState<TDraft>(
-  instance: FormContext<TDraft, any>,
-): FormDerivedState<TDraft> {
+export function getDerivedState<TDraft, TOriginal>(
+  form: FormContext<TDraft, TOriginal>,
+): FormDerivedState<TDraft, TOriginal> {
   return {
-    draft: instance.getDraft(),
-    hasTriggeredValidations: instance.hasTriggeredValidations(),
-    saveInProgress: instance.saveInProgress(),
-    hasChanges: instance.hasChanges(),
-    errors: instance.getErrors(),
-    isValid: instance.isValid(),
+    form: form,
+    draft: form.getDraft(),
+    hasTriggeredValidations: form.hasTriggeredValidations(),
+    saveInProgress: form.saveInProgress(),
+    hasChanges: form.hasChanges(),
+    errors: form.getErrors(),
+    isValid: form.isValid(),
   };
 }
 
@@ -415,18 +406,14 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
   }
 
   useFormState<S>(
-    selector: (state: FormInstance<TDraft, TOriginal>) => S,
+    selector: (state: FormDerivedState<TDraft, TOriginal>) => S,
     useStoreOptions?: UseStoreOptions<S>,
   ): S {
     const form = this.useForm();
 
     return useStore(
       form.formState,
-      () =>
-        selector({
-          ...form,
-          ...getDerivedState(form),
-        }),
+      () => selector(getDerivedState(form)),
 
       useStoreOptions,
     );
@@ -437,7 +424,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     { includeNestedErrors, ...useStoreOptions }: FieldOptions & UseStoreOptions<unknown> = {},
   ): Field<TDraft, TOriginal, TPath> {
     const form = this.useForm();
-    this.useFormState((form) => [form.getField(name).value, form.original], useStoreOptions);
+    this.useFormState(({ form }) => [form.getField(name).value, form.original], useStoreOptions);
 
     return form.getField(name, { includeNestedErrors });
   }
@@ -688,7 +675,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     selector,
     children,
   }: {
-    selector: (form: FormInstance<TDraft, TOriginal>) => S;
+    selector: (form: FormDerivedState<TDraft, TOriginal>) => S;
     children: (selectedState: S) => ReactNode;
   }): React.JSX.Element {
     const selectedState = this.useFormState(selector);

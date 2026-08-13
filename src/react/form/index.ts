@@ -5,7 +5,6 @@ export {
   type Field,
   type FormContext,
   type FormDerivedState,
-  type FormInstance,
   type FormOptions,
   type FormState,
   type Transform,

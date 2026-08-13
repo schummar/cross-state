@@ -224,6 +224,47 @@ describe('form', () => {
     ]);
   });
 
+  test('form instance methods are callable in onSubmit', async () => {
+    const form = createForm<{ firstName: string }>({
+      defaultValue: { firstName: '' },
+      validations: {
+        firstName: {
+          required: (value) => !!value,
+        },
+      },
+      reportValidity: false,
+    });
+
+    let error: unknown;
+    let isValid: boolean | undefined;
+
+    function Component() {
+      return (
+        <form.Form
+          original={{ firstName: 'Bruce' }}
+          onSubmit={(_event, { form }) => {
+            try {
+              isValid = form.validate();
+            } catch (e) {
+              error = e;
+            }
+          }}
+        >
+          <button type="submit">submit</button>
+        </form.Form>
+      );
+    }
+
+    render(<Component />);
+
+    await act(async () => {
+      screen.getByRole('button').click();
+    });
+
+    expect(error).toBe(undefined);
+    expect(isValid).toBe(true);
+  });
+
   describe('ForEach', () => {
     describe('with array', () => {
       test('renders each element', () => {

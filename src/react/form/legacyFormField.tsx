@@ -1,6 +1,6 @@
 import { calcDuration } from '@lib/duration';
 import type { Value } from '@lib/path';
-import { getDerivedState, type Form, type FormInstance } from '@react/form/form';
+import { getDerivedState, type Form, type FormDerivedState } from '@react/form/form';
 import type {
   FormFieldComponent,
   FormFieldComponentProps,
@@ -24,12 +24,12 @@ type MakeOptional<T, Keys extends string> = Omit<T, Keys> & Partial<Pick<T, Keys
 
 type Serialize<TDraft, TOriginal, TPath, TComponent extends FormFieldComponent> = (
   value: Value<TDraft, TPath>,
-  formState: FormInstance<TDraft, TOriginal>,
+  formState: FormDerivedState<TDraft, TOriginal>,
 ) => FieldValue<TComponent>;
 
 type Deserialize<TDraft, TOriginal, TPath, TComponent extends FormFieldComponent> = (
   value: FieldChangeValue<TComponent>,
-  formState: FormInstance<TDraft, TOriginal>,
+  formState: FormDerivedState<TDraft, TOriginal>,
 ) => Value<TDraft, TPath>;
 
 export type FormFieldPropsWithComponent<
@@ -102,7 +102,7 @@ export function LegacyFormField<
   const getFormState = () => ({ ...form, ...getDerivedState(form) });
   const [localValue, setLocalValue] = useState<T>();
 
-  const value = this.useFormState((form) => {
+  const value = this.useFormState(({ form }) => {
     const value = form.getField(name as any).value;
     if (serialize) {
       return serialize(value as any, getFormState());
