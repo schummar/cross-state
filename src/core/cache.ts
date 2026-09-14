@@ -417,9 +417,9 @@ export function internalCreate<T, Args extends any[], TCache extends Cache<T, Ar
   );
 
   function get(...args: Args) {
-    const sliceAfter = args.lastIndexOf(undefined);
+    const sliceAfter = args.findLastIndex((arg) => arg !== undefined);
     if (sliceAfter !== -1) {
-      args = args.slice(0, sliceAfter) as Args;
+      args = args.slice(0, sliceAfter + 1) as Args;
     }
 
     const cacheKey = options?.getCacheKey ? options.getCacheKey(...args) : args;

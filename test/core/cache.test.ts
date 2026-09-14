@@ -751,6 +751,11 @@ describe('cache', () => {
     expect(seenValues).toEqual([1, 2]);
   });
 
+  test('bug: lost parameters after undefined', async () => {
+    const cache = createCache(async (a: number | undefined, b: number) => [a, b]);
+    expect(await cache(undefined, 2).get()).toEqual([undefined, 2]);
+  });
+
   describe('invalidateOnActivation', () => {
     test('triggers when the cache becomes active', async () => {
       const fn = vi.fn(async () => 1);
