@@ -15,3 +15,6 @@ Thumbs.db
 example
 testResults.xml
 .nx
+
+# benchmark results
+.bench

@@ -12,6 +12,10 @@ export default defineConfig({
     exclude: ['**/_*'],
     setupFiles: ['./test/testSetup.ts'],
     pool: 'forks',
+    benchmark: {
+      include: ['./test/bench/**/*.bench.{ts,tsx}'],
+      exclude: ['**/_*'],
+    },
     execArgv: ['--expose-gc', `--localstorage-file=${tmpdir()}/cross-state-localstorage`],
     typecheck: {
       tsconfig: 'test/tsconfig.json',
