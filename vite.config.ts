@@ -2,6 +2,10 @@ import { tmpdir } from 'os';
 import { defineConfig } from 'vite-plus';
 
 export default defineConfig({
+  staged: {
+    '*': 'vp check',
+  },
+
   resolve: {
     tsconfigPaths: true,
   },

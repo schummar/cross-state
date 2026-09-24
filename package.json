@@ -73,7 +73,8 @@
     "test": "vpr _test",
     "test:watch": "vp test",
     "test:ui": "vp test --ui",
-    "test:export": "vpr _test --reporter=verbose --reporter=junit --outputFile=test/testResults.xml"
+    "test:export": "vpr _test --reporter=verbose --reporter=junit --outputFile=test/testResults.xml",
+    "prepare": "vp config --no-agent"
   },
   "devDependencies": {
     "@emotion/styled": "11.14.1",
