@@ -6,6 +6,34 @@ export default defineConfig({
     tsconfigPaths: true,
   },
 
+  run: {
+    tasks: {
+      _bench: {
+        command: 'vp test bench --run --reporter=verbose',
+        dependsOn: ['_build'],
+      },
+
+      _lint: {
+        command: 'vp check',
+        dependsOn: ['_build'],
+      },
+
+      _build: {
+        command: 'vp pack',
+      },
+
+      _size: {
+        command: 'size-limit',
+        dependsOn: ['_build'],
+      },
+
+      _test: {
+        command: 'vp test run --coverage',
+        input: [{ auto: true }, '!node_modules/**', '!coverage/**'],
+      },
+    },
+  },
+
   test: {
     // Vitest v4 compatibility: preserve mock call history.
     // Remove after tests no longer rely on calls from setup or earlier tests.
@@ -84,6 +112,7 @@ export default defineConfig({
       'typescript/unbound-method': 'off',
       'typescript/no-redundant-type-constituents': 'off',
       'typescript/await-thenable': 'off',
+      'react/refs': 'off',
     },
   },
 

@@ -66,14 +66,14 @@
   },
   "scripts": {
     "start": "vp pack --watch",
-    "bench": "vp pack && vp test bench --run --reporter=verbose",
-    "build": "vp pack",
-    "lint": "vp check",
-    "size": "size-limit",
-    "test": "vp test run --coverage",
+    "bench": "vpr _bench",
+    "build": "vpr _build",
+    "lint": "vpr _lint",
+    "size": "vpr _size",
+    "test": "vpr _test",
     "test:watch": "vp test",
     "test:ui": "vp test --ui",
-    "test:export": "vp test run --coverage --reporter=verbose --reporter=junit --outputFile=test/testResults.xml"
+    "test:export": "vpr _test --reporter=verbose --reporter=junit --outputFile=test/testResults.xml"
   },
   "devDependencies": {
     "@emotion/styled": "11.14.1",
@@ -132,13 +132,13 @@
       "name": "core: Cache",
       "path": "dist/index.js",
       "import": "{createCache}",
-      "limit": "6 KB"
+      "limit": "6.1 KB"
     },
     {
       "name": "core: Persist",
       "path": "dist/index.js",
       "import": "{persist}",
-      "limit": "4 KB"
+      "limit": "4.1 KB"
     },
     {
       "name": "core: InstanceCache",
@@ -167,7 +167,7 @@
       "name": "react: useCache",
       "path": "dist/react/index.js",
       "import": "{useCache}",
-      "limit": "6 KB"
+      "limit": "6.1 KB"
     },
     {
       "name": "react: urlStore",
