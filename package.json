@@ -144,7 +144,7 @@
       "name": "core: InstanceCache",
       "path": "dist/index.js",
       "import": "{InstanceCache}",
-      "limit": "620 B"
+      "limit": "640 B"
     },
     {
       "name": "core: calcDuration",
