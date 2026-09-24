@@ -100,7 +100,7 @@
     "seedrandom": "3.0.5",
     "size-limit": "14.0.0",
     "swc-node": "^1.0.0",
-    "typescript": "^7.0.2",
+    "typescript": "^6.0.3",
     "vite-plus": "catalog:",
     "vitest": "catalog:"
   },
