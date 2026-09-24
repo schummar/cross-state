@@ -29,7 +29,8 @@ export default defineConfig({
 
       _test: {
         command: 'vp test run --coverage',
-        input: [{ auto: true }, '!node_modules/**', '!coverage/**'],
+        dependsOn: ['_build'],
+        input: [{ auto: true }, '!node_modules/**', '!coverage/**', '!test/testResults.xml'],
       },
     },
   },
