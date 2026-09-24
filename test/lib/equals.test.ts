@@ -119,4 +119,79 @@ describe('deepEqual', () => {
     const b = new Map([[2, undefined]]);
     expect(deepEqual(a, b, { undefinedEqualsAbsent: true })).toBe(true);
   });
+
+  test('should treat NaN as equal to NaN', () => {
+    expect(deepEqual(Number.NaN, Number.NaN)).toBe(true);
+    expect(deepEqual({ a: Number.NaN }, { a: Number.NaN })).toBe(true);
+    expect(shallowEqual({ a: Number.NaN }, { a: Number.NaN })).toBe(false);
+  });
+
+  test('should return false for arrays of different length or content', () => {
+    expect(deepEqual([1, 2], [1, 2, 3])).toBe(false);
+    expect(deepEqual([1, 2, 3], [1, 2])).toBe(false);
+    expect(deepEqual([[1], [2]], [[1], [3]])).toBe(false);
+    expect(deepEqual([[1], [2]], [[1], [2]])).toBe(true);
+  });
+
+  test('should return false for objects with different keys', () => {
+    expect(deepEqual({ a: 1 }, { a: 1, b: 2 })).toBe(false);
+    expect(deepEqual({ a: 1, b: 2 }, { a: 1 })).toBe(false);
+    expect(deepEqual({ a: 1 }, { b: 1 })).toBe(false);
+    expect(deepEqual({ a: undefined }, {})).toBe(false);
+    expect(deepEqual({}, { a: undefined })).toBe(false);
+  });
+
+  test('should return false for different types', () => {
+    expect(deepEqual([], {})).toBe(false);
+    expect(deepEqual({}, null)).toBe(false);
+    expect(deepEqual(null, undefined)).toBe(false);
+    expect(deepEqual(new Map(), new Set())).toBe(false);
+    expect(deepEqual(1, '1')).toBe(false);
+  });
+
+  test('should compare maps and sets by content', () => {
+    expect(deepEqual(new Map([[1, { a: 1 }]]), new Map([[1, { a: 1 }]]))).toBe(true);
+    expect(deepEqual(new Map([[1, { a: 1 }]]), new Map([[1, { a: 2 }]]))).toBe(false);
+    expect(
+      deepEqual(
+        new Map([[1, 1]]),
+        new Map([
+          [1, 1],
+          [2, 2],
+        ]),
+      ),
+    ).toBe(false);
+    expect(deepEqual(new Set([1, 2]), new Set([1, 3]))).toBe(false);
+    expect(deepEqual(new Set([1, 2]), new Set([1, 2, 3]))).toBe(false);
+  });
+
+  test('should compare typed arrays by content', () => {
+    expect(deepEqual(new Uint8Array([1, 2, 3]), new Uint8Array([1, 2, 4]))).toBe(false);
+    expect(deepEqual(new Uint8Array([1, 2]), new Uint8Array([1, 2, 3]))).toBe(false);
+  });
+
+  test('should compare typed array views by their own range', () => {
+    const buffer = new Uint8Array([1, 2, 3, 1, 2, 9]);
+    expect(deepEqual(buffer.subarray(0, 2), buffer.subarray(3, 5))).toBe(true);
+    expect(deepEqual(buffer.subarray(0, 3), buffer.subarray(3, 6))).toBe(false);
+    expect(deepEqual(buffer.subarray(0, 2), new Uint8Array([1, 2]))).toBe(true);
+  });
+
+  test('should ignore undefined values on both sides with undefinedEqualsAbsent', () => {
+    const options = { undefinedEqualsAbsent: true };
+    expect(deepEqual({ a: 1, b: undefined }, { a: 1 }, options)).toBe(true);
+    expect(deepEqual({ a: 1 }, { a: 1, b: undefined }, options)).toBe(true);
+    expect(deepEqual({ a: 1 }, { a: 1, b: 2 }, options)).toBe(false);
+    expect(deepEqual({ a: 1, b: 2 }, { a: 1, b: undefined }, options)).toBe(false);
+    expect(
+      deepEqual(
+        new Map([[1, 1]]),
+        new Map([
+          [1, 1],
+          [2, 2],
+        ]),
+        options,
+      ),
+    ).toBe(false);
+  });
 });

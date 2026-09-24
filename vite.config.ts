@@ -7,20 +7,61 @@ export default defineConfig({
   },
 
   test: {
-    environment: 'happy-dom',
-    include: ['./{src,test}/**/*.test.{ts,tsx}'],
-    exclude: ['**/_*'],
-    setupFiles: ['./test/testSetup.ts'],
+    // Vitest v4 compatibility: preserve mock call history.
+    // Remove after tests no longer rely on calls from setup or earlier tests.
+    // https://viteplus.dev/guide/vitest-v5#remove-unneeded-compatibility-settings
+    // https://vitest.dev/guide/migration/#clearmocks-is-enabled-by-default
+    clearMocks: false,
+    exclude: ['**/_*', '.worktrees'],
     pool: 'forks',
-    benchmark: {
-      include: ['./test/bench/**/*.bench.{ts,tsx}'],
-      exclude: ['**/_*'],
-    },
     execArgv: ['--expose-gc', `--localstorage-file=${tmpdir()}/cross-state-localstorage`],
     typecheck: {
       tsconfig: 'test/tsconfig.json',
       enabled: true,
     },
+
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'unit',
+          environment: 'happy-dom',
+          include: ['./{src,test}/**/*.test.{ts,tsx}'],
+          setupFiles: ['./test/testSetup.ts'],
+          benchmark: { include: [] },
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'bench',
+          include: [],
+          environment: 'node',
+          // These benchmarks import the built package, whose chunks reference each
+          // other with real ESM bindings. Running them through Vite's module runner
+          // would turn every one of those into a getter and fold that overhead into
+          // the measurements, so Node loads them as native ESM instead. The cost is
+          // that this project cannot run JSX — see the `bench-src` project.
+          experimental: { viteModuleRunner: false },
+          benchmark: {
+            include: ['./test/bench/**/*.bench.ts'],
+            exclude: ['**/*.src.bench.ts'],
+          },
+          typecheck: { enabled: false },
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'bench-src',
+          include: [],
+          environment: 'happy-dom',
+          setupFiles: ['./test/testSetup.ts'],
+          benchmark: { include: ['./test/bench/**/*.src.bench.{ts,tsx}'] },
+          typecheck: { enabled: false },
+        },
+      },
+    ],
   },
 
   fmt: {
@@ -47,6 +88,12 @@ export default defineConfig({
   },
 
   pack: {
+    deps: {
+      // tsdown <0.23 compatibility: resolve external dependency subpaths.
+      // Remove to preserve subpath imports as written (the new default).
+      // https://tsdown.dev/options/dependencies#deps-resolvedepsubpath
+      resolveDepSubpath: true,
+    },
     entry: {
       index: 'src/index.ts',
       'react/index': 'src/react/index.ts',

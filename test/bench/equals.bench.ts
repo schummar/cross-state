@@ -1,6 +1,7 @@
-import { createBigState, createDeepState, createItem, createSmallState } from './_fixtures';
-import { deepEqual, shallowEqual, strictEqual } from '@lib/equals';
-import { bench, describe } from 'vite-plus/test';
+import { benchGroup } from './_baseline.ts';
+import { createBigState, createDeepState, createItem, createSmallState } from './_fixtures.ts';
+import { deepEqual, shallowEqual, strictEqual } from 'cross-state';
+import { test, describe } from 'vite-plus/test';
 
 const smallA = createSmallState(1);
 const smallB = createSmallState(1);
@@ -38,92 +39,68 @@ const mapB = new Map(
 const setA = new Set(Array.from({ length: 5_000 }, (_, index) => `value-${index}`));
 const setB = new Set(Array.from({ length: 5_000 }, (_, index) => `value-${index}`));
 
-describe('equals: flat object (3 keys)', () => {
-  bench('strictEqual', () => {
-    strictEqual(smallA, smallB);
+const bytesA = Uint8Array.from({ length: 10_000 }, (_, index) => index % 256);
+const bytesB = Uint8Array.from(bytesA);
+
+describe('equals', () => {
+  test('flat object (3 keys)', async (ctx) => {
+    await benchGroup(ctx, {
+      strictEqual: () => strictEqual(smallA, smallB),
+      shallowEqual: () => shallowEqual(smallA, smallB),
+      'deepEqual, equal': () => deepEqual(smallA, smallB),
+      'deepEqual, different': () => deepEqual(smallA, smallDifferent),
+    });
   });
 
-  bench('shallowEqual', () => {
-    shallowEqual(smallA, smallB);
+  test('nested object (single item)', async (ctx) => {
+    await benchGroup(ctx, {
+      'deepEqual, equal': () => deepEqual(itemA, itemB),
+      'deepEqual, different deep in the tree': () => deepEqual(itemA, itemDifferentDeep),
+    });
   });
 
-  bench('deepEqual, equal', () => {
-    deepEqual(smallA, smallB);
+  test('big state (1000 items)', async (ctx) => {
+    await benchGroup(ctx, {
+      'deepEqual, same reference': () => deepEqual(bigA, bigA),
+      'deepEqual, equal by value (worst case)': () => deepEqual(bigA, bigB),
+      'deepEqual, differs in first compared key': () => deepEqual(bigA, bigDifferentFirst),
+      'deepEqual, differs in last item': () => deepEqual(bigA, bigDifferentLast),
+      'shallowEqual, equal by value': () => shallowEqual(bigA, bigB),
+    });
   });
 
-  bench('deepEqual, different', () => {
-    deepEqual(smallA, smallDifferent);
-  });
-});
-
-describe('equals: nested object (single item)', () => {
-  bench('deepEqual, equal', () => {
-    deepEqual(itemA, itemB);
+  test('array of 10000 numbers', async (ctx) => {
+    await benchGroup(ctx, {
+      'deepEqual, equal': () => deepEqual(numbersA, numbersB),
+      'deepEqual, differs in last element': () => deepEqual(numbersA, numbersDifferentLast),
+      'shallowEqual, equal': () => shallowEqual(numbersA, numbersB),
+    });
   });
 
-  bench('deepEqual, different deep in the tree', () => {
-    deepEqual(itemA, itemDifferentDeep);
-  });
-});
-
-describe('equals: big state (1000 items)', () => {
-  bench('deepEqual, same reference', () => {
-    deepEqual(bigA, bigA);
+  test('deeply nested (depth 50)', async (ctx) => {
+    await benchGroup(ctx, {
+      'deepEqual, equal': () => deepEqual(deepA, deepB),
+    });
   });
 
-  bench('deepEqual, equal by value (worst case)', () => {
-    deepEqual(bigA, bigB);
+  test('collections', async (ctx) => {
+    await benchGroup(ctx, {
+      'deepEqual, Map with 500 nested entries': () => deepEqual(mapA, mapB),
+      'deepEqual, Set with 5000 strings': () => deepEqual(setA, setB),
+    });
   });
 
-  bench('deepEqual, differs in first compared key', () => {
-    deepEqual(bigA, bigDifferentFirst);
+  test('typed arrays', async (ctx) => {
+    await benchGroup(ctx, {
+      'deepEqual, Uint8Array with 10000 bytes': () => deepEqual(bytesA, bytesB),
+    });
   });
 
-  bench('deepEqual, differs in last item', () => {
-    deepEqual(bigA, bigDifferentLast);
-  });
-
-  bench('shallowEqual, equal by value', () => {
-    shallowEqual(bigA, bigB);
-  });
-});
-
-describe('equals: array of 10000 numbers', () => {
-  bench('deepEqual, equal', () => {
-    deepEqual(numbersA, numbersB);
-  });
-
-  bench('deepEqual, differs in last element', () => {
-    deepEqual(numbersA, numbersDifferentLast);
-  });
-
-  bench('shallowEqual, equal', () => {
-    shallowEqual(numbersA, numbersB);
-  });
-});
-
-describe('equals: deeply nested (depth 50)', () => {
-  bench('deepEqual, equal', () => {
-    deepEqual(deepA, deepB);
-  });
-});
-
-describe('equals: collections', () => {
-  bench('deepEqual, Map with 500 nested entries', () => {
-    deepEqual(mapA, mapB);
-  });
-
-  bench('deepEqual, Set with 5000 strings', () => {
-    deepEqual(setA, setB);
-  });
-});
-
-describe('equals: undefinedEqualsAbsent option', () => {
-  bench('deepEqual, big state, default', () => {
-    deepEqual(bigA, bigB);
-  });
-
-  bench('deepEqual, big state, undefinedEqualsAbsent', () => {
-    deepEqual(bigA, bigB, { undefinedEqualsAbsent: true });
+  test('undefinedEqualsAbsent option', async (ctx) => {
+    await benchGroup(ctx, {
+      'deepEqual, big state, default': () => deepEqual(bigA, bigB),
+      'deepEqual, big state, undefinedEqualsAbsent': () =>
+        deepEqual(bigA, bigB, { undefinedEqualsAbsent: true }),
+    });
   });
 });

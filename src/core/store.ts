@@ -84,6 +84,8 @@ export class Store<T> {
 
   protected listeners: Map<Listener, boolean> = new Map();
 
+  protected activeListenerCount = 0;
+
   protected effects: Map<
     Effect<Store<T>>,
     { handle?: Cancel; retain?: number; timeout?: ReturnType<typeof setTimeout> }
@@ -221,11 +223,13 @@ export class Store<T> {
     this.listeners.set(innerListener, !passive);
     const cancel = () => {
       if (this.listeners.delete(innerListener) && !passive) {
+        this.activeListenerCount--;
         this.onUnsubscribe();
       }
     };
 
     if (!passive) {
+      this.activeListenerCount++;
       this.onSubscribe();
     }
 
@@ -396,11 +400,11 @@ export class Store<T> {
 
   /** Return whether the store is currently active, which means whether it has at least one subscriber. */
   isActive(): boolean {
-    return [...this.listeners.values()].some(Boolean);
+    return this.activeListenerCount > 0;
   }
 
   protected onSubscribe(): void {
-    if ([...this.listeners.values()].filter(Boolean).length > 1) return;
+    if (this.activeListenerCount > 1) return;
 
     for (const [effect, { handle, retain, timeout }] of this.effects.entries()) {
       if (timeout !== undefined) {
@@ -416,7 +420,7 @@ export class Store<T> {
   }
 
   protected onUnsubscribe(): void {
-    if ([...this.listeners.values()].some(Boolean)) return;
+    if (this.activeListenerCount > 0) return;
 
     for (const [effect, { handle, retain, timeout }] of this.effects.entries()) {
       if (!retain) {
@@ -460,12 +464,20 @@ export class Store<T> {
     const n = {};
     this.notifyId = n;
 
-    const snapshot = [...this.listeners.entries()];
-    const active = snapshot.filter(([, active]) => active);
-    const passive = snapshot.filter(([, active]) => !active);
-    for (const [listener] of [...active, ...passive]) {
+    const active: Listener[] = [];
+    const passive: Listener[] = [];
+    this.listeners.forEach((isActive, listener) => {
+      (isActive ? active : passive).push(listener);
+    });
+
+    for (const listener of active) {
       listener();
-      if (n !== this.notifyId) break;
+      if (n !== this.notifyId) return;
+    }
+
+    for (const listener of passive) {
+      listener();
+      if (n !== this.notifyId) return;
     }
   }
 }

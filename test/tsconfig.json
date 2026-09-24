@@ -1,6 +1,8 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
+    // Benchmarks run as native ESM, which needs explicit extensions.
+    "allowImportingTsExtensions": true,
     "paths": {
       "@*": ["../src/*"]
     }

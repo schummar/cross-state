@@ -10,19 +10,18 @@ export function strictEqual(a: any, b: any): boolean {
 }
 
 export function shallowEqual(a: any, b: any, options?: EqualityOptions): boolean {
-  return internalEqual(a, b, strictEqual, options);
+  return internalEqual(a, b, false, options?.undefinedEqualsAbsent ?? false);
 }
 
 export function deepEqual(a: any, b: any, options?: EqualityOptions): boolean {
-  return internalEqual(a, b, (a, b) => deepEqual(a, b, options), options);
+  return internalEqual(a, b, true, options?.undefinedEqualsAbsent ?? false);
 }
 
-const internalEqual = (
-  a: any,
-  b: any,
-  comp: (a: any, b: any) => boolean,
-  { undefinedEqualsAbsent = false }: EqualityOptions = {},
-) => {
+function compare(a: any, b: any, deep: boolean, undefinedEqualsAbsent: boolean): boolean {
+  return deep ? internalEqual(a, b, true, undefinedEqualsAbsent) : a === b;
+}
+
+function internalEqual(a: any, b: any, deep: boolean, undefinedEqualsAbsent: boolean): boolean {
   if (a === b) {
     return true;
   }
@@ -36,19 +35,44 @@ const internalEqual = (
     return false;
   }
 
-  if (a.constructor === Object || Array.isArray(a)) {
-    let entries1 = Object.entries(a);
-    let entries2 = Object.entries(b);
-
-    if (undefinedEqualsAbsent) {
-      entries1 = entries1.filter(([_, value]) => value !== undefined);
-      entries2 = entries2.filter(([_, value]) => value !== undefined);
+  if (Array.isArray(a) && !undefinedEqualsAbsent) {
+    if (a.length !== b.length) {
+      return false;
     }
 
-    return (
-      entries1.length === entries2.length &&
-      entries1.every(([key, value]) => key in b && comp(value, b[key]))
-    );
+    for (let i = 0; i < a.length; i++) {
+      if (!compare(a[i], b[i], deep, undefinedEqualsAbsent)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  if (a.constructor === Object || Array.isArray(a)) {
+    const keys = Object.keys(a);
+    let count = 0;
+
+    for (let i = 0; i < keys.length; i++) {
+      const key = keys[i]!;
+      const value = a[key];
+
+      if (undefinedEqualsAbsent && value === undefined) {
+        continue;
+      }
+
+      count++;
+      const other = b[key];
+
+      if (
+        (other === undefined && !(key in b)) ||
+        !compare(value, other, deep, undefinedEqualsAbsent)
+      ) {
+        return false;
+      }
+    }
+
+    return count === countKeys(b, undefinedEqualsAbsent);
   }
 
   if (a instanceof Date) {
@@ -60,22 +84,45 @@ const internalEqual = (
   }
 
   if (a instanceof Map) {
-    let entries1 = [...a.entries()];
-    let entries2 = [...b.entries()];
+    let count = 0;
 
-    if (undefinedEqualsAbsent) {
-      entries1 = entries1.filter(([_, value]) => value !== undefined);
-      entries2 = entries2.filter(([_, value]) => value !== undefined);
+    for (const [key, value] of a) {
+      if (undefinedEqualsAbsent && value === undefined) {
+        continue;
+      }
+
+      count++;
+
+      if (!b.has(key) || !compare(value, b.get(key), deep, undefinedEqualsAbsent)) {
+        return false;
+      }
     }
 
-    return (
-      entries1.length === entries2.length &&
-      entries1.every(([key, value]) => b.has(key) && comp(value, b.get(key)))
-    );
+    if (!undefinedEqualsAbsent) {
+      return count === b.size;
+    }
+
+    for (const value of b.values()) {
+      if (value !== undefined) {
+        count--;
+      }
+    }
+
+    return count === 0;
   }
 
   if (a instanceof Set) {
-    return a.size === b.size && [...a.values()].every((value) => b.has(value));
+    if (a.size !== b.size) {
+      return false;
+    }
+
+    for (const value of a) {
+      if (!b.has(value)) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   if (typeof ArrayBuffer !== 'undefined' && ArrayBuffer.isView(a)) {
@@ -83,10 +130,37 @@ const internalEqual = (
       return false;
     }
 
-    const a_ = new Int8Array(a.buffer);
-    const b_ = new Int8Array(b.buffer);
-    return a_.every((value, i) => value === b_[i]);
+    const a_ = new Uint8Array(a.buffer, a.byteOffset, a.byteLength);
+    const b_ = new Uint8Array(
+      (b as ArrayBufferView).buffer,
+      (b as ArrayBufferView).byteOffset,
+      b.byteLength,
+    );
+
+    for (let i = 0; i < a_.length; i++) {
+      if (a_[i] !== b_[i]) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   return false;
-};
+}
+
+function countKeys(object: any, undefinedEqualsAbsent: boolean): number {
+  if (!undefinedEqualsAbsent) {
+    return Object.keys(object).length;
+  }
+
+  let count = 0;
+
+  for (const key of Object.keys(object)) {
+    if (object[key] !== undefined) {
+      count++;
+    }
+  }
+
+  return count;
+}

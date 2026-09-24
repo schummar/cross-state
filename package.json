@@ -66,9 +66,7 @@
   },
   "scripts": {
     "start": "vp pack --watch",
-    "bench": "vp test bench",
-    "bench:baseline": "vp test bench --outputJson .bench/baseline.json",
-    "bench:compare": "vp test bench --compare .bench/baseline.json",
+    "bench": "vp pack && vp test bench --run --reporter=verbose",
     "build": "vp pack",
     "lint": "vp check",
     "size": "size-limit",
@@ -90,8 +88,8 @@
     "@types/seedrandom": "3.0.8",
     "@types/ws": "8.18.1",
     "@typescript/native-preview": "7.0.0-dev.20260707.2",
-    "@vitest/coverage-v8": "4.1.11",
-    "@vitest/ui": "^4.1.11",
+    "@vitest/coverage-v8": "catalog:",
+    "@vitest/ui": "catalog:",
     "happy-dom": "20.14.5",
     "mutative": "^1.3.0",
     "nx": "^22.2.0",
@@ -103,7 +101,8 @@
     "size-limit": "12.0.0",
     "swc-node": "^1.0.0",
     "typescript": "^5.9.3",
-    "vite-plus": "^0.3.3"
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
   },
   "peerDependencies": {
     "mutative": ">=1.0.3",

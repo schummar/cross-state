@@ -111,7 +111,8 @@ export function useStore<T, S>(
   }, [store, storeValueEquals, selector]);
 
   const rootStore = store.derivedFrom?.store ?? store;
-  const subOptions = useMemoEquals({ ...options, runNow: false });
+  // `get` already compares the selected value; deep-comparing the root state here would repeat it per consumer.
+  const subOptions = useMemoEquals({ ...options, runNow: false, equals: strictEqual });
 
   const subscribe = useCallback(
     (listener: () => void) => {
