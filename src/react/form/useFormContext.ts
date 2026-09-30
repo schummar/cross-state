@@ -9,10 +9,12 @@ import {
 } from './form';
 import { resolveOnOriginalChange } from './formOnOriginalChange';
 import { createStore } from '@core';
+import { applyPatches } from '@lib/applyPatches';
+import { diff } from '@lib/diff';
 import { deepEqual } from '@lib/equals';
 import useLatestRef from '@react/lib/useLatestRef';
 import useMemoEquals from '@react/lib/useMemoEquals';
-import { create } from 'mutative';
+import { create, type Draft } from 'mutative';
 import { useEffect, useLayoutEffect, useMemo, useRef, type RefObject } from 'react';
 
 interface Autosave {
@@ -20,12 +22,29 @@ interface Autosave {
   cancel(): Promise<void>;
 }
 
+type UpdateValidity = (
+  errors: Map<string, string[]>,
+  buttonElement?: HTMLButtonElement,
+  options?: { onlyUnseen?: boolean; skipIfUnchanged?: boolean },
+) => void;
+
 export interface UseFormContextOptions<TDraft, TOriginal> {
   options: FormOptions<TDraft, TOriginal>;
   formRef: RefObject<HTMLFormElement | null>;
   initiallyTriggerValidations?: boolean;
   autosaveRef?: RefObject<Autosave | null>;
+  /** Makes this context a working copy of `parent`. */
+  parent?: FormContext<TDraft, TOriginal>;
+  /** Working copy only: replaces the default diff-and-patch apply. */
+  onApply?: OnApply<TDraft, TOriginal>;
 }
+
+/** Like `Transform`: mutate `parentDraft` in place, or return the new parent draft. */
+export type OnApply<TDraft, TOriginal> = (
+  workingDraft: TDraft,
+  parentDraft: Draft<TDraft>,
+  form: FormContext<TDraft, TOriginal>,
+) => TDraft | void;
 
 /**
  * Builds the form context: a stable core (store + methods) plus a per-render value carrying
@@ -34,24 +53,35 @@ export interface UseFormContextOptions<TDraft, TOriginal> {
  * The store only holds event-driven state. Prop-driven inputs must not be written into it:
  * during render that would notify subscribed children mid-render, in an effect it would leave
  * the first render stale. So methods read them from a ref that is updated during render.
+ *
+ * The draft's *base* is what an untouched form reads through to and what `hasChanges` compares
+ * against: `original ?? defaultValue` for a root form, a snapshot of the parent draft taken at
+ * mount (and after each apply) for a working copy. `original` always stays the real original.
  */
 export function useFormContext<TDraft, TOriginal extends TDraft>({
   options,
   formRef,
   initiallyTriggerValidations,
   autosaveRef,
+  parent,
+  onApply,
 }: UseFormContextOptions<TDraft, TOriginal>): FormContext<TDraft, TOriginal> {
   const optionsRef = useLatestRef(options);
+  const parentRef = useLatestRef(parent);
+  const onApplyRef = useLatestRef(onApply);
   const contextRef = useRef<FormContext<TDraft, TOriginal>>(null);
-  // The original this context last reconciled its draft with.
-  const lastOriginal = useRef(options.original);
 
-  const { core, updateValidity } = useMemo(
+  const memoOptions = useMemoEquals(options, shallowEqual);
+
+  const { core, updateValidity, getBase } = useMemo(
     () =>
       createFormCore({
         optionsRef,
         formRef,
         autosaveRef,
+        parentRef,
+        onApplyRef,
+        contextRef,
         initiallyTriggerValidations,
       }),
     // oxlint-disable-next-line exhaustive-deps
@@ -59,11 +89,20 @@ export function useFormContext<TDraft, TOriginal extends TDraft>({
   );
   const { formState } = core;
 
-  const memoOptions = useMemoEquals(options, shallowEqual);
-
   const context = useMemo<FormContext<TDraft, TOriginal>>(
-    () => ({ ...core, options: memoOptions, original: memoOptions.original }),
-    [core, memoOptions],
+    () => ({
+      ...core,
+      options: memoOptions,
+      original: memoOptions.original,
+      parent,
+      workingCopy: core.workingCopy && {
+        ...core.workingCopy,
+        get form() {
+          return contextRef.current!;
+        },
+      },
+    }),
+    [core, memoOptions, parent],
   );
   contextRef.current = context;
 
@@ -77,13 +116,13 @@ export function useFormContext<TDraft, TOriginal extends TDraft>({
     return formState
       .map((state) => state.draft)
       .subscribe((draft, previousDraft) => {
-        const { transform, original, defaultValue } = optionsRef.current;
+        const { transform } = optionsRef.current;
         if (!transform) {
           return;
         }
 
-        const value = draft ?? original ?? defaultValue;
-        const previousValue = previousDraft ?? original ?? defaultValue;
+        const value = draft ?? getBase();
+        const previousValue = previousDraft ?? getBase();
         const result = create(value, (draft) =>
           transform(draft, { ...contextRef.current!, previousValue }),
         ) as TDraft;
@@ -95,17 +134,22 @@ export function useFormContext<TDraft, TOriginal extends TDraft>({
   }, [
     formState,
     optionsRef,
+    getBase,
     memoOptions.transform,
     memoOptions.original,
     memoOptions.defaultValue,
   ]);
 
-  // Layout effect so the merged draft is committed before paint.
+  const isWorkingCopy = !!parent;
+  const lastOriginal = useRef(options.original);
+
+  // Root form only: a working copy's base is frozen. Layout effect so the merged draft is
+  // committed before paint.
   useLayoutEffect(() => {
     const draft = formState.get().draft;
     const { original, onOriginalChange } = optionsRef.current;
 
-    if (draft !== undefined && !deepEqual(original, lastOriginal.current)) {
+    if (!isWorkingCopy && draft !== undefined && !deepEqual(original, lastOriginal.current)) {
       const handler = resolveOnOriginalChange(onOriginalChange);
       const result = handler(lastOriginal.current, original, draft, contextRef.current!);
 
@@ -115,19 +159,41 @@ export function useFormContext<TDraft, TOriginal extends TDraft>({
     }
 
     lastOriginal.current = original;
-  }, [formState, optionsRef, memoOptions.original]);
+  }, [formState, optionsRef, isWorkingCopy, memoOptions.original]);
 
-  // Inputs mounted by a re-render need their validity applied too, not only error changes.
+  // Inputs mounted by a re-render need their validity applied too, not only error changes. Only
+  // unseen elements are written so a root re-render does not clobber what a validated working
+  // copy wrote to its inputs.
   useEffect(() => {
-    updateValidity(core.getErrors());
+    if (!isWorkingCopy) {
+      updateValidity(core.getErrors(), undefined, { onlyUnseen: true });
+    }
   });
 
   useEffect(() => {
-    return formState.map(() => core.getErrors()).subscribe((errors) => updateValidity(errors));
+    const parent = parentRef.current;
+
+    if (parent) {
+      // A copy shares the parent's <form> element. It only writes its errors once validate() was
+      // called (then it keeps them live); on unmount the parent's validity is restored.
+      const cancel = formState
+        .map((state) => (state.hasTriggeredValidations ? core.getErrors() : undefined))
+        .subscribe((errors) => errors && updateValidity(errors));
+
+      return () => {
+        cancel();
+        updateValidity(parent.getErrors());
+      };
+    }
+
+    return formState
+      .map(() => core.getErrors())
+      .subscribe((errors) => updateValidity(errors, undefined, { skipIfUnchanged: true }));
   }, [
     formState,
     core,
     updateValidity,
+    parentRef,
     memoOptions.validations,
     memoOptions.localizeError,
     memoOptions.original,
@@ -141,15 +207,22 @@ function createFormCore<TDraft, TOriginal extends TDraft>({
   optionsRef,
   formRef,
   autosaveRef,
+  parentRef,
+  onApplyRef,
+  contextRef,
   initiallyTriggerValidations,
 }: {
   optionsRef: RefObject<FormOptions<TDraft, TOriginal>>;
   formRef: RefObject<HTMLFormElement | null>;
   autosaveRef?: RefObject<Autosave | null>;
+  parentRef: RefObject<FormContext<TDraft, TOriginal> | undefined>;
+  onApplyRef: RefObject<OnApply<TDraft, TOriginal> | undefined>;
+  contextRef: RefObject<FormContext<TDraft, TOriginal> | null>;
   initiallyTriggerValidations?: boolean;
 }): {
   core: FormContext<TDraft, TOriginal>;
-  updateValidity: (errors: Map<string, string[]>, buttonElement?: HTMLButtonElement) => void;
+  updateValidity: UpdateValidity;
+  getBase: () => TDraft;
 } {
   const formState = createStore<FormState<TDraft>>({
     draft: undefined,
@@ -157,14 +230,26 @@ function createFormCore<TDraft, TOriginal extends TDraft>({
     saveInProgress: false,
   });
 
+  // A working copy's base: the parent draft frozen at mount, replaced on apply.
+  let copyBase = parentRef.current?.getDraft();
+
+  function getBase(): TDraft {
+    if (copyBase !== undefined) {
+      return copyBase;
+    }
+
+    const { original, defaultValue } = optionsRef.current;
+    return original ?? defaultValue;
+  }
+
   // Pull-based memo shared by all consumers. Keyed on the draft identity and the prop-driven
   // inputs the derived values depend on, so it stays correct when e.g. `validations` change
   // without a draft change.
   let memo: { key: unknown[]; values: Map<string, unknown> } | undefined;
 
   function lazy<T>(name: string, fn: () => T): T {
-    const { original, validations, localizeError, defaultValue } = optionsRef.current;
-    const key = [formState.get().draft, original, validations, localizeError, defaultValue];
+    const { original, validations, localizeError } = optionsRef.current;
+    const key = [formState.get().draft, getBase(), original, validations, localizeError];
 
     if (!memo || memo.key.some((value, index) => value !== key[index])) {
       memo = { key, values: new Map() };
@@ -177,13 +262,36 @@ function createFormCore<TDraft, TOriginal extends TDraft>({
     return memo.values.get(name) as T;
   }
 
-  function updateValidity(errors: Map<string, string[]>, buttonElement?: HTMLButtonElement) {
+  const seenElements = new WeakSet<Element>();
+  let lastFullWrite: Map<string, string[]> | undefined;
+
+  const updateValidity: UpdateValidity = (
+    errors,
+    buttonElement,
+    { onlyUnseen, skipIfUnchanged } = {},
+  ) => {
     const formElement = formRef.current;
     if (!formElement) {
       return;
     }
 
+    // Resubscribing on a prop identity change must not re-write unchanged errors over what a
+    // validated working copy wrote to its inputs.
+    if (skipIfUnchanged && lastFullWrite && deepEqual(errors, lastFullWrite)) {
+      return;
+    }
+
+    if (!onlyUnseen) {
+      lastFullWrite = errors;
+    }
+
     for (const element of Array.from(formElement.elements)) {
+      if (onlyUnseen && seenElements.has(element)) {
+        continue;
+      }
+
+      seenElements.add(element);
+
       if ('name' in element && 'setCustomValidity' in element) {
         (element as HTMLObjectElement).setCustomValidity(
           errors.get((element as HTMLObjectElement).name)?.join('\n') ?? '',
@@ -196,10 +304,11 @@ function createFormCore<TDraft, TOriginal extends TDraft>({
 
       buttonElement.setCustomValidity(errorString);
     }
-  }
+  };
 
   const core: FormContext<TDraft, TOriginal> = {
     formState,
+    formRef,
 
     get options() {
       return optionsRef.current;
@@ -216,8 +325,7 @@ function createFormCore<TDraft, TOriginal extends TDraft>({
     },
 
     getDraft() {
-      const { original, defaultValue } = optionsRef.current;
-      return formState.get().draft ?? original ?? defaultValue;
+      return formState.get().draft ?? getBase();
     },
 
     hasTriggeredValidations() {
@@ -229,20 +337,22 @@ function createFormCore<TDraft, TOriginal extends TDraft>({
     },
 
     flushAutosave() {
-      return autosaveRef?.current?.flush() ?? Promise.resolve();
+      return (
+        autosaveRef?.current?.flush() ?? parentRef.current?.flushAutosave() ?? Promise.resolve()
+      );
     },
 
     cancelAutosave() {
-      return autosaveRef?.current?.cancel() ?? Promise.resolve();
+      return (
+        autosaveRef?.current?.cancel() ?? parentRef.current?.cancelAutosave() ?? Promise.resolve()
+      );
     },
 
     hasChanges() {
-      return lazy('hasChanges', () => {
-        const { original, defaultValue } = optionsRef.current;
-        return !deepEqual(core.getDraft(), original ?? defaultValue, {
-          undefinedEqualsAbsent: true,
-        });
-      });
+      return lazy(
+        'hasChanges',
+        () => !deepEqual(core.getDraft(), getBase(), { undefinedEqualsAbsent: true }),
+      );
     },
 
     getErrors() {
@@ -284,7 +394,48 @@ function createFormCore<TDraft, TOriginal extends TDraft>({
     },
   };
 
-  return { core, updateValidity };
+  if (parentRef.current) {
+    core.workingCopy = {
+      get form() {
+        return core;
+      },
+
+      apply() {
+        const parent = parentRef.current!;
+        const draft = formState.get().draft;
+        const onApply = onApplyRef.current;
+
+        if (draft !== undefined) {
+          // By default only the copy's own edits are written: patches from the frozen base,
+          // applied to the live parent draft, so parent changes elsewhere survive. No patches →
+          // don't touch the parent: materialising its draft would stop it following later
+          // original changes.
+          const patches = onApply ? [] : diff(copyBase, draft, { diffArrays: true })[0];
+
+          if (onApply || patches.length > 0) {
+            parent.formState.set('draft', (parentDraft = parent.getDraft()) =>
+              onApply
+                ? (create(parentDraft, (mutable) =>
+                    onApply(draft, mutable, contextRef.current!),
+                  ) as TDraft)
+                : applyPatches(parentDraft, ...patches),
+            );
+          }
+
+          copyBase = parent.getDraft();
+        }
+
+        core.reset();
+      },
+
+      discard() {
+        core.reset();
+        updateValidity(parentRef.current!.getErrors());
+      },
+    };
+  }
+
+  return { core, updateValidity, getBase };
 }
 
 function shallowEqual<T extends object>(a: T, b: T): boolean {

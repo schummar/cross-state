@@ -11,6 +11,7 @@ import {
 } from './formField';
 import { FormForEach, type ElementName, type FormForEachProps } from './formForEach';
 import { type OnOriginalChange } from './formOnOriginalChange';
+import { FormWorkingCopy, type FormWorkingCopyProps, type WorkingCopy } from './formWorkingCopy';
 import { useFormAutosave, type FormAutosaveOptions } from './useFormAutosave';
 import { useFormContext } from './useFormContext';
 import { type Store, type Update } from '@core';
@@ -41,6 +42,7 @@ import {
   type FunctionComponent,
   type HTMLProps,
   type ReactNode,
+  type RefObject,
 } from 'react';
 
 /// /////////////////////////////////////////////////////////////////////////////
@@ -135,8 +137,13 @@ export interface FormDerivedState<TDraft, TOriginal> {
 
 export interface FormContext<TDraft, TOriginal> {
   formState: Store<FormState<TDraft>>;
+  formRef: RefObject<HTMLFormElement | null>;
   options: FormOptions<TDraft, TOriginal>;
   original: TOriginal | undefined;
+  /** Set inside a `WorkingCopy`: the context the copy was branched from. */
+  parent?: FormContext<TDraft, TOriginal>;
+  /** Set inside a `WorkingCopy`. */
+  workingCopy?: WorkingCopy<TDraft, TOriginal>;
   getField: <TPath extends string>(
     name: TPath extends PathAsString<TDraft> ? TPath : PathAsString<TDraft>,
     options?: FieldOptions,
@@ -432,6 +439,16 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     return form.getField(name, { includeNestedErrors });
   }
 
+  useWorkingCopy(): WorkingCopy<TDraft, TOriginal> {
+    const { workingCopy } = this.useForm();
+
+    if (!workingCopy) {
+      throw new Error('useWorkingCopy must be used inside a WorkingCopy');
+    }
+
+    return workingCopy;
+  }
+
   useFieldProps<TPath extends string>(
     name: TPath extends PathAsString<TDraft> ? TPath : PathAsString<TDraft>,
     options?: Omit<FormFieldProps<TPath, TDraft>, 'name'>,
@@ -547,6 +564,10 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
 
   ForEach<const TPath extends string>(props: FormForEachProps<TDraft, TPath>): React.JSX.Element {
     return Reflect.apply(FormForEach, this, [props]);
+  }
+
+  WorkingCopy(props: FormWorkingCopyProps<TDraft, TOriginal>): React.JSX.Element {
+    return Reflect.apply(FormWorkingCopy, this, [props]);
   }
 
   withForm<TProps extends Record<string, unknown>>(

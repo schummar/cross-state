@@ -205,3 +205,16 @@ describe('integration: onOriginalChange in a Form', () => {
     expect(capturedCtx!.getDraft()).toEqual({ name: 'Bob', age: 99 });
   });
 });
+
+describe('onOriginalChangeMerge with several array removals', () => {
+  test('removes all elements the original removed', () => {
+    const oldOriginal = { name: 'a', items: [1, 2, 3] };
+    const newOriginal = { name: 'a', items: [1] };
+    const draft = { name: 'x', items: [1, 2, 3] };
+
+    expect(onOriginalChangeMerge(oldOriginal, newOriginal, draft, mockForm)).toEqual({
+      name: 'x',
+      items: [1],
+    });
+  });
+});

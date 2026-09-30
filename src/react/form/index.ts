@@ -12,6 +12,13 @@ export {
   type Validations,
 } from './form';
 export {
+  type OnOriginalChange,
+  type OnOriginalChangeBuiltin,
+  type OnOriginalChangeHandler,
+} from './formOnOriginalChange';
+export { type FormWorkingCopyProps, type WorkingCopy } from './formWorkingCopy';
+export { type OnApply } from './useFormContext';
+export {
   type FormFieldComponent,
   type FormFieldComponentProps,
   type FormFieldInfos,
