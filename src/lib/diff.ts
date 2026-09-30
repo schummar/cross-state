@@ -132,7 +132,14 @@ function* objectDiff(
   options: { stopAt?: number | ((path: KeyType[]) => boolean) },
   prefix: KeyType[],
 ): Iterable<[patch: Patch, reversePatch: Patch]> {
-  for (const [key, value] of Object.entries(a)) {
+  const entries = Object.entries(a);
+
+  // Array removals are applied with splice, so they must be emitted highest index first.
+  if (Array.isArray(a)) {
+    entries.reverse();
+  }
+
+  for (const [key, value] of entries) {
     if (!(key in b)) {
       yield [
         { op: 'remove', path: [...prefix, key] },

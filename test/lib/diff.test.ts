@@ -1,3 +1,4 @@
+import { applyPatches } from '../../src/lib/applyPatches';
 import { diff } from '../../src/lib/diff';
 import { describe, expect, test } from 'vite-plus/test';
 
@@ -121,5 +122,24 @@ describe('diff', () => {
         value: { d: 3 },
       },
     ]);
+  });
+});
+
+describe('diff array removals', () => {
+  test('several removals apply correctly with diffArrays', () => {
+    const a = { items: [1, 2, 3, 4] };
+    const b = { items: [1] };
+    const [patches, reversePatches] = diff(a, b, { diffArrays: true });
+
+    expect(applyPatches(a, ...patches)).toEqual(b);
+    expect(applyPatches(a, ...patches, ...reversePatches)).toEqual(a);
+  });
+
+  test('removal and replacement mixed', () => {
+    const a = { items: [1, 2, 3] };
+    const b = { items: [9] };
+    const [patches] = diff(a, b, { diffArrays: true });
+
+    expect(applyPatches(a, ...patches)).toEqual(b);
   });
 });
