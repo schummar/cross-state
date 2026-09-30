@@ -10,9 +10,10 @@ import {
   type FormFieldPropsWithRender,
 } from './formField';
 import { FormForEach, type ElementName, type FormForEachProps } from './formForEach';
-import { resolveOnOriginalChange, type OnOriginalChange } from './formOnOriginalChange';
+import { type OnOriginalChange } from './formOnOriginalChange';
 import { useFormAutosave, type FormAutosaveOptions } from './useFormAutosave';
-import { createStore, type Store, type Update } from '@core';
+import { useFormContext } from './useFormContext';
+import { type Store, type Update } from '@core';
 import { autobind } from '@lib/autobind';
 import { deepEqual } from '@lib/equals';
 import { isObject } from '@lib/helpers';
@@ -27,13 +28,12 @@ import type { Object_ } from '@lib/typeHelpers';
 import { getWildCardMatches } from '@lib/wildcardMatch';
 import { GeneralFormContext } from '@react/form/closestFormContext';
 import { LegacyFormField, type FormFieldPropsWithComponent } from '@react/form/legacyFormField';
-import { create, type Draft } from 'mutative';
+import useMemoEquals from '@react/lib/useMemoEquals';
+import { type Draft } from 'mutative';
 import {
   createContext,
   forwardRef,
   useContext,
-  useEffect,
-  useMemo,
   useRef,
   type Context,
   type FormEvent,
@@ -223,7 +223,7 @@ const FormContainer = forwardRef(function FormContainer(
   );
 });
 
-function getField<TDraft, TOriginal extends TDraft, TPath extends string>(
+export function getField<TDraft, TOriginal extends TDraft, TPath extends string>(
   form: FormContext<TDraft, TOriginal>,
   name: TPath extends PathAsString<TDraft> ? TPath : PathAsString<TDraft>,
   { includeNestedErrors }: FieldOptions = {},
@@ -234,12 +234,11 @@ function getField<TDraft, TOriginal extends TDraft, TPath extends string>(
     },
 
     get value() {
-      const draft = form.getDraft();
-      return get(draft ?? form.original ?? form.options.defaultValue, name as any);
+      return get(form.getDraft(), name as any);
     },
 
     setValue(update: Update<Value<TDraft, TPath>>) {
-      form.formState.set('draft', (draft = form.original ?? form.options.defaultValue) => {
+      form.formState.set('draft', (draft = form.getDraft()) => {
         if (update instanceof Function) {
           update = update(get(draft, name as any) as Value<TDraft, TPath>);
         }
@@ -318,10 +317,10 @@ function getField<TDraft, TOriginal extends TDraft, TPath extends string>(
   return field as any;
 }
 
-function getErrors<TDraft, TOriginal>(
+export function getErrors<TDraft, TOriginal>(
   draft: TDraft,
   { original, validations, localizeError }: FormOptions<TDraft, TOriginal>,
-) {
+): Map<string, string[]> {
   const errors = new Map<string, string[]>();
 
   if (typeof validations === 'function') {
@@ -461,8 +460,8 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
   }: Partial<FormOptions<TDraft, TOriginal>> &
     Omit<HTMLProps<HTMLFormElement>, 'defaultValue' | 'autoSave' | 'onSubmit'>): React.JSX.Element {
     const options: FormOptions<TDraft, TOriginal> = {
-      defaultValue: { ...this.options.defaultValue, ...defaultValue },
-      validations:
+      defaultValue: useMemoEquals({ ...this.options.defaultValue, ...defaultValue }),
+      validations: useMemoEquals(
         typeof validations === 'function'
           ? validations
           : validations
@@ -473,11 +472,13 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
                 ...validations,
               } as Validations<TDraft, TOriginal>)
             : this.options.validations,
+      ),
       localizeError: localizeError ?? this.options.localizeError,
-      autoSave:
+      autoSave: useMemoEquals(
         this.options.autoSave || autoSave
           ? ({ ...this.options.autoSave, ...autoSave } as FormAutosaveOptions<TDraft, TOriginal>)
           : undefined,
+      ),
       transform: transform ?? this.options.transform,
       validatedClass: validatedClass ?? this.options.validatedClass,
       original: original ?? this.options.original,
@@ -487,180 +488,17 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
       onOriginalChange: onOriginalChange ?? this.options.onOriginalChange ?? 'default',
     };
 
-    const formState = useMemo(() => {
-      return createStore<FormState<TDraft>>({
-        draft: undefined,
-        hasTriggeredValidations: initiallyTriggerValidations ?? false,
-        saveInProgress: false,
-      });
-      // oxlint-disable-next-line exhaustive-deps
-    }, []);
-
     const formRef = useRef<HTMLFormElement>(null);
+    const autosaveRef = useRef<{ flush(): Promise<void>; cancel(): Promise<void> }>(null);
 
-    let lastDraft: TDraft | undefined;
-    const cache = new Map<string, unknown>();
-    function lazy<T>(key: string, fn: () => T): T {
-      if (lastDraft !== formState.get().draft) {
-        cache.clear();
-        lastDraft = formState.get().draft;
-      }
-
-      let value = cache.get(key);
-      if (!cache.has(key)) {
-        value = fn();
-        cache.set(key, value);
-      }
-
-      return value as T;
-    }
-
-    const context: FormContext<TDraft, TOriginal> = {
-      formState,
+    const context = useFormContext({
       options,
-      original: options.original,
-
-      getField() {
-        throw new Error('Not implemented');
-      },
-
-      getDraft() {
-        return formState.get().draft ?? options.original ?? options.defaultValue;
-      },
-
-      hasTriggeredValidations() {
-        return formState.get().hasTriggeredValidations;
-      },
-
-      saveInProgress() {
-        return formState.get().saveInProgress;
-      },
-
-      flushAutosave() {
-        return autosave.flush();
-      },
-
-      cancelAutosave() {
-        return autosave.cancel();
-      },
-
-      hasChanges() {
-        return lazy(
-          'hasChanges',
-          () =>
-            !deepEqual(this.getDraft(), options.original ?? options.defaultValue, {
-              undefinedEqualsAbsent: true,
-            }),
-        );
-      },
-
-      getErrors() {
-        return lazy('getErrors', () => getErrors(this.getDraft(), options));
-      },
-
-      isValid() {
-        return lazy('isValid', () => this.getErrors().size === 0);
-      },
-
-      validate({ reportValidity = options.reportValidity, button }: ValidateOptions = {}) {
-        formState.set('hasTriggeredValidations', true);
-
-        updateValidity(this.getErrors(), button);
-
-        switch (reportValidity) {
-          case 'browser':
-            formRef.current?.reportValidity();
-            break;
-
-          case true:
-          case 'scrollTo':
-            {
-              const invalidElement = document.querySelector(':invalid, [data-invalid="true"]');
-              if (invalidElement && invalidElement instanceof HTMLElement) {
-                invalidElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                invalidElement.focus({ preventScroll: true });
-              }
-            }
-            break;
-        }
-
-        return this.isValid();
-      },
-
-      reset() {
-        formState.set('draft', undefined);
-        formState.set('hasTriggeredValidations', false);
-      },
-    };
-
-    context.getField = (path, options) =>
-      lazy(`${path as string}:${options?.includeNestedErrors}`, () =>
-        getField(context, path, options),
-      );
-
-    useEffect(() => {
-      const transform = options.transform;
-      if (!transform) {
-        return;
-      }
-
-      return context.formState.subscribe((state, prev) => {
-        const value = state.draft ?? options.original ?? options.defaultValue;
-        const previousValue = prev?.draft ?? options.original ?? options.defaultValue;
-        const result = create(value, (draft) =>
-          transform(draft, { ...context, previousValue }),
-        ) as TDraft;
-
-        if (!deepEqual(result, value)) {
-          context.formState.set('draft', result);
-        }
-      });
+      formRef,
+      initiallyTriggerValidations,
+      autosaveRef,
     });
 
-    const lastOriginal = useRef(options.original);
-
-    useEffect(() => {
-      const draft = formState.get().draft;
-
-      if (draft !== undefined && !deepEqual(options.original, lastOriginal.current)) {
-        const handler = resolveOnOriginalChange(options.onOriginalChange);
-        const result = handler(lastOriginal.current, options.original, draft, context);
-
-        if (result !== undefined && !deepEqual(result, draft)) {
-          formState.set('draft', result);
-        }
-      }
-
-      lastOriginal.current = options.original;
-      // oxlint-disable-next-line exhaustive-deps
-    }, [options.original]);
-
-    function updateValidity(errors: Map<string, string[]>, buttonElement?: HTMLButtonElement) {
-      const formElement = formRef.current;
-      if (!formElement) {
-        return;
-      }
-
-      for (const element of Array.from(formElement.elements)) {
-        if ('name' in element && 'setCustomValidity' in element) {
-          (element as HTMLObjectElement).setCustomValidity(
-            errors.get((element as HTMLObjectElement).name)?.join('\n') ?? '',
-          );
-        }
-      }
-
-      if (buttonElement && 'setCustomValidity' in buttonElement) {
-        const errorString = [...errors.values()].flat().join('\n');
-
-        buttonElement.setCustomValidity(errorString);
-      }
-    }
-
-    useEffect(() => {
-      return formState.map(() => context.getErrors()).subscribe((errors) => updateValidity(errors));
-    });
-
-    const autosave = useFormAutosave(context);
+    autosaveRef.current = useFormAutosave(context);
 
     return (
       <GeneralFormContext.Provider value={this}>

@@ -1,4 +1,4 @@
-import { createForm } from '../../src/react';
+import { createForm, type FormContext } from '../../src/react';
 import {
   MantineProvider,
   TextInput as MantineTextInput,
@@ -7,7 +7,7 @@ import {
 } from '@mantine/core';
 import { TextField as MUITextField } from '@mui/material';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { forwardRef } from 'react';
+import { forwardRef, useState } from 'react';
 import { describe, expect, test } from 'vite-plus/test';
 
 describe('form', () => {
@@ -388,4 +388,147 @@ const CustomInput = forwardRef(function CustomInput(
   _ref,
 ) {
   return null;
+});
+
+function input(label: string) {
+  return screen.getByRole<HTMLInputElement>('textbox', { name: label });
+}
+
+function change(label: string, value: string) {
+  act(() => {
+    fireEvent.change(input(label), { target: { value } });
+  });
+}
+
+function click(label: string) {
+  act(() => {
+    screen.getByRole('button', { name: label }).click();
+  });
+}
+
+describe('form refactor regressions', () => {
+  test('conditionally mounted inputs get custom validity applied', () => {
+    const form = createForm<{ email: string }>({
+      defaultValue: { email: '' },
+      validations: { email: { required: (value) => !!value } },
+      reportValidity: false,
+    });
+    const original = { email: '' };
+
+    function Component() {
+      const [show, setShow] = useState(false);
+
+      return (
+        <form.Form original={original}>
+          <button onClick={() => setShow(true)}>show</button>
+          {show && (
+            <form.Field name="email" render={(props) => <input {...props} aria-label="email" />} />
+          )}
+        </form.Form>
+      );
+    }
+
+    render(<Component />);
+    click('show');
+    expect(input('email').validationMessage).toBe('required');
+  });
+
+  test('transform re-runs when original changes while the form is untouched', () => {
+    const form = createForm<{ name: string }>({
+      defaultValue: { name: '' },
+      transform: (draft) => {
+        if (draft.name.startsWith('b')) {
+          draft.name = draft.name.toUpperCase();
+        }
+      },
+    });
+
+    const { rerender } = render(
+      <form.Form original={{ name: 'a' }}>
+        <form.Field name="name" render={(props) => <input {...props} aria-label="name" />} />
+      </form.Form>,
+    );
+    expect(input('name').value).toBe('a');
+
+    rerender(
+      <form.Form original={{ name: 'b' }}>
+        <form.Field name="name" render={(props) => <input {...props} aria-label="name" />} />
+      </form.Form>,
+    );
+    expect(input('name').value).toBe('B');
+  });
+});
+
+describe('form context stability', () => {
+  test('context identity is stable across store changes and re-renders with equal props', () => {
+    const form = createForm<{ name: string }>({ defaultValue: { name: '' } });
+    const seen: FormContext<{ name: string }, { name: string }>[] = [];
+    const original = { name: 'a' };
+
+    function Capture() {
+      seen.push(form.useForm());
+      return null;
+    }
+
+    function Component() {
+      const [, tick] = useState(0);
+      return (
+        <>
+          <button onClick={() => tick((n) => n + 1)}>tick</button>
+          <form.Form original={original}>
+            <Capture />
+            <form.Field name="name" render={(props) => <input {...props} aria-label="name" />} />
+          </form.Form>
+        </>
+      );
+    }
+
+    render(<Component />);
+    change('name', 'b');
+    click('tick');
+
+    expect(seen.length).toBeGreaterThan(1);
+    expect(new Set(seen).size).toBe(1);
+  });
+
+  test('changing validations without a draft change updates errors', () => {
+    const form = createForm<{ name: string }>({ defaultValue: { name: '' } });
+    const original = { name: 'ab' };
+
+    const tree = (min: number) => (
+      <form.Form original={original} validations={{ name: { min: (v) => v.length >= min } }}>
+        <form.FormState selector={(s) => s.errors.get('name')?.join(',') ?? ''}>
+          {(errors) => <div data-testid="errors">{errors}</div>}
+        </form.FormState>
+      </form.Form>
+    );
+
+    const { rerender } = render(tree(1));
+    expect(screen.getByTestId('errors').textContent).toBe('');
+
+    rerender(tree(3));
+    expect(screen.getByTestId('errors').textContent).toBe('min');
+  });
+
+  test('changing original without a draft change updates hasChanges and originalValue', () => {
+    const form = createForm<{ name: string }>({ defaultValue: { name: '' } });
+
+    const tree = (original: { name: string }) => (
+      <form.Form original={original}>
+        <form.Field name="name" render={(props) => <input {...props} aria-label="name" />} />
+        <form.FormState
+          selector={(s) => `${s.hasChanges}:${s.form.getField('name').originalValue}`}
+        >
+          {(text) => <div data-testid="state">{text}</div>}
+        </form.FormState>
+      </form.Form>
+    );
+
+    const { rerender } = render(tree({ name: 'a' }));
+    change('name', 'b');
+    expect(screen.getByTestId('state').textContent).toBe('true:a');
+
+    rerender(tree({ name: 'b' }));
+    expect(screen.getByTestId('state').textContent).toBe('false:b');
+  });
 });
