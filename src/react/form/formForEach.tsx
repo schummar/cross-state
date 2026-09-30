@@ -14,7 +14,8 @@ export interface FormForEachProps<TDraft, TPath extends string> {
   name: TPath extends PathAsString<TDraft> ? TPath : PathAsString<TDraft>;
   renderElement?: (props: {
     name: ElementName<TDraft, TPath>;
-    key: string | number;
+    key: `${GetKeys<NonNullable<Value<TDraft, TPath>>> & (string | number)}`;
+    customKey: string | number;
     index: number;
     remove: () => void;
     count: number;
@@ -27,7 +28,7 @@ export interface FormForEachProps<TDraft, TPath extends string> {
     key: GetKeys<NonNullable<Value<TDraft, TPath>>>,
     parent: NonNullable<Value<TDraft, TPath>>,
   ) => boolean;
-  getKey?: (
+  getCustomKey?: (
     item: ItemValue<NonNullable<Value<TDraft, TPath>>>,
     key: GetKeys<NonNullable<Value<TDraft, TPath>>>,
     parent: NonNullable<Value<TDraft, TPath>>,
@@ -48,7 +49,7 @@ export function FormForEach<TDraft, TPath extends string>(
     renderElement,
     renderAdditionalElement,
     filter,
-    getKey,
+    getCustomKey,
     children,
   }: FormForEachProps<TDraft, TPath>,
 ): React.JSX.Element {
@@ -72,12 +73,14 @@ export function FormForEach<TDraft, TPath extends string>(
 
     const items = keys.map((key) => ({
       key,
-      reactKey: getKey ? getKey((field.value as any)[key], key as any, field.value as any) : key,
+      customKey: getCustomKey
+        ? getCustomKey((field.value as any)[key], key as any, field.value as any)
+        : key,
       name: join(name, String(key)),
     }));
 
     if (renderAdditionalElement) {
-      items.push({ key: count, reactKey: count, name: join(name, String(count)) });
+      items.push({ key: count, customKey: count, name: join(name, String(count)) });
     }
 
     return items;
@@ -110,12 +113,13 @@ export function FormForEach<TDraft, TPath extends string>(
   return (
     <>
       {renderElement &&
-        items.map(({ key, reactKey, name }, index) => {
+        items.map(({ key, customKey, name }, index) => {
           return (
-            <Fragment key={reactKey}>
+            <Fragment key={customKey}>
               {renderElement({
                 name: name as any,
-                key: reactKey,
+                key: key as any,
+                customKey,
                 index,
                 remove: () => remove(key),
                 count: items.length,

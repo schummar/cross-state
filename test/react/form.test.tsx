@@ -348,7 +348,7 @@ describe('form', () => {
         expect(screen.queryByText('arr.0: 1')).toBeNull();
       });
 
-      test('getKey', () => {
+      test('getCustomKey', () => {
         const { Form, ForEach } = createForm({
           defaultValue: { arr: [{ id: 'a' }, { id: 'b' }] },
         });
@@ -358,10 +358,10 @@ describe('form', () => {
             <Form>
               <ForEach
                 name="arr"
-                getKey={(item) => item.id}
-                renderElement={({ name, key }) => (
+                getCustomKey={(item) => item.id}
+                renderElement={({ name, customKey }) => (
                   <div>
-                    {name}: {key}
+                    {name}: {customKey}
                   </div>
                 )}
               />
