@@ -347,6 +347,32 @@ describe('form', () => {
         expect(container.querySelectorAll('form > div')).toHaveLength(1);
         expect(screen.queryByText('arr.0: 1')).toBeNull();
       });
+
+      test('getKey', () => {
+        const { Form, ForEach } = createForm({
+          defaultValue: { arr: [{ id: 'a' }, { id: 'b' }] },
+        });
+
+        function Component() {
+          return (
+            <Form>
+              <ForEach
+                name="arr"
+                getKey={(item) => item.id}
+                renderElement={({ name, key }) => (
+                  <div>
+                    {name}: {key}
+                  </div>
+                )}
+              />
+            </Form>
+          );
+        }
+
+        render(<Component />);
+        expect(screen.getByText('arr.0: a')).toBeDefined();
+        expect(screen.getByText('arr.1: b')).toBeDefined();
+      });
     });
   });
 });
