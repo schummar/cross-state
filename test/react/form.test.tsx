@@ -532,3 +532,29 @@ describe('form context stability', () => {
     expect(screen.getByTestId('state').textContent).toBe('false:b');
   });
 });
+
+describe('Field.removeValue', () => {
+  test('removes the value at the field path', () => {
+    const form = createForm<{ name: string; meta?: { x?: number } }>({
+      defaultValue: { name: '' },
+    });
+    let ctx!: FormContext<{ name: string; meta?: { x?: number } }, any>;
+
+    function Capture() {
+      ctx = form.useForm();
+      return null;
+    }
+
+    render(
+      <form.Form original={{ name: 'a', meta: { x: 1 } }}>
+        <Capture />
+      </form.Form>,
+    );
+
+    act(() => ctx.getField('meta.x').removeValue());
+    expect(ctx.getDraft()).toEqual({ name: 'a', meta: {} });
+
+    act(() => ctx.getField('meta').removeValue());
+    expect(ctx.getDraft()).toEqual({ name: 'a' });
+  });
+});

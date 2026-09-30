@@ -23,7 +23,7 @@ import {
   type WildcardPathAsString,
   type WildcardValue,
 } from '@lib/path';
-import { get, join, set } from '@lib/propAccess';
+import { get, join, remove, set } from '@lib/propAccess';
 import type { Object_ } from '@lib/typeHelpers';
 import { getWildCardMatches } from '@lib/wildcardMatch';
 import { GeneralFormContext } from '@react/form/closestFormContext';
@@ -245,6 +245,10 @@ export function getField<TDraft, TOriginal extends TDraft, TPath extends string>
 
         return set(draft, name as any, update as any);
       });
+    },
+
+    removeValue() {
+      form.formState.set('draft', (draft = form.getDraft()) => remove(draft, name as any));
     },
 
     get hasChange() {
