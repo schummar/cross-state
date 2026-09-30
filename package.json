@@ -1,13 +1,33 @@
 {
   "name": "cross-state",
   "version": "1.0.0",
-  "description": "(React) state library",
+  "description": "State management for frontend and backend: stores, caches, persistence and forms, with React bindings",
+  "keywords": [
+    "cache",
+    "forms",
+    "mutative",
+    "patches",
+    "persistence",
+    "react",
+    "react-hooks",
+    "state",
+    "state-management",
+    "store",
+    "typescript"
+  ],
+  "homepage": "https://github.com/schummar/cross-state#readme",
+  "bugs": {
+    "url": "https://github.com/schummar/cross-state/issues"
+  },
   "license": "ISC",
   "author": {
     "name": "Marco Schumacher",
     "email": "marco@schumacher.dev"
   },
-  "repository": "git+https://github.com/schummar/cross-state.git",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/schummar/cross-state.git"
+  },
   "files": [
     "dist"
   ],
