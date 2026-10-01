@@ -8,7 +8,8 @@ import {
   type ValidateOptions,
 } from './form';
 import { resolveOnOriginalChange } from './formOnOriginalChange';
-import { createStore } from '@core';
+import type { WorkingCopy } from './formWorkingCopy';
+import { createStore, type Store } from '@core';
 import { applyPatches } from '@lib/applyPatches';
 import { diff } from '@lib/diff';
 import { deepEqual } from '@lib/equals';
@@ -26,6 +27,15 @@ type UpdateValidity = (
   buttonElement?: HTMLButtonElement,
   options?: { onlyUnseen?: boolean; skipIfUnchanged?: boolean },
 ) => void;
+
+// Kept off FormContext so it stays out of the public API. Keyed by formState, which every
+// per-render context object shares.
+const stateStores = new WeakMap<Store<FormState<any>>, Store<any>>();
+
+/** `formState` plus every ancestor's, since derived state includes the parent's. */
+export function getStateStore(form: FormContext<any, any>): Store<any> {
+  return stateStores.get(form.formState)!;
+}
 
 export interface UseFormContextOptions<TDraft, TOriginal> {
   options: FormOptions<TDraft, TOriginal>;
@@ -45,7 +55,7 @@ export interface UseFormContextOptions<TDraft, TOriginal> {
 export type OnApply<TDraft, TOriginal> = (
   workingDraft: TDraft,
   parentDraft: TDraft,
-  form: FormContext<TDraft, TOriginal>,
+  form: WorkingCopy<TDraft, TOriginal>,
 ) => TDraft | void;
 
 /**
@@ -97,12 +107,6 @@ export function useFormContext<TDraft, TOriginal extends TDraft>({
       options: memoOptions,
       original: memoOptions.original,
       parent,
-      workingCopy: core.workingCopy && {
-        ...core.workingCopy,
-        get form() {
-          return contextRef.current!;
-        },
-      },
     }),
     [core, memoOptions, parent],
   );
@@ -306,6 +310,12 @@ function createFormCore<TDraft, TOriginal extends TDraft>({
     }
   };
 
+  const parent = parentRef.current;
+  stateStores.set(
+    formState,
+    parent ? createStore(({ use }) => [use(formState), use(getStateStore(parent))]) : formState,
+  );
+
   const core: FormContext<TDraft, TOriginal> = {
     formState,
     formRef,
@@ -395,11 +405,7 @@ function createFormCore<TDraft, TOriginal extends TDraft>({
   };
 
   if (parentRef.current) {
-    core.workingCopy = {
-      get form() {
-        return core;
-      },
-
+    Object.assign(core, {
       apply() {
         const parent = parentRef.current!;
         const draft = formState.get().draft;
@@ -411,7 +417,11 @@ function createFormCore<TDraft, TOriginal extends TDraft>({
           // don't touch the parent: materialising its draft would stop it following later
           // original changes.
           if (onApply) {
-            const result = onApply(draft, parent.getDraft(), contextRef.current!);
+            const result = onApply(
+              draft,
+              parent.getDraft(),
+              contextRef.current as WorkingCopy<TDraft, TOriginal>,
+            );
 
             if (result !== undefined) {
               parent.formState.set('draft', result);
@@ -436,7 +446,7 @@ function createFormCore<TDraft, TOriginal extends TDraft>({
         core.reset();
         updateValidity(parentRef.current!.getErrors());
       },
-    };
+    } satisfies Pick<WorkingCopy<TDraft, TOriginal>, 'apply' | 'discard'>);
   }
 
   return { core, updateValidity, getBase };

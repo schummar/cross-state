@@ -11,9 +11,14 @@ import {
 } from './formField';
 import { FormForEach, type ElementName, type FormForEachProps } from './formForEach';
 import { type OnOriginalChange } from './formOnOriginalChange';
-import { FormWorkingCopy, type FormWorkingCopyProps, type WorkingCopy } from './formWorkingCopy';
+import {
+  FormWorkingCopy,
+  isWorkingCopy,
+  type FormWorkingCopyProps,
+  type WorkingCopy,
+} from './formWorkingCopy';
 import { useFormAutosave, type FormAutosaveOptions } from './useFormAutosave';
-import { useFormContext } from './useFormContext';
+import { getStateStore, useFormContext } from './useFormContext';
 import { type Store, type Update } from '@core';
 import { autobind } from '@lib/autobind';
 import { deepEqual } from '@lib/equals';
@@ -132,6 +137,8 @@ export interface FormState<TDraft> {
 
 export interface FormDerivedState<TDraft, TOriginal> {
   form: FormContext<TDraft, TOriginal>;
+  /** Set inside a `WorkingCopy`: the derived state of the form the copy was branched from. */
+  parent?: FormDerivedState<TDraft, TOriginal>;
   draft: TDraft;
   hasTriggeredValidations: boolean;
   saveInProgress: boolean;
@@ -147,8 +154,6 @@ export interface FormContext<TDraft, TOriginal> {
   original: TOriginal | undefined;
   /** Set inside a `WorkingCopy`: the context the copy was branched from. */
   parent?: FormContext<TDraft, TOriginal>;
-  /** Set inside a `WorkingCopy`. */
-  workingCopy?: WorkingCopy<TDraft, TOriginal>;
   getField: <TPath extends string>(
     name: TPath extends PathAsString<TDraft> ? TPath : PathAsString<TDraft>,
     options?: FieldOptions,
@@ -391,6 +396,7 @@ export function getDerivedState<TDraft, TOriginal>(
 ): FormDerivedState<TDraft, TOriginal> {
   return {
     form: form,
+    parent: form.parent && getDerivedState(form.parent),
     draft: form.getDraft(),
     hasTriggeredValidations: form.hasTriggeredValidations(),
     saveInProgress: form.saveInProgress(),
@@ -427,7 +433,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     const form = this.useForm();
 
     return useStore(
-      form.formState,
+      getStateStore(form),
       () => selector(getDerivedState(form)),
 
       useStoreOptions,
@@ -445,13 +451,13 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
   }
 
   useWorkingCopy(): WorkingCopy<TDraft, TOriginal> {
-    const { workingCopy } = this.useForm();
+    const form = this.useForm();
 
-    if (!workingCopy) {
+    if (!isWorkingCopy(form)) {
       throw new Error('useWorkingCopy must be used inside a WorkingCopy');
     }
 
-    return workingCopy;
+    return form;
   }
 
   useFieldProps<TPath extends string>(

@@ -360,13 +360,13 @@ function TagRow({ name }: { name: `tags.${number}` }) {
       {open && (
         <Dialog>
           <userForm.WorkingCopy>
-            {({ form, apply, discard }) => (
+            {(copy) => (
               <>
                 <userForm.Field name={name} render={(props) => <input {...props} />} />
                 <button
                   type="button"
                   onClick={() => {
-                    discard();
+                    copy.discard();
                     setOpen(false);
                   }}
                 >
@@ -375,8 +375,8 @@ function TagRow({ name }: { name: `tags.${number}` }) {
                 <button
                   type="button"
                   onClick={() => {
-                    if (form.validate()) {
-                      apply();
+                    if (copy.validate()) {
+                      copy.apply();
                       setOpen(false);
                     }
                   }}
@@ -395,12 +395,12 @@ function TagRow({ name }: { name: `tags.${number}` }) {
 
 Inside `<WorkingCopy>` every component and hook of the form works as usual but reads and writes the copy's own draft. Field names are the same full paths as outside.
 
-- The render function receives `{ form, apply, discard }`. `form` is the copy's context; hooks called directly in that function still belong to the surrounding component and would see the outer form.
-- `apply()` writes the copy's edits into the form and resets the copy. Only the paths the copy changed are written, so changes made to the form in the meantime survive unless they touch the same paths. It does not validate; call `form.validate()` on the copy's context first if you want that.
+- The render function receives the copy: its form context plus `apply` and `discard`. Hooks called directly in that function still belong to the surrounding component and would see the outer form.
+- `apply()` writes the copy's edits into the form and resets the copy. Only the paths the copy changed are written, so changes made to the form in the meantime survive unless they touch the same paths. It does not validate; call `validate()` on the copy first if you want that.
 - `discard()` drops the copy's edits. Unmounting the copy does the same.
-- `form.hasChanges()` inside the copy means "changed in this copy". `form.original`, `field.originalValue` and validations still see the real original; the form it was branched from is `form.parent`. Whether validations were already triggered is taken from the form once, at mount.
-- The copy starts from a snapshot of the form's draft taken when it mounts. Later changes of the form do not reach the copy, and the copy does not re-render on them. After `apply()` the snapshot is the form's draft as of that apply.
+- `hasChanges()` inside the copy means "changed in this copy". `original`, `field.originalValue` and validations still see the real original; the form it was branched from is `parent`. Whether validations were already triggered is taken from the form once, at mount.
+- The copy starts from a snapshot of the form's draft taken when it mounts. Later changes of the form do not reach the copy's draft. `useFormState` inside the copy gets the form's derived state as `parent` (`useFormState((s) => s.parent?.hasChanges)`) and follows its changes. After `apply()` the snapshot is the form's draft as of that apply.
 - `onApply={(workingDraft, parentDraft, form) => ...}` replaces the default diff-and-patch. Return the new parent draft (`({ ...parentDraft, address: workingDraft.address })`) or nothing to keep it, e.g. after updating fields through `form.parent`; do not mutate the arguments. Default patches are index based for arrays, so removing an element outside the copy before the one being edited shifts the edit.
 - Copies nest; `apply()` writes one level up.
-- `useWorkingCopy()` returns the same `{ form, apply, discard }` from any component inside the copy, where `useForm()` also returns the copy's context.
+- `useWorkingCopy()` returns the same copy from any component inside it, where `useForm()` also returns the copy's context. A `ref` on `<WorkingCopy>` receives it too.
 - The copy shares the surrounding `<form>` element and, once `form.validate()` was called on it, writes its errors to that element's inputs. Pressing Enter in a copy's input submits that form. Inputs rendered through a portal are outside the form element: native validity (`reportValidity: 'browser'` bubbles, `:invalid`) does not reach them, so rely on `errors` / `data-invalid` there.

@@ -306,6 +306,53 @@ describe('WorkingCopy', () => {
     expect(input('root').value).toBe('b');
   });
 
+  test('useFormState inside a copy sees and follows the parent state', () => {
+    const form = setup();
+
+    function ParentState() {
+      const value = form.useFormState((state) =>
+        [state.parent?.hasChanges, state.parent?.draft.name, state.draft.name].join(':'),
+      );
+      return <div data-testid="state">{value}</div>;
+    }
+
+    render(
+      <form.Form original={{ name: 'root', items: [] }}>
+        <form.Field name="name" render={(props) => <input {...props} aria-label="outer" />} />
+        <form.WorkingCopy>
+          <ParentState />
+          <form.Field name="name" render={(props) => <input {...props} aria-label="inner" />} />
+        </form.WorkingCopy>
+      </form.Form>,
+    );
+
+    expect(screen.getByTestId('state').textContent).toBe('false:root:root');
+
+    change('outer', 'changed');
+    expect(screen.getByTestId('state').textContent).toBe('true:changed:root');
+
+    change('inner', 'copy');
+    expect(screen.getByTestId('state').textContent).toBe('true:changed:copy');
+  });
+
+  test('useFormState outside a copy has no parent', () => {
+    const form = setup();
+    let parent: unknown = 'unset';
+
+    function State() {
+      parent = form.useFormState((state) => state.parent);
+      return null;
+    }
+
+    render(
+      <form.Form original={{ name: 'root', items: [] }}>
+        <State />
+      </form.Form>,
+    );
+
+    expect(parent).toBeUndefined();
+  });
+
   test('ForEach inside a copy', () => {
     const form = setup();
 
@@ -778,7 +825,7 @@ describe('WorkingCopy edge cases', () => {
       { name: 'root', items: [{ title: 'a' }] },
       {
         onApply: (workingDraft, _parentDraft, { parent }) => {
-          parent!.getField('items').setValue(workingDraft.items);
+          parent.getField('items').setValue(workingDraft.items);
         },
       },
     );
@@ -1124,7 +1171,7 @@ describe('WorkingCopy handle', () => {
       <form.Form original={{ name: 'root', items: [{ title: 'a' }] }}>
         <Capture />
         <form.WorkingCopy>
-          {({ form: copy }) => {
+          {(copy) => {
             fromHook = form.useForm();
             fromHandle = copy;
             return (
@@ -1172,8 +1219,8 @@ describe('WorkingCopy handle', () => {
 
     expect(typeof handle.apply).toBe('function');
     expect(typeof handle.discard).toBe('function');
-    expect(handle.form.parent).toBeDefined();
-    expect(handle.form.workingCopy).toBe(handle);
+    expect(handle.parent).toBeDefined();
+    expect(handle.getDraft()).toEqual({ name: 'root', items: [] });
   });
 });
 

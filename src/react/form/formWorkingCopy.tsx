@@ -2,12 +2,8 @@ import { type Form, type FormContext, type FormOptions } from './form';
 import { useFormContext, type OnApply } from './useFormContext';
 import { useImperativeHandle, useMemo, type ForwardedRef, type ReactNode } from 'react';
 
-export interface WorkingCopy<TDraft, TOriginal> {
-  /**
-   * The copy's form context. Hooks called directly in the `WorkingCopy` render function still
-   * see the parent (they run in the copy component's own render), so use this instead.
-   */
-  form: FormContext<TDraft, TOriginal>;
+export interface WorkingCopy<TDraft, TOriginal> extends FormContext<TDraft, TOriginal> {
+  parent: FormContext<TDraft, TOriginal>;
   /**
    * Writes the copy's edits into the parent form and resets the copy. By default only the paths
    * the copy changed are written, so parent changes made elsewhere in the meantime survive.
@@ -24,6 +20,10 @@ export interface FormWorkingCopyProps<TDraft, TOriginal> {
    * new parent draft. `form` is the copy's context.
    */
   onApply?: OnApply<TDraft, TOriginal>;
+  /**
+   * Hooks called directly in a render function still see the parent (they run in the copy
+   * component's own render), so use its argument instead.
+   */
   children?: ReactNode | ((workingCopy: WorkingCopy<TDraft, TOriginal>) => ReactNode);
 }
 
@@ -56,11 +56,18 @@ export function FormWorkingCopy<TDraft, TOriginal extends TDraft>(
     onApply,
   });
 
-  useImperativeHandle(ref, () => context.workingCopy!, [context.workingCopy]);
+  const workingCopy = context as WorkingCopy<TDraft, TOriginal>;
+  useImperativeHandle(ref, () => workingCopy, [workingCopy]);
 
   return (
-    <this.context.Provider value={context}>
-      {typeof children === 'function' ? children(context.workingCopy!) : children}
+    <this.context.Provider value={workingCopy}>
+      {typeof children === 'function' ? children(workingCopy) : children}
     </this.context.Provider>
   );
+}
+
+export function isWorkingCopy<TDraft, TOriginal>(
+  form: FormContext<TDraft, TOriginal>,
+): form is WorkingCopy<TDraft, TOriginal> {
+  return form.parent !== undefined;
 }

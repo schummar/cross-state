@@ -99,7 +99,7 @@ export function LegacyFormField<
   type T = FieldChangeValue<TComponent>;
 
   const form = this.useForm();
-  const getFormState = () => ({ ...form, ...getDerivedState(form) });
+  const getFormState = () => getDerivedState(form);
   const [localValue, setLocalValue] = useState<T>();
 
   const value = this.useFormState(({ form }) => {
