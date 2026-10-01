@@ -123,10 +123,12 @@ describe('form context', () => {
     const form = createForm({
       defaultValue: { name: '', changes: 0 },
       transform: (draft, { previousValue }) => {
-        if (draft.name !== previousValue.name) {
-          previous.push(previousValue.name);
-          draft.changes = previousValue.changes + 1;
+        if (draft.name === previousValue.name) {
+          return;
         }
+
+        previous.push(previousValue.name);
+        return { ...draft, changes: previousValue.changes + 1 };
       },
     });
     const { Capture, ctx } = capture(form);
@@ -141,6 +143,27 @@ describe('form context', () => {
     act(() => ctx().getField('name').setValue('c'));
     expect(previous).toEqual(['a', 'b']);
     expect(ctx().getDraft()).toEqual({ name: 'c', changes: 2 });
+  });
+
+  test('transform can update fields through the context and return nothing', () => {
+    const form = createForm({
+      defaultValue: { name: '', upper: '' },
+      transform: (draft, { getField }) => {
+        if (draft.upper !== draft.name.toUpperCase()) {
+          getField('upper').setValue(draft.name.toUpperCase());
+        }
+      },
+    });
+    const { Capture, ctx } = capture(form);
+
+    render(
+      <form.Form original={{ name: 'a', upper: 'A' }}>
+        <Capture />
+      </form.Form>,
+    );
+
+    act(() => ctx().getField('name').setValue('b'));
+    expect(ctx().getDraft()).toEqual({ name: 'b', upper: 'B' });
   });
 
   test('onOriginalChange overwrite replaces the draft', () => {
@@ -751,7 +774,10 @@ describe('ForEach', () => {
           name="arr"
           renderAdditionalElement
           renderElement={({ name }) => (
-            <form.Field name={name} render={(props) => <input {...props} aria-label={name} />} />
+            <form.Field
+              name={name}
+              render={(props) => <input {...props} value={props.value ?? ''} aria-label={name} />}
+            />
           )}
         />
       </form.Form>,

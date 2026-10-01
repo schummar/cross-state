@@ -30,7 +30,6 @@ import { getWildCardMatches } from '@lib/wildcardMatch';
 import { GeneralFormContext } from '@react/form/closestFormContext';
 import { LegacyFormField, type FormFieldPropsWithComponent } from '@react/form/legacyFormField';
 import useMemoEquals from '@react/lib/useMemoEquals';
-import { type Draft } from 'mutative';
 import {
   createContext,
   forwardRef,
@@ -51,8 +50,12 @@ import {
 // Form types
 /// /////////////////////////////////////////////////////////////////////////////
 
+/**
+ * Returns the new draft, or nothing to leave it as is (e.g. after updating fields through the
+ * context). Do not mutate `value`.
+ */
 export interface Transform<TDraft, TOriginal> {
-  (value: Draft<TDraft>, context: TransformContext<TDraft, TOriginal>): void | TDraft;
+  (value: TDraft, context: TransformContext<TDraft, TOriginal>): TDraft | void;
 }
 
 export interface TransformContext<TDraft, TOriginal> extends FormContext<TDraft, TOriginal> {

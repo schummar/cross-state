@@ -1,4 +1,4 @@
-import { createForm, type FormContext, type WorkingCopy } from '../../src/react';
+import { createForm, type FormContext, type OnApply, type WorkingCopy } from '../../src/react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { StrictMode, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -635,9 +635,7 @@ describe('WorkingCopy review cases', () => {
   test('transform runs inside the copy', () => {
     const form = createForm<Draft>({
       defaultValue: { name: '', items: [] },
-      transform: (draft) => {
-        draft.name = draft.name.toUpperCase();
-      },
+      transform: (draft) => ({ ...draft, name: draft.name.toUpperCase() }),
       reportValidity: false,
     });
 
@@ -677,7 +675,7 @@ describe('WorkingCopy edge cases', () => {
   function renderWithCopy(
     form: ReturnType<typeof setup>,
     original: Draft,
-    copyProps: { onApply?: (workingDraft: Draft, parentDraft: Draft) => Draft | void } = {},
+    copyProps: { onApply?: OnApply<Draft, Draft> } = {},
   ) {
     useCtx = () => form.useForm();
     let outer!: FormContext<Draft, Draft>;
@@ -773,14 +771,14 @@ describe('WorkingCopy edge cases', () => {
     expect(inner.getDraft()).toEqual({ name: 'outer', items: [{ title: 'b' }] });
   });
 
-  test('onApply can mutate the parent draft in place', () => {
+  test('onApply can update the parent through the context and return nothing', () => {
     const form = setup();
     const { outer, inner } = renderWithCopy(
       form,
       { name: 'root', items: [{ title: 'a' }] },
       {
-        onApply: (workingDraft, parentDraft) => {
-          parentDraft.items = workingDraft.items;
+        onApply: (workingDraft, _parentDraft, { parent }) => {
+          parent!.getField('items').setValue(workingDraft.items);
         },
       },
     );
@@ -1145,7 +1143,11 @@ describe('WorkingCopy handle', () => {
     expect(fromHandle.parent).toBe(outer);
 
     change('inner', '');
-    expect(fromHandle.validate()).toBe(false);
+    let isValid!: boolean;
+    act(() => {
+      isValid = fromHandle.validate();
+    });
+    expect(isValid).toBe(false);
     expect(outer.hasTriggeredValidations()).toBe(false);
     expect(fromHandle.getDraft().items[0]!.title).toBe('');
     expect(outer.getDraft().items[0]!.title).toBe('a');

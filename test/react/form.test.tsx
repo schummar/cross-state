@@ -436,11 +436,8 @@ describe('form refactor regressions', () => {
   test('transform re-runs when original changes while the form is untouched', () => {
     const form = createForm<{ name: string }>({
       defaultValue: { name: '' },
-      transform: (draft) => {
-        if (draft.name.startsWith('b')) {
-          draft.name = draft.name.toUpperCase();
-        }
-      },
+      transform: (draft) =>
+        draft.name.startsWith('b') ? { ...draft, name: draft.name.toUpperCase() } : draft,
     });
 
     const { rerender } = render(

@@ -262,7 +262,7 @@ Options (all can be overridden per `<Form>` element):
 - `original?` - the value the draft is compared to and, when untouched, reads through to. Typically the server state.
 - `validations?` - `{ [path]: { [name]: (value, { draft, original, field }) => boolean } }`. Paths may contain `*` wildcards. A failing validation adds `name` to the field's errors. Alternatively a function `({ draft, original }) => Iterable<{ name, error }>`.
 - `localizeError?(error, field)` - map an error name to a message.
-- `transform?(draft, { previousValue, ...form })` - runs after every change (as a mutative draft) to derive or normalise values.
+- `transform?(draft, { previousValue, ...form })` - runs after every change to derive or normalise values. Returns the new draft, or nothing to keep it (e.g. after updating fields through the context); do not mutate it.
 - `onOriginalChange?` - what happens to a touched draft when `original` changes: `'default'` keeps the draft, `'overwrite'` replaces it, `'merge'` takes over fields the user did not change, or a custom `(oldOriginal, newOriginal, draft, form) => draft` handler. An untouched draft always follows the original.
 - `autoSave?` - `{ save(draft, prev, form), debounce?, validateBeforeSave?, resetAfterSave?, equals? }`. Saves the draft after it stopped changing for `debounce` (default 2 s).
 - `reportValidity?` - how `validate()` reports errors: `'browser'` (default, native bubbles), `'scrollTo'` (scroll to the first invalid input), `false`.
@@ -400,7 +400,7 @@ Inside `<WorkingCopy>` every component and hook of the form works as usual but r
 - `discard()` drops the copy's edits. Unmounting the copy does the same.
 - `form.hasChanges()` inside the copy means "changed in this copy". `form.original`, `field.originalValue` and validations still see the real original; the form it was branched from is `form.parent`. Whether validations were already triggered is taken from the form once, at mount.
 - The copy starts from a snapshot of the form's draft taken when it mounts. Later changes of the form do not reach the copy, and the copy does not re-render on them. After `apply()` the snapshot is the form's draft as of that apply.
-- `onApply={(workingDraft, parentDraft, form) => ...}` replaces the default diff-and-patch. Like `transform`, mutate `parentDraft` in place (`parentDraft.address = workingDraft.address`) or return the new parent draft. Default patches are index based for arrays, so removing an element outside the copy before the one being edited shifts the edit.
+- `onApply={(workingDraft, parentDraft, form) => ...}` replaces the default diff-and-patch. Return the new parent draft (`({ ...parentDraft, address: workingDraft.address })`) or nothing to keep it, e.g. after updating fields through `form.parent`; do not mutate the arguments. Default patches are index based for arrays, so removing an element outside the copy before the one being edited shifts the edit.
 - Copies nest; `apply()` writes one level up.
 - `useWorkingCopy()` returns the same `{ form, apply, discard }` from any component inside the copy, where `useForm()` also returns the copy's context.
 - The copy shares the surrounding `<form>` element and, once `form.validate()` was called on it, writes its errors to that element's inputs. Pressing Enter in a copy's input submits that form. Inputs rendered through a portal are outside the form element: native validity (`reportValidity: 'browser'` bubbles, `:invalid`) does not reach them, so rely on `errors` / `data-invalid` there.

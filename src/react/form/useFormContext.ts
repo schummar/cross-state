@@ -14,7 +14,6 @@ import { diff } from '@lib/diff';
 import { deepEqual } from '@lib/equals';
 import useLatestRef from '@react/lib/useLatestRef';
 import useMemoEquals from '@react/lib/useMemoEquals';
-import { create, type Draft } from 'mutative';
 import { useEffect, useLayoutEffect, useMemo, useRef, type RefObject } from 'react';
 
 interface Autosave {
@@ -39,10 +38,13 @@ export interface UseFormContextOptions<TDraft, TOriginal> {
   onApply?: OnApply<TDraft, TOriginal>;
 }
 
-/** Like `Transform`: mutate `parentDraft` in place, or return the new parent draft. */
+/**
+ * Returns the new parent draft, or nothing to leave it as is (e.g. after updating fields through
+ * `form.parent`). Do not mutate the arguments.
+ */
 export type OnApply<TDraft, TOriginal> = (
   workingDraft: TDraft,
-  parentDraft: Draft<TDraft>,
+  parentDraft: TDraft,
   form: FormContext<TDraft, TOriginal>,
 ) => TDraft | void;
 
@@ -123,11 +125,9 @@ export function useFormContext<TDraft, TOriginal extends TDraft>({
 
         const value = draft ?? getBase();
         const previousValue = previousDraft ?? getBase();
-        const result = create(value, (draft) =>
-          transform(draft, { ...contextRef.current!, previousValue }),
-        ) as TDraft;
+        const result = transform(value, { ...contextRef.current!, previousValue });
 
-        if (!deepEqual(result, value)) {
+        if (result !== undefined && !deepEqual(result, value)) {
           formState.set('draft', result);
         }
       });
@@ -410,16 +410,20 @@ function createFormCore<TDraft, TOriginal extends TDraft>({
           // applied to the live parent draft, so parent changes elsewhere survive. No patches →
           // don't touch the parent: materialising its draft would stop it following later
           // original changes.
-          const patches = onApply ? [] : diff(copyBase, draft, { diffArrays: true })[0];
+          if (onApply) {
+            const result = onApply(draft, parent.getDraft(), contextRef.current!);
 
-          if (onApply || patches.length > 0) {
-            parent.formState.set('draft', (parentDraft = parent.getDraft()) =>
-              onApply
-                ? (create(parentDraft, (mutable) =>
-                    onApply(draft, mutable, contextRef.current!),
-                  ) as TDraft)
-                : applyPatches(parentDraft, ...patches),
-            );
+            if (result !== undefined) {
+              parent.formState.set('draft', result);
+            }
+          } else {
+            const patches = diff(copyBase, draft, { diffArrays: true })[0];
+
+            if (patches.length > 0) {
+              parent.formState.set('draft', (parentDraft = parent.getDraft()) =>
+                applyPatches(parentDraft, ...patches),
+              );
+            }
           }
 
           copyBase = parent.getDraft();
