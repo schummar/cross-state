@@ -39,9 +39,11 @@ import {
   type Context,
   type FormEvent,
   type ForwardedRef,
+  type ForwardRefExoticComponent,
   type FunctionComponent,
   type HTMLProps,
   type ReactNode,
+  type RefAttributes,
   type RefObject,
 } from 'react';
 
@@ -566,9 +568,10 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     return Reflect.apply(FormForEach, this, [props]);
   }
 
-  WorkingCopy(props: FormWorkingCopyProps<TDraft, TOriginal>): React.JSX.Element {
-    return Reflect.apply(FormWorkingCopy, this, [props]);
-  }
+  /** Pass `ref` to get the copy's handle outside of it, e.g. to apply or discard from a dialog footer. */
+  WorkingCopy: ForwardRefExoticComponent<
+    FormWorkingCopyProps<TDraft, TOriginal> & RefAttributes<WorkingCopy<TDraft, TOriginal>>
+  > = forwardRef((props, ref) => Reflect.apply(FormWorkingCopy, this, [props, ref]));
 
   withForm<TProps extends Record<string, unknown>>(
     Component: React.ComponentType<TProps>,

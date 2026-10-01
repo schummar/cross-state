@@ -1,6 +1,6 @@
 import { type Form, type FormContext, type FormOptions } from './form';
 import { useFormContext, type OnApply } from './useFormContext';
-import { useMemo, type ReactNode } from 'react';
+import { useImperativeHandle, useMemo, type ForwardedRef, type ReactNode } from 'react';
 
 export interface WorkingCopy<TDraft, TOriginal> {
   /**
@@ -35,6 +35,7 @@ export interface FormWorkingCopyProps<TDraft, TOriginal> {
 export function FormWorkingCopy<TDraft, TOriginal extends TDraft>(
   this: Form<TDraft, TOriginal>,
   { onApply, children }: FormWorkingCopyProps<TDraft, TOriginal>,
+  ref: ForwardedRef<WorkingCopy<TDraft, TOriginal>>,
 ): React.JSX.Element {
   const parent = this.useForm();
 
@@ -54,6 +55,8 @@ export function FormWorkingCopy<TDraft, TOriginal extends TDraft>(
     parent,
     onApply,
   });
+
+  useImperativeHandle(ref, () => context.workingCopy!, [context.workingCopy]);
 
   return (
     <this.context.Provider value={context}>

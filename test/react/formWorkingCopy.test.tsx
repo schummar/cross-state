@@ -1,6 +1,6 @@
-import { createForm, type FormContext } from '../../src/react';
+import { createForm, type FormContext, type WorkingCopy } from '../../src/react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { StrictMode, useState } from 'react';
+import { StrictMode, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { describe, expect, test } from 'vite-plus/test';
 
@@ -380,6 +380,41 @@ describe('WorkingCopy', () => {
     change('inner', 'b');
     click('apply');
     expect(input('outer').value).toBe('b');
+  });
+
+  test('ref exposes the handle outside the copy', () => {
+    const form = setup();
+
+    function Component() {
+      const ref = useRef<WorkingCopy<Draft, Draft>>(null);
+
+      return (
+        <form.Form original={{ name: 'root', items: [{ title: 'a' }] }}>
+          <form.Field
+            name="items.0.title"
+            render={(props) => <input {...props} aria-label="outer" />}
+          />
+          <form.WorkingCopy ref={ref}>
+            <form.Field
+              name="items.0.title"
+              render={(props) => <input {...props} aria-label="inner" />}
+            />
+          </form.WorkingCopy>
+          <button onClick={() => ref.current!.apply()}>apply</button>
+          <button onClick={() => ref.current!.discard()}>discard</button>
+        </form.Form>
+      );
+    }
+
+    render(<Component />);
+
+    change('inner', 'b');
+    click('discard');
+    expect(input('inner').value).toBe('a');
+
+    change('inner', 'c');
+    click('apply');
+    expect(input('outer').value).toBe('c');
   });
 });
 
