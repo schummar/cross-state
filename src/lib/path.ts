@@ -13,6 +13,38 @@ export type KeyType = string | number | symbol;
 
 export type AnyPath = string | readonly KeyType[];
 
+// Resolves to `never` when the global is not declared, e.g. without the DOM lib
+type GlobalInstance<K> = K extends keyof typeof globalThis
+  ? (typeof globalThis)[K] extends { prototype: infer P }
+    ? P
+    : never
+  : never;
+
+// Values rather than containers. Without this, every `Date` in a draft adds its ~45 methods (and
+// their MaxDepth tails) as paths. Primitives are listed for branded ones like `string & { __tag }`.
+type Leaf =
+  | string
+  | number
+  | bigint
+  | boolean
+  | symbol
+  | Date
+  | RegExp
+  | ArrayBuffer
+  | ArrayBufferView
+  | PromiseLike<any>
+  | ((...args: any) => any)
+  | (abstract new (...args: any) => any)
+  | GlobalInstance<
+      | 'Blob'
+      | 'EventTarget'
+      | 'AbortController'
+      | 'URL'
+      | 'URLSearchParams'
+      | 'FormData'
+      | 'Headers'
+    >;
+
 export type GetKeys<T extends Object_ | Array_> = T extends Array_
   ? T extends readonly [] // special case empty tuple => no keys
     ? never
@@ -25,7 +57,7 @@ export type _PathAsArray<T, Optional, MaxDepth, Depth extends 1[]> =
   | (Optional extends false ? readonly [] : never)
   | (true extends IsAny<T>
       ? readonly KeyType[]
-      : T extends never
+      : T extends Leaf
         ? never
         : T extends Object_
           ? Depth['length'] extends MaxDepth
@@ -87,7 +119,7 @@ export type _WildcardPathAsArray<T, MaxDepth, Depth extends 1[]> =
   | []
   | (0 extends 1 & T
       ? KeyType[]
-      : T extends never
+      : T extends Leaf
         ? never
         : T extends Object_
           ? Depth['length'] extends MaxDepth
@@ -178,7 +210,7 @@ type _SettablePathAsArray<T, MaxDepth, Depth extends 1[]> =
   | (true extends IsAny<T>
       ? readonly KeyType[]
       : undefined extends T
-        ? T extends Map<any, any> | Set<any>
+        ? T extends Map<any, any> | Set<any> | Leaf
           ? never
           : T extends Object_
             ? {
@@ -189,7 +221,7 @@ type _SettablePathAsArray<T, MaxDepth, Depth extends 1[]> =
                   : readonly [];
               }[GetKeys<T>]
             : never
-        : T extends never
+        : T extends Leaf
           ? never
           : T extends Object_
             ? Depth['length'] extends MaxDepth

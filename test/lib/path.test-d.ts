@@ -1,8 +1,10 @@
 import type {
   GetKeys,
+  PathAsString,
   Path,
   PathAsArray,
   SettablePathAsArray,
+  SettablePathAsString,
   Value,
   WildcardMatch,
   WildcardPathAsString,
@@ -277,6 +279,67 @@ describe('path', () => {
         | readonly ['a1', 'b1', 'c']
         | readonly ['a2']
       >();
+    });
+  });
+
+  describe('leaves', () => {
+    interface Draft {
+      date: Date;
+      optionalDate?: Date;
+      fn: () => void;
+      promise: Promise<string>;
+      regex: RegExp;
+      bytes: Uint8Array;
+      file: File;
+      controller: AbortController;
+      branded: string & { __brand?: 'id' };
+      list: { at: Date; n: number }[];
+    }
+
+    type Leaves = 'date' | 'optionalDate' | 'fn' | 'promise' | 'regex' | 'bytes' | 'file';
+    type MoreLeaves = 'controller' | 'branded' | 'list';
+
+    test('paths end at leaves', () => {
+      expectTypeOf({} as PathAsString<Draft>).toEqualTypeOf<
+        '' | Leaves | MoreLeaves | `list.${number}` | `list.${number}.at` | `list.${number}.n`
+      >();
+    });
+
+    test('wildcard paths end at leaves', () => {
+      expectTypeOf({} as WildcardPathAsString<{ d: Date; list: { at: Date }[] }>).toEqualTypeOf<
+        | ''
+        | '*'
+        | 'd'
+        | 'list'
+        | '*.*'
+        | `*.${number}`
+        | '*.*.*'
+        | '*.*.at'
+        | `*.${number}.*`
+        | `*.${number}.at`
+        | 'list.*'
+        | `list.${number}`
+        | 'list.*.*'
+        | 'list.*.at'
+        | `list.${number}.*`
+        | `list.${number}.at`
+      >();
+    });
+
+    test('settable paths end at leaves', () => {
+      expectTypeOf({} as SettablePathAsString<{ d: Date; o?: { d: Date } }>).toEqualTypeOf<
+        '' | 'd' | 'o' | 'o.d'
+      >();
+    });
+
+    test('leaf as root', () => {
+      expectTypeOf({} as Path<Date>).toEqualTypeOf<EmptyPath>();
+      expectTypeOf({} as Path<() => void>).toEqualTypeOf<EmptyPath>();
+    });
+
+    test('value of a leaf path', () => {
+      expectTypeOf({} as Value<Draft, 'list.0.at'>).toEqualTypeOf<Date | undefined>();
+      expectTypeOf({} as Value<Draft, 'optionalDate'>).toEqualTypeOf<Date | undefined>();
     });
   });
 });
