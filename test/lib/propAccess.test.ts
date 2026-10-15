@@ -1,11 +1,11 @@
-import type { Path, Value } from '../../src/lib/path';
+import type { ValidPath, Value } from '../../src/lib/path';
 import { get, remove, set } from '../../src/lib/propAccess';
 import { describe, expect, expectTypeOf, test } from 'vite-plus/test';
 
-function g<T extends Record<string | number, unknown> | readonly unknown[], P extends Path<T>>(
+function g<T extends Record<string | number, unknown> | readonly unknown[], const P>(
   name: string,
   object: T,
-  path: P,
+  path: ValidPath<T, P>,
   checkValue: Value<T, P>,
   newValue: Value<T, P>,
   newObject: T | Error,

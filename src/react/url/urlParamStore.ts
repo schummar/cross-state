@@ -1,8 +1,7 @@
 import { createStore, Store, type Update } from '@core';
 import { autobind } from '@lib/autobind';
 import { castArray } from '@lib/castArray';
-import type { Constrain } from '@lib/constrain';
-import type { Path, Value } from '@lib/path';
+import type { ValidPath, Value } from '@lib/path';
 import { get, set } from '@lib/propAccess';
 import { normalizePath } from '@react/url/urlHelpers';
 import {
@@ -194,7 +193,7 @@ export class UrlParamStore<T> extends Store<T> {
   }
 
   set(update: Update<T>): void;
-  set<const P>(path: Constrain<P, Path<T>>, update: Update<Value<T, P>>): void;
+  set<const P>(path: ValidPath<T, P>, update: Update<Value<T, P>>): void;
   set(...args: any[]): void {
     const path: any = args.length > 1 ? args[0] : [];
     let update: Update<any> = args.length > 1 ? args[1] : args[0];

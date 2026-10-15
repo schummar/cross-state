@@ -1,8 +1,7 @@
 import { useStore, type UseStoreOptions } from './useStore';
 import { type Selector, type Update } from '@core/commonTypes';
 import type { Store } from '@core/store';
-import type { Constrain } from '@lib/constrain';
-import { isAnyPath, type AnyPath, type SettablePath, type Value } from '@lib/path';
+import { type AnyPath, isAnyPath, type ValidSettablePath, type Value } from '@lib/path';
 import useLatestFunction from '@react/lib/useLatestFunction';
 
 export function useProp<T, S>(
@@ -14,7 +13,7 @@ export function useProp<T, S>(
 
 export function useProp<T, const P>(
   store: Store<T>,
-  selector: Constrain<P, SettablePath<T>>,
+  selector: ValidSettablePath<T, P>,
   options?: UseStoreOptions<Value<T, P>>,
 ): [value: Value<T, P>, setValue: Store<Value<T, P>>['set']];
 

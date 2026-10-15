@@ -1,9 +1,9 @@
 import { Form, type Field, type FieldOptions, type FormContext } from './form';
 import type { Duration } from '@core';
 import { calcDuration } from '@lib/duration';
-import { type PathAsString, type Value } from '@lib/path';
+import { type ValidPath, type Value } from '@lib/path';
 import useLatestFunction from '@react/lib/useLatestFunction';
-import { useEffect, useState, type Component, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 export interface FormFieldComponentProps<TValue, TPath> {
   name: TPath;
@@ -21,16 +21,8 @@ export type FormFieldInfos<TDraft, TOriginal, TPath extends string> = Field<
   hasTriggeredValidations: boolean;
 };
 
-type NativeInputType = 'input' | 'select' | 'textarea';
-
-type PartialComponentType<P> =
-  | (new (props: P, context?: any) => Component<P, any>)
-  | ((props: P, context?: any) => ReactNode);
-
-export type FormFieldComponent = NativeInputType | PartialComponentType<any>;
-
 export interface FormFieldProps<TPath, TDraft> extends FieldOptions {
-  name: TPath extends PathAsString<TDraft> ? TPath : PathAsString<TDraft>;
+  name: ValidPath<TDraft, TPath>;
   commitOnBlur?: boolean;
   commitDebounce?: Duration;
 }

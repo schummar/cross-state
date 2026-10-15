@@ -13,15 +13,16 @@ export {
 export { hash, simpleHash, type Hashable } from './lib/hash';
 export { InstanceCache } from './lib/instanceCache';
 export {
-  type Path,
-  type PathAsArray,
-  type PathAsString,
-  type SettablePath,
-  type SettablePathAsArray,
-  type SettablePathAsString,
+  type AnyPath,
+  type ValidOptionalPath,
+  type ValidPath,
+  type ValidSettablePath,
+  type ValidWildcardPath,
   type Value,
+  type WildcardValue,
 } from './lib/path';
 export { get, set } from './lib/propAccess';
+export { matches, type MatchedPath } from './lib/wildcardMatch';
 export { arrayMethods, mapMethods, recordMethods, setMethods } from './lib/standardMethods';
 export * from './lib/updateHelpers';
 export * from './persist';

@@ -1,6 +1,5 @@
 import type { Scope, Selector, Store, Update } from '@core';
-import type { Constrain } from '@lib/constrain';
-import type { Path, Value } from '@lib/path';
+import type { ValidPath, Value } from '@lib/path';
 import {
   ScopeProvider,
   useScope,
@@ -22,7 +21,7 @@ function boundUseScopeStore<T, S>(
 
 function boundUseScopeStore<T, const P>(
   this: Scope<T>,
-  selector: Constrain<P, Path<T>>,
+  selector: ValidPath<T, P>,
   option?: UseStoreOptions<Value<T, P>>,
 ): Value<T, P>;
 
@@ -41,7 +40,7 @@ function boundUseScopeProp<T, S>(
 
 function boundUseScopeProp<T, const P>(
   this: Scope<T>,
-  selector: Constrain<P, Path<T>>,
+  selector: ValidPath<T, P>,
   options?: UseStoreOptions<Value<T, P>>,
 ): [value: Value<T, P>, setValue: Store<Value<T, P>>['set']];
 

@@ -1,3 +1,4 @@
+import { matches } from '../../src';
 import { createForm, CustomInput, useClosestForm, type FormContext } from '../../src/react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test';
@@ -233,9 +234,9 @@ describe('validations', () => {
   test('localizeError maps error keys, keeping unknown ones', () => {
     const form = createForm<{ a: string; b: string }>({
       defaultValue: { a: '', b: '' },
-      validations: {
-        a: { required: (v) => !!v },
-        b: { other: (v) => !!v },
+      validations: function* ({ draft, fieldError }) {
+        if (!draft.a) yield fieldError('a', 'required');
+        if (!draft.b) yield fieldError('b', 'other');
       },
       localizeError: (error, field) => (error === 'required' ? `${field} is required` : undefined),
     });
@@ -250,17 +251,15 @@ describe('validations', () => {
     expect(ctx().getField('b').errors).toEqual(['other']);
   });
 
-  test('validations receive draft, original and the concrete field name', () => {
+  test('validations receive draft and original, and matches yields concrete names', () => {
     const calls: unknown[] = [];
     const form = createForm<{ items: string[] }>({
       defaultValue: { items: [] },
-      validations: {
-        'items.*': {
-          check: (value, { original, field }) => {
-            calls.push([value, original?.items.length, field]);
-            return true;
-          },
-        },
+      validations: ({ draft, original }) => {
+        for (const [name, value] of matches(draft, 'items.*')) {
+          calls.push([value, original?.items.length, name]);
+        }
+        return [];
       },
     });
 
@@ -274,9 +273,9 @@ describe('validations', () => {
   test('includeNestedErrors collects errors below the field', () => {
     const form = createForm<{ address: { city: string; zip: string } }>({
       defaultValue: { address: { city: '', zip: '' } },
-      validations: {
-        'address.city': { required: (v) => !!v },
-        'address.zip': { required: (v) => !!v },
+      validations: function* ({ draft, fieldError }) {
+        if (!draft.address.city) yield fieldError('address.city', 'required');
+        if (!draft.address.zip) yield fieldError('address.zip', 'required');
       },
     });
     const { Capture, ctx } = capture(form);
@@ -296,7 +295,9 @@ describe('validations', () => {
   test('initiallyTriggerValidations marks the form validated from the start', () => {
     const form = createForm({
       defaultValue: { name: '' },
-      validations: { name: { required: (v) => !!v } },
+      validations: function* ({ draft, fieldError }) {
+        if (!draft.name) yield fieldError('name', 'required');
+      },
     });
 
     const { container } = render(<form.Form initiallyTriggerValidations />);
@@ -308,7 +309,9 @@ describe('validations', () => {
   test('validate with scrollTo focuses the first invalid element', () => {
     const form = createForm({
       defaultValue: { a: 'ok', b: '' },
-      validations: { b: { required: (v) => !!v } },
+      validations: function* ({ draft, fieldError }) {
+        if (!draft.b) yield fieldError('b', 'required');
+      },
     });
     const { Capture, ctx } = capture(form);
     const scrollIntoView = vi
@@ -353,7 +356,9 @@ describe('submit', () => {
   const setup = (onSubmit: (...args: any[]) => unknown, validatedClass?: string) => {
     const form = createForm({
       defaultValue: { name: '' },
-      validations: { name: { required: (v) => !!v } },
+      validations: function* ({ draft, fieldError }) {
+        if (!draft.name) yield fieldError('name', 'required');
+      },
       reportValidity: false,
     });
 
@@ -527,7 +532,9 @@ describe('Field', () => {
   test('sets data-invalid when the field has errors', () => {
     const form = createForm({
       defaultValue: { name: '' },
-      validations: { name: { required: (v) => !!v } },
+      validations: function* ({ draft, fieldError }) {
+        if (!draft.name) yield fieldError('name', 'required');
+      },
     });
 
     render(
@@ -602,7 +609,9 @@ describe('Field', () => {
   test('transformFieldProps can rewrite the props', () => {
     const form = createForm({
       defaultValue: { name: 'a' },
-      validations: { name: { min: (v) => v.length > 1 } },
+      validations: function* ({ draft, fieldError }) {
+        if (draft.name.length <= 1) yield fieldError('name', 'min');
+      },
       transformFieldProps: (props, info) =>
         ({
           ...props,
@@ -614,13 +623,12 @@ describe('Field', () => {
     render(
       <form.Form>
         <form.Field name="name" render={(props) => <input {...props} />} />
-        <form.Field name="name" component="input" />
       </form.Form>,
     );
 
     const inputs = screen.getAllByRole<HTMLInputElement>('textbox', { name: 'name' });
-    expect(inputs).toHaveLength(2);
-    expect(inputs.map((i) => i.getAttribute('aria-description'))).toEqual(['min', 'min']);
+    expect(inputs).toHaveLength(1);
+    expect(inputs.map((i) => i.getAttribute('aria-description'))).toEqual(['min']);
   });
 
   test('useFieldProps returns the props for a custom input', () => {
@@ -643,61 +651,7 @@ describe('Field', () => {
   });
 });
 
-describe('legacy Field (component)', () => {
-  test('inputFilter rejects values, and onChange/onBlur are passed through', () => {
-    const form = createForm({ defaultValue: { digits: '' } });
-    const { Capture, ctx } = capture(form);
-    const onChange = vi.fn();
-    const onBlur = vi.fn();
-
-    render(
-      <form.Form>
-        <Capture />
-        <form.Field
-          name="digits"
-          component="input"
-          aria-label="digits"
-          inputFilter={(value) => /^\d*$/.test(value as string)}
-          onChange={onChange}
-          onBlur={onBlur}
-        />
-      </form.Form>,
-    );
-
-    change('digits', '12');
-    change('digits', '12a');
-    expect(ctx().getDraft()).toEqual({ digits: '12' });
-    expect(onChange).toHaveBeenCalledTimes(1);
-
-    blur('digits');
-    expect(onBlur).toHaveBeenCalledTimes(1);
-  });
-
-  test('serialize, deserialize and defaultValue', () => {
-    const form = createForm<{ count: number; note?: string }>({ defaultValue: { count: 1 } });
-    const { Capture, ctx } = capture(form);
-
-    render(
-      <form.Form>
-        <Capture />
-        <form.Field
-          name="count"
-          component="input"
-          aria-label="count"
-          serialize={(value) => String(value)}
-          deserialize={(value) => Number(value)}
-        />
-        <form.Field name="note" component="input" aria-label="note" defaultValue="none" />
-      </form.Form>,
-    );
-
-    expect(input('count').value).toBe('1');
-    expect(input('note').value).toBe('none');
-
-    change('count', '42');
-    expect(ctx().getDraft()).toEqual({ count: 42 });
-  });
-
+describe('Field commit options', () => {
   test('commitOnBlur keeps the value local until blur', () => {
     const form = createForm({ defaultValue: { name: '' } });
     const { Capture, ctx } = capture(form);
@@ -705,7 +659,11 @@ describe('legacy Field (component)', () => {
     render(
       <form.Form>
         <Capture />
-        <form.Field name="name" component="input" aria-label="name" commitOnBlur />
+        <form.Field
+          name="name"
+          commitOnBlur
+          render={(props) => <input {...props} aria-label="name" />}
+        />
       </form.Form>,
     );
 
@@ -730,7 +688,11 @@ describe('legacy Field (component)', () => {
       render(
         <form.Form>
           <Capture />
-          <form.Field name="name" component="input" aria-label="name" commitDebounce={500} />
+          <form.Field
+            name="name"
+            commitDebounce={500}
+            render={(props) => <input {...props} aria-label="name" />}
+          />
         </form.Form>,
       );
 
@@ -837,7 +799,9 @@ describe('CustomInput', () => {
   test('renders a hidden named input that carries the field validity', () => {
     const form = createForm({
       defaultValue: { color: '' },
-      validations: { color: { required: (v) => !!v } },
+      validations: function* ({ draft, fieldError }) {
+        if (!draft.color) yield fieldError('color', 'required');
+      },
       reportValidity: false,
     });
 

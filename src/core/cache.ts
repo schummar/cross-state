@@ -4,13 +4,12 @@ import { Store, createStore, type Calculate, type StoreOptions } from './store';
 import { autobind } from '@lib/autobind';
 import type { CacheState, ErrorState, ValueState } from '@lib/cacheState';
 import { calculatedValue } from '@lib/calculatedValue';
-import type { Constrain } from '@lib/constrain';
 import { calcDuration } from '@lib/duration';
 import { deepEqual } from '@lib/equals';
 import { InstanceCache } from '@lib/instanceCache';
 import { makeSelector } from '@lib/makeSelector';
 import { type MaybePromise } from '@lib/maybePromise';
-import type { AnyPath, Path, Value } from '@lib/path';
+import type { AnyPath, ValidPath, Value } from '@lib/path';
 import { PromiseWithState } from '@lib/promiseWithState';
 
 export interface CacheGetOptions {
@@ -201,9 +200,7 @@ export class Cache<T, Args extends any[] = []> extends Store<Promise<T>> {
 
   mapValue<S>(selector: Selector<T, S>): Cache<S, Args>;
 
-  mapValue<const P extends AnyPath>(
-    selector: P extends Path<T> ? P : Path<T>,
-  ): Cache<Value<T, P>, Args>;
+  mapValue<const P>(selector: ValidPath<T, P>): Cache<Value<T, P>, Args>;
 
   mapValue(selector: Selector<any, any> | AnyPath) {
     return mapValue(this, selector);
@@ -371,7 +368,7 @@ export type CacheBundle<T, Args extends any[], TCache extends Cache<T, Args>> = 
   (...args: Args): TCache;
   mapCache<S>(selector: Selector<T, S>): CreateCacheResult<S, Args, Cache<S, Args>>;
   mapValue<const P>(
-    selector: Constrain<P, Path<T>>,
+    selector: ValidPath<T, P>,
   ): CreateCacheResult<Value<T, P>, Args, Cache<Value<T, P>, Args>>;
   invalidateAll: (options?: InvalidationOptions<T, Args, TCache>) => void;
   clearAll: (options?: InvalidationOptions<T, Args, TCache>) => void;

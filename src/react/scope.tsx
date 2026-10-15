@@ -2,8 +2,7 @@ import { useProp } from './useProp';
 import { useStore, type UseStoreOptions } from './useStore';
 import type { Scope, Selector, Update } from '@core';
 import { createStore, type Store } from '@core/store';
-import type { Constrain } from '@lib/constrain';
-import type { Path, Value } from '@lib/path';
+import type { ValidPath, Value } from '@lib/path';
 import { createContext, useContext, useMemo, type Context, type ReactNode } from 'react';
 
 export type ScopeProps<T> = { scope: Scope<T>; store?: Store<T>; children?: ReactNode };
@@ -46,7 +45,7 @@ export function useScopeStore<T, S>(
 
 export function useScopeStore<T, const P>(
   scope: Scope<T>,
-  selector: Constrain<P, Path<T>>,
+  selector: ValidPath<T, P>,
   option?: UseStoreOptions<Value<T, P>>,
 ): Value<T, P>;
 
@@ -66,7 +65,7 @@ export function useScopeProp<T, S>(
 
 export function useScopeProp<T, const P>(
   scope: Scope<T>,
-  selector: Constrain<P, Path<T>>,
+  selector: ValidPath<T, P>,
   options?: UseStoreOptions<Value<T, P>>,
 ): [value: Value<T, P>, setValue: Store<Value<T, P>>['set']];
 

@@ -1,21 +1,7 @@
-import { type KeyType } from './path';
-
 export type Object_ = Record<string | number | symbol, any>;
 export type Array_ = readonly any[];
 
 export type StringToNumber<T> = T extends `${infer K extends number}` ? K : never;
-
-export type ArrayToStringPath<T> = T extends readonly []
-  ? ''
-  : T extends readonly [infer First extends string | number, ...infer Rest]
-    ? First extends `${string}.${string}`
-      ? never
-      : Rest extends readonly []
-        ? `${First}`
-        : `${First}.${ArrayToStringPath<Rest>}`
-    : T extends readonly KeyType[]
-      ? string
-      : never;
 
 export type StringToArrayPath<T> = T extends ''
   ? readonly []

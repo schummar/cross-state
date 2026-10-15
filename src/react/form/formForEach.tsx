@@ -1,6 +1,6 @@
 import { type FieldHelperMethods, type Form } from './form';
 import { isObject } from '@lib/helpers';
-import { type GetKeys, type Join, type PathAsString, type Value } from '@lib/path';
+import { type GetKeys, type Join, type ValidPath, type Value } from '@lib/path';
 import { join } from '@lib/propAccess';
 import { Fragment, useCallback, type ReactNode } from 'react';
 
@@ -11,7 +11,7 @@ export type ElementName<TDraft, TPath extends string> = keyof {
 type ItemValue<T> = T extends readonly (infer U)[] ? U : T[keyof T];
 
 export interface FormForEachProps<TDraft, TPath extends string> {
-  name: TPath extends PathAsString<TDraft> ? TPath : PathAsString<TDraft>;
+  name: ValidPath<TDraft, TPath>;
   renderElement?: (props: {
     name: ElementName<TDraft, TPath>;
     key: `${GetKeys<NonNullable<Value<TDraft, TPath>>> & (string | number)}`;

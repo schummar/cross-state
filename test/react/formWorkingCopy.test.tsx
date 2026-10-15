@@ -1,3 +1,4 @@
+import { matches } from '../../src';
 import { createForm, type FormContext, type OnApply, type WorkingCopy } from '../../src/react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { StrictMode, useRef, useState } from 'react';
@@ -9,10 +10,10 @@ type Draft = { name: string; items: { title: string }[] };
 function setup() {
   const form = createForm<Draft>({
     defaultValue: { name: '', items: [] },
-    validations: {
-      'items.*.title': {
-        required: (value) => !!value,
-      },
+    validations: function* ({ draft, fieldError }) {
+      for (const [name, title] of matches(draft, 'items.*.title')) {
+        if (!title) yield fieldError(name, 'required');
+      }
     },
     reportValidity: false,
   });
@@ -534,10 +535,8 @@ describe('WorkingCopy review cases', () => {
   test('original inside the copy is the real original, validations included', () => {
     const form = createForm<Draft>({
       defaultValue: { name: '', items: [] },
-      validations: {
-        name: {
-          unchanged: (value, { original }) => value === original?.name,
-        },
+      validations: function* ({ draft, original, fieldError }) {
+        if (draft.name !== original?.name) yield fieldError('name', 'unchanged');
       },
       reportValidity: false,
     });

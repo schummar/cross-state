@@ -1,9 +1,15 @@
 import { flatClone } from './clone';
-import type { KeyType, Path, SettablePath, SettableValue, Value } from './path';
-import type { Constrain } from '@lib/constrain';
+import type {
+  KeyType,
+  SettableValue,
+  ValidOptionalPath,
+  ValidPath,
+  ValidSettablePath,
+  Value,
+} from './path';
 import { isObject } from '@lib/helpers';
 
-export function castArrayPath(path: string | KeyType[]): KeyType[] {
+export function castArrayPath(path: string | readonly KeyType[]): KeyType[] {
   if (Array.isArray(path)) {
     return path;
   }
@@ -15,7 +21,7 @@ export function castArrayPath(path: string | KeyType[]): KeyType[] {
   return (path as string).split('.');
 }
 
-export function get<T, const P>(object: T, path: Constrain<P, Path<T>>): Value<T, P> {
+export function get<T, const P>(object: T, path: ValidPath<T, P>): Value<T, P> {
   const _path = castArrayPath(path as any);
   const [first, ...rest] = _path;
 
@@ -40,7 +46,7 @@ export function get<T, const P>(object: T, path: Constrain<P, Path<T>>): Value<T
 
 export function set<T, const P>(
   object: T,
-  path: Constrain<P, SettablePath<T>>,
+  path: ValidSettablePath<T, P>,
   value: SettableValue<T, P>,
 ): T {
   const _path = castArrayPath(path as any);
@@ -81,7 +87,7 @@ export function set<T, const P>(
   throw new Error(`Could not set ${JSON.stringify(path)} of ${JSON.stringify(object)}`);
 }
 
-export function remove<T, const P>(object: T, path: Constrain<P, Path<T, true>>): T {
+export function remove<T, const P>(object: T, path: ValidOptionalPath<T, P>): T {
   const _path = castArrayPath(path as any);
 
   if (_path.length === 0) {

@@ -8,7 +8,9 @@ type Draft = { name: string };
 function setup(autoSave: FormAutosaveOptions<Draft, Draft>) {
   const form = createForm<Draft>({
     defaultValue: { name: '' },
-    validations: { name: { required: (value) => !!value } },
+    validations: function* ({ draft, fieldError }) {
+      if (!draft.name) yield fieldError('name', 'required');
+    },
     reportValidity: false,
     autoSave: { debounce: 1_000, ...autoSave },
   });

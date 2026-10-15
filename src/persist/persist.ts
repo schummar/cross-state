@@ -8,26 +8,33 @@ import { calcDuration } from '@lib/duration';
 import { shallowEqual } from '@lib/equals';
 import { fromExtendedJsonString, toExtendedJsonString } from '@lib/extendedJson';
 import isPromise from '@lib/isPromise';
-import type { KeyType, WildcardPath } from '@lib/path';
+import type { AnyPath, KeyType, ValidWildcardPath } from '@lib/path';
 import promiseChain from '@lib/promiseChain';
 import { castArrayPath, get, remove, set } from '@lib/propAccess';
 import { queue } from '@lib/queue';
 import { subscribePatches } from '@patches/patchMethods';
 import { isAncestor, split } from '@persist/persistPathHelpers';
 
-type PathOption<T> =
-  | WildcardPath<T>
+type PathOption =
+  | AnyPath
   | {
-      path: WildcardPath<T>;
+      path: AnyPath;
       // throttle?: Duration;
     };
 
+// Checks each path given to `persist` on its own instead of listing all paths of `T`
+type ValidPathOptions<T, Ps> = {
+  [I in keyof Ps]: Ps[I] extends { path: infer P }
+    ? { path: ValidWildcardPath<T, P> }
+    : ValidWildcardPath<T, Ps[I]>;
+};
+
 type Key = { type: 'internal'; path: string } | { type: 'data'; path: KeyType[] };
 
-export interface PersistOptions<T> {
+export interface PersistOptions {
   id: string;
   storage: PersistStorage;
-  paths?: PathOption<T>[];
+  paths?: readonly PathOption[];
   throttle?: Duration;
   persistInitialState?: boolean;
 }
@@ -59,7 +66,7 @@ export class Persist<T> {
 
   constructor(
     public readonly store: Store<T>,
-    public readonly options: PersistOptions<T>,
+    public readonly options: PersistOptions,
   ) {
     this.storage = normalizeStorage(options.storage);
     this.channel = new BroadcastChannel(`cross-state-persist_${options.id}`);
@@ -348,10 +355,13 @@ export class Persist<T> {
   }
 }
 
-export function persist<T>(store: Store<T>, options: PersistOptions<T>): Persist<T> {
-  return new Persist<T>(store, options);
+export function persist<T, const Ps extends readonly PathOption[] = []>(
+  store: Store<T>,
+  options: Omit<PersistOptions, 'paths'> & { paths?: ValidPathOptions<T, Ps> },
+): Persist<T> {
+  return new Persist<T>(store, options as PersistOptions);
 }
 
-function isPlainPath<T>(p: PathOption<T>): p is WildcardPath<T> & (KeyType[] | string) {
+function isPlainPath(p: PathOption): p is AnyPath {
   return typeof p === 'string' || Array.isArray(p);
 }

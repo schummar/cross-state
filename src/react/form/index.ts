@@ -8,7 +8,8 @@ export {
   type FormOptions,
   type FormState,
   type Transform,
-  type Validation,
+  type FieldError,
+  type ValidationContext,
   type Validations,
 } from './form';
 export {
@@ -19,7 +20,6 @@ export {
 export { type FormWorkingCopyProps, type WorkingCopy } from './formWorkingCopy';
 export { type OnApply } from './useFormContext';
 export {
-  type FormFieldComponent,
   type FormFieldComponentProps,
   type FormFieldInfos,
   type FormFieldProps,

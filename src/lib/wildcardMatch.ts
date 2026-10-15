@@ -1,4 +1,4 @@
-import { type KeyType } from './path';
+import { type KeyType, type ValidWildcardPath, type WildcardValue } from './path';
 import { castArrayPath } from './propAccess';
 import { isObject } from '@lib/helpers';
 
@@ -45,4 +45,20 @@ export function getWildCardMatches(
   }
 
   return matches;
+}
+
+declare const matchedPath: unique symbol;
+
+/** A concrete path found by `matches`. Form validations accept it as a field name as is. */
+export type MatchedPath = string & { readonly [matchedPath]: true };
+
+/** Every concrete path of `object` that `path` matches, `*` matching any key, with its value. */
+export function matches<T, const P extends string>(
+  object: T,
+  path: ValidWildcardPath<T, P>,
+): [name: MatchedPath, value: WildcardValue<T, P>][] {
+  return Object.entries(getWildCardMatches(object, path as string)) as [
+    MatchedPath,
+    WildcardValue<T, P>,
+  ][];
 }

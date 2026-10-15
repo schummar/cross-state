@@ -1,9 +1,8 @@
 import type { Selector, SubscribeOptions } from '@core/commonTypes';
 import type { Store } from '@core/store';
-import type { Constrain } from '@lib/constrain';
 import { deepEqual, strictEqual } from '@lib/equals';
 import { makeSelector } from '@lib/makeSelector';
-import { isAnyPath, type AnyPath, type Path, type Value } from '@lib/path';
+import { type AnyPath, isAnyPath, type ValidPath, type Value } from '@lib/path';
 import { trackingProxy } from '@lib/trackingProxy';
 import useMemoEquals from '@react/lib/useMemoEquals';
 import {
@@ -53,7 +52,7 @@ export function useStore<T, S>(
 
 export function useStore<T, const P>(
   store: Store<T>,
-  selector: Constrain<P, Path<T>>,
+  selector: ValidPath<T, P>,
   option?: UseStoreOptionsWithSelector<T, Value<T, P>>,
 ): Value<T, P>;
 

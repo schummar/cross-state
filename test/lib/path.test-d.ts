@@ -1,18 +1,17 @@
 import type {
   GetKeys,
-  PathAsString,
-  Path,
-  PathAsArray,
-  SettablePathAsArray,
-  SettablePathAsString,
+  ValidOptionalPath,
+  ValidPath,
+  ValidSettablePath,
+  ValidWildcardPath,
   Value,
   WildcardMatch,
-  WildcardPathAsString,
   WildcardValue,
 } from '../../src/lib/path';
 import { describe, expectTypeOf, test } from 'vite-plus/test';
 
-type EmptyPath = readonly [] | '';
+// `P` passes the check: every member of `P` is a valid path
+type Accepts<V, P> = [P] extends [V] ? true : false;
 
 describe('path', () => {
   describe('GetKeys', () => {
@@ -29,88 +28,84 @@ describe('path', () => {
     });
   });
 
-  describe('Path', () => {
+  describe('ValidPath', () => {
     test('object', () => {
-      expectTypeOf({} as Path<{ x: number; y: number }>).toEqualTypeOf<
-        EmptyPath | readonly ['x'] | readonly ['y'] | 'x' | 'y'
-      >();
+      type T = { x: number; y: number };
+      expectTypeOf<
+        Accepts<
+          ValidPath<T, '' | 'x' | 'y' | readonly [] | readonly ['x']>,
+          '' | 'x' | 'y' | readonly [] | readonly ['x']
+        >
+      >().toEqualTypeOf<true>();
+      expectTypeOf<Accepts<ValidPath<T, 'z'>, 'z'>>().toEqualTypeOf<false>();
     });
 
     test('record', () => {
-      expectTypeOf({} as Path<Record<string, number>>).toEqualTypeOf<
-        EmptyPath | readonly [string] | string
-      >();
+      type T = Record<string, number>;
+      expectTypeOf<
+        Accepts<ValidPath<T, 'a' | string | readonly ['a']>, 'a' | string | readonly ['a']>
+      >().toEqualTypeOf<true>();
+      expectTypeOf<Accepts<ValidPath<T, 'a.b'>, 'a.b'>>().toEqualTypeOf<false>();
     });
 
     test('array', () => {
-      expectTypeOf({} as Path<number[]>).toEqualTypeOf<
-        EmptyPath | readonly [number] | `${number}`
-      >();
+      type T = number[];
+      expectTypeOf<
+        Accepts<ValidPath<T, '0' | `${number}` | readonly [1]>, '0' | `${number}` | readonly [1]>
+      >().toEqualTypeOf<true>();
+      expectTypeOf<Accepts<ValidPath<T, 'x'>, 'x'>>().toEqualTypeOf<false>();
+      expectTypeOf<Accepts<ValidPath<T, readonly ['0']>, readonly ['0']>>().toEqualTypeOf<false>();
     });
 
     test('tuple', () => {
-      expectTypeOf({} as Path<[number, string]>).toEqualTypeOf<
-        EmptyPath | readonly [0] | readonly [1] | '0' | '1'
-      >();
+      type T = [number, string];
+      expectTypeOf<
+        Accepts<ValidPath<T, '0' | '1' | readonly [1]>, '0' | '1' | readonly [1]>
+      >().toEqualTypeOf<true>();
+      expectTypeOf<Accepts<ValidPath<T, '2'>, '2'>>().toEqualTypeOf<false>();
     });
 
     test('map', () => {
-      expectTypeOf({} as Path<Map<string, number>>).toEqualTypeOf<
-        EmptyPath | readonly [string] | string
-      >();
+      type T = Map<string, { x: number }>;
+      expectTypeOf<
+        Accepts<ValidPath<T, 'a' | 'a.x' | readonly ['a', 'x']>, 'a' | 'a.x' | readonly ['a', 'x']>
+      >().toEqualTypeOf<true>();
+      expectTypeOf<Accepts<ValidPath<T, 'a.y'>, 'a.y'>>().toEqualTypeOf<false>();
     });
 
     test('set', () => {
-      expectTypeOf({} as Path<Set<number>>).toEqualTypeOf<
-        EmptyPath | readonly [number] | `${number}`
-      >();
+      type T = Set<{ x: number }>;
+      expectTypeOf<
+        Accepts<ValidPath<T, '0' | readonly [0]>, '0' | readonly [0]>
+      >().toEqualTypeOf<true>();
+      expectTypeOf<Accepts<ValidPath<T, '0.x'>, '0.x'>>().toEqualTypeOf<false>();
     });
 
-    test('no simplified path for string containing dots', () => {
-      expectTypeOf({} as Path<{ 'a.b': { c: number }; d: number }>).toEqualTypeOf<
-        EmptyPath | readonly ['a.b'] | readonly ['a.b', 'c'] | readonly ['d'] | 'd'
-      >();
+    test('keys containing dots only work in array paths', () => {
+      type T = { 'a.b': { c: number }; d: number };
+      expectTypeOf<
+        Accepts<ValidPath<T, readonly ['a.b', 'c']>, readonly ['a.b', 'c']>
+      >().toEqualTypeOf<true>();
+      expectTypeOf<Accepts<ValidPath<T, 'a.b.c'>, 'a.b.c'>>().toEqualTypeOf<false>();
     });
 
     test('nested', () => {
-      expectTypeOf(
-        {} as PathAsArray<
-          {
-            a: number;
-            b: {
-              c: [Map<number, { x: number }>, Set<{ x: number }>][];
-            };
-          },
-          false,
-          10
-        >,
-      ).toEqualTypeOf<
-        | readonly []
-        | readonly ['a']
-        | readonly ['b']
-        | readonly ['b', 'c']
-        | readonly ['b', 'c', number]
-        | readonly ['b', 'c', number, 0]
-        | readonly ['b', 'c', number, 0, number]
+      type T = { a: number; b: { c: [Map<number, { x: number }>, Set<{ x: number }>][] } };
+      type Valid =
         | readonly ['b', 'c', number, 0, number, 'x']
-        | readonly ['b', 'c', number, 1]
         | readonly ['b', 'c', number, 1, number]
-      >();
+        | `b.c.${number}.0.${number}.x`
+        | 'b.c.0.1.2';
+      expectTypeOf<Accepts<ValidPath<T, Valid>, Valid>>().toEqualTypeOf<true>();
+      expectTypeOf<Accepts<ValidPath<T, 'b.c.0.1.2.x'>, 'b.c.0.1.2.x'>>().toEqualTypeOf<false>();
     });
 
-    test('path longer than MaxDepth', () => {
-      expectTypeOf(
-        {} as PathAsArray<{ a: { a: { a: 1 } }; b: { b: { b: { b: 1 } } } }, false, 3>,
-      ).toEqualTypeOf<
-        | readonly []
-        | readonly ['a']
-        | readonly ['a', 'a']
-        | readonly ['a', 'a', 'a']
-        | readonly ['b']
-        | readonly ['b', 'b']
-        | readonly ['b', 'b', 'b']
-        | readonly ['b', 'b', 'b', ...string[]]
-      >();
+    test('any depth', () => {
+      type T = { a: { a: { a: { a: { a: { a: { b: 1 } } } } } } };
+      expectTypeOf<Accepts<ValidPath<T, 'a.a.a.a.a.a.b'>, 'a.a.a.a.a.a.b'>>().toEqualTypeOf<true>();
+      expectTypeOf<
+        Accepts<ValidPath<T, 'a.a.a.a.a.a.c'>, 'a.a.a.a.a.a.c'>
+      >().toEqualTypeOf<false>();
     });
   });
 
@@ -189,23 +184,27 @@ describe('path', () => {
     });
   });
 
-  describe('Path with constraint', () => {
-    test('optional path', () => {
-      expectTypeOf(
-        {} as Path<{ a: number; b?: number; c: number | undefined }, true>,
-      ).toEqualTypeOf<readonly ['b'] | 'b'>();
+  describe('ValidOptionalPath', () => {
+    test('only optional keys at the end', () => {
+      type T = { a: number; b?: number; c: number | undefined; d: { e?: 1 } };
+      expectTypeOf<Accepts<ValidOptionalPath<T, 'b' | 'd.e'>, 'b' | 'd.e'>>().toEqualTypeOf<true>();
+      expectTypeOf<Accepts<ValidOptionalPath<T, 'a'>, 'a'>>().toEqualTypeOf<false>();
+      expectTypeOf<Accepts<ValidOptionalPath<T, 'c'>, 'c'>>().toEqualTypeOf<false>();
+      expectTypeOf<Accepts<ValidOptionalPath<T, ''>, ''>>().toEqualTypeOf<false>();
     });
   });
 
   describe('Wildcard Paths', () => {
-    test('WildcardPath', () => {
-      expectTypeOf({} as WildcardPathAsString<{ a: { x: string } }>).toEqualTypeOf<
-        '' | '*' | '*.*' | '*.x' | 'a' | 'a.*' | 'a.x'
-      >();
+    test('ValidWildcardPath', () => {
+      type T = { a: { x: string } };
+      type Valid = '' | '*' | '*.*' | '*.x' | 'a' | 'a.*' | 'a.x';
+      expectTypeOf<Accepts<ValidWildcardPath<T, Valid>, Valid>>().toEqualTypeOf<true>();
+      expectTypeOf<Accepts<ValidWildcardPath<T, 'a.y'>, 'a.y'>>().toEqualTypeOf<false>();
 
-      expectTypeOf({} as WildcardPathAsString<Record<string, { x: string }>>).toEqualTypeOf<
-        '' | '*' | '*.*' | '*.x'
-      >();
+      type R = Record<string, { x: string }>;
+      type ValidR = '' | '*' | '*.*' | '*.x';
+      expectTypeOf<Accepts<ValidWildcardPath<R, ValidR>, ValidR>>().toEqualTypeOf<true>();
+      expectTypeOf<Accepts<ValidWildcardPath<R, 'a.x'>, 'a.x'>>().toEqualTypeOf<false>();
     });
 
     test('WildcardValue', () => {
@@ -248,37 +247,33 @@ describe('path', () => {
     });
   });
 
-  describe('SettablePath', () => {
-    test('SettablePathAsArray', () => {
-      expectTypeOf({} as SettablePathAsArray<{}>).toEqualTypeOf<readonly []>();
-      expectTypeOf({} as SettablePathAsArray<{} | undefined>).toEqualTypeOf<readonly []>();
+  describe('ValidSettablePath', () => {
+    test('keys that can be set on an undefined parent', () => {
+      expectTypeOf<Accepts<ValidSettablePath<{}, ''>, ''>>().toEqualTypeOf<true>();
+      expectTypeOf<
+        Accepts<ValidSettablePath<{ a: 1 } | undefined, 'a'>, 'a'>
+      >().toEqualTypeOf<true>();
+      expectTypeOf<
+        Accepts<ValidSettablePath<{ a: 1; b: 2 } | undefined, 'a'>, 'a'>
+      >().toEqualTypeOf<false>();
+      expectTypeOf<
+        Accepts<ValidSettablePath<{ a: 1; b?: 2 } | undefined, 'a'>, 'a'>
+      >().toEqualTypeOf<true>();
 
-      expectTypeOf({} as SettablePathAsArray<{ a: 1 }>).toEqualTypeOf<
-        readonly [] | readonly ['a']
-      >();
-      expectTypeOf({} as SettablePathAsArray<{ a: 1 } | undefined>).toEqualTypeOf<
-        readonly [] | readonly ['a']
-      >();
+      type T = { a1?: { b1: { c: 1 }; b2?: 1 }; a2?: 1 };
+      type Valid = 'a1' | 'a1.b1' | 'a1.b1.c' | 'a2';
+      expectTypeOf<Accepts<ValidSettablePath<T, Valid>, Valid>>().toEqualTypeOf<true>();
+      expectTypeOf<Accepts<ValidSettablePath<T, 'a1.b2'>, 'a1.b2'>>().toEqualTypeOf<false>();
+    });
 
-      expectTypeOf({} as SettablePathAsArray<{ a: 1; b: 2 }>).toEqualTypeOf<
-        readonly [] | readonly ['a'] | readonly ['b']
-      >();
-      expectTypeOf({} as SettablePathAsArray<{ a: 1; b: 2 } | undefined>).toEqualTypeOf<
-        readonly []
-      >();
-      expectTypeOf({} as SettablePathAsArray<{ a: 1; b?: 2 } | undefined>).toEqualTypeOf<
-        readonly [] | readonly ['a']
-      >();
+    test('recursive optional type', () => {
+      interface Node {
+        value?: number;
+        child?: Node;
+      }
 
-      expectTypeOf(
-        {} as SettablePathAsArray<{ a1?: { b1: { c: 1 }; b2?: 1 }; a2?: 1 }>,
-      ).toEqualTypeOf<
-        | readonly []
-        | readonly ['a1']
-        | readonly ['a1', 'b1']
-        | readonly ['a1', 'b1', 'c']
-        | readonly ['a2']
-      >();
+      type Valid = 'child.child.child.value' | readonly ['child', 'child', 'value'];
+      expectTypeOf<Accepts<ValidSettablePath<Node, Valid>, Valid>>().toEqualTypeOf<true>();
     });
   });
 
@@ -296,68 +291,54 @@ describe('path', () => {
       list: { at: Date; n: number }[];
     }
 
-    type Leaves = 'date' | 'optionalDate' | 'fn' | 'promise' | 'regex' | 'bytes' | 'file';
-    type MoreLeaves = 'controller' | 'branded' | 'list';
-
     test('paths end at leaves', () => {
-      expectTypeOf({} as PathAsString<Draft>).toEqualTypeOf<
-        '' | Leaves | MoreLeaves | `list.${number}` | `list.${number}.at` | `list.${number}.n`
-      >();
+      type Valid =
+        | 'date'
+        | 'fn'
+        | 'promise'
+        | 'regex'
+        | 'bytes'
+        | 'file'
+        | 'controller'
+        | 'branded';
+      expectTypeOf<Accepts<ValidPath<Draft, Valid>, Valid>>().toEqualTypeOf<true>();
+      expectTypeOf<
+        Accepts<ValidPath<Draft, `list.${number}.at`>, `list.${number}.at`>
+      >().toEqualTypeOf<true>();
+      expectTypeOf<
+        Accepts<ValidPath<Draft, 'date.getTime'>, 'date.getTime'>
+      >().toEqualTypeOf<false>();
+      expectTypeOf<Accepts<ValidPath<Draft, 'fn.call'>, 'fn.call'>>().toEqualTypeOf<false>();
+      expectTypeOf<Accepts<ValidPath<Draft, 'file.size'>, 'file.size'>>().toEqualTypeOf<false>();
+      expectTypeOf<
+        Accepts<ValidPath<Draft, 'controller.signal'>, 'controller.signal'>
+      >().toEqualTypeOf<false>();
+      expectTypeOf<
+        Accepts<ValidPath<Draft, 'branded.length'>, 'branded.length'>
+      >().toEqualTypeOf<false>();
+      expectTypeOf<
+        Accepts<ValidPath<Draft, 'list.0.at.getTime'>, 'list.0.at.getTime'>
+      >().toEqualTypeOf<false>();
     });
 
-    test('wildcard paths end at leaves', () => {
-      expectTypeOf({} as WildcardPathAsString<{ d: Date; list: { at: Date }[] }>).toEqualTypeOf<
-        | ''
-        | '*'
-        | 'd'
-        | 'list'
-        | '*.*'
-        | `*.${number}`
-        | '*.*.*'
-        | '*.*.at'
-        | `*.${number}.*`
-        | `*.${number}.at`
-        | 'list.*'
-        | `list.${number}`
-        | 'list.*.*'
-        | 'list.*.at'
-        | `list.${number}.*`
-        | `list.${number}.at`
-      >();
-    });
-
-    test('settable paths end at leaves', () => {
-      expectTypeOf({} as SettablePathAsString<{ d: Date; o?: { d: Date } }>).toEqualTypeOf<
-        '' | 'd' | 'o' | 'o.d'
-      >();
+    test('wildcard and settable paths end at leaves', () => {
+      expectTypeOf<
+        Accepts<ValidWildcardPath<Draft, 'list.*.at'>, 'list.*.at'>
+      >().toEqualTypeOf<true>();
+      expectTypeOf<Accepts<ValidWildcardPath<Draft, 'date.*'>, 'date.*'>>().toEqualTypeOf<false>();
+      expectTypeOf<
+        Accepts<ValidSettablePath<Draft, 'date.getTime'>, 'date.getTime'>
+      >().toEqualTypeOf<false>();
     });
 
     test('leaf as root', () => {
-      expectTypeOf({} as Path<Date>).toEqualTypeOf<EmptyPath>();
-      expectTypeOf({} as Path<() => void>).toEqualTypeOf<EmptyPath>();
+      expectTypeOf<Accepts<ValidPath<Date, ''>, ''>>().toEqualTypeOf<true>();
+      expectTypeOf<Accepts<ValidPath<Date, 'getTime'>, 'getTime'>>().toEqualTypeOf<false>();
     });
 
     test('value of a leaf path', () => {
       expectTypeOf({} as Value<Draft, 'list.0.at'>).toEqualTypeOf<Date | undefined>();
       expectTypeOf({} as Value<Draft, 'optionalDate'>).toEqualTypeOf<Date | undefined>();
     });
-  });
-
-  test('recursive optional type stays within MaxDepth', () => {
-    interface Node {
-      value?: number;
-      child?: Node;
-    }
-
-    expectTypeOf({} as SettablePathAsArray<Node, 3>).toEqualTypeOf<
-      | readonly []
-      | readonly ['value']
-      | readonly ['child']
-      | readonly ['child', 'value']
-      | readonly ['child', 'child']
-      | readonly ['child', 'child', 'value']
-      | readonly ['child', 'child', 'child']
-      | readonly ['child', 'child', 'child', ...string[]]
-    >();
   });
 });

@@ -1,10 +1,11 @@
 import { Store } from '@core';
-import { persist, type Persist, type PersistOptions } from '@persist/persist';
+import { Persist, type PersistOptions } from '@persist/persist';
 
 declare module '..' {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface StoreOptions<T> {
-    persist?: PersistOptions<T>;
+    /** Paths given here are not checked against `T`; `persist()` checks them. */
+    persist?: PersistOptions;
   }
 
   interface Store<T> {
@@ -14,6 +15,6 @@ declare module '..' {
 
 Store.addHook((store) => {
   if (store.options.persist) {
-    store.persistance = persist(store, store.options.persist);
+    store.persistance = new Persist(store, store.options.persist);
   }
 });

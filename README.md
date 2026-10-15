@@ -236,6 +236,7 @@ _React only._ A form keeps a draft of an object, tracks changes against an origi
 ### Create a form
 
 ```tsx
+import { matches } from 'cross-state';
 import { createForm } from 'cross-state/react';
 
 interface User {
@@ -246,10 +247,13 @@ interface User {
 
 export const userForm = createForm<User>({
   defaultValue: { name: '', email: '', tags: [] },
-  validations: {
-    name: { required: (value) => !!value },
-    email: { valid: (value) => value.includes('@') },
-    'tags.*': { notEmpty: (value) => value.length > 0 },
+  validations: function* ({ draft, fieldError }) {
+    if (!draft.name) yield fieldError('name', 'required');
+    if (!draft.email.includes('@')) yield fieldError('email', 'valid');
+
+    for (const [name, tag] of matches(draft, 'tags.*')) {
+      if (tag.length === 0) yield fieldError(name, 'notEmpty');
+    }
   },
 });
 ```
@@ -260,7 +264,7 @@ Options (all can be overridden per `<Form>` element):
 
 - `defaultValue` - the draft when there is no `original`.
 - `original?` - the value the draft is compared to and, when untouched, reads through to. Typically the server state.
-- `validations?` - `{ [path]: { [name]: (value, { draft, original, field }) => boolean } }`. Paths may contain `*` wildcards. A failing validation adds `name` to the field's errors. Alternatively a function `({ draft, original }) => Iterable<{ name, error }>`.
+- `validations?` - `({ draft, original, fieldError }) => Iterable<{ name, error }>`, usually a generator that yields one entry per error. `name` is the field the error belongs to. `fieldError(name, error)` builds the entry and checks `name` against the draft's paths. `matches(draft, path)` from `cross-state` lists every concrete path a `*` pattern matches, with its value; those names can be passed to `fieldError` as is. Validations passed to `<Form>` replace the ones from `createForm`; call `form.options.validations?.(context)` with `yield*` to keep both.
 - `localizeError?(error, field)` - map an error name to a message.
 - `transform?(draft, { previousValue, ...form })` - runs after every change to derive or normalise values. Returns the new draft, or nothing to keep it (e.g. after updating fields through the context); do not mutate it.
 - `onOriginalChange?` - what happens to a touched draft when `original` changes: `'default'` keeps the draft, `'overwrite'` replaces it, `'merge'` takes over fields the user did not change, or a custom `(oldOriginal, newOriginal, draft, form) => draft` handler. An untouched draft always follows the original.

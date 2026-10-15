@@ -12,7 +12,6 @@ import type {
 } from './commonTypes';
 import { autobind } from '@lib/autobind';
 import { calculatedValue, staticValue, type CalculatedValue } from '@lib/calculatedValue';
-import type { Constrain } from '@lib/constrain';
 import { debounce } from '@lib/debounce';
 import disposable from '@lib/disposable';
 import { calcDuration } from '@lib/duration';
@@ -20,7 +19,7 @@ import { deepEqual } from '@lib/equals';
 import { forwardError } from '@lib/forwardError';
 import { isObject } from '@lib/helpers';
 import { makeSelector } from '@lib/makeSelector';
-import type { AnyPath, Path, SettablePath, Value } from '@lib/path';
+import type { AnyPath, ValidPath, ValidSettablePath, Value } from '@lib/path';
 import { PromiseWithCancel } from '@lib/promiseWithCancel';
 import { get, set } from '@lib/propAccess';
 import { arrayMethods, mapMethods, recordMethods, setMethods } from '@lib/standardMethods';
@@ -134,7 +133,7 @@ export class Store<T> {
 
   set(update: Update<T>): void;
 
-  set<const P>(path: Constrain<P, Path<T>>, update: Update<Value<T, P>>): void;
+  set<const P>(path: ValidPath<T, P>, update: Update<Value<T, P>>): void;
 
   set(...args: any[]): void {
     const path: any = args.length > 1 ? args[0] : [];
@@ -316,9 +315,9 @@ export class Store<T> {
 
   map<S>(selector: Selector<T, S>, updater?: (value: S) => Update<T>): Store<S>;
 
-  map<const P>(selector: Constrain<P, SettablePath<T>>): Store<Value<T, P>>;
+  map<const P>(selector: ValidSettablePath<T, P>): Store<Value<T, P>>;
 
-  map(_selector: Selector<T, any> | SettablePath<any>, ...args: any[]): Store<any> {
+  map(_selector: Selector<T, any> | AnyPath, ...args: any[]): Store<any> {
     const updater: ((value: any) => Update<T>) | undefined =
       _selector instanceof Function
         ? args[0]

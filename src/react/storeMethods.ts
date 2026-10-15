@@ -1,6 +1,5 @@
 import type { Selector, Store, Update } from '@core';
-import type { Constrain } from '@lib/constrain';
-import type { Path, Value } from '@lib/path';
+import type { ValidPath, Value } from '@lib/path';
 import { useProp } from '@react/useProp';
 import { type UseStoreOptions, useStore } from '@react/useStore';
 
@@ -11,7 +10,7 @@ function boundUseStore<T, S>(
 ): S;
 function boundUseStore<T, const P>(
   this: Store<T>,
-  selector: Constrain<P, Path<T>>,
+  selector: ValidPath<T, P>,
   option?: UseStoreOptions<Value<T, P>>,
 ): Value<T, P>;
 function boundUseStore<T>(this: Store<T>, option?: UseStoreOptions<T>): T;
@@ -27,7 +26,7 @@ function boundUseProp<T, S>(
 ): [value: S, setValue: Store<S>['set']];
 function boundUseProp<T, const P>(
   this: Store<T>,
-  selector: Constrain<P, Path<T>>,
+  selector: ValidPath<T, P>,
   options?: UseStoreOptions<Value<T, P>>,
 ): [value: Value<T, P>, setValue: Store<Value<T, P>>['set']];
 function boundUseProp<T>(

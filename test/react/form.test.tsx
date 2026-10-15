@@ -1,3 +1,4 @@
+import { matches } from '../../src';
 import { createForm, type FormContext } from '../../src/react';
 import {
   MantineProvider,
@@ -32,22 +33,16 @@ describe('form', () => {
         type: 'a',
         record: {},
       },
-      validations: {
-        firstName: {
-          required: (value) => !!value,
-        },
-        arr1: {
-          length: (value) => value.length > 0,
-        },
-        'arr1.*': {
-          required: (value) => !!value,
-        },
-        'arr2.*': {
-          required: (value) => !!value,
-        },
-        custom: {
-          stuff: (_value, { draft }) => (draft.age ?? 0) >= 16,
-        },
+      validations: function* ({ draft, fieldError }) {
+        if (!draft.firstName) yield fieldError('firstName', 'required');
+        if (draft.arr1.length === 0) yield fieldError('arr1', 'length');
+        for (const [name, value] of matches(draft, 'arr1.*')) {
+          if (!value) yield fieldError(name, 'required');
+        }
+        for (const [name, value] of matches(draft, 'arr2.*')) {
+          if (!value) yield fieldError(name, 'required');
+        }
+        if ((draft.age ?? 0) < 16) yield { name: 'custom', error: 'stuff' };
       },
     });
     const { Form } = form;
@@ -65,18 +60,16 @@ describe('form', () => {
     function Component() {
       return (
         <Form
-          validations={{
-            lastName: {
-              required: (value) => !!value,
-              different: (value, { draft }) => value !== draft.firstName,
-            },
+          validations={function* (context) {
+            yield* form.options.validations?.(context) ?? [];
+            const { draft, fieldError } = context;
+            if (!draft.lastName) yield fieldError('lastName', 'required');
+            if (draft.lastName === draft.firstName) yield fieldError('lastName', 'different');
           }}
         >
           <form.Field
-            component="input"
             name="firstName"
-            aria-label="first name"
-            inputFilter={() => true}
+            render={(props) => <input {...props} aria-label="first name" />}
           />
           <div data-testid="firstName-errors">
             <form.FormState
@@ -103,23 +96,42 @@ describe('form', () => {
             </form.FormState>
           </div>
 
-          <form.Field name="age" defaultValue={0} component={CustomInput} additionalProp="" />
+          <form.Field
+            name="age"
+            render={(props) => (
+              <CustomInput
+                name={props.name}
+                value={props.value}
+                onChange={props.onChange}
+                additionalProp=""
+              />
+            )}
+          />
 
-          <form.Field name="firstName" component={MUITextField} size="small" variant="standard" />
-          <form.Field name="firstName" component={MantineTextInput} />
-          <form.Field name="firstName" component="input" />
-          <form.Field name="firstName" component="textarea" />
+          <form.Field
+            name="firstName"
+            render={(props) => <MUITextField {...props} size="small" variant="standard" />}
+          />
+          <form.Field name="firstName" render={(props) => <MantineTextInput {...props} />} />
+          <form.Field name="firstName" render={(props) => <input {...props} />} />
+          <form.Field name="firstName" render={(props) => <textarea {...props} />} />
 
           <form.Field
             name="type"
-            component={SegmentedControl}
-            data={['a', 'b']}
-            deserialize={(x) => x as 'a' | 'b'}
+            render={(props) => (
+              <SegmentedControl
+                {...props}
+                data={['a', 'b']}
+                onChange={(value) => props.onChange(value as 'a' | 'b')}
+              />
+            )}
           />
 
           <form.ForEach
             name="arr1"
-            renderElement={({ name }) => <form.Field name={name} component={MUITextField} />}
+            renderElement={({ name }) => (
+              <form.Field name={name} render={(props) => <MUITextField {...props} />} />
+            )}
           >
             {({ names }) => names.join(',')}
           </form.ForEach>
@@ -152,17 +164,13 @@ describe('form', () => {
           </form.FormState>
 
           <form.Field
-            component="input"
             name=""
-            serialize={(x) => x.firstName}
-            deserialize={(string, form) => ({ ...form.draft, firstName: string })}
-          />
-
-          <form.Field
-            component="input"
-            name=""
-            serialize={(x) => x.firstName}
-            deserialize={(string, form) => ({ ...form.draft, firstName: string })}
+            render={({ value, onChange }) => (
+              <input
+                value={value.firstName}
+                onChange={(event) => onChange({ ...value, firstName: event.target.value })}
+              />
+            )}
           />
         </Form>
       );
@@ -170,16 +178,7 @@ describe('form', () => {
 
     <form.Field name="birthday" render={(props) => <DatePicker {...props} />} />;
 
-    // @ts-expect-error incompatible types => needs serializer/deserilizer
-    <form.Field name="firstName" component={DatePicker} />;
-
-    // @ts-expect-error needs additional props
-    <form.Field name="age" component={CustomInput} />;
-
-    <form.Field component="input" defaultValue="" name="optional" />;
-    <form.Field component="input" serialize={(x) => x ?? ''} name="optional" />;
-    <form.Field component="input" defaultValue="" serialize={(x) => x ?? ''} name="optional" />;
-    // @ts-expect-error needs default value
+    // @ts-expect-error needs render or children
     <form.Field name="optional" />;
 
     render(
@@ -227,10 +226,8 @@ describe('form', () => {
   test('form instance methods are callable in onSubmit', async () => {
     const form = createForm<{ firstName: string }>({
       defaultValue: { firstName: '' },
-      validations: {
-        firstName: {
-          required: (value) => !!value,
-        },
+      validations: function* ({ draft, fieldError }) {
+        if (!draft.firstName) yield fieldError('firstName', 'required');
       },
       reportValidity: false,
     });
@@ -410,7 +407,9 @@ describe('form refactor regressions', () => {
   test('conditionally mounted inputs get custom validity applied', () => {
     const form = createForm<{ email: string }>({
       defaultValue: { email: '' },
-      validations: { email: { required: (value) => !!value } },
+      validations: function* ({ draft, fieldError }) {
+        if (!draft.email) yield fieldError('email', 'required');
+      },
       reportValidity: false,
     });
     const original = { email: '' };
@@ -493,7 +492,12 @@ describe('form context stability', () => {
     const original = { name: 'ab' };
 
     const tree = (min: number) => (
-      <form.Form original={original} validations={{ name: { min: (v) => v.length >= min } }}>
+      <form.Form
+        original={original}
+        validations={function* ({ draft, fieldError }) {
+          if (draft.name.length < min) yield fieldError('name', 'min');
+        }}
+      >
         <form.FormState selector={(s) => s.errors.get('name')?.join(',') ?? ''}>
           {(errors) => <div data-testid="errors">{errors}</div>}
         </form.FormState>

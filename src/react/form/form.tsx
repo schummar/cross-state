@@ -2,7 +2,6 @@ import { useStore, type UseStoreOptions } from '../useStore';
 import {
   FormField,
   useFormFieldProps,
-  type FormFieldComponent,
   type FormFieldComponentProps,
   type FormFieldInfos,
   type FormFieldProps,
@@ -23,17 +22,11 @@ import { type Store, type Update } from '@core';
 import { autobind } from '@lib/autobind';
 import { deepEqual } from '@lib/equals';
 import { isObject } from '@lib/helpers';
-import {
-  type PathAsString,
-  type Value,
-  type WildcardPathAsString,
-  type WildcardValue,
-} from '@lib/path';
+import { type ValidPath, type Value } from '@lib/path';
 import { get, join, remove, set } from '@lib/propAccess';
 import type { Object_ } from '@lib/typeHelpers';
-import { getWildCardMatches } from '@lib/wildcardMatch';
+import type { MatchedPath } from '@lib/wildcardMatch';
 import { GeneralFormContext } from '@react/form/closestFormContext';
-import { LegacyFormField, type FormFieldPropsWithComponent } from '@react/form/legacyFormField';
 import useMemoEquals from '@react/lib/useMemoEquals';
 import {
   createContext,
@@ -87,26 +80,23 @@ export interface FormOptions<TDraft, TOriginal> {
   onOriginalChange?: OnOriginalChange<TDraft, TOriginal>;
 }
 
-export type Validations<TDraft, TOriginal> =
-  | ((context: { draft: TDraft; original: TOriginal | undefined }) => Iterable<{
-      name: string;
-      error: string;
-    }>)
-  | ({
-      [TPath in WildcardPathAsString<TDraft>]?: Record<
-        string,
-        Validation<TDraft, TOriginal, TPath>
-      >;
-    } & Record<string, Record<string, Validation<TDraft, TOriginal, any>>>);
+export interface FieldError {
+  name: string;
+  error: string;
+}
 
-export type Validation<TDraft, TOriginal, TPath> = (
-  value: WildcardValue<TDraft, TPath>,
-  context: {
-    draft: TDraft;
-    original: TOriginal;
-    field: PathAsString<TDraft> | '';
-  },
-) => boolean;
+export interface ValidationContext<TDraft, TOriginal> {
+  draft: TDraft;
+  original: TOriginal | undefined;
+  /** Checks `name` against the draft's paths; a name from `matches` is taken as is. */
+  fieldError(name: MatchedPath, error: string): FieldError;
+  fieldError<const P extends string>(name: ValidPath<TDraft, P>, error: string): FieldError;
+}
+
+/** Yields an error for every invalid field, e.g. as a generator function. */
+export type Validations<TDraft, TOriginal> = (
+  context: ValidationContext<TDraft, TOriginal>,
+) => Iterable<FieldError>;
 
 export type Field<TDraft, TOriginal, TPath extends string> = {
   originalValue: Value<TOriginal, TPath> | undefined;
@@ -155,7 +145,7 @@ export interface FormContext<TDraft, TOriginal> {
   /** Set inside a `WorkingCopy`: the context the copy was branched from. */
   parent?: FormContext<TDraft, TOriginal>;
   getField: <TPath extends string>(
-    name: TPath extends PathAsString<TDraft> ? TPath : PathAsString<TDraft>,
+    name: ValidPath<TDraft, TPath>,
     options?: FieldOptions,
   ) => Field<TDraft, TOriginal, TPath>;
   getDraft: () => TDraft;
@@ -242,7 +232,7 @@ const FormContainer = forwardRef(function FormContainer(
 
 export function getField<TDraft, TOriginal extends TDraft, TPath extends string>(
   form: FormContext<TDraft, TOriginal>,
-  name: TPath extends PathAsString<TDraft> ? TPath : PathAsString<TDraft>,
+  name: ValidPath<TDraft, TPath>,
   { includeNestedErrors }: FieldOptions = {},
 ): Field<TDraft, TOriginal, TPath> {
   const field = {
@@ -343,40 +333,12 @@ export function getErrors<TDraft, TOriginal>(
   { original, validations, localizeError }: FormOptions<TDraft, TOriginal>,
 ): Map<string, string[]> {
   const errors = new Map<string, string[]>();
+  const fieldError = (name: string, error: string): FieldError => ({ name, error });
 
-  if (typeof validations === 'function') {
-    const issues = validations({ draft, original });
-
-    for (const { name, error } of issues) {
-      const fieldErrors = errors.get(name) ?? [];
-      fieldErrors.push(error);
-      errors.set(name, fieldErrors);
-    }
-  } else {
-    for (const [path, block] of Object.entries(validations ?? {})) {
-      for (const [validationName, validate] of Object.entries(
-        block as Record<string, Validation<any, any, any>>,
-      )) {
-        let matched = false;
-
-        for (const [field, value] of Object.entries(getWildCardMatches(draft, path))) {
-          matched = true;
-          if (!validate(value, { draft, original, field })) {
-            const fieldErrors = errors.get(field) ?? [];
-            fieldErrors.push(validationName);
-            errors.set(field, fieldErrors);
-          }
-        }
-
-        if (!matched && !path.includes('*')) {
-          if (!validate(undefined, { draft, original, field: path })) {
-            const fieldErrors = errors.get(path) ?? [];
-            fieldErrors.push(validationName);
-            errors.set(path, fieldErrors);
-          }
-        }
-      }
-    }
+  for (const { name, error } of validations?.({ draft, original, fieldError }) ?? []) {
+    const fieldErrors = errors.get(name) ?? [];
+    fieldErrors.push(error);
+    errors.set(name, fieldErrors);
   }
 
   if (localizeError) {
@@ -441,7 +403,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
   }
 
   useField<TPath extends string>(
-    name: TPath extends PathAsString<TDraft> ? TPath : PathAsString<TDraft>,
+    name: ValidPath<TDraft, TPath>,
     { includeNestedErrors, ...useStoreOptions }: FieldOptions & UseStoreOptions<unknown> = {},
   ): Field<TDraft, TOriginal, TPath> {
     const form = this.useForm();
@@ -461,7 +423,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
   }
 
   useFieldProps<TPath extends string>(
-    name: TPath extends PathAsString<TDraft> ? TPath : PathAsString<TDraft>,
+    name: ValidPath<TDraft, TPath>,
     options?: Omit<FormFieldProps<TPath, TDraft>, 'name'>,
   ): FormFieldComponentProps<Value<TDraft, TPath>, TPath> {
     return useFormFieldProps.call<
@@ -493,18 +455,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     Omit<HTMLProps<HTMLFormElement>, 'defaultValue' | 'autoSave' | 'onSubmit'>): React.JSX.Element {
     const options: FormOptions<TDraft, TOriginal> = {
       defaultValue: useMemoEquals({ ...this.options.defaultValue, ...defaultValue }),
-      validations: useMemoEquals(
-        typeof validations === 'function'
-          ? validations
-          : validations
-            ? ({
-                ...(typeof this.options.validations === 'function'
-                  ? undefined
-                  : this.options.validations),
-                ...validations,
-              } as Validations<TDraft, TOriginal>)
-            : this.options.validations,
-      ),
+      validations: validations ?? this.options.validations,
       localizeError: localizeError ?? this.options.localizeError,
       autoSave: useMemoEquals(
         this.options.autoSave || autoSave
@@ -560,16 +511,7 @@ export class Form<TDraft, TOriginal extends TDraft = TDraft> {
     props: FormFieldPropsWithChildren<TDraft, TOriginal, TPath>,
   ): React.JSX.Element;
 
-  /** @deprecated */
-  Field<const TPath extends string, const TComponent extends FormFieldComponent = 'input'>(
-    props: FormFieldPropsWithComponent<TDraft, TOriginal, TPath, TComponent>,
-  ): React.JSX.Element;
-
   Field(props: any): React.JSX.Element {
-    if (props.component) {
-      return Reflect.apply(LegacyFormField, this, [props]);
-    }
-
     return Reflect.apply(FormField, this, [props]);
   }
 
