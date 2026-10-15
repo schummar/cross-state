@@ -213,13 +213,15 @@ type _SettablePathAsArray<T, MaxDepth, Depth extends 1[]> =
         ? T extends Map<any, any> | Set<any> | Leaf
           ? never
           : T extends Object_
-            ? {
-                [K in GetKeys<T>]: Partial<T> extends Omit<T, K>
-                  ?
-                      | readonly [K]
-                      | readonly [K, ..._SettablePathAsArray<T[K], MaxDepth, [...Depth, 1]>]
-                  : readonly [];
-              }[GetKeys<T>]
+            ? Depth['length'] extends MaxDepth
+              ? readonly string[]
+              : {
+                  [K in GetKeys<T>]: Partial<T> extends Omit<T, K>
+                    ?
+                        | readonly [K]
+                        | readonly [K, ..._SettablePathAsArray<T[K], MaxDepth, [...Depth, 1]>]
+                    : readonly [];
+                }[GetKeys<T>]
             : never
         : T extends Leaf
           ? never

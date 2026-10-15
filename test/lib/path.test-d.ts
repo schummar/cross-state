@@ -342,4 +342,22 @@ describe('path', () => {
       expectTypeOf({} as Value<Draft, 'optionalDate'>).toEqualTypeOf<Date | undefined>();
     });
   });
+
+  test('recursive optional type stays within MaxDepth', () => {
+    interface Node {
+      value?: number;
+      child?: Node;
+    }
+
+    expectTypeOf({} as SettablePathAsArray<Node, 3>).toEqualTypeOf<
+      | readonly []
+      | readonly ['value']
+      | readonly ['child']
+      | readonly ['child', 'value']
+      | readonly ['child', 'child']
+      | readonly ['child', 'child', 'value']
+      | readonly ['child', 'child', 'child']
+      | readonly ['child', 'child', 'child', ...string[]]
+    >();
+  });
 });
