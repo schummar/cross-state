@@ -29,7 +29,8 @@
     "url": "git+https://github.com/schummar/cross-state.git"
   },
   "files": [
-    "dist"
+    "dist",
+    "skills"
   ],
   "type": "module",
   "sideEffects": [
