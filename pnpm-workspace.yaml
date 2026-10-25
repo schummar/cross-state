@@ -9,7 +9,7 @@ catalog:
   vitest: 5.0.1
   vite-plus: 1.0.0
   '@vitest/coverage-v8': 5.0.1
-  '@vitest/ui': 5.0.1
+  '@vitest/ui': 5.0.5
 minimumReleaseAgeExclude:
   - '@oxfmt/binding-android-arm-eabi@0.70.0'
   - '@oxfmt/binding-android-arm64@0.70.0'
