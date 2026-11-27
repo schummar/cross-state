@@ -268,7 +268,7 @@ Options (all can be overridden per `<Form>` element):
 - `localizeError?(error, field)` - map an error name to a message.
 - `transform?(draft, { previousValue, ...form })` - runs after every change to derive or normalise values. Returns the new draft, or nothing to keep it (e.g. after updating fields through the context); do not mutate it.
 - `onOriginalChange?` - what happens to a touched draft when `original` changes: `'default'` keeps the draft, `'overwrite'` replaces it, `'merge'` takes over fields the user did not change, or a custom `(oldOriginal, newOriginal, draft, form) => draft` handler. An untouched draft always follows the original.
-- `autoSave?` - `{ save(draft, prev, form), debounce?, validateBeforeSave?, resetAfterSave?, equals? }`. Saves the draft after it stopped changing for `debounce` (default 2 s).
+- `autoSave?` - `{ save(draft, prev, form, { signal }), debounce?, validateBeforeSave?, resetAfterSave?, equals?, flushOnHidden? }`. Saves the draft after it stopped changing for `debounce` (default 2 s). When the page gets hidden (reload, closing the tab, switching apps), it saves right away, including field values not yet committed (`commitOnBlur`), and aborts a save still in flight through `signal`; turn this off with `flushOnHidden: false`. For the request to outlive a closing page, send it with `fetch(..., { keepalive: true })`.
 - `reportValidity?` - how `validate()` reports errors: `'browser'` (default, native bubbles), `'scrollTo'` (scroll to the first invalid input), `false`.
 - `validatedClass?` - class added to the `<form>` once validations were triggered (default `'validated'`). The form element also carries `data-validated` and `data-valid`.
 - `transformFieldProps?(props, info, form)` - adjust the props every field receives, e.g. to wire a UI library's error prop.
@@ -337,7 +337,7 @@ form.hasChanges();
 form.getErrors(); // Map<path, string[]>
 form.validate(); // marks validations as triggered, reports and returns isValid
 form.reset(); // back to the original
-form.flushAutosave(); // save now, resolves when done
+form.flushAutosave(); // save now, including uncommitted field values; resolves when done
 form.original; // the real original, e.g. with server-only properties
 form.formState; // the underlying store
 ```

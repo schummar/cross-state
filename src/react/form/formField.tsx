@@ -1,4 +1,5 @@
 import { Form, type Field, type FieldOptions, type FormContext } from './form';
+import { registerPendingCommit } from './useFormAutosave';
 import type { Duration } from '@core';
 import { calcDuration } from '@lib/duration';
 import { type ValidPath, type Value } from '@lib/path';
@@ -111,6 +112,14 @@ export function useFormFieldProps<TDraft, TPath extends string>(
       setLocalValue(undefined);
     }
   });
+
+  useEffect(() => {
+    if (!localValue) {
+      return;
+    }
+
+    return registerPendingCommit(form.formState, commitLocalValue);
+  }, [localValue, form.formState, commitLocalValue]);
 
   useEffect(() => {
     if (!localValue || commitDebounceMs === undefined || commitDebounceMs <= 0) {

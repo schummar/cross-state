@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/tes
 
 type Draft = { name: string };
 
-function setup(autoSave: FormAutosaveOptions<Draft, Draft>) {
+function setup(autoSave: FormAutosaveOptions<Draft, Draft>, { commitOnBlur = false } = {}) {
   const form = createForm<Draft>({
     defaultValue: { name: '' },
     validations: function* ({ draft, fieldError }) {
@@ -24,7 +24,11 @@ function setup(autoSave: FormAutosaveOptions<Draft, Draft>) {
   const result = render(
     <form.Form original={{ name: 'a' }}>
       <Capture />
-      <form.Field name="name" render={(props) => <input {...props} aria-label="name" />} />
+      <form.Field
+        name="name"
+        commitOnBlur={commitOnBlur}
+        render={(props) => <input {...props} aria-label="name" />}
+      />
       <form.FormState selector={(s) => String(s.saveInProgress)}>
         {(text) => <div data-testid="saving">{text}</div>}
       </form.FormState>
@@ -46,12 +50,20 @@ async function advance(ms: number) {
   });
 }
 
+function hidePage() {
+  act(() => {
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+}
+
 beforeEach(() => {
   vi.useFakeTimers();
 });
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe('form autosave', () => {
@@ -111,7 +123,9 @@ describe('form autosave', () => {
 
     change('');
     await advance(1_000);
-    expect(save).toHaveBeenCalledWith({ name: '' }, { name: 'a' }, expect.anything());
+    expect(save).toHaveBeenCalledWith({ name: '' }, { name: 'a' }, expect.anything(), {
+      signal: expect.any(AbortSignal),
+    });
   });
 
   test('enabled: false never saves', async () => {
@@ -145,7 +159,9 @@ describe('form autosave', () => {
     change('b');
     unmount();
     await advance(0);
-    expect(save).toHaveBeenCalledWith({ name: 'b' }, { name: 'a' }, expect.anything());
+    expect(save).toHaveBeenCalledWith({ name: 'b' }, { name: 'a' }, expect.anything(), {
+      signal: expect.any(AbortSignal),
+    });
   });
 
   test('sets saveInProgress while an async save runs', async () => {
@@ -204,5 +220,79 @@ describe('form autosave', () => {
     change('b');
     await advance(1_000);
     expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  describe('flushOnHidden', () => {
+    test('saves right away when the page gets hidden', async () => {
+      const save = vi.fn();
+      setup({ save });
+
+      change('b');
+      hidePage();
+      await advance(0);
+      expect(save).toHaveBeenCalledWith({ name: 'b' }, { name: 'a' }, expect.anything(), {
+        signal: expect.any(AbortSignal),
+      });
+
+      await advance(1_000);
+      expect(save).toHaveBeenCalledTimes(1);
+    });
+
+    test('commits values of commitOnBlur fields before saving', async () => {
+      const save = vi.fn();
+      setup({ save }, { commitOnBlur: true });
+
+      change('b');
+      hidePage();
+      await advance(0);
+      expect(save).toHaveBeenCalledWith({ name: 'b' }, { name: 'a' }, expect.anything(), {
+        signal: expect.any(AbortSignal),
+      });
+    });
+
+    test('aborts a save in flight and saves the latest draft without waiting for it', async () => {
+      const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const signals: AbortSignal[] = [];
+      const save = vi.fn(
+        (_draft: Draft, _prev: Draft, _form: unknown, { signal }: { signal: AbortSignal }) => {
+          signals.push(signal);
+          return new Promise<void>(() => undefined);
+        },
+      );
+      setup({ save });
+
+      change('b');
+      await advance(1_000);
+      change('bc');
+      hidePage();
+      await advance(0);
+
+      expect(save).toHaveBeenCalledTimes(2);
+      expect(save.mock.calls[1]![0]).toEqual({ name: 'bc' });
+      expect(save.mock.calls[1]![1]).toEqual({ name: 'a' });
+      expect(signals[0]!.aborted).toBe(true);
+      expect(signals[1]!.aborted).toBe(false);
+      expect(error).not.toHaveBeenCalled();
+    });
+
+    test('does nothing when disabled', async () => {
+      const save = vi.fn();
+      setup({ save, flushOnHidden: false });
+
+      change('b');
+      hidePage();
+      await advance(0);
+      expect(save).not.toHaveBeenCalled();
+    });
+  });
+
+  test('flushAutosave commits values of commitOnBlur fields', async () => {
+    const save = vi.fn();
+    const { ctx } = setup({ save }, { commitOnBlur: true });
+
+    change('b');
+    await act(() => ctx().flushAutosave());
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(save.mock.calls[0]![0]).toEqual({ name: 'b' });
   });
 });
