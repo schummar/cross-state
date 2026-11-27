@@ -1,6 +1,6 @@
 ---
 name: migrate-to-path-validators
-description: Migrate a codebase that uses cross-state to the release where paths are validated per call (ValidPath and friends), form validations are functions only, the legacy `<form.Field component=…>` is gone and the Path/PathAsString/SettablePath/WildcardPath types are removed. Use when upgrading cross-state and the type check reports errors on paths, on form `validations`, on `component=` fields or on missing path types.
+description: Migrate a codebase that uses cross-state 1.x to 2.x, where paths are validated per call (ValidPath and friends), form validations are functions only, the legacy `<form.Field component=…>` is gone, the Path/PathAsString/SettablePath/WildcardPath types are removed, form `transform`/`onApply` no longer get a mutable draft and derived form state no longer carries the form context's methods. Use when upgrading cross-state and the type check reports errors on paths, on form `validations`, on `component=` fields, on missing path types or on `getField`/`original` in form state selectors - and also when it is clean, since mutating transforms still type-check.
 ---
 
 # Migrate to cross-state's path validators
@@ -134,7 +134,59 @@ replacement. Turn them into functions like the form validations above, or key th
 - Paths given in the `persist` option of `createStore` are no longer checked against the store's
   type. Call `persist(store, …)` if you want them checked.
 
-## 5. Stricter checks
+## 5. Forms: `transform`, derived state and working copies
+
+### `transform` and `onApply` no longer get a mutable draft
+
+They used to run inside a mutative `create`, so mutating the argument in place was the intended
+style. Now they receive the plain value: return the new draft, or nothing to keep it, and do not
+mutate it. **This does not show up in the type check.** A transform that still mutates writes
+into the live draft (or the original it reads through to) without notifying anyone, so derived
+values go stale, `prev` and `draft` become the same object and autosave stops seeing changes or
+saves in a loop. Review every `transform` and `onApply`:
+
+```ts
+// before
+transform(draft) {
+  normalize(draft.receipt);
+},
+
+// after: return a new value...
+transform: (draft) => ({ ...draft, receipt: normalized(draft.receipt) }),
+
+// ...or keep mutating helpers and wrap them yourself
+import { create } from 'mutative';
+
+transform: (draft) => create(draft, (d) => normalize(d.receipt)),
+```
+
+`onApply` (working copies) is the same: return `({ ...parentDraft, address: workingDraft.address })`
+instead of assigning to `parentDraft`.
+
+### Derived state: the form context moved to `.form`
+
+The state passed to `useFormState`, `<FormState selector>` and `onSubmit` used to be the form
+context merged with the derived values. It now holds only the derived values (`draft`,
+`hasChanges`, `errors`, `isValid`, `hasTriggeredValidations`, `saveInProgress`, `parent`) plus the
+context as `form`. Anything else goes through `form`:
+
+```ts
+// before
+form.useFormState((state) => state.getField('items').errors);
+form.useFormState((state) => state.original?.name);
+
+// after
+form.useFormState((state) => state.form.getField('items').errors);
+form.useFormState(({ form }) => form.original?.name);
+```
+
+### Working copies
+
+The `<WorkingCopy>` render function, `useWorkingCopy()` and its `ref` now receive the copy itself:
+its form context plus `apply` and `discard`. `({ form, apply, discard }) => …` becomes
+`(copy) => …` with `copy.validate()`, `copy.apply()`; `FormContext.workingCopy` is gone.
+
+## 6. Stricter checks
 
 - Paths deeper than the old limit of 5 segments are now checked all the way. Errors there are real
   typos.
@@ -149,6 +201,10 @@ replacement. Turn them into functions like the form validations above, or key th
 rg -U --glob '*.{ts,tsx}' -n 'validations(:\s*\{|=\{\{)' src
 # `component=` usually sits on its own line, and forms are often destructured (`<Field …>`)
 rg -U --glob '*.tsx' -n '<[\w.]*Field\b[^>]*?\bcomponent=' src
+# transforms and onApply handlers - check each one for mutation
+rg --glob '*.{ts,tsx}' -n '\btransform(\s*\(|:\s*(\(|\w+\s*=>|function))|onApply' src
+# form context methods read from derived state
+rg --glob '*.{ts,tsx}' -n 'useFormState|FormState\s+selector' src
 # removed or changed types, wherever they are imported
 rg -U --glob '*.{ts,tsx}' -n "import[^;]*\b(Path|PathAsString|PathAsArray|SettablePath\w*|WildcardPath\w*|Validation|FormFieldComponent|PersistOptions)\b[^;]*from 'cross-state[^']*'" .
 ```
